@@ -3,7 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./testcases.db")
+# Vercel's filesystem is read-only except for /tmp
+_default_db = "sqlite:////tmp/testcases.db" if os.getenv("VERCEL") else "sqlite:///./testcases.db"
+DATABASE_URL = os.getenv("DATABASE_URL", _default_db)
 
 engine = create_engine(
     DATABASE_URL,
