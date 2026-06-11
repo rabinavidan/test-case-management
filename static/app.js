@@ -350,16 +350,40 @@ async function loadSidebar() {
       ul.innerHTML = `<li class="px-4 py-3 text-sm text-slate-400 italic">No projects yet</li>`;
       return;
     }
-    ul.innerHTML = state.projects.map(p => {
+
+    // Build project list; for active project also load its suites
+    const items = await Promise.all(state.projects.map(async p => {
       const active = state.currentProject && state.currentProject.id === p.id;
+      let suitesHtml = "";
+      if (active) {
+        try {
+          const suites = await GET(`/api/projects/${p.id}/suites`);
+          if (suites.length) {
+            suitesHtml = `<ul class="border-l border-slate-200 ml-5 mt-0.5">
+              ${suites.map(s => {
+                const suiteActive = state.currentSuite && state.currentSuite.id === s.id;
+                return `<li>
+                  <button onclick="navigate('suite/${s.id}')"
+                    class="w-full text-left pl-3 pr-4 py-1.5 text-xs transition-colors truncate
+                      ${suiteActive ? "text-blue-700 font-semibold" : "text-slate-500 hover:text-blue-700"}">
+                    ${escHtml(s.name)}
+                  </button>
+                </li>`;
+              }).join("")}
+            </ul>`;
+          }
+        } catch {}
+      }
       return `<li>
         <button onclick="navigate('project/${p.id}')"
           class="w-full text-left px-4 py-2.5 text-sm transition-colors truncate
             ${active ? "bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-blue-700"}">
           ${escHtml(p.name)}
         </button>
+        ${suitesHtml}
       </li>`;
-    }).join("");
+    }));
+    ul.innerHTML = items.join("");
   } catch {
     ul.innerHTML = `<li class="px-4 py-3 text-sm text-red-400">Failed to load</li>`;
   }
@@ -599,6 +623,41 @@ function suiteCard(s, projectId) {
     </div>`;
 }
 
+function runCard(r, suiteName) {
+  const total   = r.results ? r.results.length : 0;
+  const pass    = r.results ? r.results.filter(x => x.status === "pass").length : 0;
+  const fail    = r.results ? r.results.filter(x => x.status === "fail").length : 0;
+  const pending = r.results ? r.results.filter(x => x.status === "pending").length : 0;
+  const passP   = total ? Math.round(pass / total * 100) : 0;
+  const status  = r.completed_at
+    ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Completed</span>`
+    : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">In Progress</span>`;
+  return `
+    <div onclick="navigate('run/${r.id}')"
+      class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group p-4">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap mb-0.5">
+            <span class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate">${escHtml(r.name)}</span>
+            ${status}
+          </div>
+          <span class="inline-block text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">${escHtml(suiteName)}</span>
+        </div>
+        <span class="text-xs text-slate-400 flex-shrink-0">${formatDate(r.created_at)}</span>
+      </div>
+      ${total ? `
+        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden flex mb-2">
+          ${passP ? `<div class="bg-emerald-500 h-full" style="width:${passP}%"></div>` : ""}
+          ${fail ? `<div class="bg-red-500 h-full" style="width:${Math.round(fail/total*100)}%"></div>` : ""}
+        </div>
+        <div class="flex gap-3 text-xs text-slate-500">
+          <span class="text-emerald-600 font-medium">${pass} pass</span>
+          <span class="text-red-600 font-medium">${fail} fail</span>
+          ${pending ? `<span class="text-slate-400">${pending} pending</span>` : ""}
+        </div>` : ""}
+    </div>`;
+}
+
 async function deleteSuite(suiteId, projectId) {
   if (!confirm("Delete this suite and all its test cases?")) return;
   try {
@@ -614,7 +673,7 @@ async function renderSuite(suiteId) {
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
 
-  let suite, testcases, project;
+  let suite, testcases, project, runs;
   try {
     const projects = await GET("/api/projects");
     for (const p of projects) {
@@ -623,7 +682,10 @@ async function renderSuite(suiteId) {
       if (found) { suite = found; project = p; break; }
     }
     if (!suite) throw new Error("Suite not found");
-    testcases = await GET(`/api/suites/${suiteId}/testcases`);
+    [testcases, runs] = await Promise.all([
+      GET(`/api/suites/${suiteId}/testcases`),
+      GET(`/api/suites/${suiteId}/runs`),
+    ]);
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
     return;
@@ -688,6 +750,18 @@ async function renderSuite(suiteId) {
         <div class="space-y-3">
           ${testcases.map(tc => testCaseCard(tc)).join("")}
         </div>`}
+
+      <!-- Runs history -->
+      <div>
+        <h2 class="text-lg font-semibold text-slate-700 mb-3">Test Runs</h2>
+        ${!runs.length ? `
+          <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-400 text-sm">
+            No runs yet. Click <strong>Start Run</strong> to execute this suite.
+          </div>` : `
+          <div class="space-y-3">
+            ${runs.map(r => runCard(r, suite.name)).join("")}
+          </div>`}
+      </div>
     </div>`;
 }
 

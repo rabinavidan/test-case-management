@@ -153,6 +153,16 @@ def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depe
     return run
 
 
+@app.get("/api/suites/{suite_id}/runs", response_model=List[schemas.TestRunResponse])
+def list_runs(suite_id: int, db: Session = Depends(get_db)):
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
+    return db.query(models.TestRun).filter(
+        models.TestRun.suite_id == suite_id
+    ).order_by(models.TestRun.created_at.desc()).all()
+
+
 @app.get("/api/runs/{run_id}", response_model=schemas.TestRunResponse)
 def get_run(run_id: int, db: Session = Depends(get_db)):
     run = db.query(models.TestRun).filter(models.TestRun.id == run_id).first()
