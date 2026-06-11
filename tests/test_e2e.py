@@ -5,7 +5,7 @@ Run with: pytest tests/test_e2e.py --base-url=https://your-app.vercel.app -v
 """
 import pytest
 from playwright.sync_api import Page, expect
-from tests.pages import ProjectsPage, ProjectPage, SuitePage
+from tests.pages import ProjectsPage, ProjectPage, SuitePage, NewProjectModal
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -25,6 +25,13 @@ def project_page(page: Page, base_url: str) -> ProjectPage:
 @pytest.fixture()
 def suite_page(page: Page, base_url: str) -> SuitePage:
     return SuitePage(page, base_url)
+
+
+@pytest.fixture()
+def new_project_modal(page: Page, base_url: str) -> NewProjectModal:
+    m = NewProjectModal(page, base_url)
+    m.goto()
+    return m
 
 
 # ── Smoke tests ───────────────────────────────────────────────────────────────
@@ -110,3 +117,35 @@ def test_create_test_case(temp_suite: SuitePage):
 
 def test_nav_label_on_suite_page(temp_suite: SuitePage):
     expect(temp_suite.nav_new_label).to_have_text("New Test Case")
+
+
+# ── New Project Modal ─────────────────────────────────────────────────────────
+
+def test_new_project_modal_title(new_project_modal: NewProjectModal, projects_page: ProjectsPage):
+    projects_page.open_new_project_modal()
+    new_project_modal.expect_open()
+
+
+def test_new_project_modal_placeholders(new_project_modal: NewProjectModal, projects_page: ProjectsPage):
+    projects_page.open_new_project_modal()
+    new_project_modal.expect_name_placeholder()
+    new_project_modal.expect_description_placeholder()
+
+
+def test_new_project_modal_cancel(new_project_modal: NewProjectModal, projects_page: ProjectsPage):
+    projects_page.open_new_project_modal()
+    new_project_modal.cancel()
+
+
+def test_new_project_modal_dismiss_x(new_project_modal: NewProjectModal, projects_page: ProjectsPage):
+    projects_page.open_new_project_modal()
+    new_project_modal.dismiss()
+
+
+def test_new_project_modal_submit(new_project_modal: NewProjectModal, projects_page: ProjectsPage):
+    projects_page.open_new_project_modal()
+    new_project_modal.submit("Modal Test Project", "Created via modal PO")
+    projects_page.expect_project_visible("Modal Test Project")
+    projects_page.expect_toast("Project created")
+    # Cleanup
+    projects_page.delete_project("Modal Test Project")
