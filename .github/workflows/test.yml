@@ -44,6 +44,7 @@ jobs:
           failed = s.get("failed", 0)
           error  = s.get("error", 0)
           total  = s.get("total", 0)
+          duration = r.get("duration", 0)
           icon   = "✅" if failed == 0 and error == 0 else "❌"
           lines  = [
             f"## {icon} API Test Report",
@@ -53,15 +54,29 @@ jobs:
             f"| ❌ Failed | {failed} |",
             f"| 💥 Error  | {error}  |",
             f"| **Total** | **{total}** |",
+            f"| ⏱ Duration | {duration:.2f}s |",
             "",
+            "### Test Results",
+            "| Test | Result | Duration |",
+            "|------|--------|----------|",
           ]
-          if failed or error:
-            lines.append("### Failures")
-            for t in r.get("tests", []):
-              if t["outcome"] in ("failed", "error"):
-                name = t["nodeid"].split("::")[-1]
-                msg  = (t.get("call") or t.get("setup") or {}).get("longrepr", "")
-                lines.append(f"<details><summary><code>{name}</code></summary>\n\n```\n{msg}\n```\n</details>")
+          for t in r.get("tests", []):
+            name = t["nodeid"].split("::")[-1]
+            outcome = t["outcome"]
+            dur = (t.get("call") or {}).get("duration", 0)
+            if outcome == "passed":
+              badge = "✅ passed"
+            elif outcome == "failed":
+              badge = "❌ failed"
+            else:
+              badge = "💥 error"
+            lines.append(f"| `{name}` | {badge} | {dur:.3f}s |")
+          lines.append("")
+          for t in r.get("tests", []):
+            if t["outcome"] in ("failed", "error"):
+              name = t["nodeid"].split("::")[-1]
+              msg  = (t.get("call") or t.get("setup") or {}).get("longrepr", "")
+              lines.append(f"<details><summary>❌ <code>{name}</code> — failure detail</summary>\n\n```\n{msg}\n```\n</details>")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("\n".join(lines))
           EOF
