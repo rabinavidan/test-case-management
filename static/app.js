@@ -219,9 +219,11 @@ async function submitEditTestCase(tcId, suiteId) {
 // Run modal
 function buildRunModal(title, body, { suiteId }) {
   title.textContent = "Start Test Run";
-  const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
   body.innerHTML = `
-    ${field("Run Name *", `<input id="f-name" class="${inputCls}" value="Run ${today}" autofocus />`)}
+    ${field("Run Name *", `<input id="f-name" class="${inputCls}" value="Run ${dateStr} ${timeStr}" autofocus />`)}
     <p class="text-sm text-slate-500 mb-4">Creates a new test run for all <strong>active</strong> test cases in this suite.</p>
     <div class="flex justify-end gap-2">
       <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
