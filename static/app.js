@@ -650,10 +650,13 @@ function runCard(r, suiteName) {
           ${passP ? `<div class="bg-emerald-500 h-full" style="width:${passP}%"></div>` : ""}
           ${fail ? `<div class="bg-red-500 h-full" style="width:${Math.round(fail/total*100)}%"></div>` : ""}
         </div>
-        <div class="flex gap-3 text-xs text-slate-500">
-          <span class="text-emerald-600 font-medium">${pass} pass</span>
-          <span class="text-red-600 font-medium">${fail} fail</span>
-          ${pending ? `<span class="text-slate-400">${pending} pending</span>` : ""}
+        <div class="flex items-center justify-between">
+          <div class="flex gap-3 text-xs text-slate-500">
+            <span class="text-emerald-600 font-medium">${pass} pass</span>
+            <span class="text-red-600 font-medium">${fail} fail</span>
+            ${pending ? `<span class="text-slate-400">${pending} pending</span>` : ""}
+          </div>
+          <span class="text-xs font-bold ${passP >= 80 ? "text-emerald-600" : passP >= 50 ? "text-amber-500" : "text-red-500"}">${passP}%</span>
         </div>` : ""}
     </div>`;
 }
