@@ -26,7 +26,49 @@ jobs:
           pip install -r requirements-test.txt
 
       - name: Run API tests
-        run: python -m pytest tests/ --ignore=tests/test_e2e.py -v
+        id: pytest
+        run: |
+          python -m pytest tests/ --ignore=tests/test_e2e.py -v \
+            --json-report --json-report-file=report.json; \
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Write job summary
+        if: always()
+        run: |
+          python - <<'EOF'
+          import json, os, pathlib
+          r = json.loads(pathlib.Path("report.json").read_text())
+          s = r["summary"]
+          passed = s.get("passed", 0)
+          failed = s.get("failed", 0)
+          error  = s.get("error", 0)
+          total  = s.get("total", 0)
+          icon   = "✅" if failed == 0 and error == 0 else "❌"
+          lines  = [
+            f"## {icon} API Test Report",
+            "| Result | Count |",
+            "|--------|-------|",
+            f"| ✅ Passed | {passed} |",
+            f"| ❌ Failed | {failed} |",
+            f"| 💥 Error  | {error}  |",
+            f"| **Total** | **{total}** |",
+            "",
+          ]
+          if failed or error:
+            lines.append("### Failures")
+            for t in r.get("tests", []):
+              if t["outcome"] in ("failed", "error"):
+                name = t["nodeid"].split("::")[-1]
+                msg  = (t.get("call") or t.get("setup") or {}).get("longrepr", "")
+                lines.append(f"<details><summary><code>{name}</code></summary>\n\n```\n{msg}\n```\n</details>")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+            f.write("\n".join(lines))
+          EOF
+
+      - name: Propagate exit code
+        if: always()
+        run: exit ${{ steps.pytest.outputs.exit_code }}
 
   e2e-tests:
     name: E2E Tests (Playwright)
