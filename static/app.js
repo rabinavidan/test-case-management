@@ -875,7 +875,7 @@ function resultRow(r, runId) {
         <div class="flex items-center gap-2 flex-shrink-0">
           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.badge}">${s.label}</span>
           <button
-            onclick="showModal('result', {runId: ${runId}, tcId: ${tc.id}, tcTitle: ${JSON.stringify(tc.title)}, currentStatus: '${r.status}', currentNotes: ${JSON.stringify(r.notes || '')}})"
+            onclick="showModal('result', {runId: ${runId}, tcId: ${tc.id}, tcTitle: ${escHtml(JSON.stringify(tc.title))}, currentStatus: '${r.status}', currentNotes: ${escHtml(JSON.stringify(r.notes || ''))}})"
             class="px-3 py-1 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 rounded-lg text-xs font-semibold transition-all">
             ${r.status === "pending" ? "Record" : "Update"}
           </button>
