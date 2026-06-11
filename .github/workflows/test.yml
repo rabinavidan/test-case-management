@@ -1,0 +1,60 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api-tests:
+    name: API Tests (pytest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Run API tests
+        run: python -m pytest tests/ --ignore=tests/test_e2e.py -v
+
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    # Only run E2E on push to main (after Vercel deploys)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: api-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Install Playwright browsers
+        run: playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          BASE_URL: ${{ secrets.VERCEL_PRODUCTION_URL }}
+        run: python -m pytest tests/test_e2e.py --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} -v
+        # E2E failures are non-blocking — remove 'continue-on-error' to make them blocking
+        continue-on-error: true
