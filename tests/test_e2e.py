@@ -1,40 +1,112 @@
 """
-E2E tests using Playwright. Requires BASE_URL env var (defaults to production URL).
-Run with: pytest tests/test_e2e.py --base-url=https://your-app.vercel.app
+E2E tests using Playwright page objects.
+Requires BASE_URL env var or --base-url flag.
+Run with: pytest tests/test_e2e.py --base-url=https://your-app.vercel.app -v
 """
 import pytest
 from playwright.sync_api import Page, expect
+from tests.pages import ProjectsPage, ProjectPage, SuitePage
 
 
-@pytest.fixture(scope="session")
-def base_url_override():
-    import os
-    return os.getenv("BASE_URL", "")
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def projects_page(page: Page, base_url: str) -> ProjectsPage:
+    p = ProjectsPage(page, base_url)
+    p.goto()
+    return p
 
 
-def test_home_loads(page: Page, base_url):
-    page.goto(base_url)
-    expect(page.locator("text=TestFlow")).to_be_visible()
+@pytest.fixture()
+def project_page(page: Page, base_url: str) -> ProjectPage:
+    return ProjectPage(page, base_url)
 
 
-def test_projects_page_visible(page: Page, base_url):
-    page.goto(f"{base_url}/#projects")
-    expect(page.locator("text=Projects")).to_be_visible()
+@pytest.fixture()
+def suite_page(page: Page, base_url: str) -> SuitePage:
+    return SuitePage(page, base_url)
 
 
-def test_create_and_delete_project(page: Page, base_url):
-    page.goto(base_url)
-    page.wait_for_load_state("networkidle")
+# ── Smoke tests ───────────────────────────────────────────────────────────────
 
-    # Create project
-    page.get_by_role("button", name="New Project").first.click()
-    page.get_by_placeholder("My Awesome Project").fill("E2E Test Project")
-    page.get_by_role("button", name="Create Project").click()
-    expect(page.get_by_text("E2E Test Project")).to_be_visible()
+def test_app_loads(projects_page: ProjectsPage):
+    expect(projects_page.logo).to_be_visible()
+    expect(projects_page.nav_new_btn).to_be_visible()
+    expect(projects_page.sidebar).to_be_visible()
 
-    # Delete project
-    project_card = page.locator("text=E2E Test Project").locator("..")
-    project_card.hover()
-    page.get_by_role("button").filter(has_text="").nth(-1).click()
-    page.on("dialog", lambda d: d.accept())
-    page.wait_for_timeout(500)
+
+def test_projects_page_heading(projects_page: ProjectsPage):
+    projects_page.expect_loaded()
+
+
+def test_logo_navigates_to_projects(projects_page: ProjectsPage, page: Page):
+    projects_page.click_logo()
+    expect(page).to_have_url(lambda url: "projects" in url or url.endswith("/"))
+
+
+# ── Project CRUD ──────────────────────────────────────────────────────────────
+
+def test_create_project(projects_page: ProjectsPage):
+    projects_page.create_project("E2E Test Project", "Created by Playwright")
+    projects_page.expect_project_visible("E2E Test Project")
+    projects_page.expect_toast("Project created")
+    # Cleanup
+    projects_page.delete_project("E2E Test Project")
+
+
+def test_new_project_modal_opens(projects_page: ProjectsPage):
+    projects_page.open_new_project_modal()
+    expect(projects_page.modal_title).to_have_text("New Project")
+    projects_page.close_modal()
+
+
+def test_nav_label_on_projects_page(projects_page: ProjectsPage):
+    expect(projects_page.nav_new_label).to_have_text("New Project")
+
+
+# ── Suite CRUD ────────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def temp_project(projects_page: ProjectsPage, project_page: ProjectPage):
+    projects_page.create_project("PW Temp Project")
+    card = projects_page.project_card("PW Temp Project")
+    card.click()
+    projects_page.page.wait_for_load_state("networkidle")
+    yield project_page
+    # Cleanup: go back and delete
+    projects_page.goto()
+    projects_page.delete_project("PW Temp Project")
+
+
+def test_create_suite(temp_project: ProjectPage):
+    temp_project.create_suite("Login Suite", "Auth tests")
+    temp_project.expect_suite_visible("Login Suite")
+
+
+def test_nav_label_on_project_page(temp_project: ProjectPage):
+    expect(temp_project.nav_new_label).to_have_text("New Suite")
+
+
+# ── Test Case CRUD ────────────────────────────────────────────────────────────
+
+@pytest.fixture()
+def temp_suite(projects_page: ProjectsPage, project_page: ProjectPage, suite_page: SuitePage):
+    projects_page.create_project("PW Suite Project")
+    projects_page.project_card("PW Suite Project").click()
+    projects_page.page.wait_for_load_state("networkidle")
+    project_page.create_suite("PW Test Suite")
+    project_page.suite_card("PW Test Suite").click()
+    projects_page.page.wait_for_load_state("networkidle")
+    yield suite_page
+    # Cleanup
+    projects_page.goto()
+    projects_page.delete_project("PW Suite Project")
+
+
+def test_create_test_case(temp_suite: SuitePage):
+    temp_suite.create_test_case("Login with valid credentials", status="active", priority="high")
+    temp_suite.expect_test_case_visible("Login with valid credentials")
+
+
+def test_nav_label_on_suite_page(temp_suite: SuitePage):
+    expect(temp_suite.nav_new_label).to_have_text("New Test Case")
