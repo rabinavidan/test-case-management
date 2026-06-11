@@ -38,7 +38,12 @@ jobs:
         run: |
           python - <<'EOF'
           import json, os, pathlib
-          r = json.loads(pathlib.Path("report.json").read_text())
+          p = pathlib.Path("report.json")
+          if not p.exists():
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("## ❌ API Test Report\n\nTest run crashed before producing a report — check the logs.\n")
+            raise SystemExit(0)
+          r = json.loads(p.read_text())
           s = r["summary"]
           passed = s.get("passed", 0)
           failed = s.get("failed", 0)
