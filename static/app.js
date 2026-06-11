@@ -298,7 +298,11 @@ async function submitResult(runId, tcId) {
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 function navigate(hash) {
-  window.location.hash = hash;
+  if (window.location.hash === "#" + hash) {
+    router();
+  } else {
+    window.location.hash = hash;
+  }
 }
 
 async function router() {
