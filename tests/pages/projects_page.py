@@ -40,7 +40,7 @@ class ProjectsPage(BasePage):
 
     def create_project(self, name: str, description: str = ""):
         self.open_new_project_modal()
-        self.modal_input("My Awesome Project").fill(name)
+        self.modal_input("My Project").fill(name)
         if description:
             self.modal_textarea("Optional description").fill(description)
         self.modal_submit("Create Project").click()
