@@ -318,6 +318,8 @@ async function router() {
     await renderProjects();
   } else if (parts[0] === "project" && parts[1]) {
     await renderProject(parseInt(parts[1]));
+  } else if (parts[0] === "suite" && parts[1] && parts[2] === "runs") {
+    await renderSuiteRuns(parseInt(parts[1]));
   } else if (parts[0] === "suite" && parts[1]) {
     await renderSuite(parseInt(parts[1]));
   } else if (parts[0] === "run" && parts[1]) {
@@ -362,12 +364,23 @@ async function loadSidebar() {
             suitesHtml = `<ul class="border-l border-slate-200 ml-5 mt-0.5">
               ${suites.map(s => {
                 const suiteActive = state.currentSuite && state.currentSuite.id === s.id;
+                const runsActive = state.currentView === `suite-runs-${s.id}`;
                 return `<li>
                   <button onclick="navigate('suite/${s.id}')"
                     class="w-full text-left pl-3 pr-4 py-1.5 text-xs transition-colors truncate
                       ${suiteActive ? "text-blue-700 font-semibold" : "text-slate-500 hover:text-blue-700"}">
                     ${escHtml(s.name)}
                   </button>
+                  <ul class="border-l border-slate-100 ml-3">
+                    <li>
+                      <button onclick="navigate('suite/${s.id}/runs')"
+                        class="w-full text-left pl-3 pr-4 py-1 text-xs transition-colors truncate flex items-center gap-1
+                          ${runsActive ? "text-blue-700 font-semibold" : "text-slate-400 hover:text-blue-600"}">
+                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Test Runs
+                      </button>
+                    </li>
+                  </ul>
                 </li>`;
               }).join("")}
             </ul>`;
@@ -696,6 +709,7 @@ async function renderSuite(suiteId) {
 
   state.currentSuite = suite;
   state.currentProject = project;
+  state.currentView = null;
   await loadSidebar();
 
   setBreadcrumb([
@@ -816,6 +830,63 @@ async function deleteTestCase(tcId, suiteId) {
     toast("Test case deleted");
     navigate(`suite/${suiteId}`);
   } catch (e) { toast(e.message, "error"); }
+}
+
+// ─── Suite Runs View ──────────────────────────────────────────────────────────
+async function renderSuiteRuns(suiteId) {
+  const el = document.getElementById("view-suite");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+
+  let suite, project, runs;
+  try {
+    const projects = await GET("/api/projects");
+    for (const p of projects) {
+      const suites = await GET(`/api/projects/${p.id}/suites`);
+      const found = suites.find(s => s.id === suiteId);
+      if (found) { suite = found; project = p; break; }
+    }
+    if (!suite) throw new Error("Suite not found");
+    runs = await GET(`/api/suites/${suiteId}/runs`);
+  } catch (e) {
+    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
+    return;
+  }
+
+  state.currentSuite = suite;
+  state.currentProject = project;
+  state.currentView = `suite-runs-${suiteId}`;
+  await loadSidebar();
+
+  setBreadcrumb([
+    { label: "Projects", href: "projects" },
+    { label: project.name, href: `project/${project.id}` },
+    { label: suite.name, href: `suite/${suiteId}` },
+    { label: "Test Runs", href: `suite/${suiteId}/runs` },
+  ]);
+  document.getElementById("nav-new-btn").classList.add("hidden");
+
+  el.innerHTML = `
+    <div class="fade-in space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Test Runs</h1>
+          <p class="text-slate-500 text-sm mt-1">${escHtml(suite.name)} · ${runs.length} run${runs.length !== 1 ? "s" : ""}</p>
+        </div>
+        <button onclick="showModal('run', {suiteId: ${suiteId}})"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Start Run
+        </button>
+      </div>
+      ${!runs.length ? `
+        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-400 text-sm">
+          No runs yet. Click <strong>Start Run</strong> to execute this suite.
+        </div>` : `
+        <div class="space-y-3">
+          ${runs.map(r => runCard(r, suite.name)).join("")}
+        </div>`}
+    </div>`;
 }
 
 // ─── Run View ─────────────────────────────────────────────────────────────────
