@@ -5,7 +5,7 @@ import os
 
 # Vercel's filesystem is read-only except for /tmp
 _default_db = "sqlite:////tmp/testcases.db" if os.getenv("VERCEL") else "sqlite:///./testcases.db"
-DATABASE_URL = os.getenv("DATABASE_URL", _default_db)
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL") or _default_db
 
 # Supabase/Neon/Heroku expose postgres:// but SQLAlchemy requires postgresql://
 if DATABASE_URL.startswith("postgres://"):
