@@ -883,7 +883,10 @@ async function renderRun(runId) {
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-semibold text-slate-700">Run Progress</h3>
-          <span class="text-sm text-slate-400 font-medium">${done} / ${total} executed</span>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-slate-400 font-medium">${done} / ${total} executed</span>
+            <span class="text-lg font-bold ${passP >= 80 ? "text-emerald-600" : passP >= 50 ? "text-amber-500" : "text-red-500"}">${passP}% pass rate</span>
+          </div>
         </div>
         <div class="h-3 bg-slate-100 rounded-full overflow-hidden flex mb-4">
           ${passP ? `<div class="bg-emerald-500 h-full transition-all duration-500" style="width:${passP}%"></div>` : ""}
