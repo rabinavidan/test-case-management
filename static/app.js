@@ -318,6 +318,8 @@ async function router() {
     await renderProjects();
   } else if (parts[0] === "project" && parts[1]) {
     await renderProject(parseInt(parts[1]));
+  } else if (parts[0] === "suite" && parts[1] && parts[2] === "testcases") {
+    await renderSuiteTestCases(parseInt(parts[1]));
   } else if (parts[0] === "suite" && parts[1] && parts[2] === "runs") {
     await renderSuiteRuns(parseInt(parts[1]));
   } else if (parts[0] === "suite" && parts[1]) {
@@ -365,6 +367,7 @@ async function loadSidebar() {
               ${suites.map(s => {
                 const suiteActive = state.currentSuite && state.currentSuite.id === s.id;
                 const runsActive = state.currentView === `suite-runs-${s.id}`;
+                const casesActive = state.currentView === `suite-cases-${s.id}`;
                 return `<li>
                   <button onclick="navigate('suite/${s.id}')"
                     class="w-full text-left pl-3 pr-4 py-1.5 text-xs transition-colors truncate
@@ -372,6 +375,14 @@ async function loadSidebar() {
                     ${escHtml(s.name)}
                   </button>
                   <ul class="border-l border-slate-100 ml-3">
+                    <li>
+                      <button onclick="navigate('suite/${s.id}/testcases')"
+                        class="w-full text-left pl-3 pr-4 py-1 text-xs transition-colors truncate flex items-center gap-1
+                          ${casesActive ? "text-blue-700 font-semibold" : "text-slate-400 hover:text-blue-600"}">
+                        <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        Test Cases
+                      </button>
+                    </li>
                     <li>
                       <button onclick="navigate('suite/${s.id}/runs')"
                         class="w-full text-left pl-3 pr-4 py-1 text-xs transition-colors truncate flex items-center gap-1
@@ -832,6 +843,79 @@ async function deleteTestCase(tcId, suiteId) {
   } catch (e) { toast(e.message, "error"); }
 }
 
+// ─── Suite Test Cases View ────────────────────────────────────────────────────
+async function renderSuiteTestCases(suiteId) {
+  const el = document.getElementById("view-suite");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+
+  let suite, project, testcases;
+  try {
+    const projects = await GET("/api/projects");
+    for (const p of projects) {
+      const suites = await GET(`/api/projects/${p.id}/suites`);
+      const found = suites.find(s => s.id === suiteId);
+      if (found) { suite = found; project = p; break; }
+    }
+    if (!suite) throw new Error("Suite not found");
+    testcases = await GET(`/api/suites/${suiteId}/testcases`);
+  } catch (e) {
+    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
+    return;
+  }
+
+  state.currentSuite = suite;
+  state.currentProject = project;
+  state.currentView = `suite-cases-${suiteId}`;
+  await loadSidebar();
+
+  setBreadcrumb([
+    { label: "Projects", href: "projects" },
+    { label: project.name, href: `project/${project.id}` },
+    { label: suite.name, href: `suite/${suiteId}` },
+    { label: "Test Cases", href: `suite/${suiteId}/testcases` },
+  ]);
+
+  const navBtn = document.getElementById("nav-new-btn");
+  document.getElementById("nav-new-label").textContent = "New Test Case";
+  navBtn.classList.remove("hidden");
+  navBtn.onclick = () => showModal("testcase", { suiteId });
+
+  const counts = { draft: 0, active: 0, deprecated: 0 };
+  testcases.forEach(tc => { if (counts[tc.status] !== undefined) counts[tc.status]++; });
+
+  el.innerHTML = `
+    <div class="fade-in space-y-6">
+      <div class="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Test Cases</h1>
+          <p class="text-slate-500 text-sm mt-1">${escHtml(suite.name)} · ${testcases.length} case${testcases.length !== 1 ? "s" : ""}</p>
+        </div>
+        <button onclick="showModal('testcase', {suiteId: ${suiteId}})"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          New Test Case
+        </button>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${testcases.length} total</span>
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">${counts.active} active</span>
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${counts.draft} draft</span>
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">${counts.deprecated} deprecated</span>
+      </div>
+      ${!testcases.length ? `
+        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+          <p class="text-slate-400 mb-3">No test cases yet.</p>
+          <button onclick="showModal('testcase', {suiteId: ${suiteId}})" class="text-blue-600 hover:underline text-sm font-semibold">
+            Add your first test case
+          </button>
+        </div>` : `
+        <div class="space-y-3">
+          ${testcases.map(tc => testCaseCard(tc)).join("")}
+        </div>`}
+    </div>`;
+}
+
 // ─── Suite Runs View ──────────────────────────────────────────────────────────
 async function renderSuiteRuns(suiteId) {
   const el = document.getElementById("view-suite");
@@ -911,6 +995,7 @@ async function renderRun(runId) {
 
   state.currentRun = run;
   if (project) state.currentProject = project;
+  state.currentView = null;
   await loadSidebar();
 
   setBreadcrumb([
