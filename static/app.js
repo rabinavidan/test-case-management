@@ -350,6 +350,8 @@ async function router() {
     await renderSuite(parseInt(parts[1]));
   } else if (parts[0] === "run" && parts[1]) {
     await renderRun(parseInt(parts[1]));
+  } else if (parts[0] === "users" && isAdmin()) {
+    await renderUsers();
   } else {
     await renderProjects();
   }
@@ -432,6 +434,29 @@ async function loadSidebar() {
       </li>`;
     }));
     ul.innerHTML = items.join("");
+
+    // Admin-only: Users link at bottom of sidebar
+    if (isAdmin()) {
+      const usersActive = window.location.hash === "#users";
+      ul.insertAdjacentHTML("afterend", `
+        <div class="mt-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Admin</span>
+          </div>
+          <ul>
+            <li>
+              <button onclick="navigate('users')"
+                class="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors
+                  ${usersActive ? "bg-violet-50 text-violet-700 font-medium border-r-2 border-violet-600" : "text-slate-700 hover:bg-slate-50 hover:text-violet-700"}">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Users
+              </button>
+            </li>
+          </ul>
+        </div>`);
+    }
   } catch {
     ul.innerHTML = `<li class="px-4 py-3 text-sm text-red-400">Failed to load</li>`;
   }
@@ -464,7 +489,7 @@ async function renderProjects() {
 
   await loadSidebar();
 
-  const archDiagram = `
+  const archDiagram = isAdmin() ? `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 overflow-hidden">
       <div class="flex items-center justify-between mb-4">
         <div>
@@ -669,7 +694,7 @@ async function renderProjects() {
       @keyframes demoBar { from{width:60%} to{width:92%} }
       .demo-counter { animation: demoCounter 3s ease-in-out infinite alternate; }
     </style>
-  `;
+  ` : "";
 
   if (!state.projects.length) {
     el.innerHTML = `
@@ -2078,6 +2103,113 @@ function testflowArchDiagram() {
   </style>`;
 }
 
+// ─── Users View (admin only) ─────────────────────────────────────────────────
+async function renderUsers() {
+  setBreadcrumb([{ label: "Users", href: "users" }]);
+  document.getElementById("nav-new-btn").classList.add("hidden");
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  const el = document.getElementById("view-users");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  await loadSidebar();
+
+  const users = await GET("/api/users");
+  const roleBadge = r => r === "admin"
+    ? `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">Admin</span>`
+    : `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Executor</span>`;
+
+  el.innerHTML = `
+    <div class="fade-in space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Users</h1>
+          <p class="text-sm text-slate-500 mt-0.5">${users.length} account${users.length !== 1 ? "s" : ""}</p>
+        </div>
+        <button onclick="showAddUserModal()"
+          class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add Executor
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Username</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Email</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Created</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            ${users.map(u => `
+              <tr class="group hover:bg-slate-50 transition-colors">
+                <td class="px-4 py-3 font-medium text-slate-800">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      ${escHtml(u.username[0].toUpperCase())}
+                    </div>
+                    ${escHtml(u.username)}
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-slate-500 hidden sm:table-cell">${escHtml(u.email)}</td>
+                <td class="px-4 py-3">${roleBadge(u.role)}</td>
+                <td class="px-4 py-3 text-slate-400 text-xs hidden sm:table-cell">${formatDate(u.created_at)}</td>
+                <td class="px-4 py-3 text-right">
+                  ${u.role !== "admin" ? `
+                  <button onclick="deleteUser(${u.id}, '${escHtml(u.username)}')"
+                    class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>` : ""}
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function showAddUserModal() {
+  const cls = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent";
+  document.getElementById("modal-title").textContent = "Add Executor";
+  document.getElementById("modal-body").innerHTML = `
+    <div class="space-y-3">
+      <div><label class="block text-xs font-semibold text-slate-600 mb-1">Username *</label>
+        <input id="f-name" class="${cls}" placeholder="john_doe" autofocus /></div>
+      <div><label class="block text-xs font-semibold text-slate-600 mb-1">Email *</label>
+        <input id="f-email" type="email" class="${cls}" placeholder="john@company.com" /></div>
+      <div><label class="block text-xs font-semibold text-slate-600 mb-1">Password *</label>
+        <input id="f-password" type="password" class="${cls}" placeholder="Min. 6 characters" /></div>
+    </div>`;
+  document.getElementById("modal-submit-btn").textContent = "Create Executor";
+  document.getElementById("modal-submit-btn").onclick = createExecutor;
+  document.getElementById("modal-overlay").classList.remove("hidden");
+}
+
+async function createExecutor() {
+  const username = document.getElementById("f-name").value.trim();
+  const email = document.getElementById("f-email").value.trim();
+  const password = document.getElementById("f-password").value;
+  if (!username || !email || !password) { toast("All fields are required", "error"); return; }
+  try {
+    await POST("/api/users", { username, email, password });
+    hideModal();
+    toast(`Executor "${username}" created`);
+    navigate("users");
+  } catch (e) { toast(e.message, "error"); }
+}
+
+async function deleteUser(userId, username) {
+  if (!confirm(`Remove executor "${username}"?`)) return;
+  try {
+    await DEL(`/api/users/${userId}`);
+    toast(`"${username}" removed`);
+    navigate("users");
+  } catch (e) { toast(e.message, "error"); }
+}
+
 // ─── Auth UI ─────────────────────────────────────────────────────────────────
 function showAuthModal(mode) {
   renderAuthForm(mode);
@@ -2124,7 +2256,6 @@ function renderUserBadge(user) {
 }
 
 function renderAuthForm(mode) {
-  const isLogin = mode === "login";
   document.getElementById("auth-form-container").innerHTML = `
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full p-8 fade-in relative">
       <button onclick="hideAuthModal()" aria-label="Close"
@@ -2147,45 +2278,34 @@ function renderAuthForm(mode) {
         </div>
       </div>
 
-      <h2 class="text-lg font-semibold text-slate-800 mb-5">${isLogin ? "Sign in" : "Create account"}</h2>
+      <h2 class="text-lg font-semibold text-slate-800 mb-5">Sign in</h2>
 
-      <form onsubmit="submitAuth(event, '${mode}')" class="space-y-4">
+      <form onsubmit="submitAuth(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Username</label>
           <input id="auth-username" data-testid="auth-username" type="text" autocomplete="username"
             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             placeholder="your_username" required autofocus />
         </div>
-        ${!isLogin ? `
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
-          <input id="auth-email" data-testid="auth-email" type="email" autocomplete="email"
-            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            placeholder="you@example.com" required />
-        </div>` : ""}
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
-          <input id="auth-password" data-testid="auth-password" type="password" autocomplete="${isLogin ? "current-password" : "new-password"}"
+          <input id="auth-password" data-testid="auth-password" type="password" autocomplete="current-password"
             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            placeholder="${isLogin ? "••••••••" : "Min. 6 characters"}" required />
+            placeholder="••••••••" required />
         </div>
         <div id="auth-error" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
         <button type="submit" data-testid="auth-submit-btn"
           class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-          ${isLogin ? "Sign in" : "Create account"}
+          Sign in
         </button>
       </form>
 
-      <p class="mt-5 text-center text-sm text-slate-500">
-        ${isLogin
-          ? `Don't have an account? <button onclick="showAuthModal('register')" class="text-brand-600 hover:underline font-medium">Sign up</button>`
-          : `Already have an account? <button onclick="showAuthModal('login')" class="text-brand-600 hover:underline font-medium">Sign in</button>`
-        }
-      </p>
+      <p class="mt-4 text-center text-xs text-slate-400">Contact your admin to get an account.</p>
     </div>`;
 }
+}
 
-async function submitAuth(e, mode) {
+async function submitAuth(e) {
   e.preventDefault();
   const errEl = document.getElementById("auth-error");
   errEl.classList.add("hidden");
@@ -2193,25 +2313,14 @@ async function submitAuth(e, mode) {
   const password = document.getElementById("auth-password").value;
   const btn = e.target.querySelector("button[type=submit]");
   btn.disabled = true;
-  btn.textContent = mode === "login" ? "Signing in…" : "Creating account…";
-
+  btn.textContent = "Signing in…";
   try {
-    let res, data;
-    if (mode === "login") {
-      res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-    } else {
-      const email = document.getElementById("auth-email").value.trim();
-      res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
-      });
-    }
-    data = await res.json();
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
     if (!res.ok) { throw new Error(data.detail || "Authentication failed"); }
     setToken(data.access_token);
     setStoredUser(data.user);
@@ -2220,7 +2329,7 @@ async function submitAuth(e, mode) {
     errEl.textContent = err.message;
     errEl.classList.remove("hidden");
     btn.disabled = false;
-    btn.textContent = mode === "login" ? "Sign in" : "Create account";
+    btn.textContent = "Sign in";
   }
 }
 

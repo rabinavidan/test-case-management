@@ -54,12 +54,13 @@ def auth_client(client):
 
 @pytest.fixture()
 def executor_client(client, auth_client):
-    """Executor client (second registered user); returns (client, headers)."""
-    client.post("/api/auth/register", json={
+    """Executor client (created by admin); returns (client, headers)."""
+    _, admin_headers = auth_client
+    client.post("/api/users", json={
         "username": "executor",
         "email": "executor@example.com",
         "password": "execpass",
-    })
+    }, headers=admin_headers)
     res = client.post("/api/auth/login", json={
         "username": "executor",
         "password": "execpass",

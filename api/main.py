@@ -29,24 +29,59 @@ app.add_middleware(
 
 @app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=201)
 def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
+    """Bootstrap endpoint — only works when no users exist (creates the admin account)."""
+    if db.query(models.User).count() > 0:
+        raise HTTPException(status_code=403, detail="Registration is closed. Contact your admin.")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    user = models.User(
+        username=body.username,
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        role="admin",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"access_token": create_access_token(user.id), "user": user}
+
+
+# ─── User management (admin only) ────────────────────────────────────────────
+
+@app.get("/api/users", response_model=List[schemas.UserResponse])
+def list_users(db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    return db.query(models.User).order_by(models.User.created_at).all()
+
+
+@app.post("/api/users", response_model=schemas.UserResponse, status_code=201)
+def create_executor(body: schemas.UserRegister, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
     if db.query(models.User).filter(models.User.username == body.username).first():
         raise HTTPException(status_code=400, detail="Username already taken")
     if db.query(models.User).filter(models.User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     if len(body.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-    # First user ever becomes admin; all subsequent users are executors
-    is_first_user = db.query(models.User).count() == 0
     user = models.User(
         username=body.username,
         email=body.email,
         hashed_password=hash_password(body.password),
-        role="admin" if is_first_user else "executor",
+        role="executor",
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"access_token": create_access_token(user.id), "user": user}
+    return user
+
+
+@app.delete("/api/users/{user_id}", status_code=204)
+def delete_user(user_id: int, db: Session = Depends(get_db), current: models.User = Depends(require_admin)):
+    if current.id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
 
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
