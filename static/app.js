@@ -469,6 +469,17 @@ async function renderProjects() {
           </div>
           <span class="text-emerald-300 text-xs font-bold demo-counter">80% pass rate</span>
         </div>
+        <!-- Demo button -->
+        <div class="mt-4">
+          <button id="demo-seed-btn" onclick="seedAlertsDemo()"
+            class="bg-white/15 hover:bg-white/25 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/20">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span id="demo-seed-label">Run Alerts Microservice Demo</span>
+          </button>
+        </div>
       </div>
       <!-- Background decoration -->
       <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
@@ -1214,6 +1225,29 @@ function escHtml(str) {
 function formatDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// ─── Demo seed ───────────────────────────────────────────────────────────────
+async function seedAlertsDemo() {
+  const btn = document.getElementById("demo-seed-btn");
+  const label = document.getElementById("demo-seed-label");
+  if (!btn) return;
+  btn.disabled = true;
+  label.textContent = "Creating demo project…";
+  btn.classList.add("opacity-60");
+  try {
+    const res = await fetch("/api/demo/alerts-microservice", { method: "POST" });
+    if (!res.ok) throw new Error(await res.text());
+    const project = await res.json();
+    showToast(`Demo project "${project.name}" created!`, "success");
+    await loadSidebar();
+    navigate(`project/${project.id}`);
+  } catch (e) {
+    showToast("Failed to create demo: " + e.message, "error");
+    btn.disabled = false;
+    label.textContent = "Run Alerts Microservice Demo";
+    btn.classList.remove("opacity-60");
+  }
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
