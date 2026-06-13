@@ -4,8 +4,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import random
 
 from .database import engine, get_db, Base
 from . import models, schemas
@@ -314,6 +315,42 @@ _DEMO_SUITES = [
 ]
 
 
+def _seed_demo_runs(db, project_id):
+    """Create one completed test run per suite with randomly distributed pass/fail/skip."""
+    suites = db.query(models.TestSuite).filter(models.TestSuite.project_id == project_id).all()
+    run_number = 1
+    for suite in suites:
+        cases = db.query(models.TestCase).filter(
+            models.TestCase.suite_id == suite.id,
+            models.TestCase.status == "active",
+        ).all()
+        if not cases:
+            continue
+        run = models.TestRun(
+            suite_id=suite.id,
+            name=f"Demo Run #{run_number}",
+            created_at=datetime.utcnow() - timedelta(hours=random.randint(1, 48)),
+        )
+        db.add(run)
+        db.flush()
+        executed = datetime.utcnow() - timedelta(minutes=random.randint(5, 60))
+        for tc in cases:
+            status = random.choices(
+                ["pass", "pass", "pass", "fail", "skip"],
+                weights=[60, 10, 10, 15, 5],
+                k=1,
+            )[0]
+            result = models.TestResult(
+                run_id=run.id,
+                testcase_id=tc.id,
+                status=status,
+                executed_at=executed,
+            )
+            db.add(result)
+        run.completed_at = datetime.utcnow() - timedelta(minutes=random.randint(1, 5))
+        run_number += 1
+
+
 @app.post("/api/demo/alerts-microservice", response_model=schemas.ProjectResponse)
 def seed_demo_alerts_microservice(db: Session = Depends(get_db)):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -336,6 +373,8 @@ def seed_demo_alerts_microservice(db: Session = Depends(get_db)):
             db.add(models.TestCase(suite_id=suite.id, title=title,
                                    status=status, priority=priority))
 
+    db.flush()
+    _seed_demo_runs(db, project.id)
     db.commit()
     db.refresh(project)
     return project
@@ -443,6 +482,8 @@ def seed_demo_testflow(db: Session = Depends(get_db)):
             db.add(models.TestCase(suite_id=suite.id, title=title,
                                    status=status, priority=priority))
 
+    db.flush()
+    _seed_demo_runs(db, project.id)
     db.commit()
     db.refresh(project)
     return project
