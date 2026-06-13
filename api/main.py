@@ -111,10 +111,16 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current: models.Use
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == body.username).first()
-    if not user or not verify_password(body.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    return {"access_token": create_access_token(user.id), "user": user}
+    import traceback
+    try:
+        user = db.query(models.User).filter(models.User.username == body.username).first()
+        if not user or not verify_password(body.password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+        return {"access_token": create_access_token(user.id), "user": user}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login error: {traceback.format_exc()}")
 
 
 @app.get("/api/auth/me", response_model=schemas.UserResponse)
