@@ -15,6 +15,22 @@ from .auth import hash_password, verify_password, create_access_token, get_curre
 # Create all tables
 Base.metadata.create_all(bind=engine)
 
+# Migrate: add columns that may be missing from older deployments
+def _run_migrations():
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            # Add role column to users if it doesn't exist (older schema omitted it)
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'executor'"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    except Exception:
+        pass
+
+_run_migrations()
+
 app = FastAPI(title="Test Case Management API")
 
 app.add_middleware(
@@ -111,16 +127,10 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current: models.Use
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
-    import traceback
-    try:
-        user = db.query(models.User).filter(models.User.username == body.username).first()
-        if not user or not verify_password(body.password, user.hashed_password):
-            raise HTTPException(status_code=401, detail="Invalid username or password")
-        return {"access_token": create_access_token(user.id), "user": user}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Login error: {traceback.format_exc()}")
+    user = db.query(models.User).filter(models.User.username == body.username).first()
+    if not user or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return {"access_token": create_access_token(user.id), "user": user}
 
 
 @app.get("/api/auth/me", response_model=schemas.UserResponse)
