@@ -2193,12 +2193,12 @@ async function submitAuth(e, mode) {
 window.addEventListener("hashchange", () => { if (getToken()) router(); });
 document.addEventListener("DOMContentLoaded", async () => {
   const token = getToken();
-  if (!token) { showAuthPage(); return; }
+  if (!token) { renderAuthForm("login"); return; }
   // Verify token is still valid
   const res = await fetch("/api/auth/me", {
     headers: { "Authorization": `Bearer ${token}` },
   });
-  if (!res.ok) { clearToken(); showAuthPage(); return; }
+  if (!res.ok) { clearToken(); renderAuthForm("login"); return; }
   const user = await res.json();
   setStoredUser(user);
   showAppShell(user);
