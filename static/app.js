@@ -595,8 +595,8 @@ async function renderProjects() {
           </div>
           <span class="text-emerald-300 text-xs font-bold demo-counter">80% pass rate</span>
         </div>
-        <!-- Demo button -->
-        <div class="mt-4">
+        <!-- Demo buttons -->
+        <div class="mt-4 flex items-center gap-3 flex-wrap">
           <button id="demo-seed-btn" onclick="seedAlertsDemo()"
             class="bg-white/15 hover:bg-white/25 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/20">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -604,6 +604,13 @@ async function renderProjects() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <span id="demo-seed-label">Run Alerts Microservice Demo</span>
+          </button>
+          <button id="demo-tf-btn" onclick="seedTestFlowDemo()"
+            class="bg-white/15 hover:bg-white/25 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/20">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <span id="demo-tf-label">Run TestFlow Demo</span>
           </button>
         </div>
       </div>
@@ -928,7 +935,7 @@ async function renderProject(projectId) {
       </div>
 
       <!-- Architecture diagram (Alerts Microservice projects only) -->
-      ${project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : ""}
+      ${project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : ""}
 
       <!-- Last run progress bar -->
       ${total ? `
@@ -1681,6 +1688,183 @@ async function seedAlertsDemo() {
     label.textContent = "Run Alerts Microservice Demo";
     btn.classList.remove("opacity-60");
   }
+}
+
+async function seedTestFlowDemo() {
+  const btn = document.getElementById("demo-tf-btn");
+  const label = document.getElementById("demo-tf-label");
+  if (!btn) return;
+  btn.disabled = true;
+  label.textContent = "Creating demo project…";
+  btn.classList.add("opacity-60");
+  try {
+    const res = await fetch("/api/demo/testflow", { method: "POST" });
+    if (!res.ok) throw new Error(await res.text());
+    const project = await res.json();
+    toast(`Demo project "${project.name}" created!`, "success");
+    await loadSidebar();
+    navigate(`project/${project.id}`);
+  } catch (e) {
+    toast("Failed to create demo: " + e.message, "error");
+    btn.disabled = false;
+    label.textContent = "Run TestFlow Demo";
+    btn.classList.remove("opacity-60");
+  }
+}
+
+function testflowArchDiagram() {
+  const FLOW = {
+    blue:    ['#93c5fd','#3b82f6'],
+    violet:  ['#c4b5fd','#8b5cf6'],
+    emerald: ['#6ee7b7','#10b981'],
+    amber:   ['#fcd34d','#f59e0b'],
+    slate:   ['#cbd5e1','#94a3b8'],
+    red:     ['#fca5a5','#ef4444'],
+  };
+  const box = (bg, border, tc, label, sub, d = 0) =>
+    `<div class="tf-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
+        style="animation:tfIn .35s ease forwards;animation-delay:${d}ms">
+      <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
+      ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
+    </div>`;
+  const arrow = (lbl, d, dir = 'right', clr = 'blue', len = 36) => {
+    const [dash, head] = FLOW[clr] || FLOW.blue;
+    const anim = {right:'tfFlowR',left:'tfFlowL',down:'tfFlowD'}[dir]||'tfFlowR';
+    const isV = dir==='down';
+    const line = isV
+      ? `<div style="width:2px;height:${len}px;background:repeating-linear-gradient(to bottom,${dash} 0,${dash} 5px,transparent 5px,transparent 10px);background-size:100% 14px;animation:${anim} .4s linear infinite"></div>`
+      : `<div style="height:2px;width:${len}px;background:repeating-linear-gradient(to right,${dash} 0,${dash} 5px,transparent 5px,transparent 10px);background-size:14px 100%;animation:${anim} .4s linear infinite"></div>`;
+    const tip = isV
+      ? `<svg width="8" height="5" viewBox="0 0 8 5" fill="${head}"><path d="M4 5L0 0h8z"/></svg>`
+      : `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M5 4L0 0v8z"/></svg>`;
+    const lbl$ = lbl ? `<span class="text-[9px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
+    return isV
+      ? `<div class="flex flex-col items-center gap-0 opacity-0 flex-shrink-0" style="animation:tfIn .25s ease forwards;animation-delay:${d}ms">${lbl$}${line}${tip}</div>`
+      : `<div class="flex flex-col items-center gap-0.5 opacity-0 flex-shrink-0" style="animation:tfIn .25s ease forwards;animation-delay:${d}ms">${lbl$}<div class="flex items-center">${line}${tip}</div></div>`;
+  };
+  const lane = (lbl, clr) => `<p class="text-[9px] font-bold uppercase tracking-widest ${clr} mb-2">${lbl}</p>`;
+
+  return `
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-slate-800 text-sm">TestFlow — System Architecture</h3>
+      <span class="text-[10px] bg-violet-50 text-violet-700 font-semibold px-2.5 py-1 rounded-full border border-violet-200 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-500 aad-live"></span>FastAPI · Vanilla JS · Neon
+      </span>
+    </div>
+
+    <!-- ① Browser / Client -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('① Browser — Vanilla JS SPA', 'text-blue-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-blue-600','border-blue-700','text-white','index.html','Entry point',0)}
+        ${arrow('loads','70','right','blue',28)}
+        ${box('bg-blue-500','border-blue-600','text-white','app.js','Hash routing · State',140)}
+        ${arrow('styled by','210','right','blue',28)}
+        ${box('bg-sky-400','border-sky-500','text-white','Tailwind CSS','CDN',280)}
+        <div class="flex-1 min-w-4"></div>
+        ${box('bg-slate-100','border-slate-300','text-slate-700','Modal / Toast / Breadcrumb','UI components',350)}
+      </div>
+    </div>
+
+    <!-- ② HTTP / REST -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('② HTTP — REST API calls from browser', 'text-violet-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-blue-500','border-blue-600','text-white','app.js','GET / POST / PUT / DELETE',420)}
+        ${arrow('fetch()','490','right','violet',36)}
+        ${box('bg-violet-600','border-violet-700','text-white','FastAPI','api/main.py',560)}
+        ${arrow('Pydantic validation','630','right','violet',40)}
+        ${box('bg-violet-500','border-violet-600','text-white','Schemas','api/schemas.py',700)}
+        ${arrow('ORM','770','right','slate',28)}
+        ${box('bg-slate-100','border-slate-300','text-slate-700','Models','api/models.py',840)}
+      </div>
+    </div>
+
+    <!-- ③ API endpoints -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('③ API Endpoints — Projects · Suites · Cases · Runs · Stats', 'text-violet-400')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-violet-600','border-violet-700','text-white','FastAPI','CORS middleware',910)}
+        ${arrow('routes','980','right','violet',28)}
+        ${box('bg-white','border-violet-300','text-violet-700','/api/projects','CRUD',1050)}
+        ${arrow('','1090','right','slate',20)}
+        ${box('bg-white','border-violet-300','text-violet-700','/api/suites','CRUD',1130)}
+        ${arrow('','1170','right','slate',20)}
+        ${box('bg-white','border-violet-300','text-violet-700','/api/testcases','CRUD',1210)}
+        ${arrow('','1250','right','slate',20)}
+        ${box('bg-white','border-violet-300','text-violet-700','/api/runs','Execute',1290)}
+        ${arrow('','1330','right','slate',20)}
+        ${box('bg-white','border-violet-300','text-violet-700','/api/stats','Metrics',1370)}
+      </div>
+    </div>
+
+    <!-- ④ Database -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('④ Storage — SQLAlchemy ORM', 'text-emerald-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-slate-100','border-slate-300','text-slate-700','Models','api/models.py',1440)}
+        ${arrow('SQLAlchemy','1510','right','emerald',36)}
+        ${box('bg-emerald-600','border-emerald-700','text-white','PostgreSQL / Neon','Production',1580)}
+        ${arrow('fallback','1650','right','slate',28)}
+        ${box('bg-amber-400','border-amber-500','text-slate-900','SQLite','Local / /tmp',1720)}
+        ${arrow('pool_pre_ping','1790','right','slate',32)}
+        ${box('bg-white','border-slate-300','text-slate-700','database.py','Connection config',1860)}
+      </div>
+    </div>
+
+    <!-- ⑤ CI / Deploy -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('⑤ CI / CD — GitHub Actions → Vercel', 'text-slate-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-slate-800','border-slate-900','text-white','Git Push / PR','GitHub',1930)}
+        ${arrow('triggers','2000','right','slate',28)}
+        ${box('bg-slate-700','border-slate-800','text-white','GitHub Actions','test.yml',2070)}
+        ${arrow('runs','2140','right','slate',28)}
+        ${box('bg-white','border-slate-300','text-slate-700','pytest API Tests','20 tests',2210)}
+        ${arrow('then','2280','right','slate',28)}
+        ${box('bg-white','border-slate-300','text-slate-700','Playwright E2E','16 tests',2350)}
+        ${arrow('deploy','2420','right','emerald',28)}
+        ${box('bg-black','border-slate-700','text-white','Vercel','Serverless',2490)}
+      </div>
+    </div>
+
+    <!-- ⑥ Test Stack -->
+    <div>
+      ${lane('⑥ Test Stack — pytest · Playwright POM', 'text-red-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-red-500','border-red-600','text-white','pytest','API unit tests',2560)}
+        ${arrow('TestClient','2630','right','red',36)}
+        ${box('bg-white','border-red-200','text-red-700','conftest.py','SQLite fixture',2700)}
+        ${arrow('','2770','right','slate',20)}
+        ${box('bg-white','border-slate-300','text-slate-700','test_projects.py','',2840)}
+        <div class="flex-1 min-w-4"></div>
+        ${box('bg-red-500','border-red-600','text-white','Playwright','E2E browser',2910)}
+        ${arrow('Page Objects','2980','right','red',36)}
+        ${box('bg-white','border-red-200','text-red-700','BasePage / ProjectPage','POM classes',3050)}
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center gap-4 flex-wrap">
+      ${[['#3b82f6','Browser / JS'],['#8b5cf6','FastAPI / API'],['#10b981','Database'],['#94a3b8','CI/CD'],['#ef4444','Tests']].map(([c,l])=>`
+        <div class="flex items-center gap-1.5">
+          <div style="height:2px;width:18px;background:repeating-linear-gradient(to right,${c} 0,${c} 4px,transparent 4px,transparent 8px);background-size:10px 100%;animation:tfFlowR .4s linear infinite"></div>
+          <span class="text-[9px] text-slate-500">${l}</span>
+        </div>`).join('')}
+      <div class="ml-auto flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400 aad-live"></span>
+        <span class="text-[9px] text-slate-400 font-medium">Live data flow</span>
+      </div>
+    </div>
+  </div>
+  <style>
+    @keyframes tfIn    { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes tfFlowR { from{background-position:0 0} to{background-position:14px 0} }
+    @keyframes tfFlowL { from{background-position:0 0} to{background-position:-14px 0} }
+    @keyframes tfFlowD { from{background-position:0 0} to{background-position:0 14px} }
+    .tf-box { min-width:88px; }
+  </style>`;
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
