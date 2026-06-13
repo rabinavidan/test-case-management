@@ -445,8 +445,8 @@ async function renderProjects() {
 
   const navBtn = document.getElementById("nav-new-btn");
   document.getElementById("nav-new-label").textContent = "New Project";
-  navBtn.classList.remove("hidden");
-  navBtn.onclick = () => showModal("project");
+  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("project"); }
+  else { navBtn.classList.add("hidden"); }
 
   const el = document.getElementById("view-projects");
   el.classList.remove("hidden");
@@ -777,10 +777,10 @@ function projectRow(p) {
       </td>
       <td class="px-3 py-3 hidden sm:table-cell text-slate-400 text-xs whitespace-nowrap">${formatDate(p.created_at)}</td>
       <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
-        <button data-testid="delete-project-${p.id}" onclick="deleteProject(${p.id})"
+        ${isAdmin() ? `<button data-testid="delete-project-${p.id}" onclick="deleteProject(${p.id})"
           class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-        </button>
+        </button>` : ""}
       </td>
     </tr>`;
 }
@@ -932,8 +932,8 @@ async function renderProject(projectId) {
 
   const navBtn = document.getElementById("nav-new-btn");
   document.getElementById("nav-new-label").textContent = "New Suite";
-  navBtn.classList.remove("hidden");
-  navBtn.onclick = () => showModal("suite", { projectId });
+  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("suite", { projectId }); }
+  else { navBtn.classList.add("hidden"); }
 
   const total  = stats.last_run_pass + stats.last_run_fail + stats.last_run_skip + stats.last_run_pending;
   const passP  = total ? Math.round(stats.last_run_pass / total * 100) : 0;
@@ -1187,10 +1187,10 @@ function suiteCard(s, projectId) {
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
           <span class="text-xs text-slate-400">${formatDate(s.created_at)}</span>
-          <button data-testid="delete-suite-${s.id}" onclick="event.stopPropagation(); deleteSuite(${s.id}, ${projectId})"
+          ${isAdmin() ? `<button data-testid="delete-suite-${s.id}" onclick="event.stopPropagation(); deleteSuite(${s.id}, ${projectId})"
             class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-          </button>
+          </button>` : ""}
           <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </div>
       </div>
@@ -1281,8 +1281,8 @@ async function renderSuite(suiteId) {
 
   const navBtn = document.getElementById("nav-new-btn");
   document.getElementById("nav-new-label").textContent = "New Test Case";
-  navBtn.classList.remove("hidden");
-  navBtn.onclick = () => showModal("testcase", { suiteId });
+  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("testcase", { suiteId }); }
+  else { navBtn.classList.add("hidden"); }
 
   const counts = { draft: 0, active: 0, deprecated: 0 };
   testcases.forEach(tc => { if (counts[tc.status] !== undefined) counts[tc.status]++; });
@@ -1369,6 +1369,7 @@ function testCaseCard(tc) {
               </p>` : ""}
           </div>
           <div class="flex items-center gap-1 flex-shrink-0 ml-2">
+            ${isAdmin() ? `
             <button data-testid="edit-testcase-${tc.id}" onclick='showModal("editTestCase", JSON.parse(this.dataset.tc))'
               data-tc="${tcJson}"
               class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
@@ -1377,7 +1378,7 @@ function testCaseCard(tc) {
             <button data-testid="delete-testcase-${tc.id}" onclick="deleteTestCase(${tc.id}, ${tc.suite_id})"
               class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-            </button>
+            </button>` : ""}
           </div>
         </div>
       </div>
@@ -1428,8 +1429,8 @@ async function renderSuiteTestCases(suiteId) {
 
   const navBtn = document.getElementById("nav-new-btn");
   document.getElementById("nav-new-label").textContent = "New Test Case";
-  navBtn.classList.remove("hidden");
-  navBtn.onclick = () => showModal("testcase", { suiteId });
+  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("testcase", { suiteId }); }
+  else { navBtn.classList.add("hidden"); }
 
   const counts = { draft: 0, active: 0, deprecated: 0 };
   testcases.forEach(tc => { if (counts[tc.status] !== undefined) counts[tc.status]++; });
@@ -2095,15 +2096,23 @@ function showAppShell(user) {
   router();
 }
 
+function isAdmin() { return state.user?.role === "admin"; }
+
 function renderUserBadge(user) {
   const el = document.getElementById("user-badge");
   if (!el) return;
+  const roleCls = user.role === "admin"
+    ? "bg-violet-100 text-violet-700 border-violet-200"
+    : "bg-amber-100 text-amber-700 border-amber-200";
   el.innerHTML = `
     <div class="flex items-center gap-2">
       <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
         ${escHtml(user.username[0].toUpperCase())}
       </div>
-      <span class="text-sm font-medium text-slate-700 hidden sm:block">${escHtml(user.username)}</span>
+      <div class="hidden sm:flex flex-col leading-none">
+        <span class="text-sm font-medium text-slate-700">${escHtml(user.username)}</span>
+        <span class="text-[10px] font-semibold border rounded px-1 mt-0.5 uppercase tracking-wide ${roleCls}">${escHtml(user.role)}</span>
+      </div>
       <button onclick="logout()" title="Log out"
         class="ml-1 text-slate-400 hover:text-red-500 transition-colors" data-testid="logout-btn">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

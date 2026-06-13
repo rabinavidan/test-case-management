@@ -37,7 +37,7 @@ def client():
 
 @pytest.fixture()
 def auth_client(client):
-    """Client with a registered + logged-in user; returns (client, headers)."""
+    """Admin client (first registered user); returns (client, headers)."""
     client.post("/api/auth/register", json={
         "username": "testuser",
         "email": "test@example.com",
@@ -46,6 +46,23 @@ def auth_client(client):
     res = client.post("/api/auth/login", json={
         "username": "testuser",
         "password": "testpass",
+    })
+    token = res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    return client, headers
+
+
+@pytest.fixture()
+def executor_client(client, auth_client):
+    """Executor client (second registered user); returns (client, headers)."""
+    client.post("/api/auth/register", json={
+        "username": "executor",
+        "email": "executor@example.com",
+        "password": "execpass",
+    })
+    res = client.post("/api/auth/login", json={
+        "username": "executor",
+        "password": "execpass",
     })
     token = res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
