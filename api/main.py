@@ -31,18 +31,7 @@ def _run_migrations():
 
 _run_migrations()
 
-app = FastAPI(title="Test Case Management API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Auto-seed admin user from env vars if no users exist
-@app.on_event("startup")
+# Seed admin user from env vars at module load time (runs on every cold start)
 def _seed_admin():
     seed_user = os.getenv("SEED_ADMIN_USERNAME")
     seed_pass = os.getenv("SEED_ADMIN_PASSWORD")
@@ -65,6 +54,18 @@ def _seed_admin():
             db.close()
     except Exception:
         pass
+
+_seed_admin()
+
+app = FastAPI(title="Test Case Management API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
