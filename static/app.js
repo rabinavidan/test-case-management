@@ -1515,93 +1515,104 @@ function formatDate(iso) {
 
 // ─── Alerts Microservice architecture diagram ────────────────────────────────
 function alertsArchDiagram() {
-  const node = (color, label, icon, delay = 0) =>
-    `<div class="arch-node flex flex-col items-center gap-1 opacity-0"
-        style="animation:archIn .4s ease forwards;animation-delay:${delay}ms">
-      <div class="w-14 h-14 ${color} rounded-2xl flex items-center justify-center text-2xl shadow-md arch-pulse"
-          style="animation-delay:${delay}ms">${icon}</div>
-      <span class="text-xs font-medium text-slate-700 text-center leading-tight max-w-[72px]">${label}</span>
+  const box = (bg, border, textColor, label, sub, delay = 0) =>
+    `<div class="alerts-arch-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
+        style="animation:archIn .35s ease forwards;animation-delay:${delay}ms">
+      <p class="text-xs font-bold ${textColor} leading-tight">${label}</p>
+      ${sub ? `<p class="text-[10px] ${textColor} opacity-70 leading-tight mt-0.5">${sub}</p>` : ''}
     </div>`;
 
-  const arrow = (delay = 0, vertical = false) =>
-    `<div class="text-slate-300 font-bold text-lg opacity-0 ${vertical ? "rotate-90 my-1" : "mb-5"}"
-        style="animation:archIn .3s ease forwards;animation-delay:${delay}ms">→</div>`;
+  const arrow = (label = '', delay = 0, dir = 'right') => {
+    const rotate = dir === 'down' ? 'rotate-90' : dir === 'up' ? '-rotate-90' : dir === 'left' ? 'rotate-180' : '';
+    return `<div class="flex flex-col items-center gap-0.5 opacity-0 flex-shrink-0"
+        style="animation:archIn .25s ease forwards;animation-delay:${delay}ms">
+      ${label ? `<span class="text-[9px] text-slate-400 font-medium whitespace-nowrap">${label}</span>` : ''}
+      <svg class="w-5 h-4 text-slate-400 ${rotate}" fill="none" stroke="currentColor" viewBox="0 0 24 10">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2 5h18M16 1l4 4-4 4"/>
+      </svg>
+    </div>`;
+  };
 
-  const connector = (delay = 0) =>
-    `<div class="w-px h-6 bg-slate-200 opacity-0 mx-auto"
-        style="animation:archIn .3s ease forwards;animation-delay:${delay}ms"></div>`;
+  const section = (label, color) =>
+    `<p class="text-[9px] font-bold uppercase tracking-widest ${color} mb-2 mt-0">${label}</p>`;
 
   return `
-  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-auto">
-    <div class="flex items-center justify-between mb-5">
-      <h3 class="font-semibold text-slate-800">System Architecture</h3>
-      <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded-full">Alerts Microservice · Node.js</span>
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-slate-800 text-sm">System Architecture</h3>
+      <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded-full">Alerts Microservice · GCP + Angular MFE</span>
     </div>
 
-    <!-- Row 1: Data Ingestion -->
-    <div class="mb-2">
-      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Data Ingestion</p>
-      <div class="flex items-end gap-4 flex-wrap">
-        ${node("bg-orange-100", "Apache Kafka", "📨", 0)}
-        ${arrow(100)}
-        ${node("bg-blue-100", "GCP Pub/Sub", "☁️", 150)}
-        ${arrow(250)}
-        ${node("bg-pink-200", "Alerts Logic Engine", "⚡", 300)}
-        ${arrow(400)}
-        ${node("bg-violet-100", "Rule Validator", "✅", 450)}
-        ${arrow(550)}
-        ${node("bg-amber-100", "Scheduler Service", "🕐", 600)}
+    <!-- Top: Client Layer -->
+    <div class="mb-4 pb-4 border-b border-slate-100">
+      ${section('Client Layer — Angular Micro Frontends', 'text-blue-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-blue-500', 'border-blue-600', 'text-white', 'Shell Application', 'Host', 0)}
+        ${arrow('', 80)}
+        ${box('bg-amber-400', 'border-amber-500', 'text-white', 'Alerts Management MFE', 'Create Config', 160)}
+        <div class="flex-1"></div>
+        ${box('bg-amber-400', 'border-amber-500', 'text-white', 'Notification Display MFE', 'Realtime Updates', 240)}
       </div>
     </div>
 
-    ${connector(700)}
-
-    <!-- Row 2: Notification -->
-    <div class="mb-2 mt-2">
-      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Notification Engine</p>
-      <div class="flex items-end gap-4 flex-wrap">
-        ${node("bg-teal-100", "Notification Center", "🔔", 750)}
-        ${arrow(850)}
-        ${node("bg-indigo-100", "Email Engine", "✉️", 900)}
-        ${arrow(1000)}
-        ${node("bg-slate-100", "SMTP / SendGrid", "📤", 1050)}
-        ${arrow(1150)}
-        ${node("bg-emerald-100", "Notification UI", "🖥️", 1200)}
+    <!-- Middle: GCP Platform -->
+    <div class="mb-4 pb-4 border-b border-slate-100">
+      ${section('Google Cloud Platform (GCP) — Processing & Logic', 'text-blue-400')}
+      <div class="flex items-start gap-3 flex-wrap">
+        <!-- Left: scheduler + scanner stack -->
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            ${box('bg-blue-500', 'border-blue-600', 'text-white', 'Cloud Scheduler', 'Cron', 300)}
+            ${arrow('Trigger Scan (Interval)', 380)}
+            ${box('bg-blue-500', 'border-blue-600', 'text-white', 'Data Scanner Function', 'Cloud Functions', 460)}
+          </div>
+          <div class="flex items-center gap-2 pl-2">
+            ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Alert Microservice', 'Cloud Run', 540)}
+            ${arrow('Cache Config / Match Criteria', 620)}
+            <div class="flex flex-col gap-1">
+              ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Cloud Endpoints', 'API Gateway', 700)}
+            </div>
+          </div>
+        </div>
+        <!-- Right: Event streaming -->
+        <div class="flex flex-col items-start gap-2 ml-auto">
+          ${box('bg-red-500', 'border-red-600', 'text-white', 'GCP Pub/Sub', 'Event Streaming', 760)}
+          ${arrow('Async Notification', 840, 'down')}
+          ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Notification Microservice', 'GKE', 920)}
+          ${arrow('Push to UI', 1000, 'down')}
+          ${box('bg-emerald-500', 'border-emerald-600', 'text-white', 'WebSocket Server', 'Firebase / Socket.io', 1080)}
+        </div>
       </div>
     </div>
 
-    ${connector(1300)}
-
-    <!-- Row 3: Data persistence -->
-    <div class="mt-2">
-      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Data &amp; Search Persistence</p>
-      <div class="flex items-end gap-4 flex-wrap">
-        ${node("bg-green-200", "MongoDB User Prefs", "🍃", 1350)}
-        ${node("bg-teal-200", "Elasticsearch Newsfeed", "🔍", 1450)}
-        ${node("bg-red-200", "Solr Funding Data", "📊", 1550)}
-        ${node("bg-blue-200", "BigQuery Historical", "📈", 1650)}
-        ${node("bg-red-300", "Redis Cache/State", "⚡", 1750)}
+    <!-- Bottom: Data & Search -->
+    <div>
+      ${section('Data & Search — GCP Storage Layer', 'text-emerald-600')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-red-500', 'border-red-600', 'text-white', 'Cloud Memorystore', 'Redis', 1160)}
+        ${box('bg-teal-700', 'border-teal-800', 'text-white', 'Elasticsearch', 'Log / Search', 1240)}
+        ${box('bg-emerald-600', 'border-emerald-700', 'text-white', 'Google BigQuery', 'Analytics', 1320)}
+        ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Cloud SQL / Firestore', 'Structured Data', 1400)}
       </div>
     </div>
 
     <!-- Animated data flow indicator -->
-    <div class="mt-5 pt-4 border-t border-slate-100 flex items-center gap-3">
+    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3">
       <div class="flex gap-1.5">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 arch-blink" style="animation-delay:0ms"></span>
-        <span class="w-2 h-2 rounded-full bg-blue-400 arch-blink" style="animation-delay:300ms"></span>
-        <span class="w-2 h-2 rounded-full bg-orange-400 arch-blink" style="animation-delay:600ms"></span>
+        <span class="w-2 h-2 rounded-full bg-blue-400 arch-blink" style="animation-delay:0ms"></span>
+        <span class="w-2 h-2 rounded-full bg-red-400 arch-blink" style="animation-delay:300ms"></span>
+        <span class="w-2 h-2 rounded-full bg-emerald-400 arch-blink" style="animation-delay:600ms"></span>
       </div>
-      <span class="text-xs text-slate-400 font-medium">Live data flow simulation</span>
+      <span class="text-xs text-slate-400 font-medium">Live event flow simulation</span>
       <div class="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
-        <div class="h-full bg-gradient-to-r from-blue-400 to-emerald-400 rounded-full arch-flow"></div>
+        <div class="h-full bg-gradient-to-r from-blue-400 via-red-400 to-emerald-400 rounded-full arch-flow"></div>
       </div>
     </div>
   </div>
 
   <style>
-    @keyframes archIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-    .arch-pulse { animation: archPulse 3s ease-in-out infinite; }
-    @keyframes archPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+    @keyframes archIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .alerts-arch-box { min-width:90px; }
     .arch-blink { animation: archBlink 1.5s ease-in-out infinite; }
     @keyframes archBlink { 0%,100%{opacity:1} 50%{opacity:.2} }
     .arch-flow { animation: archFlow 2.5s ease-in-out infinite alternate; }
