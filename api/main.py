@@ -31,7 +31,7 @@ def _run_migrations():
 
 _run_migrations()
 
-# Seed admin user from env vars at module load time (runs on every cold start)
+# Seed/update admin user from env vars at module load time (runs on every cold start)
 def _seed_admin():
     seed_user = os.getenv("SEED_ADMIN_USERNAME")
     seed_pass = os.getenv("SEED_ADMIN_PASSWORD")
@@ -42,14 +42,19 @@ def _seed_admin():
         from .database import SessionLocal
         db = SessionLocal()
         try:
-            if db.query(models.User).count() == 0:
+            existing = db.query(models.User).filter(models.User.username == seed_user).first()
+            if existing:
+                # Update password and ensure admin role
+                existing.hashed_password = hash_password(seed_pass)
+                existing.role = "admin"
+            else:
                 db.add(models.User(
                     username=seed_user,
                     email=seed_email,
                     hashed_password=hash_password(seed_pass),
                     role="admin",
                 ))
-                db.commit()
+            db.commit()
         finally:
             db.close()
     except Exception:
