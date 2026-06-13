@@ -430,6 +430,132 @@ async function renderProjects() {
 
   await loadSidebar();
 
+  const archDiagram = `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 overflow-hidden">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Live Architecture</p>
+          <h2 class="text-base font-bold text-slate-800">TestFlow — System Overview</h2>
+        </div>
+        <span class="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 arch-live-dot"></span>Live
+        </span>
+      </div>
+      <!-- Architecture rows -->
+      <div class="space-y-3">
+        <!-- Row 1: Client -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:0ms">
+          <div class="w-24 flex-shrink-0 flex items-center">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Browser</span>
+          </div>
+          <div class="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🖥️</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-blue-800">Vanilla JS SPA</p>
+              <p class="text-[10px] text-blue-500 truncate">static/index.html · static/app.js · Hash routing · Tailwind CSS</p>
+            </div>
+            <div class="flex gap-1.5 flex-wrap justify-end">
+              ${['index.html','app.js','TailwindCSS'].map(t=>`<span class="arch-tag bg-blue-100 text-blue-700">${t}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+        <!-- Arrow -->
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:80ms">
+          <div class="w-24"></div>
+          <div class="flex-1 flex items-center gap-2 pl-4">
+            <div class="h-px flex-1 bg-slate-200"></div>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP / REST API</span>
+            <div class="h-px flex-1 bg-slate-200"></div>
+          </div>
+        </div>
+        <!-- Row 2: API -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:160ms">
+          <div class="w-24 flex-shrink-0 flex items-center">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">API Layer</span>
+          </div>
+          <div class="flex-1 bg-violet-50 border border-violet-200 rounded-xl p-3 flex items-center gap-3">
+            <div class="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">⚡</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-violet-800">FastAPI + SQLAlchemy</p>
+              <p class="text-[10px] text-violet-500 truncate">api/main.py · models · schemas · CORS middleware · Pydantic v2</p>
+            </div>
+            <div class="flex gap-1.5 flex-wrap justify-end">
+              ${['FastAPI','SQLAlchemy','Pydantic'].map(t=>`<span class="arch-tag bg-violet-100 text-violet-700">${t}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+        <!-- Arrow -->
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:240ms">
+          <div class="w-24"></div>
+          <div class="flex-1 flex items-center gap-2 pl-4">
+            <div class="h-px flex-1 bg-slate-200"></div>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">ORM / SQL</span>
+            <div class="h-px flex-1 bg-slate-200"></div>
+          </div>
+        </div>
+        <!-- Row 3: Database -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:320ms">
+          <div class="w-24 flex-shrink-0 flex items-center">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Storage</span>
+          </div>
+          <div class="flex-1 flex gap-2">
+            <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🗄️</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-emerald-800">PostgreSQL (Neon)</p>
+                <p class="text-[10px] text-emerald-600">Production · Vercel env var</p>
+              </div>
+            </div>
+            <div class="flex-1 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">📦</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-amber-800">SQLite</p>
+                <p class="text-[10px] text-amber-600">Local dev · /tmp on Vercel</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Row 4: CI/CD + Tests side by side -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0 mt-1" style="animation:archRowIn .35s ease forwards;animation-delay:440ms">
+          <div class="w-24 flex-shrink-0 flex items-center">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CI / Deploy</span>
+          </div>
+          <div class="flex-1 flex gap-2">
+            <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🔄</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-700">GitHub Actions</p>
+                <p class="text-[10px] text-slate-500">pytest API · Playwright E2E · Job summary</p>
+              </div>
+            </div>
+            <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">▲</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-700">Vercel</p>
+                <p class="text-[10px] text-slate-500">Serverless · Preview per PR · Production</p>
+              </div>
+            </div>
+            <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🧪</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-700">Tests</p>
+                <p class="text-[10px] text-slate-500">pytest + Playwright POM · 20 API · 16 E2E</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes archRowIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+      .arch-tag { font-size:9px; font-weight:600; padding:1px 6px; border-radius:999px; }
+      .arch-live-dot { animation: archLivePulse 2s ease-in-out infinite; }
+      @keyframes archLivePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.3)} }
+      .arch-http-badge { animation: archBadgePulse 3s ease-in-out infinite; }
+      @keyframes archBadgePulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+    </style>
+  `;
+
   const demoBanner = `
     <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6 overflow-hidden relative">
       <div class="relative z-10">
@@ -500,6 +626,7 @@ async function renderProjects() {
   if (!state.projects.length) {
     el.innerHTML = `
       <div class="fade-in">
+        ${archDiagram}
         ${demoBanner}
         <div class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
@@ -519,11 +646,13 @@ async function renderProjects() {
 
   el.innerHTML = `
     <div class="fade-in">
+      ${archDiagram}
       ${demoBanner}
-      <div class="flex items-center justify-between mb-4">
+      <!-- Projects table header -->
+      <div class="flex items-center justify-between mb-3">
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">Projects</h1>
-          <p class="text-slate-500 text-sm mt-0.5">${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}</p>
+          <h1 class="text-xl font-bold text-slate-800">Projects</h1>
+          <p class="text-slate-500 text-xs mt-0.5" id="proj-count-label">${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}</p>
         </div>
         <div class="flex items-center gap-2">
           <div id="bulk-toolbar" class="hidden items-center gap-2">
@@ -540,104 +669,166 @@ async function renderProjects() {
           </button>
         </div>
       </div>
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        ${state.projects.map(p => projectCard(p)).join("")}
+      <!-- Filter / search bar -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-3 px-3 py-2 flex items-center gap-3">
+        <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z"/></svg>
+        <input id="proj-search" oninput="filterProjectTable()" type="text" placeholder="Filter by name or description…"
+          class="flex-1 text-sm outline-none bg-transparent text-slate-700 placeholder-slate-400" />
+        <select id="proj-sort" onchange="filterProjectTable()"
+          class="text-xs text-slate-500 bg-transparent outline-none border-l border-slate-200 pl-3 cursor-pointer">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="az">A → Z</option>
+          <option value="za">Z → A</option>
+        </select>
+      </div>
+      <!-- Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-100 bg-slate-50">
+              <th class="w-10 px-4 py-3">
+                <input type="checkbox" id="proj-select-all" onchange="toggleSelectAllProjects(this.checked)"
+                  class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />
+              </th>
+              <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</th>
+              <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Description</th>
+              <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell w-32">Created</th>
+              <th class="w-16 px-3 py-3"></th>
+            </tr>
+          </thead>
+          <tbody id="proj-table-body">
+            ${state.projects.map(p => projectRow(p)).join("")}
+          </tbody>
+        </table>
+        <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-400 text-sm">No projects match your filter.</div>
       </div>
     </div>`;
 }
 
-function projectCard(p) {
+function projectRow(p) {
   return `
-    <div id="pcard-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
-      class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group p-5 relative select-none">
-      <!-- Checkbox (visible on hover or when any selected) -->
-      <div onclick="event.stopPropagation(); toggleProjectSelect(${p.id})"
-        class="project-check absolute top-3 left-3 w-5 h-5 rounded-md border-2 border-slate-300 bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:border-blue-500"
-        id="pcheck-${p.id}">
-        <svg class="w-3 h-3 text-white hidden" id="pcheck-icon-${p.id}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-      </div>
-      <div class="flex items-start justify-between mb-4">
-        <div class="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center">
-          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
-          </svg>
+    <tr id="pcard-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
+      class="border-b border-slate-100 last:border-0 hover:bg-blue-50/40 transition-colors cursor-pointer group select-none">
+      <td class="px-4 py-3" onclick="event.stopPropagation()">
+        <input type="checkbox" id="pcheck-${p.id}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
+          class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />
+      </td>
+      <td class="px-3 py-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+          </div>
+          <span class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-[180px]">${escHtml(p.name)}</span>
         </div>
-        <button onclick="event.stopPropagation(); deleteProject(${p.id})"
-          class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+      </td>
+      <td class="px-3 py-3 hidden md:table-cell text-slate-500 text-xs max-w-[260px]">
+        <span class="line-clamp-1">${escHtml(p.description || "—")}</span>
+      </td>
+      <td class="px-3 py-3 hidden sm:table-cell text-slate-400 text-xs whitespace-nowrap">${formatDate(p.created_at)}</td>
+      <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
+        <button onclick="deleteProject(${p.id})"
+          class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
-      </div>
-      <h3 class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors mb-1 truncate">${escHtml(p.name)}</h3>
-      <p class="text-sm text-slate-500 line-clamp-2 mb-4 min-h-[40px]">${escHtml(p.description || "No description provided.")}</p>
-      <div class="flex items-center justify-between text-xs text-slate-400">
-        <span>${formatDate(p.created_at)}</span>
-        <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-      </div>
-    </div>`;
+      </td>
+    </tr>`;
+}
+
+function filterProjectTable() {
+  const q = (document.getElementById("proj-search")?.value || "").toLowerCase();
+  const sort = document.getElementById("proj-sort")?.value || "newest";
+  let rows = [...state.projects];
+
+  if (q) rows = rows.filter(p =>
+    p.name.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q)
+  );
+
+  if (sort === "oldest") rows.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  else if (sort === "az") rows.sort((a,b) => a.name.localeCompare(b.name));
+  else if (sort === "za") rows.sort((a,b) => b.name.localeCompare(a.name));
+  else rows.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const tbody = document.getElementById("proj-table-body");
+  const empty = document.getElementById("proj-empty-filter");
+  const countLabel = document.getElementById("proj-count-label");
+  if (!tbody) return;
+
+  if (!rows.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+  } else {
+    empty.classList.add("hidden");
+    tbody.innerHTML = rows.map(p => projectRow(p)).join("");
+    // Re-apply selection state
+    _selectedProjects.forEach(id => {
+      const cb = document.getElementById(`pcheck-${id}`);
+      const row = document.getElementById(`pcard-${id}`);
+      if (cb) cb.checked = true;
+      if (row) row.classList.add("bg-blue-50", "ring-1", "ring-inset", "ring-blue-200");
+    });
+  }
+  countLabel.textContent = `${rows.length} of ${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}`;
+}
+
+function toggleSelectAllProjects(checked) {
+  state.projects.forEach(p => {
+    const cb = document.getElementById(`pcheck-${p.id}`);
+    if (!cb) return;
+    const visible = !!document.getElementById(`pcard-${p.id}`);
+    if (!visible) return;
+    toggleProjectSelectByCheckbox(p.id, checked);
+  });
 }
 
 const _selectedProjects = new Set();
 
 function handleProjectCardClick(event, id) {
   if (_selectedProjects.size > 0) {
-    toggleProjectSelect(id);
+    const cb = document.getElementById(`pcheck-${id}`);
+    toggleProjectSelectByCheckbox(id, !_selectedProjects.has(id));
   } else {
     navigate(`project/${id}`);
   }
 }
 
-function toggleProjectSelect(id) {
-  const card = document.getElementById(`pcard-${id}`);
-  const check = document.getElementById(`pcheck-${id}`);
-  const icon = document.getElementById(`pcheck-icon-${id}`);
-  if (_selectedProjects.has(id)) {
-    _selectedProjects.delete(id);
-    card.classList.remove("ring-2", "ring-blue-500", "border-blue-400");
-    check.classList.remove("bg-blue-500", "border-blue-500");
-    check.classList.add("border-slate-300", "bg-white");
-    icon.classList.add("hidden");
-  } else {
-    _selectedProjects.add(id);
-    card.classList.add("ring-2", "ring-blue-500", "border-blue-400");
-    check.classList.add("bg-blue-500", "border-blue-500");
-    check.classList.remove("border-slate-300", "bg-white");
-    icon.classList.remove("hidden");
-  }
-  // Keep checkboxes visible whenever any are selected
-  document.querySelectorAll(".project-check").forEach(el => {
-    el.classList.toggle("opacity-100", _selectedProjects.size > 0);
-    el.classList.toggle("opacity-0", _selectedProjects.size === 0);
-  });
-  const toolbar = document.getElementById("bulk-toolbar");
-  const countEl = document.getElementById("bulk-count");
-  if (_selectedProjects.size > 0) {
-    toolbar.classList.remove("hidden");
-    toolbar.classList.add("flex");
-    countEl.textContent = `${_selectedProjects.size} selected`;
-  } else {
-    toolbar.classList.add("hidden");
-    toolbar.classList.remove("flex");
-  }
-}
-
 function clearProjectSelection() {
   [..._selectedProjects].forEach(id => {
-    const card = document.getElementById(`pcard-${id}`);
-    const check = document.getElementById(`pcheck-${id}`);
-    const icon = document.getElementById(`pcheck-icon-${id}`);
-    if (card) card.classList.remove("ring-2", "ring-blue-500", "border-blue-400");
-    if (check) { check.classList.remove("bg-blue-500", "border-blue-500"); check.classList.add("border-slate-300", "bg-white"); }
-    if (icon) icon.classList.add("hidden");
+    const row = document.getElementById(`pcard-${id}`);
+    const cb = document.getElementById(`pcheck-${id}`);
+    if (row) row.classList.remove("bg-blue-50", "ring-1", "ring-inset", "ring-blue-200");
+    if (cb) cb.checked = false;
   });
   _selectedProjects.clear();
-  document.querySelectorAll(".project-check").forEach(el => {
-    el.classList.add("opacity-0");
-    el.classList.remove("opacity-100");
-  });
+  const all = document.getElementById("proj-select-all");
+  if (all) all.checked = false;
   const toolbar = document.getElementById("bulk-toolbar");
   if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
 }
 
+function toggleProjectSelectByCheckbox(id, checked) {
+  const row = document.getElementById(`pcard-${id}`);
+  const cb = document.getElementById(`pcheck-${id}`);
+  if (checked) {
+    _selectedProjects.add(id);
+    if (row) row.classList.add("bg-blue-50", "ring-1", "ring-inset", "ring-blue-200");
+    if (cb) cb.checked = true;
+  } else {
+    _selectedProjects.delete(id);
+    if (row) row.classList.remove("bg-blue-50", "ring-1", "ring-inset", "ring-blue-200");
+    if (cb) cb.checked = false;
+  }
+  const toolbar = document.getElementById("bulk-toolbar");
+  const countEl = document.getElementById("bulk-count");
+  if (_selectedProjects.size > 0) {
+    toolbar.classList.remove("hidden"); toolbar.classList.add("flex");
+    countEl.textContent = `${_selectedProjects.size} selected`;
+  } else {
+    toolbar.classList.add("hidden"); toolbar.classList.remove("flex");
+  }
+}
 async function bulkDeleteProjects() {
   const ids = [..._selectedProjects];
   if (!ids.length) return;
