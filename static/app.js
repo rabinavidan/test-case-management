@@ -711,9 +711,9 @@ async function renderProjects() {
           </div>
           <h2 class="text-xl font-bold text-slate-700 mb-2">No projects yet</h2>
           <p class="text-slate-500 mb-6 max-w-sm text-sm">Create your first project to start organizing test suites and cases.</p>
-          <button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-sm">
+          ${isAdmin() ? `<button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-sm">
             Create First Project
-          </button>
+          </button>` : ""}
         </div>
       </div>`;
     return;
@@ -738,10 +738,10 @@ async function renderProjects() {
             </button>
             <button onclick="clearProjectSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
           </div>
-          <button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+          ${isAdmin() ? `<button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New Project
-          </button>
+          </button>` : ""}
         </div>
       </div>
       <!-- Filter / search bar -->
