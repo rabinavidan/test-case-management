@@ -968,6 +968,21 @@ async function renderProject(projectId) {
         <p class="text-xs text-slate-400 mt-2">${total} test${total !== 1 ? "s" : ""} · ${passP}% passing</p>
       </div>` : ""}
 
+      <!-- Test Report (demo projects with runs) -->
+      ${(project.name.startsWith("Alerts Microservice") || project.name.startsWith("TestFlow")) && stats.total_runs > 0 ? `
+      <div id="test-report-section">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-slate-700">Test Report</h2>
+          <span class="text-xs text-slate-400">Last run per suite</span>
+        </div>
+        <div id="test-report-body" class="space-y-4">
+          <div class="flex items-center justify-center py-10 bg-white rounded-2xl border border-slate-200">
+            <div class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+            <span class="text-sm text-slate-500">Loading test report…</span>
+          </div>
+        </div>
+      </div>` : ""}
+
       <!-- Suites list -->
       <div>
         <h2 class="text-lg font-semibold text-slate-700 mb-3">Test Suites</h2>
@@ -983,6 +998,136 @@ async function renderProject(projectId) {
           </div>`}
       </div>
     </div>`;
+
+  // Load test report async (demo projects only)
+  if ((project.name.startsWith("Alerts Microservice") || project.name.startsWith("TestFlow")) && stats.total_runs > 0) {
+    loadTestReport(suites);
+  }
+}
+
+async function loadTestReport(suites) {
+  const container = document.getElementById("test-report-body");
+  if (!container) return;
+
+  const STATUS_BADGE = {
+    pass:    'bg-emerald-100 text-emerald-700',
+    fail:    'bg-red-100 text-red-700',
+    skip:    'bg-amber-100 text-amber-700',
+    pending: 'bg-slate-100 text-slate-500',
+  };
+  const STATUS_DOT = {
+    pass: 'bg-emerald-500', fail: 'bg-red-500', skip: 'bg-amber-400', pending: 'bg-slate-300',
+  };
+
+  try {
+    // Fetch the latest run for each suite in parallel
+    const suiteRuns = await Promise.all(
+      suites.map(s => GET(`/api/suites/${s.id}/runs`).then(runs => ({ suite: s, run: runs[0] || null })))
+    );
+
+    // Summary counts across all suites
+    let totPass = 0, totFail = 0, totSkip = 0, totPending = 0;
+    suiteRuns.forEach(({ run }) => {
+      if (!run) return;
+      run.results.forEach(r => {
+        if (r.status === 'pass') totPass++;
+        else if (r.status === 'fail') totFail++;
+        else if (r.status === 'skip') totSkip++;
+        else totPending++;
+      });
+    });
+    const totAll = totPass + totFail + totSkip + totPending;
+    const overallPct = totAll ? Math.round(totPass / totAll * 100) : 0;
+
+    const summaryBar = `
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-2">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="font-semibold text-slate-800 text-sm">Overall Results</h3>
+            <p class="text-xs text-slate-400 mt-0.5">${totAll} test cases across ${suites.length} suites</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs font-semibold">
+            <span class="flex items-center gap-1.5 text-emerald-700"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>${totPass} pass</span>
+            <span class="flex items-center gap-1.5 text-red-700"><span class="w-2 h-2 rounded-full bg-red-500"></span>${totFail} fail</span>
+            <span class="flex items-center gap-1.5 text-amber-700"><span class="w-2 h-2 rounded-full bg-amber-400"></span>${totSkip} skip</span>
+            <span class="text-lg font-bold ${overallPct >= 80 ? 'text-emerald-600' : overallPct >= 50 ? 'text-amber-600' : 'text-red-600'}">${overallPct}%</span>
+          </div>
+        </div>
+        <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
+          ${totAll ? `
+            <div class="bg-emerald-500 h-full" style="width:${Math.round(totPass/totAll*100)}%"></div>
+            <div class="bg-red-500 h-full" style="width:${Math.round(totFail/totAll*100)}%"></div>
+            <div class="bg-amber-400 h-full" style="width:${Math.round(totSkip/totAll*100)}%"></div>` : ''}
+        </div>
+      </div>`;
+
+    const suiteSections = suiteRuns.map(({ suite, run }) => {
+      if (!run || !run.results.length) return `
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <span class="font-semibold text-slate-700 text-sm">${escHtml(suite.name)}</span>
+            <span class="text-xs text-slate-400">No runs yet</span>
+          </div>
+        </div>`;
+
+      const pass = run.results.filter(r => r.status === 'pass').length;
+      const fail = run.results.filter(r => r.status === 'fail').length;
+      const skip = run.results.filter(r => r.status === 'skip').length;
+      const total = run.results.length;
+      const pct = total ? Math.round(pass / total * 100) : 0;
+
+      const rows = run.results.map((r, i) => `
+        <tr class="${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-blue-50/30 transition-colors">
+          <td class="px-4 py-2.5 text-sm text-slate-700 font-medium">${escHtml(r.test_case.title)}</td>
+          <td class="px-3 py-2.5">
+            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[r.status] || STATUS_BADGE.pending}">
+              <span class="w-1.5 h-1.5 rounded-full ${STATUS_DOT[r.status] || STATUS_DOT.pending}"></span>
+              ${r.status}
+            </span>
+          </td>
+          <td class="px-3 py-2.5 text-xs text-slate-400 hidden sm:table-cell">
+            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${r.test_case.priority === 'high' ? 'bg-red-50 text-red-600' : r.test_case.priority === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}">${r.test_case.priority}</span>
+          </td>
+          <td class="px-3 py-2.5 text-xs text-slate-400 hidden md:table-cell whitespace-nowrap">${r.executed_at ? new Date(r.executed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+        </tr>`).join('');
+
+      return `
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-3">
+              <span class="font-semibold text-slate-700 text-sm">${escHtml(suite.name)}</span>
+              <span class="text-xs text-slate-400">${escHtml(run.name)}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-medium">
+              <span class="text-emerald-700">${pass}✓</span>
+              <span class="text-red-700">${fail}✗</span>
+              <span class="text-amber-700">${skip}↷</span>
+              <span class="font-bold ${pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600'}">${pct}%</span>
+            </div>
+          </div>
+          <div class="h-1 bg-slate-100 flex">
+            <div class="bg-emerald-500 h-full" style="width:${Math.round(pass/total*100)}%"></div>
+            <div class="bg-red-500 h-full" style="width:${Math.round(fail/total*100)}%"></div>
+            <div class="bg-amber-400 h-full" style="width:${Math.round(skip/total*100)}%"></div>
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-100">
+                <th class="text-left px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Test Case</th>
+                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20">Status</th>
+                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20 hidden sm:table-cell">Priority</th>
+                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20 hidden md:table-cell">Executed</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = summaryBar + suiteSections;
+  } catch (e) {
+    if (container) container.innerHTML = `<div class="text-red-500 text-sm p-4">Failed to load report: ${escHtml(e.message)}</div>`;
+  }
 }
 
 function suiteCard(s, projectId) {
