@@ -1865,6 +1865,8 @@ function testflowArchDiagram() {
     amber:   ['#fcd34d','#f59e0b'],
     slate:   ['#cbd5e1','#94a3b8'],
     red:     ['#fca5a5','#ef4444'],
+    orange:  ['#fdba74','#f97316'],
+    pink:    ['#f9a8d4','#ec4899'],
   };
   const box = (bg, border, tc, label, sub, d = 0) =>
     `<div class="tf-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
@@ -1872,6 +1874,9 @@ function testflowArchDiagram() {
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
       ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
+  const tag = (lbl, bg, tc, d = 0) =>
+    `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
+        style="animation:tfIn .3s ease forwards;animation-delay:${d}ms">${lbl}</span>`;
   const arrow = (lbl, d, dir = 'right', clr = 'blue', len = 36) => {
     const [dash, head] = FLOW[clr] || FLOW.blue;
     const anim = {right:'tfFlowR',left:'tfFlowL',down:'tfFlowD'}[dir]||'tfFlowR';
@@ -1892,113 +1897,110 @@ function testflowArchDiagram() {
   return `
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="font-semibold text-slate-800 text-sm">TestFlow — System Architecture</h3>
-      <span class="text-[10px] bg-violet-50 text-violet-700 font-semibold px-2.5 py-1 rounded-full border border-violet-200 flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-violet-500 aad-live"></span>FastAPI · Vanilla JS · Neon
+      <h3 class="font-semibold text-slate-800 text-sm">Playwright Tests — Architecture</h3>
+      <span class="text-[10px] bg-red-50 text-red-700 font-semibold px-2.5 py-1 rounded-full border border-red-200 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-red-500 aad-live"></span>UI E2E · API · POM
       </span>
     </div>
 
-    <!-- ① Browser / Client -->
+    <!-- ① Spec Layer -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('① Browser — Vanilla JS SPA', 'text-blue-500')}
+      ${lane('① Spec Layer — *.spec.ts  ·  *-be.spec.ts  (pure orchestration)', 'text-blue-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-blue-600','border-blue-700','text-white','index.html','Entry point',0)}
-        ${arrow('loads','70','right','blue',28)}
-        ${box('bg-blue-500','border-blue-600','text-white','app.js','Hash routing · State',140)}
-        ${arrow('styled by','210','right','blue',28)}
-        ${box('bg-sky-400','border-sky-500','text-white','Tailwind CSS','CDN',280)}
-        <div class="flex-1 min-w-4"></div>
-        ${box('bg-slate-100','border-slate-300','text-slate-700','Modal / Toast / Breadcrumb','UI components',350)}
+        ${box('bg-blue-600','border-blue-700','text-white','test.describe()','Feature scope',0)}
+        ${arrow('contains','70','right','blue',28)}
+        ${box('bg-blue-500','border-blue-600','text-white','test()','CI-XXXX: title',140)}
+        ${arrow('uses','210','right','blue',28)}
+        ${box('bg-white','border-blue-300','text-blue-700','test.step()','UI specs only',280)}
+        ${arrow('or','350','right','slate',20)}
+        ${box('bg-white','border-blue-300','text-blue-700','@step decorator','API specs only',420)}
+        <div class="flex-1 min-w-2"></div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          ${tag('@Team-*','bg-blue-50 border-blue-200','text-blue-700',490)}
+          ${tag('@Product-*','bg-violet-50 border-violet-200','text-violet-700',520)}
+          ${tag('@TestingLayer-systemTest','bg-emerald-50 border-emerald-200','text-emerald-700',550)}
+          ${tag('@Component-*','bg-amber-50 border-amber-200','text-amber-700',580)}
+        </div>
       </div>
     </div>
 
-    <!-- ② HTTP / REST -->
+    <!-- ② Fixtures -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('② HTTP — REST API calls from browser', 'text-violet-500')}
+      ${lane('② Fixtures — src/fixtures/fixtures.ts  (inject, never instantiate)', 'text-violet-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-blue-500','border-blue-600','text-white','app.js','GET / POST / PUT / DELETE',420)}
-        ${arrow('fetch()','490','right','violet',36)}
-        ${box('bg-violet-600','border-violet-700','text-white','FastAPI','api/main.py',560)}
-        ${arrow('Pydantic validation','630','right','violet',40)}
-        ${box('bg-violet-500','border-violet-600','text-white','Schemas','api/schemas.py',700)}
-        ${arrow('ORM','770','right','slate',28)}
-        ${box('bg-slate-100','border-slate-300','text-slate-700','Models','api/models.py',840)}
+        ${box('bg-violet-600','border-violet-700','text-white','fixtures.ts','Extends PW test',630)}
+        ${arrow('provides','700','right','violet',36)}
+        ${box('bg-white','border-violet-300','text-violet-700','loginPage','appLoginUnified()',770)}
+        ${arrow('','820','right','slate',18)}
+        ${box('bg-white','border-violet-300','text-violet-700','homePage','',860)}
+        ${arrow('','910','right','slate',18)}
+        ${box('bg-white','border-violet-300','text-violet-700','advancedSearch','',950)}
+        ${arrow('','1000','right','slate',18)}
+        ${box('bg-white','border-violet-300','text-violet-700','alertsPage','',1040)}
+        ${arrow('…','1090','right','slate',18)}
+        ${box('bg-slate-100','border-slate-300','text-slate-500','+12 more','page objects',1130)}
       </div>
     </div>
 
-    <!-- ③ API endpoints -->
+    <!-- ③ UI Path — Page Objects -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('③ API Endpoints — Projects · Suites · Cases · Runs · Stats', 'text-violet-400')}
+      ${lane('③ UI Path — Page Object Model  ·  src/pages/*.ts', 'text-emerald-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-violet-600','border-violet-700','text-white','FastAPI','CORS middleware',910)}
-        ${arrow('routes','980','right','violet',28)}
-        ${box('bg-white','border-violet-300','text-violet-700','/api/projects','CRUD',1050)}
-        ${arrow('','1090','right','slate',20)}
-        ${box('bg-white','border-violet-300','text-violet-700','/api/suites','CRUD',1130)}
-        ${arrow('','1170','right','slate',20)}
-        ${box('bg-white','border-violet-300','text-violet-700','/api/testcases','CRUD',1210)}
-        ${arrow('','1250','right','slate',20)}
-        ${box('bg-white','border-violet-300','text-violet-700','/api/runs','Execute',1290)}
-        ${arrow('','1330','right','slate',20)}
-        ${box('bg-white','border-violet-300','text-violet-700','/api/stats','Metrics',1370)}
+        ${box('bg-emerald-600','border-emerald-700','text-white','Page Class','constructor(page)',1200)}
+        ${arrow('declares','1270','right','emerald',32)}
+        ${box('bg-white','border-emerald-300','text-emerald-700','Locators','class properties',1340)}
+        ${arrow('priority','1410','right','emerald',28)}
+        ${box('bg-emerald-50','border-emerald-200','text-emerald-800','data-automation-id','1st choice',1480)}
+        ${arrow('','1550','right','slate',18)}
+        ${box('bg-white','border-slate-200','text-slate-600','getByRole()','2nd',1590)}
+        ${arrow('','1640','right','slate',18)}
+        ${box('bg-white','border-slate-200','text-slate-600','CSS class','3rd',1680)}
+        <div class="flex-1 min-w-2"></div>
+        ${box('bg-emerald-500','border-emerald-600','text-white','public async','waitFor() → click()',1720)}
       </div>
     </div>
 
-    <!-- ④ Database -->
+    <!-- ④ API Path — Endpoint + Helper -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('④ Storage — SQLAlchemy ORM', 'text-emerald-500')}
+      ${lane('④ API Path — *-endpoint.ts  →  *-helper.ts  →  BaseApiClient', 'text-orange-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-slate-100','border-slate-300','text-slate-700','Models','api/models.py',1440)}
-        ${arrow('SQLAlchemy','1510','right','emerald',36)}
-        ${box('bg-emerald-600','border-emerald-700','text-white','PostgreSQL / Neon','Production',1580)}
-        ${arrow('fallback','1650','right','slate',28)}
-        ${box('bg-amber-400','border-amber-500','text-slate-900','SQLite','Local / /tmp',1720)}
-        ${arrow('pool_pre_ping','1790','right','slate',32)}
-        ${box('bg-white','border-slate-300','text-slate-700','database.py','Connection config',1860)}
+        ${box('bg-orange-500','border-orange-600','text-white','*-endpoint.ts','@step · Logger CRUD',1790)}
+        ${arrow('calls','1860','right','orange',28)}
+        ${box('bg-white','border-orange-300','text-orange-700','BaseApiClient','HTTP + auto-log',1930)}
+        ${arrow('asserts','2000','right','orange',28)}
+        ${box('bg-white','border-orange-300','text-orange-700','expect() in endpoint','never in spec',2070)}
+        <div class="flex-1 min-w-2"></div>
+        ${box('bg-orange-400','border-orange-500','text-white','*-helper.ts','@step · polling ⏳',2140)}
+        ${arrow('waitForStatus()','2210','right','orange',44)}
+        ${box('bg-white','border-orange-300','text-orange-700','endpoint.getById()','max 60 attempts',2280)}
       </div>
     </div>
 
-    <!-- ⑤ CI / Deploy -->
-    <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('⑤ CI / CD — GitHub Actions → Vercel', 'text-slate-500')}
-      <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-slate-800','border-slate-900','text-white','Git Push / PR','GitHub',1930)}
-        ${arrow('triggers','2000','right','slate',28)}
-        ${box('bg-slate-700','border-slate-800','text-white','GitHub Actions','test.yml',2070)}
-        ${arrow('runs','2140','right','slate',28)}
-        ${box('bg-white','border-slate-300','text-slate-700','pytest API Tests','20 tests',2210)}
-        ${arrow('then','2280','right','slate',28)}
-        ${box('bg-white','border-slate-300','text-slate-700','Playwright E2E','16 tests',2350)}
-        ${arrow('deploy','2420','right','emerald',28)}
-        ${box('bg-black','border-slate-700','text-white','Vercel','Serverless',2490)}
-      </div>
-    </div>
-
-    <!-- ⑥ Test Stack -->
+    <!-- ⑤ Shared Infrastructure -->
     <div>
-      ${lane('⑥ Test Stack — pytest · Playwright POM', 'text-red-500')}
+      ${lane('⑤ Shared Infrastructure — Logger · Utilities · Test Data · Reporting', 'text-pink-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-red-500','border-red-600','text-white','pytest','API unit tests',2560)}
-        ${arrow('TestClient','2630','right','red',36)}
-        ${box('bg-white','border-red-200','text-red-700','conftest.py','SQLite fixture',2700)}
-        ${arrow('','2770','right','slate',20)}
-        ${box('bg-white','border-slate-300','text-slate-700','test_projects.py','',2840)}
-        <div class="flex-1 min-w-4"></div>
-        ${box('bg-red-500','border-red-600','text-white','Playwright','E2E browser',2910)}
-        ${arrow('Page Objects','2980','right','red',36)}
-        ${box('bg-white','border-red-200','text-red-700','BasePage / ProjectPage','POM classes',3050)}
+        ${box('bg-pink-500','border-pink-600','text-white','Logger','info/success/warn/error',2350)}
+        ${arrow('no console.log','2420','right','pink',48)}
+        ${box('bg-white','border-pink-300','text-pink-700','Emoji prefixes','📝 ✅ ⏳ 🔍 ❌',2490)}
+        ${arrow('','2560','right','slate',20)}
+        ${box('bg-pink-400','border-pink-500','text-white','Utilities','TEN/THIRTY/SIXTY_SEC',2600)}
+        ${arrow('','2670','right','slate',20)}
+        ${box('bg-white','border-pink-300','text-pink-700','generateTimestamp()','unique test data',2710)}
+        <div class="flex-1 min-w-2"></div>
+        ${box('bg-slate-700','border-slate-800','text-white','Allure / @step','test reporting',2780)}
       </div>
     </div>
 
     <!-- Legend -->
     <div class="mt-4 pt-3 border-t border-slate-100 flex items-center gap-4 flex-wrap">
-      ${[['#3b82f6','Browser / JS'],['#8b5cf6','FastAPI / API'],['#10b981','Database'],['#94a3b8','CI/CD'],['#ef4444','Tests']].map(([c,l])=>`
+      ${[['#3b82f6','Spec / describe'],['#8b5cf6','Fixtures'],['#10b981','UI / POM'],['#f97316','API / Endpoint'],['#ec4899','Infra / Logger']].map(([c,l])=>`
         <div class="flex items-center gap-1.5">
           <div style="height:2px;width:18px;background:repeating-linear-gradient(to right,${c} 0,${c} 4px,transparent 4px,transparent 8px);background-size:10px 100%;animation:tfFlowR .4s linear infinite"></div>
           <span class="text-[9px] text-slate-500">${l}</span>
         </div>`).join('')}
       <div class="ml-auto flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-violet-400 aad-live"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-red-400 aad-live"></span>
         <span class="text-[9px] text-slate-400 font-medium">Live data flow</span>
       </div>
     </div>
