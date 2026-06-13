@@ -16,23 +16,23 @@ class NewProjectModal(BasePage):
 
     @property
     def name_input(self) -> Locator:
-        return self.page.locator("#f-name")
+        return self.page.get_by_test_id("f-name")
 
     @property
     def description_input(self) -> Locator:
-        return self.page.locator("#f-desc")
+        return self.page.get_by_test_id("f-desc")
 
     @property
     def create_btn(self) -> Locator:
-        return self.page.locator("#modal-body button", has_text="Create Project")
+        return self.page.get_by_test_id("modal-submit-btn")
 
     @property
     def cancel_btn(self) -> Locator:
-        return self.page.locator("#modal-body button", has_text="Cancel")
+        return self.page.get_by_test_id("modal-cancel-btn")
 
     @property
     def close_btn(self) -> Locator:
-        return self.page.locator("#modal-box button").first
+        return self.page.get_by_test_id("modal-close-btn")
 
     # ── Actions ───────────────────────────────────────────────────────────────
 

@@ -79,11 +79,11 @@ function field(label, html) {
 function buildProjectModal(title, body) {
   title.textContent = "New Project";
   body.innerHTML = `
-    ${field("Name *", `<input id="f-name" class="${inputCls}" placeholder="My Project" autofocus />`)}
-    ${field("Description", `<textarea id="f-desc" class="${textareaCls}" rows="3" placeholder="Optional description"></textarea>`)}
+    ${field("Name *", `<input id="f-name" data-testid="f-name" class="${inputCls}" placeholder="My Project" autofocus />`)}
+    ${field("Description", `<textarea id="f-desc" data-testid="f-desc" class="${textareaCls}" rows="3" placeholder="Optional description"></textarea>`)}
     <div class="flex justify-end gap-2 mt-6">
-      <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
-      <button onclick="submitProject()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Create Project</button>
+      <button data-testid="modal-cancel-btn" onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+      <button data-testid="modal-submit-btn" onclick="submitProject()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Create Project</button>
     </div>`;
 }
 
@@ -104,11 +104,11 @@ async function submitProject() {
 function buildSuiteModal(title, body, { projectId }) {
   title.textContent = "New Test Suite";
   body.innerHTML = `
-    ${field("Name *", `<input id="f-name" class="${inputCls}" placeholder="Login Tests" autofocus />`)}
-    ${field("Description", `<textarea id="f-desc" class="${textareaCls}" rows="3" placeholder="Optional description"></textarea>`)}
+    ${field("Name *", `<input id="f-name" data-testid="f-name" class="${inputCls}" placeholder="Login Tests" autofocus />`)}
+    ${field("Description", `<textarea id="f-desc" data-testid="f-desc" class="${textareaCls}" rows="3" placeholder="Optional description"></textarea>`)}
     <div class="flex justify-end gap-2 mt-6">
-      <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
-      <button onclick="submitSuite(${projectId})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Create Suite</button>
+      <button data-testid="modal-cancel-btn" onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+      <button data-testid="modal-submit-btn" onclick="submitSuite(${projectId})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Create Suite</button>
     </div>`;
 }
 
@@ -128,17 +128,17 @@ async function submitSuite(projectId) {
 function buildTestCaseModal(title, body, { suiteId }) {
   title.textContent = "New Test Case";
   body.innerHTML = `
-    ${field("Title *", `<input id="f-title" class="${inputCls}" placeholder="Verify user can log in" autofocus />`)}
-    ${field("Description", `<textarea id="f-desc" class="${textareaCls}" rows="2" placeholder="Brief description"></textarea>`)}
-    ${field("Steps", `<textarea id="f-steps" class="${textareaCls}" rows="4" placeholder="1. Navigate to login page&#10;2. Enter credentials&#10;3. Click Login"></textarea>`)}
-    ${field("Expected Result", `<textarea id="f-expected" class="${textareaCls}" rows="2" placeholder="User is redirected to dashboard"></textarea>`)}
+    ${field("Title *", `<input id="f-title" data-testid="f-title" class="${inputCls}" placeholder="Verify user can log in" autofocus />`)}
+    ${field("Description", `<textarea id="f-desc" data-testid="f-desc" class="${textareaCls}" rows="2" placeholder="Brief description"></textarea>`)}
+    ${field("Steps", `<textarea id="f-steps" data-testid="f-steps" class="${textareaCls}" rows="4" placeholder="1. Navigate to login page&#10;2. Enter credentials&#10;3. Click Login"></textarea>`)}
+    ${field("Expected Result", `<textarea id="f-expected" data-testid="f-expected" class="${textareaCls}" rows="2" placeholder="User is redirected to dashboard"></textarea>`)}
     <div class="grid grid-cols-2 gap-4">
-      ${field("Status", `<select id="f-status" class="${inputCls}">
+      ${field("Status", `<select id="f-status" data-testid="f-status" class="${inputCls}">
         <option value="draft">Draft</option>
         <option value="active" selected>Active</option>
         <option value="deprecated">Deprecated</option>
       </select>`)}
-      ${field("Priority", `<select id="f-priority" class="${inputCls}">
+      ${field("Priority", `<select id="f-priority" data-testid="f-priority" class="${inputCls}">
         <option value="low">Low</option>
         <option value="medium" selected>Medium</option>
         <option value="high">High</option>
@@ -146,8 +146,8 @@ function buildTestCaseModal(title, body, { suiteId }) {
       </select>`)}
     </div>
     <div class="flex justify-end gap-2 mt-2">
-      <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
-      <button onclick="submitTestCase(${suiteId})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Create Test Case</button>
+      <button data-testid="modal-cancel-btn" onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+      <button data-testid="modal-submit-btn" onclick="submitTestCase(${suiteId})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Create Test Case</button>
     </div>`;
 }
 
@@ -399,7 +399,7 @@ async function loadSidebar() {
         } catch {}
       }
       return `<li>
-        <button onclick="navigate('project/${p.id}')"
+        <button data-testid="sidebar-project-${p.id}" onclick="navigate('project/${p.id}')"
           class="w-full text-left px-4 py-2.5 text-sm transition-colors truncate
             ${active ? "bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-blue-700"}">
           ${escHtml(p.name)}
@@ -722,7 +722,7 @@ async function renderProjects() {
 
 function projectRow(p) {
   return `
-    <tr id="pcard-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
+    <tr id="pcard-${p.id}" data-testid="project-row-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
       class="border-b border-slate-100 last:border-0 hover:bg-blue-50/40 transition-colors cursor-pointer group select-none">
       <td class="px-4 py-3" onclick="event.stopPropagation()">
         <input type="checkbox" id="pcheck-${p.id}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
@@ -735,7 +735,7 @@ function projectRow(p) {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
             </svg>
           </div>
-          <span class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-[180px]">${escHtml(p.name)}</span>
+          <span data-testid="project-name-${p.id}" class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-[180px]">${escHtml(p.name)}</span>
         </div>
       </td>
       <td class="px-3 py-3 hidden md:table-cell text-slate-500 text-xs max-w-[260px]">
@@ -743,7 +743,7 @@ function projectRow(p) {
       </td>
       <td class="px-3 py-3 hidden sm:table-cell text-slate-400 text-xs whitespace-nowrap">${formatDate(p.created_at)}</td>
       <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
-        <button onclick="deleteProject(${p.id})"
+        <button data-testid="delete-project-${p.id}" onclick="deleteProject(${p.id})"
           class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
@@ -1139,7 +1139,7 @@ async function loadTestReport(suites) {
 
 function suiteCard(s, projectId) {
   return `
-    <div onclick="navigate('suite/${s.id}')"
+    <div data-testid="suite-card-${s.id}" onclick="navigate('suite/${s.id}')"
       class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group">
       <div class="p-4 flex items-center gap-4">
         <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -1153,7 +1153,7 @@ function suiteCard(s, projectId) {
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
           <span class="text-xs text-slate-400">${formatDate(s.created_at)}</span>
-          <button onclick="event.stopPropagation(); deleteSuite(${s.id}, ${projectId})"
+          <button data-testid="delete-suite-${s.id}" onclick="event.stopPropagation(); deleteSuite(${s.id}, ${projectId})"
             class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           </button>
@@ -1173,7 +1173,7 @@ function runCard(r, suiteName) {
     ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Completed</span>`
     : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">In Progress</span>`;
   return `
-    <div onclick="navigate('run/${r.id}')"
+    <div data-testid="run-card-${r.id}" onclick="navigate('run/${r.id}')"
       class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group p-4">
       <div class="flex items-start justify-between gap-3 mb-3">
         <div class="min-w-0">
@@ -1312,7 +1312,7 @@ async function renderSuite(suiteId) {
 function testCaseCard(tc) {
   const tcJson = JSON.stringify(tc).replace(/\\/g, "\\\\").replace(/"/g, "&quot;");
   return `
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+    <div data-testid="testcase-card-${tc.id}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
       <div class="p-4">
         <div class="flex items-start gap-3">
           <div class="flex-1 min-w-0">
@@ -1335,12 +1335,12 @@ function testCaseCard(tc) {
               </p>` : ""}
           </div>
           <div class="flex items-center gap-1 flex-shrink-0 ml-2">
-            <button onclick='showModal("editTestCase", JSON.parse(this.dataset.tc))'
+            <button data-testid="edit-testcase-${tc.id}" onclick='showModal("editTestCase", JSON.parse(this.dataset.tc))'
               data-tc="${tcJson}"
               class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </button>
-            <button onclick="deleteTestCase(${tc.id}, ${tc.suite_id})"
+            <button data-testid="delete-testcase-${tc.id}" onclick="deleteTestCase(${tc.id}, ${tc.suite_id})"
               class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>

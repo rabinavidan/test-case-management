@@ -86,13 +86,14 @@ class ProjectPage(BasePage):
 
     @property
     def suite_cards(self) -> Locator:
-        return self.view.locator(".space-y-3 > div")
+        return self.view.locator("[data-testid^='suite-card-']")
 
     def suite_card(self, name: str) -> Locator:
-        return self.view.locator(".space-y-3 > div", has_text=name)
+        return self.view.locator("[data-testid^='suite-card-']", has_text=name)
 
     def delete_suite_btn(self, name: str) -> Locator:
-        return self.suite_card(name).locator("button[onclick*='deleteSuite']")
+        card = self.suite_card(name)
+        return card.locator("[data-testid^='delete-suite-']")
 
     # ── Actions ───────────────────────────────────────────────────────────────
 

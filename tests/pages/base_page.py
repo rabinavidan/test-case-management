@@ -9,30 +9,30 @@ class BasePage:
     # ── Navigation ──────────────────────────────────────────────────────────
     @property
     def logo(self) -> Locator:
-        return self.page.locator("button", has_text="TestFlow").first
+        return self.page.get_by_test_id("logo-btn")
 
     @property
     def breadcrumb(self) -> Locator:
-        return self.page.locator("#breadcrumb")
+        return self.page.get_by_test_id("breadcrumb")
 
     @property
     def nav_new_btn(self) -> Locator:
-        return self.page.locator("#nav-new-btn")
+        return self.page.get_by_test_id("nav-new-btn")
 
     @property
     def nav_new_label(self) -> Locator:
-        return self.page.locator("#nav-new-label")
+        return self.page.get_by_test_id("nav-new-label")
 
     # ── Sidebar ─────────────────────────────────────────────────────────────
     @property
     def sidebar(self) -> Locator:
-        return self.page.locator("#sidebar-projects")
+        return self.page.get_by_test_id("sidebar-projects")
 
     def sidebar_project(self, name: str) -> Locator:
-        return self.sidebar.locator(f"button", has_text=name)
+        return self.sidebar.locator("button", has_text=name)
 
     def sidebar_suite(self, name: str) -> Locator:
-        return self.sidebar.locator(f"button", has_text=name)
+        return self.sidebar.locator("button", has_text=name)
 
     def sidebar_test_cases_link(self, suite_name: str) -> Locator:
         suite_btn = self.sidebar.locator("button", has_text=suite_name)
@@ -45,19 +45,19 @@ class BasePage:
     # ── Modal ────────────────────────────────────────────────────────────────
     @property
     def modal_overlay(self) -> Locator:
-        return self.page.locator("#modal-overlay")
+        return self.page.get_by_test_id("modal-overlay")
 
     @property
     def modal_box(self) -> Locator:
-        return self.page.locator("#modal-box")
+        return self.page.get_by_test_id("modal-box")
 
     @property
     def modal_title(self) -> Locator:
-        return self.page.locator("#modal-title")
+        return self.page.get_by_test_id("modal-title")
 
     @property
     def modal_body(self) -> Locator:
-        return self.page.locator("#modal-body")
+        return self.page.get_by_test_id("modal-body")
 
     def modal_input(self, placeholder: str) -> Locator:
         return self.modal_body.locator(f"input[placeholder*='{placeholder}']")
@@ -66,16 +66,16 @@ class BasePage:
         return self.modal_body.locator(f"textarea[placeholder*='{placeholder}']")
 
     def modal_submit(self, label: str) -> Locator:
-        return self.modal_body.locator(f"button", has_text=label)
+        return self.page.get_by_test_id("modal-submit-btn").filter(has_text=label)
 
     def close_modal(self):
-        self.page.locator("#modal-box").locator("button").first.click()
+        self.page.get_by_test_id("modal-close-btn").click()
         expect(self.modal_overlay).to_be_hidden()
 
     # ── Toast ────────────────────────────────────────────────────────────────
     @property
     def toast(self) -> Locator:
-        return self.page.locator("#toast-inner")
+        return self.page.get_by_test_id("toast-inner")
 
     def expect_toast(self, text: str):
         expect(self.toast).to_contain_text(text)
