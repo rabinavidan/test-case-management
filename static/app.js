@@ -613,7 +613,7 @@ async function renderProjects() {
       .arch-http-badge { animation: archBadgePulse 3s ease-in-out infinite; }
       @keyframes archBadgePulse { 0%,100%{opacity:.6} 50%{opacity:1} }
     </style>
-  `;
+  ` : "";
 
   const demoBanner = `
     <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6 overflow-hidden relative">
@@ -694,7 +694,7 @@ async function renderProjects() {
       @keyframes demoBar { from{width:60%} to{width:92%} }
       .demo-counter { animation: demoCounter 3s ease-in-out infinite alternate; }
     </style>
-  ` : "";
+  `;
 
   if (!state.projects.length) {
     el.innerHTML = `
