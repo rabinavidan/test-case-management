@@ -374,6 +374,8 @@ function setBreadcrumb(items) {
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 async function loadSidebar() {
   const ul = document.getElementById("sidebar-projects");
+  const newProjBtn = document.getElementById("sidebar-new-project-btn");
+  if (newProjBtn) newProjBtn.style.display = isAdmin() ? "" : "none";
   try {
     state.projects = await GET("/api/projects");
     if (!state.projects.length) {
