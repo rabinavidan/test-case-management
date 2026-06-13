@@ -937,8 +937,8 @@ async function renderProject(projectId) {
       <!-- Architecture diagram (Alerts Microservice projects only) -->
       ${project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : ""}
 
-      <!-- Last run progress bar -->
-      ${total ? `
+      <!-- Last run progress bar (non-demo projects only) -->
+      ${total && !project.name.startsWith("Alerts Microservice") && !project.name.startsWith("TestFlow") ? `
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
         <div class="flex items-center justify-between mb-3">
           <div>
