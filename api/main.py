@@ -62,7 +62,7 @@ def me(current_user: models.User = Depends(get_current_user)):
 # ─── Projects ────────────────────────────────────────────────────────────────
 
 @app.get("/api/projects", response_model=List[schemas.ProjectResponse])
-def list_projects(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+def list_projects(db: Session = Depends(get_db)):
     return db.query(models.Project).order_by(models.Project.created_at.desc()).all()
 
 
@@ -87,7 +87,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db), _: models.Use
 # ─── Test Suites ─────────────────────────────────────────────────────────────
 
 @app.get("/api/projects/{project_id}/suites", response_model=List[schemas.TestSuiteResponse])
-def list_suites(project_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+def list_suites(project_id: int, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -120,7 +120,7 @@ def delete_suite(suite_id: int, db: Session = Depends(get_db), _: models.User = 
 # ─── Test Cases ───────────────────────────────────────────────────────────────
 
 @app.get("/api/suites/{suite_id}/testcases", response_model=List[schemas.TestCaseResponse])
-def list_testcases(suite_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+def list_testcases(suite_id: int, db: Session = Depends(get_db)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -190,7 +190,7 @@ def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depe
 
 
 @app.get("/api/suites/{suite_id}/runs", response_model=List[schemas.TestRunResponse])
-def list_runs(suite_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+def list_runs(suite_id: int, db: Session = Depends(get_db)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -200,7 +200,7 @@ def list_runs(suite_id: int, db: Session = Depends(get_db), _: models.User = Dep
 
 
 @app.get("/api/runs/{run_id}", response_model=schemas.TestRunResponse)
-def get_run(run_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+def get_run(run_id: int, db: Session = Depends(get_db)):
     run = db.query(models.TestRun).filter(models.TestRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
