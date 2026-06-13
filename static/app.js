@@ -1338,11 +1338,11 @@ async function seedAlertsDemo() {
     const res = await fetch("/api/demo/alerts-microservice", { method: "POST" });
     if (!res.ok) throw new Error(await res.text());
     const project = await res.json();
-    showToast(`Demo project "${project.name}" created!`, "success");
+    toast(`Demo project "${project.name}" created!`, "success");
     await loadSidebar();
     navigate(`project/${project.id}`);
   } catch (e) {
-    showToast("Failed to create demo: " + e.message, "error");
+    toast("Failed to create demo: " + e.message, "error");
     btn.disabled = false;
     label.textContent = "Run Alerts Microservice Demo";
     btn.classList.remove("opacity-60");
