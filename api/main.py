@@ -490,88 +490,72 @@ def seed_demo_testflow(db: Session = Depends(get_db)):
 
 
 _PLAYWRIGHT_SUITES = [
-    ("Spec Layer — UI Tests", "*.spec.ts structure, test.describe, test.step, tags", [
-        ("test is imported from fixtures not from @playwright/test", "active", "high"),
-        ("every test lives inside a test.describe block", "active", "high"),
-        ("test name contains a ticket or feature reference (CI-XXXX:)", "active", "high"),
-        ("every logical action is wrapped in a named test.step()", "active", "high"),
-        ("all four required tag groups are present (@Team, @Product, @TestingLayer, @Component)", "active", "high"),
-        ("@TestingLayer value is one of the five allowed values", "active", "medium"),
-        ("annotation includes numbered Steps description", "active", "medium"),
-        ("test.beforeEach used for setup and state initialization", "active", "medium"),
-        ("test.afterEach cleans up all created test data via API", "active", "high"),
+    ("Projects API — test_projects.py", "pytest · FastAPI TestClient · CRUD coverage", [
+        ("test_list_projects_empty — GET /api/projects returns 200 with empty list", "active", "high"),
+        ("test_create_project — POST /api/projects creates project and returns 201", "active", "high"),
+        ("test_list_projects_after_create — list reflects newly created projects", "active", "medium"),
+        ("test_delete_project — DELETE /api/projects/{id} removes project and returns 200", "active", "high"),
+        ("test_delete_project_not_found — DELETE non-existent project returns 404", "active", "medium"),
     ]),
-    ("Spec Layer — API Tests", "*-be.spec.ts structure, @step orchestration", [
-        ("spec file contains no Logger.logging calls", "active", "high"),
-        ("spec file contains no expect() assertions", "active", "high"),
-        ("spec file contains no test.step() calls — uses @step on endpoint methods", "active", "high"),
-        ("every test line has a comment explaining step number and purpose", "active", "medium"),
-        ("created entity IDs are tracked for afterEach cleanup", "active", "high"),
-        ("generateTimestampWithSeconds used for unique entity names", "active", "medium"),
+    ("Suites API — test_suites.py", "pytest · suite CRUD and project stats endpoint", [
+        ("test_list_suites_empty — GET /api/projects/{id}/suites returns empty list", "active", "high"),
+        ("test_create_suite — POST creates suite and returns correct suite_id and project_id", "active", "high"),
+        ("test_create_suite_project_not_found — POST to missing project returns 404", "active", "medium"),
+        ("test_delete_suite — DELETE suite removes it from the project", "active", "high"),
+        ("test_project_stats — GET /api/projects/{id}/stats returns correct counts", "active", "medium"),
     ]),
-    ("Fixtures & Injection", "src/fixtures/fixtures.ts, page object injection", [
-        ("page objects injected via fixtures, never instantiated directly in spec", "active", "high"),
-        ("loginPage fixture used for all authentication steps", "active", "high"),
-        ("new page object added to fixtures.ts when created", "active", "medium"),
-        ("fixture teardown releases browser resources correctly", "active", "medium"),
-        ("test user constant used — no hardcoded passwords", "active", "high"),
+    ("Test Cases API — test_testcases.py", "pytest · test case CRUD including update", [
+        ("test_create_testcase — POST creates test case with title, status, priority", "active", "high"),
+        ("test_list_testcases — GET /api/suites/{id}/testcases lists all cases", "active", "high"),
+        ("test_update_testcase — PATCH updates title and status correctly", "active", "high"),
+        ("test_delete_testcase — DELETE removes test case from suite", "active", "high"),
+        ("test_testcase_suite_not_found — POST to missing suite returns 404", "active", "medium"),
     ]),
-    ("Page Object Model", "src/pages/*.ts structure and locator strategy", [
-        ("all locators declared as class properties, not local variables", "active", "high"),
-        ("data-automation-id used as first-choice locator strategy", "active", "high"),
-        ("getByRole used as second-choice locator strategy", "active", "medium"),
-        ("CSS class used as third-choice only when semantic locators unavailable", "active", "low"),
-        ("XPath avoided unless no other option exists", "active", "medium"),
-        ("methods call waitFor before any interaction", "active", "high"),
-        ("methods are public async unless internal-only", "active", "medium"),
-        ("no raw page.locator() calls inside spec files", "active", "high"),
-        ("logger calls inside page object methods not in spec files", "active", "medium"),
+    ("Test Runs API — test_runs.py", "pytest · run creation, result recording, auto-complete", [
+        ("test_create_run — POST /api/suites/{id}/runs creates run with active cases only", "active", "high"),
+        ("test_list_runs — GET /api/suites/{id}/runs returns all runs for suite", "active", "medium"),
+        ("test_get_run — GET /api/runs/{id} returns run with embedded test results", "active", "high"),
+        ("test_update_result — PATCH /api/results/{id} records pass/fail/skip with notes", "active", "high"),
+        ("test_run_completes_when_all_results_done — run.completed_at set after last result", "active", "high"),
     ]),
-    ("API Endpoint Layer", "*-endpoint.ts: @step decorator, Logger CRUD patterns", [
-        ("@step decorator on all public methods called from specs", "active", "high"),
-        ("@step NOT added to internal or private methods", "active", "high"),
-        ("log before calling base API method with emoji prefix", "active", "medium"),
-        ("log after success including entity ID", "active", "medium"),
-        ("CREATE operations use 📝 emoji prefix", "active", "low"),
-        ("READ operations use 📋 emoji prefix", "active", "low"),
-        ("UPDATE operations use ✏️ emoji prefix", "active", "low"),
-        ("DELETE operations use 🗑️ emoji prefix", "active", "low"),
-        ("SUCCESS logged with ✅ including entity ID", "active", "medium"),
-        ("all assertions in endpoint methods, never in spec files", "active", "high"),
-        ("no console.log — Logger.logging.* used exclusively", "active", "high"),
+    ("E2E Smoke Tests — test_e2e.py", "Playwright · app loads, navigation, logo", [
+        ("test_app_loads — logo, nav button, and sidebar visible on load", "active", "high"),
+        ("test_projects_page_heading — Projects heading rendered on home page", "active", "high"),
+        ("test_logo_navigates_to_projects — clicking logo returns to projects view", "active", "medium"),
     ]),
-    ("API Helper Layer", "*-helper.ts: polling, transformation, validation", [
-        ("@step decorator on public methods called from specs only", "active", "high"),
-        ("no nested @step calls between methods", "active", "high"),
-        ("polling methods log progress per attempt with attempt count", "active", "medium"),
-        ("waitForStatus throws descriptive error after maxAttempts exceeded", "active", "high"),
-        ("WAITING operations use ⏳ emoji prefix", "active", "low"),
-        ("SEARCH operations use 🔍 emoji prefix", "active", "low"),
-        ("TRANSFORMATION operations use 🔄 emoji prefix", "active", "low"),
-        ("input and output logged for transformation methods", "active", "medium"),
-        ("10-second sleep interval between polling attempts", "active", "medium"),
+    ("E2E Project CRUD — test_e2e.py", "Playwright · project creation modal and table", [
+        ("test_create_project — open modal, fill name, submit, verify project in table", "active", "high"),
+        ("test_new_project_modal_opens — sidebar + button both open the modal", "active", "high"),
+        ("test_nav_label_on_projects_page — nav button label shows New Project", "active", "low"),
     ]),
-    ("Logger & Timeouts", "Logger utility and Utilities timeout constants", [
-        ("Logger imported from @shared/utils/logger", "active", "high"),
-        ("no magic number timeouts — Utilities constants used", "active", "high"),
-        ("utils.TEN_SECONDS used for fast elements", "active", "medium"),
-        ("utils.THIRTY_SECONDS used for standard waitFor calls", "active", "medium"),
-        ("utils.SIXTY_SECONDS used for slow network operations", "active", "medium"),
-        ("test.setTimeout used for tests exceeding 25-minute global default", "active", "low"),
-        ("logger.info for general progress with 🌐 or 🔍 emoji", "active", "low"),
-        ("logger.success for verified state with ✅ emoji", "active", "low"),
-        ("logger.warning for recoverable skips with ⚠️ emoji", "active", "low"),
-        ("logger.error for unexpected failures with ❌ emoji", "active", "medium"),
+    ("E2E Suite & Test Case CRUD — test_e2e.py", "Playwright · suite and test case creation flows", [
+        ("test_create_suite — navigate to project, open modal, create suite", "active", "high"),
+        ("test_nav_label_on_project_page — nav button label shows New Suite", "active", "low"),
+        ("test_create_test_case — open suite, add test case with status and priority", "active", "high"),
+        ("test_nav_label_on_suite_page — nav button label shows New Test Case", "active", "low"),
     ]),
-    ("Test Data & File Conventions", "generateTimestamp, naming, directory structure", [
-        ("generateTimestamp used to generate unique test data names", "active", "high"),
-        ("test data file colocated with spec file as *-test-data.ts", "active", "medium"),
-        ("test constants exported as const for type safety", "active", "medium"),
-        ("spec files named <feature>-<description>.spec.ts in kebab-case", "active", "medium"),
-        ("page objects named <feature>-page.ts in kebab-case", "active", "medium"),
-        ("API clients named <feature>-api-client.ts in kebab-case", "active", "medium"),
-        ("spec files live in playwright/tests/<Feature>/", "active", "low"),
-        ("page objects live in src/pages/", "active", "low"),
+    ("E2E New Project Modal — test_e2e.py", "Playwright · modal form validation and dismiss", [
+        ("test_new_project_modal_title — modal title text is New Project", "active", "medium"),
+        ("test_new_project_modal_placeholders — name and description inputs have correct placeholders", "active", "medium"),
+        ("test_new_project_modal_cancel — Cancel button closes modal overlay", "active", "medium"),
+        ("test_new_project_modal_dismiss_x — X button dismisses modal overlay", "active", "medium"),
+        ("test_new_project_modal_submit — submit creates project and modal closes", "active", "high"),
+    ]),
+    ("E2E Full Flow — test_e2e.py", "Playwright · end-to-end create project with timestamp", [
+        ("test_create_project_with_timestamp — navigate, open modal, fill timestamped name, submit, verify", "active", "high"),
+    ]),
+    ("Page Objects — tests/pages/", "POM classes: BasePage, ProjectsPage, ProjectPage, SuitePage, NewProjectModal", [
+        ("BasePage — logo, breadcrumb, nav-new-btn, sidebar-projects locators present", "active", "high"),
+        ("BasePage — modal_overlay, modal_box, modal_title, modal_body locators present", "active", "high"),
+        ("BasePage — toast_inner locator captures success and error messages", "active", "medium"),
+        ("ProjectsPage — project_row locator finds row by project name", "active", "high"),
+        ("ProjectsPage — delete_btn_for triggers confirm dialog and removes row", "active", "high"),
+        ("ProjectPage — suite_card locator finds suite by name", "active", "high"),
+        ("ProjectPage — stats cards (suites, cases, runs, pass rate) all accessible", "active", "medium"),
+        ("SuitePage — test_case_card locator finds case by title", "active", "high"),
+        ("SuitePage — start_run_btn and run_card accessible for run flows", "active", "medium"),
+        ("NewProjectModal — name_input, description_input, create_btn, cancel_btn accessible", "active", "high"),
+        ("All page objects use data-testid attributes as first-choice locator strategy", "active", "high"),
     ]),
 ]
 
@@ -580,8 +564,8 @@ _PLAYWRIGHT_SUITES = [
 def seed_demo_playwright(db: Session = Depends(get_db)):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
     project = models.Project(
-        name=f"TestFlow Playwright Tests Architecture Demo {ts}",
-        description="Playwright test architecture based on UI E2E Standards and API Logging Standards skills",
+        name=f"TestFlow Repo — API & E2E Tests Demo {ts}",
+        description="Actual pytest API tests and Playwright E2E tests from the TestFlow repository",
     )
     db.add(project)
     db.flush()

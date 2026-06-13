@@ -34,23 +34,23 @@ class SuitePage(BasePage):
 
     @property
     def test_case_cards(self) -> Locator:
-        return self.view.locator(".space-y-3 > div")
+        return self.view.locator("[data-testid^='testcase-card-']")
 
     def test_case_card(self, title: str) -> Locator:
-        return self.view.locator(".space-y-3 > div", has_text=title)
+        return self.view.locator("[data-testid^='testcase-card-']", has_text=title)
 
     def delete_test_case_btn(self, title: str) -> Locator:
-        return self.test_case_card(title).locator("button[onclick*='deleteTestCase']")
+        return self.test_case_card(title).locator("[data-testid^='delete-testcase-']")
 
     def edit_test_case_btn(self, title: str) -> Locator:
-        return self.test_case_card(title).locator("button", has_text="Edit")
+        return self.test_case_card(title).locator("[data-testid^='edit-testcase-']")
 
     @property
     def run_cards(self) -> Locator:
-        return self.view.locator(".space-y-3 > div")
+        return self.view.locator("[data-testid^='run-card-']")
 
     def run_card(self, name: str) -> Locator:
-        return self.view.locator("div", has_text=name).filter(has=self.page.locator(".rounded-full"))
+        return self.view.locator("[data-testid^='run-card-']", has_text=name)
 
     # ── Status counts ─────────────────────────────────────────────────────────
     @property

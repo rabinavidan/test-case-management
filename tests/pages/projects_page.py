@@ -23,15 +23,19 @@ class ProjectsPage(BasePage):
         return self.page.locator("#view-projects button", has_text="New Project")
 
     @property
-    def project_cards(self) -> Locator:
-        return self.page.locator("#view-projects .grid > div")
+    def project_rows(self) -> Locator:
+        return self.page.locator("[data-testid^='project-row-']")
 
+    def project_row(self, name: str) -> Locator:
+        return self.page.locator("[data-testid^='project-row-']", has_text=name)
+
+    # Keep project_card as alias for backwards compatibility
     def project_card(self, name: str) -> Locator:
-        return self.page.locator("#view-projects .grid > div", has_text=name)
+        return self.project_row(name)
 
     def delete_btn_for(self, name: str) -> Locator:
-        card = self.project_card(name)
-        return card.locator("button").nth(0)
+        row = self.project_row(name)
+        return row.locator("[data-testid^='delete-project-']")
 
     # ── Actions ───────────────────────────────────────────────────────────────
     def open_new_project_modal(self):
