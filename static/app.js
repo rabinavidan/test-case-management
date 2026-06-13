@@ -452,6 +452,16 @@ async function renderProjects() {
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
 
+  if (!getToken()) {
+    el.insertAdjacentHTML("afterbegin", `
+      <div class="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
+        </svg>
+        <p class="text-sm text-blue-700 flex-1">You're browsing as a guest. <button onclick="showAuthModal('login')" class="font-semibold underline hover:text-blue-900">Sign in</button> or <button onclick="showAuthModal('register')" class="font-semibold underline hover:text-blue-900">create an account</button> to add and manage projects.</p>
+      </div>`);
+  }
+
   await loadSidebar();
 
   const archDiagram = `
