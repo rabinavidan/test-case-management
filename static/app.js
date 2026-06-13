@@ -644,6 +644,9 @@ async function renderProject(projectId) {
         </div>
       </div>
 
+      <!-- Architecture diagram (Alerts Microservice projects only) -->
+      ${project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : ""}
+
       <!-- Last run progress bar -->
       ${total ? `
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -1225,6 +1228,102 @@ function escHtml(str) {
 function formatDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// ─── Alerts Microservice architecture diagram ────────────────────────────────
+function alertsArchDiagram() {
+  const node = (color, label, icon, delay = 0) =>
+    `<div class="arch-node flex flex-col items-center gap-1 opacity-0"
+        style="animation:archIn .4s ease forwards;animation-delay:${delay}ms">
+      <div class="w-14 h-14 ${color} rounded-2xl flex items-center justify-center text-2xl shadow-md arch-pulse"
+          style="animation-delay:${delay}ms">${icon}</div>
+      <span class="text-xs font-medium text-slate-700 text-center leading-tight max-w-[72px]">${label}</span>
+    </div>`;
+
+  const arrow = (delay = 0, vertical = false) =>
+    `<div class="text-slate-300 font-bold text-lg opacity-0 ${vertical ? "rotate-90 my-1" : "mb-5"}"
+        style="animation:archIn .3s ease forwards;animation-delay:${delay}ms">→</div>`;
+
+  const connector = (delay = 0) =>
+    `<div class="w-px h-6 bg-slate-200 opacity-0 mx-auto"
+        style="animation:archIn .3s ease forwards;animation-delay:${delay}ms"></div>`;
+
+  return `
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-auto">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-semibold text-slate-800">System Architecture</h3>
+      <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded-full">Alerts Microservice · Node.js</span>
+    </div>
+
+    <!-- Row 1: Data Ingestion -->
+    <div class="mb-2">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Data Ingestion</p>
+      <div class="flex items-end gap-4 flex-wrap">
+        ${node("bg-orange-100", "Apache Kafka", "📨", 0)}
+        ${arrow(100)}
+        ${node("bg-blue-100", "GCP Pub/Sub", "☁️", 150)}
+        ${arrow(250)}
+        ${node("bg-pink-200", "Alerts Logic Engine", "⚡", 300)}
+        ${arrow(400)}
+        ${node("bg-violet-100", "Rule Validator", "✅", 450)}
+        ${arrow(550)}
+        ${node("bg-amber-100", "Scheduler Service", "🕐", 600)}
+      </div>
+    </div>
+
+    ${connector(700)}
+
+    <!-- Row 2: Notification -->
+    <div class="mb-2 mt-2">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Notification Engine</p>
+      <div class="flex items-end gap-4 flex-wrap">
+        ${node("bg-teal-100", "Notification Center", "🔔", 750)}
+        ${arrow(850)}
+        ${node("bg-indigo-100", "Email Engine", "✉️", 900)}
+        ${arrow(1000)}
+        ${node("bg-slate-100", "SMTP / SendGrid", "📤", 1050)}
+        ${arrow(1150)}
+        ${node("bg-emerald-100", "Notification UI", "🖥️", 1200)}
+      </div>
+    </div>
+
+    ${connector(1300)}
+
+    <!-- Row 3: Data persistence -->
+    <div class="mt-2">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Data &amp; Search Persistence</p>
+      <div class="flex items-end gap-4 flex-wrap">
+        ${node("bg-green-200", "MongoDB User Prefs", "🍃", 1350)}
+        ${node("bg-teal-200", "Elasticsearch Newsfeed", "🔍", 1450)}
+        ${node("bg-red-200", "Solr Funding Data", "📊", 1550)}
+        ${node("bg-blue-200", "BigQuery Historical", "📈", 1650)}
+        ${node("bg-red-300", "Redis Cache/State", "⚡", 1750)}
+      </div>
+    </div>
+
+    <!-- Animated data flow indicator -->
+    <div class="mt-5 pt-4 border-t border-slate-100 flex items-center gap-3">
+      <div class="flex gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 arch-blink" style="animation-delay:0ms"></span>
+        <span class="w-2 h-2 rounded-full bg-blue-400 arch-blink" style="animation-delay:300ms"></span>
+        <span class="w-2 h-2 rounded-full bg-orange-400 arch-blink" style="animation-delay:600ms"></span>
+      </div>
+      <span class="text-xs text-slate-400 font-medium">Live data flow simulation</span>
+      <div class="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+        <div class="h-full bg-gradient-to-r from-blue-400 to-emerald-400 rounded-full arch-flow"></div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes archIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .arch-pulse { animation: archPulse 3s ease-in-out infinite; }
+    @keyframes archPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+    .arch-blink { animation: archBlink 1.5s ease-in-out infinite; }
+    @keyframes archBlink { 0%,100%{opacity:1} 50%{opacity:.2} }
+    .arch-flow { animation: archFlow 2.5s ease-in-out infinite alternate; }
+    @keyframes archFlow { from{width:20%} to{width:95%} }
+  </style>`;
 }
 
 // ─── Demo seed ───────────────────────────────────────────────────────────────
