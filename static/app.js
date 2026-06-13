@@ -525,10 +525,20 @@ async function renderProjects() {
           <h1 class="text-2xl font-bold text-slate-800">Projects</h1>
           <p class="text-slate-500 text-sm mt-0.5">${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}</p>
         </div>
-        <button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          New Project
-        </button>
+        <div class="flex items-center gap-2">
+          <div id="bulk-toolbar" class="hidden items-center gap-2">
+            <span id="bulk-count" class="text-sm text-slate-600 font-medium"></span>
+            <button onclick="bulkDeleteProjects()" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Remove Selected
+            </button>
+            <button onclick="clearProjectSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+          </div>
+          <button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Project
+          </button>
+        </div>
       </div>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         ${state.projects.map(p => projectCard(p)).join("")}
@@ -538,8 +548,14 @@ async function renderProjects() {
 
 function projectCard(p) {
   return `
-    <div onclick="navigate('project/${p.id}')"
-      class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group p-5">
+    <div id="pcard-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
+      class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group p-5 relative select-none">
+      <!-- Checkbox (visible on hover or when any selected) -->
+      <div onclick="event.stopPropagation(); toggleProjectSelect(${p.id})"
+        class="project-check absolute top-3 left-3 w-5 h-5 rounded-md border-2 border-slate-300 bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:border-blue-500"
+        id="pcheck-${p.id}">
+        <svg class="w-3 h-3 text-white hidden" id="pcheck-icon-${p.id}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+      </div>
       <div class="flex items-start justify-between mb-4">
         <div class="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center">
           <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -558,6 +574,82 @@ function projectCard(p) {
         <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </div>
     </div>`;
+}
+
+const _selectedProjects = new Set();
+
+function handleProjectCardClick(event, id) {
+  if (_selectedProjects.size > 0) {
+    toggleProjectSelect(id);
+  } else {
+    navigate(`project/${id}`);
+  }
+}
+
+function toggleProjectSelect(id) {
+  const card = document.getElementById(`pcard-${id}`);
+  const check = document.getElementById(`pcheck-${id}`);
+  const icon = document.getElementById(`pcheck-icon-${id}`);
+  if (_selectedProjects.has(id)) {
+    _selectedProjects.delete(id);
+    card.classList.remove("ring-2", "ring-blue-500", "border-blue-400");
+    check.classList.remove("bg-blue-500", "border-blue-500");
+    check.classList.add("border-slate-300", "bg-white");
+    icon.classList.add("hidden");
+  } else {
+    _selectedProjects.add(id);
+    card.classList.add("ring-2", "ring-blue-500", "border-blue-400");
+    check.classList.add("bg-blue-500", "border-blue-500");
+    check.classList.remove("border-slate-300", "bg-white");
+    icon.classList.remove("hidden");
+  }
+  // Keep checkboxes visible whenever any are selected
+  document.querySelectorAll(".project-check").forEach(el => {
+    el.classList.toggle("opacity-100", _selectedProjects.size > 0);
+    el.classList.toggle("opacity-0", _selectedProjects.size === 0);
+  });
+  const toolbar = document.getElementById("bulk-toolbar");
+  const countEl = document.getElementById("bulk-count");
+  if (_selectedProjects.size > 0) {
+    toolbar.classList.remove("hidden");
+    toolbar.classList.add("flex");
+    countEl.textContent = `${_selectedProjects.size} selected`;
+  } else {
+    toolbar.classList.add("hidden");
+    toolbar.classList.remove("flex");
+  }
+}
+
+function clearProjectSelection() {
+  [..._selectedProjects].forEach(id => {
+    const card = document.getElementById(`pcard-${id}`);
+    const check = document.getElementById(`pcheck-${id}`);
+    const icon = document.getElementById(`pcheck-icon-${id}`);
+    if (card) card.classList.remove("ring-2", "ring-blue-500", "border-blue-400");
+    if (check) { check.classList.remove("bg-blue-500", "border-blue-500"); check.classList.add("border-slate-300", "bg-white"); }
+    if (icon) icon.classList.add("hidden");
+  });
+  _selectedProjects.clear();
+  document.querySelectorAll(".project-check").forEach(el => {
+    el.classList.add("opacity-0");
+    el.classList.remove("opacity-100");
+  });
+  const toolbar = document.getElementById("bulk-toolbar");
+  if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+}
+
+async function bulkDeleteProjects() {
+  const ids = [..._selectedProjects];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} project${ids.length > 1 ? "s" : ""} and all their suites, test cases, and runs?`)) return;
+  try {
+    await Promise.all(ids.map(id => DEL(`/api/projects/${id}`)));
+    toast(`${ids.length} project${ids.length > 1 ? "s" : ""} deleted`);
+    _selectedProjects.clear();
+    state.currentProject = null;
+    await loadSidebar();
+    navigate("projects");
+  } catch (e) { toast(e.message, "error"); }
 }
 
 async function deleteProject(id) {
