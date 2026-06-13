@@ -15,29 +15,6 @@ from .auth import hash_password, verify_password, create_access_token, get_curre
 # Create all tables
 Base.metadata.create_all(bind=engine)
 
-# Auto-seed admin user from env vars if no users exist
-def _seed_admin():
-    seed_user = os.getenv("SEED_ADMIN_USERNAME")
-    seed_pass = os.getenv("SEED_ADMIN_PASSWORD")
-    seed_email = os.getenv("SEED_ADMIN_EMAIL", "admin@example.com")
-    if not seed_user or not seed_pass:
-        return
-    from .database import SessionLocal
-    db = SessionLocal()
-    try:
-        if db.query(models.User).count() == 0:
-            db.add(models.User(
-                username=seed_user,
-                email=seed_email,
-                hashed_password=hash_password(seed_pass),
-                role="admin",
-            ))
-            db.commit()
-    finally:
-        db.close()
-
-_seed_admin()
-
 app = FastAPI(title="Test Case Management API")
 
 app.add_middleware(
@@ -47,6 +24,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Auto-seed admin user from env vars if no users exist
+@app.on_event("startup")
+def _seed_admin():
+    seed_user = os.getenv("SEED_ADMIN_USERNAME")
+    seed_pass = os.getenv("SEED_ADMIN_PASSWORD")
+    seed_email = os.getenv("SEED_ADMIN_EMAIL", "admin@example.com")
+    if not seed_user or not seed_pass:
+        return
+    try:
+        from .database import SessionLocal
+        db = SessionLocal()
+        try:
+            if db.query(models.User).count() == 0:
+                db.add(models.User(
+                    username=seed_user,
+                    email=seed_email,
+                    hashed_password=hash_password(seed_pass),
+                    role="admin",
+                ))
+                db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
