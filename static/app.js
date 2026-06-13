@@ -1515,108 +1515,148 @@ function formatDate(iso) {
 
 // ─── Alerts Microservice architecture diagram ────────────────────────────────
 function alertsArchDiagram() {
-  const box = (bg, border, textColor, label, sub, delay = 0) =>
-    `<div class="alerts-arch-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
-        style="animation:archIn .35s ease forwards;animation-delay:${delay}ms">
-      <p class="text-xs font-bold ${textColor} leading-tight">${label}</p>
-      ${sub ? `<p class="text-[10px] ${textColor} opacity-70 leading-tight mt-0.5">${sub}</p>` : ''}
+  // Coloured component box
+  const box = (bg, border, tc, label, sub, d = 0) =>
+    `<div class="aad-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
+        style="animation:aadIn .35s ease forwards;animation-delay:${d}ms">
+      <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
+      ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
 
-  const arrow = (label = '', delay = 0, dir = 'right') => {
-    const rotate = dir === 'down' ? 'rotate-90' : dir === 'up' ? '-rotate-90' : dir === 'left' ? 'rotate-180' : '';
-    return `<div class="flex flex-col items-center gap-0.5 opacity-0 flex-shrink-0"
-        style="animation:archIn .25s ease forwards;animation-delay:${delay}ms">
-      ${label ? `<span class="text-[9px] text-slate-400 font-medium whitespace-nowrap">${label}</span>` : ''}
-      <svg class="w-5 h-4 text-slate-400 ${rotate}" fill="none" stroke="currentColor" viewBox="0 0 24 10">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2 5h18M16 1l4 4-4 4"/>
-      </svg>
-    </div>`;
+  // Animated flowing arrow (dashes travel in data-flow direction)
+  const FLOW_COLORS = {
+    blue:    ['#93c5fd','#3b82f6'],
+    amber:   ['#fcd34d','#f59e0b'],
+    red:     ['#fca5a5','#ef4444'],
+    emerald: ['#6ee7b7','#10b981'],
+    slate:   ['#cbd5e1','#94a3b8'],
+    violet:  ['#c4b5fd','#8b5cf6'],
+  };
+  const arrow = (lbl, d, dir = 'right', clr = 'blue', len = 36) => {
+    const [dash, head] = FLOW_COLORS[clr] || FLOW_COLORS.blue;
+    const anim = {right:'aadFlowR',left:'aadFlowL',down:'aadFlowD',up:'aadFlowU'}[dir]||'aadFlowR';
+    const isV = dir==='down'||dir==='up';
+    const line = isV
+      ? `<div style="width:2px;height:${len}px;background:repeating-linear-gradient(to bottom,${dash} 0,${dash} 5px,transparent 5px,transparent 10px);background-size:100% 14px;animation:${anim} .4s linear infinite"></div>`
+      : `<div style="height:2px;width:${len}px;background:repeating-linear-gradient(to right,${dash} 0,${dash} 5px,transparent 5px,transparent 10px);background-size:14px 100%;animation:${anim} .4s linear infinite"></div>`;
+    const tip = isV
+      ? (dir==='down'
+          ? `<svg width="8" height="5" viewBox="0 0 8 5" fill="${head}"><path d="M4 5L0 0h8z"/></svg>`
+          : `<svg width="8" height="5" viewBox="0 0 8 5" fill="${head}"><path d="M4 0L8 5H0z"/></svg>`)
+      : (dir==='right'
+          ? `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M5 4L0 0v8z"/></svg>`
+          : `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M0 4L5 0v8z"/></svg>`);
+    const lbl$ = lbl ? `<span class="text-[9px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
+    return isV
+      ? `<div class="flex flex-col items-center gap-0 opacity-0 flex-shrink-0" style="animation:aadIn .25s ease forwards;animation-delay:${d}ms">
+          ${lbl$}${line}${tip}
+        </div>`
+      : `<div class="flex flex-col items-center gap-0.5 opacity-0 flex-shrink-0" style="animation:aadIn .25s ease forwards;animation-delay:${d}ms">
+          ${lbl$}<div class="flex items-center">${line}${tip}</div>
+        </div>`;
   };
 
-  const section = (label, color) =>
-    `<p class="text-[9px] font-bold uppercase tracking-widest ${color} mb-2 mt-0">${label}</p>`;
+  const lane = (label, clr) =>
+    `<p class="text-[9px] font-bold uppercase tracking-widest ${clr} mb-2">${label}</p>`;
 
   return `
-  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto">
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-slate-800 text-sm">System Architecture</h3>
-      <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded-full">Alerts Microservice · GCP + Angular MFE</span>
+      <span class="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 aad-live"></span>GCP · Angular MFE
+      </span>
     </div>
 
-    <!-- Top: Client Layer -->
-    <div class="mb-4 pb-4 border-b border-slate-100">
-      ${section('Client Layer — Angular Micro Frontends', 'text-blue-500')}
+    <!-- ① Client Layer ─────────────────────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('① Client Layer — Angular Micro Frontends', 'text-blue-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-blue-500', 'border-blue-600', 'text-white', 'Shell Application', 'Host', 0)}
-        ${arrow('', 80)}
-        ${box('bg-amber-400', 'border-amber-500', 'text-white', 'Alerts Management MFE', 'Create Config', 160)}
-        <div class="flex-1"></div>
-        ${box('bg-amber-400', 'border-amber-500', 'text-white', 'Notification Display MFE', 'Realtime Updates', 240)}
+        ${box('bg-blue-600','border-blue-700','text-white','Shell Application','Host (Angular)',0)}
+        ${arrow('','70','right','blue',28)}
+        ${box('bg-amber-400','border-amber-500','text-slate-900','Alerts Management MFE','Create / Manage Configs',140)}
+        <div class="flex-1 min-w-4"></div>
+        ${box('bg-amber-400','border-amber-500','text-slate-900','Notification Display MFE','Realtime Updates',210)}
+        ${arrow('Listen Updates','280','left','emerald',28)}
+        ${box('bg-emerald-500','border-emerald-600','text-white','WebSocket Server','Firebase / Socket.io',350)}
       </div>
     </div>
 
-    <!-- Middle: GCP Platform -->
-    <div class="mb-4 pb-4 border-b border-slate-100">
-      ${section('Google Cloud Platform (GCP) — Processing & Logic', 'text-blue-400')}
-      <div class="flex items-start gap-3 flex-wrap">
-        <!-- Left: scheduler + scanner stack -->
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center gap-2">
-            ${box('bg-blue-500', 'border-blue-600', 'text-white', 'Cloud Scheduler', 'Cron', 300)}
-            ${arrow('Trigger Scan (Interval)', 380)}
-            ${box('bg-blue-500', 'border-blue-600', 'text-white', 'Data Scanner Function', 'Cloud Functions', 460)}
-          </div>
-          <div class="flex items-center gap-2 pl-2">
-            ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Alert Microservice', 'Cloud Run', 540)}
-            ${arrow('Cache Config / Match Criteria', 620)}
-            <div class="flex flex-col gap-1">
-              ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Cloud Endpoints', 'API Gateway', 700)}
-            </div>
-          </div>
-        </div>
-        <!-- Right: Event streaming -->
-        <div class="flex flex-col items-start gap-2 ml-auto">
-          ${box('bg-red-500', 'border-red-600', 'text-white', 'GCP Pub/Sub', 'Event Streaming', 760)}
-          ${arrow('Async Notification', 840, 'down')}
-          ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Notification Microservice', 'GKE', 920)}
-          ${arrow('Push to UI', 1000, 'down')}
-          ${box('bg-emerald-500', 'border-emerald-600', 'text-white', 'WebSocket Server', 'Firebase / Socket.io', 1080)}
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom: Data & Search -->
-    <div>
-      ${section('Data & Search — GCP Storage Layer', 'text-emerald-600')}
+    <!-- ② Cron / Scanner Flow ─────────────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('② Cron Job — Data Scanner (new alert detection)', 'text-violet-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-red-500', 'border-red-600', 'text-white', 'Cloud Memorystore', 'Redis', 1160)}
-        ${box('bg-teal-700', 'border-teal-800', 'text-white', 'Elasticsearch', 'Log / Search', 1240)}
-        ${box('bg-emerald-600', 'border-emerald-700', 'text-white', 'Google BigQuery', 'Analytics', 1320)}
-        ${box('bg-white', 'border-slate-300', 'text-slate-700', 'Cloud SQL / Firestore', 'Structured Data', 1400)}
+        ${box('bg-blue-500','border-blue-600','text-white','Cloud Scheduler','Cron',420)}
+        ${arrow('Trigger Scan (Interval)','490','right','blue',40)}
+        ${box('bg-blue-500','border-blue-600','text-white','Data Scanner Function','Cloud Functions',560)}
+        ${arrow('Query New Data','630','right','slate',36)}
+        ${box('bg-emerald-600','border-emerald-700','text-white','Google BigQuery','Analytics',700)}
+        ${arrow('Check Match Criteria','770','right','slate',36)}
+        ${box('bg-teal-700','border-teal-800','text-white','Elasticsearch','Log / Search',840)}
+        ${arrow('Alert Found →','910','right','red',32)}
+        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',980)}
       </div>
     </div>
 
-    <!-- Animated data flow indicator -->
-    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3">
-      <div class="flex gap-1.5">
-        <span class="w-2 h-2 rounded-full bg-blue-400 arch-blink" style="animation-delay:0ms"></span>
-        <span class="w-2 h-2 rounded-full bg-red-400 arch-blink" style="animation-delay:300ms"></span>
-        <span class="w-2 h-2 rounded-full bg-emerald-400 arch-blink" style="animation-delay:600ms"></span>
+    <!-- ③ API / Alert Config Flow ─────────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('③ API Layer — Alert Config & Manual Trigger', 'text-amber-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-amber-400','border-amber-500','text-slate-900','Alerts Management MFE','Create Config',1050)}
+        ${arrow('POST /alerts','1120','right','amber',36)}
+        ${box('bg-blue-500','border-blue-600','text-white','Cloud Endpoints','API Gateway',1190)}
+        ${arrow('','1260','right','blue',28)}
+        ${box('bg-blue-600','border-blue-700','text-white','Alert Microservice','Cloud Run',1330)}
+        ${arrow('Cache Config','1400','right','slate',32)}
+        ${box('bg-red-500','border-red-600','text-white','Cloud Memorystore','Redis',1470)}
+        ${arrow('Store Alert Def','1540','right','slate',32)}
+        ${box('bg-white','border-slate-300','text-slate-700','Cloud SQL / Firestore','Structured Data',1610)}
+        ${arrow('Manual Trigger →','1680','right','red',36)}
+        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',1750)}
       </div>
-      <span class="text-xs text-slate-400 font-medium">Live event flow simulation</span>
-      <div class="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
-        <div class="h-full bg-gradient-to-r from-blue-400 via-red-400 to-emerald-400 rounded-full arch-flow"></div>
+    </div>
+
+    <!-- ④ Notification Delivery Flow ──────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('④ Notification Delivery — Async → Realtime Push', 'text-emerald-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',1820)}
+        ${arrow('Async Notification','1890','right','red',40)}
+        ${box('bg-slate-100','border-slate-300','text-slate-700','Notification Microservice','GKE',1960)}
+        ${arrow('Index for Search','2030','right','slate',36)}
+        ${box('bg-teal-700','border-teal-800','text-white','Elasticsearch','Log / Search',2100)}
+        ${arrow('Check User Cache','2170','right','slate',36)}
+        ${box('bg-red-500','border-red-600','text-white','Cloud Memorystore','Redis',2240)}
+        ${arrow('Push to UI','2310','right','emerald',36)}
+        ${box('bg-emerald-500','border-emerald-600','text-white','WebSocket Server','Firebase / Socket.io',2380)}
+        ${arrow('Real-time Update','2450','right','emerald',40)}
+        ${box('bg-amber-400','border-amber-500','text-slate-900','Notification Display MFE','Updates UI',2520)}
+      </div>
+    </div>
+
+    <!-- Legend + live indicator ───────────────────── -->
+    <div class="flex items-center gap-4 flex-wrap">
+      ${[['#3b82f6','Platform / Config'],['#f59e0b','Alert Creation'],['#ef4444','Event / Pub-Sub'],['#10b981','Realtime Notify'],['#94a3b8','Data Storage']].map(([c,l])=>`
+        <div class="flex items-center gap-1.5">
+          <div style="height:2px;width:18px;background:repeating-linear-gradient(to right,${c} 0,${c} 4px,transparent 4px,transparent 8px);background-size:10px 100%;animation:aadFlowR .4s linear infinite"></div>
+          <span class="text-[9px] text-slate-500">${l}</span>
+        </div>`).join('')}
+      <div class="ml-auto flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 aad-live"></span>
+        <span class="text-[9px] text-slate-400 font-medium">Live data flow</span>
       </div>
     </div>
   </div>
 
   <style>
-    @keyframes archIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-    .alerts-arch-box { min-width:90px; }
-    .arch-blink { animation: archBlink 1.5s ease-in-out infinite; }
-    @keyframes archBlink { 0%,100%{opacity:1} 50%{opacity:.2} }
-    .arch-flow { animation: archFlow 2.5s ease-in-out infinite alternate; }
-    @keyframes archFlow { from{width:20%} to{width:95%} }
+    @keyframes aadIn    { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes aadFlowR { from{background-position:0 0} to{background-position:14px 0} }
+    @keyframes aadFlowL { from{background-position:0 0} to{background-position:-14px 0} }
+    @keyframes aadFlowD { from{background-position:0 0} to{background-position:0 14px} }
+    @keyframes aadFlowU { from{background-position:0 0} to{background-position:0 -14px} }
+    .aad-box  { min-width:88px; }
+    .aad-live { animation: aadLivePulse 1.6s ease-in-out infinite; }
+    @keyframes aadLivePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(1.4)} }
   </style>`;
 }
 
