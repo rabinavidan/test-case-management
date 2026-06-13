@@ -17,7 +17,14 @@ function setStoredUser(u) { localStorage.setItem("tf_user", JSON.stringify(u)); 
 function logout() {
   clearToken();
   state.user = null;
-  showAuthPage();
+  // Restore Sign In button and reload projects list (public)
+  document.getElementById("user-badge").innerHTML = `
+    <button onclick="showAuthModal('login')" data-testid="signin-btn"
+      class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+      Sign in
+    </button>`;
+  loadSidebar();
+  router();
 }
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
@@ -30,7 +37,7 @@ async function api(method, path, body) {
   if (token) opts.headers["Authorization"] = `Bearer ${token}`;
   if (body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
-  if (res.status === 401) { logout(); return null; }
+  if (res.status === 401) { clearToken(); state.user = null; showAuthModal("login"); return null; }
   if (res.status === 204) return null;
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Request failed");
@@ -2061,16 +2068,18 @@ function testflowArchDiagram() {
 }
 
 // ─── Auth UI ─────────────────────────────────────────────────────────────────
-function showAuthPage() {
-  document.getElementById("app-shell").classList.add("hidden");
-  document.getElementById("auth-page").classList.remove("hidden");
-  renderAuthForm("login");
+function showAuthModal(mode) {
+  renderAuthForm(mode);
+  document.getElementById("auth-modal").classList.remove("hidden");
+}
+
+function hideAuthModal() {
+  document.getElementById("auth-modal").classList.add("hidden");
 }
 
 function showAppShell(user) {
   state.user = user;
-  document.getElementById("auth-page").classList.add("hidden");
-  document.getElementById("app-shell").classList.remove("hidden");
+  hideAuthModal();
   renderUserBadge(user);
   loadSidebar();
   router();
@@ -2098,7 +2107,14 @@ function renderUserBadge(user) {
 function renderAuthForm(mode) {
   const isLogin = mode === "login";
   document.getElementById("auth-form-container").innerHTML = `
-    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-8 fade-in">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full p-8 fade-in relative">
+      <button onclick="hideAuthModal()" aria-label="Close"
+        class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+
       <div class="flex items-center gap-3 mb-6">
         <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2143,8 +2159,8 @@ function renderAuthForm(mode) {
 
       <p class="mt-5 text-center text-sm text-slate-500">
         ${isLogin
-          ? `Don't have an account? <button onclick="renderAuthForm('register')" class="text-brand-600 hover:underline font-medium">Sign up</button>`
-          : `Already have an account? <button onclick="renderAuthForm('login')" class="text-brand-600 hover:underline font-medium">Sign in</button>`
+          ? `Don't have an account? <button onclick="showAuthModal('register')" class="text-brand-600 hover:underline font-medium">Sign up</button>`
+          : `Already have an account? <button onclick="showAuthModal('login')" class="text-brand-600 hover:underline font-medium">Sign in</button>`
         }
       </p>
     </div>`;
@@ -2190,16 +2206,23 @@ async function submitAuth(e, mode) {
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
-window.addEventListener("hashchange", () => { if (getToken()) router(); });
+window.addEventListener("hashchange", () => router());
 document.addEventListener("DOMContentLoaded", async () => {
   const token = getToken();
-  if (!token) { renderAuthForm("login"); return; }
-  // Verify token is still valid
-  const res = await fetch("/api/auth/me", {
-    headers: { "Authorization": `Bearer ${token}` },
-  });
-  if (!res.ok) { clearToken(); renderAuthForm("login"); return; }
-  const user = await res.json();
-  setStoredUser(user);
-  showAppShell(user);
+  if (token) {
+    // Verify token is still valid
+    const res = await fetch("/api/auth/me", {
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const user = await res.json();
+      setStoredUser(user);
+      state.user = user;
+      renderUserBadge(user);
+    } else {
+      clearToken();
+    }
+  }
+  loadSidebar();
+  router();
 });

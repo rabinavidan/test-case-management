@@ -42,5 +42,6 @@ def test_me(auth_client):
 
 
 def test_protected_without_token(client):
-    r = client.get("/api/projects")
+    # GET /api/projects is public; POST requires auth
+    r = client.post("/api/projects", json={"name": "No Auth"})
     assert r.status_code == 401
