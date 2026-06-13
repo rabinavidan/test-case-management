@@ -80,6 +80,34 @@ class BasePage:
     def expect_toast(self, text: str):
         expect(self.toast).to_contain_text(text)
 
+    # ── Auth ─────────────────────────────────────────────────────────────────
+    def login(self, username: str = "e2euser", password: str = "e2epass1"):
+        """Register (if needed) and log in via the auth modal."""
+        self.page.goto(self.base_url)
+        self.page.wait_for_load_state("networkidle")
+        # Skip if already logged in
+        if self.page.get_by_test_id("logout-btn").is_visible():
+            return
+        # Try to register first, fall back to login if username taken
+        self.page.get_by_test_id("signin-btn").click()
+        self.page.get_by_test_id("auth-submit-btn").wait_for(state="visible")
+        # Switch to register
+        self.page.locator("button", has_text="create an account").or_(
+            self.page.locator("button", has_text="Sign up")
+        ).first.click()
+        self.page.get_by_test_id("auth-username").fill(username)
+        self.page.get_by_test_id("auth-email").fill(f"{username}@e2e.test")
+        self.page.get_by_test_id("auth-password").fill(password)
+        self.page.get_by_test_id("auth-submit-btn").click()
+        # If registration fails (duplicate), fall back to login
+        error = self.page.locator("#auth-error")
+        if error.is_visible():
+            self.page.locator("button", has_text="Sign in").first.click()
+            self.page.get_by_test_id("auth-username").fill(username)
+            self.page.get_by_test_id("auth-password").fill(password)
+            self.page.get_by_test_id("auth-submit-btn").click()
+        self.page.get_by_test_id("logout-btn").wait_for(state="visible")
+
     # ── Helpers ──────────────────────────────────────────────────────────────
     def goto(self, hash: str = ""):
         self.page.goto(f"{self.base_url}/#{hash}" if hash else self.base_url)
