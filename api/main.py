@@ -131,6 +131,42 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current: models.Use
     db.commit()
 
 
+@app.get("/api/debug/seed")
+def debug_seed(db: Session = Depends(get_db)):
+    import traceback
+    seed_user = os.getenv("SEED_ADMIN_USERNAME")
+    seed_pass = os.getenv("SEED_ADMIN_PASSWORD")
+    result = {
+        "env_username_set": bool(seed_user),
+        "env_password_set": bool(seed_pass),
+        "user_count": 0,
+        "admin_exists": False,
+        "seed_error": None,
+    }
+    try:
+        result["user_count"] = db.query(models.User).count()
+        if seed_user:
+            result["admin_exists"] = db.query(models.User).filter(models.User.username == seed_user).count() > 0
+        # Try running seed inline
+        if seed_user and seed_pass:
+            existing = db.query(models.User).filter(models.User.username == seed_user).first()
+            if existing:
+                existing.hashed_password = hash_password(seed_pass)
+                existing.role = "admin"
+            else:
+                db.add(models.User(
+                    username=seed_user,
+                    email=os.getenv("SEED_ADMIN_EMAIL", "admin@example.com"),
+                    hashed_password=hash_password(seed_pass),
+                    role="admin",
+                ))
+            db.commit()
+            result["seeded"] = True
+    except Exception:
+        result["seed_error"] = traceback.format_exc()
+    return result
+
+
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == body.username).first()
