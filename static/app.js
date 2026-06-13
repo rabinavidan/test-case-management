@@ -430,26 +430,86 @@ async function renderProjects() {
 
   await loadSidebar();
 
+  const demoBanner = `
+    <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6 overflow-hidden relative">
+      <div class="relative z-10">
+        <p class="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">How TestFlow works</p>
+        <h2 class="text-white text-lg font-bold mb-4">End-to-end test management pipeline</h2>
+        <!-- Animated pipeline -->
+        <div class="flex items-center gap-2 flex-wrap" id="tf-demo">
+          ${[
+            {icon:'📁', label:'Project',   color:'bg-blue-500',   delay:'0'},
+            {icon:'🗂️', label:'Suite',     color:'bg-indigo-500', delay:'150'},
+            {icon:'✅', label:'Test Case', color:'bg-violet-500', delay:'300'},
+            {icon:'▶️', label:'Run',       color:'bg-purple-500', delay:'450'},
+            {icon:'📊', label:'Results',   color:'bg-emerald-500',delay:'600'},
+          ].map((n,i,arr) => `
+            <div class="flex items-center gap-2">
+              <div class="demo-node flex flex-col items-center gap-1 opacity-0" style="animation:demoNodeIn .4s ease forwards;animation-delay:${n.delay}ms">
+                <div class="${n.color} w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-lg demo-pulse" style="animation-delay:${n.delay}ms">
+                  ${n.icon}
+                </div>
+                <span class="text-white text-xs font-medium">${n.label}</span>
+              </div>
+              ${i < arr.length-1 ? `<div class="demo-arrow text-blue-300 text-lg font-bold opacity-0 mb-4" style="animation:demoNodeIn .3s ease forwards;animation-delay:${parseInt(n.delay)+100}ms">→</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+        <!-- Animated status bar -->
+        <div class="mt-4 bg-blue-900/40 rounded-lg p-3 flex items-center gap-3">
+          <div class="flex gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 demo-blink" style="animation-delay:0ms"></span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400 demo-blink" style="animation-delay:200ms"></span>
+            <span class="w-2 h-2 rounded-full bg-yellow-400 demo-blink" style="animation-delay:400ms"></span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400 demo-blink" style="animation-delay:600ms"></span>
+            <span class="w-2 h-2 rounded-full bg-red-400 demo-blink" style="animation-delay:800ms"></span>
+          </div>
+          <div class="flex-1 bg-blue-900/50 rounded-full h-1.5 overflow-hidden">
+            <div class="h-full bg-emerald-400 rounded-full demo-bar"></div>
+          </div>
+          <span class="text-emerald-300 text-xs font-bold demo-counter">80% pass rate</span>
+        </div>
+      </div>
+      <!-- Background decoration -->
+      <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
+      <div class="absolute bottom-0 right-12 w-24 h-24 bg-white/5 rounded-full translate-y-1/2"></div>
+    </div>
+    <style>
+      @keyframes demoNodeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      .demo-pulse { animation: demoPulse 2.4s ease-in-out infinite; }
+      @keyframes demoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,0.1)} 50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(255,255,255,0)} }
+      .demo-blink { animation: demoBlink 1.8s ease-in-out infinite; }
+      @keyframes demoBlink { 0%,100%{opacity:1} 50%{opacity:.3} }
+      .demo-bar { animation: demoBar 3s ease-in-out infinite alternate; }
+      @keyframes demoBar { from{width:60%} to{width:92%} }
+      .demo-counter { animation: demoCounter 3s ease-in-out infinite alternate; }
+    </style>
+  `;
+
   if (!state.projects.length) {
     el.innerHTML = `
-      <div class="flex flex-col items-center justify-center py-24 text-center fade-in">
-        <div class="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center mb-5">
-          <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
+      <div class="fade-in">
+        ${demoBanner}
+        <div class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold text-slate-700 mb-2">No projects yet</h2>
+          <p class="text-slate-500 mb-6 max-w-sm text-sm">Create your first project to start organizing test suites and cases.</p>
+          <button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-sm">
+            Create First Project
+          </button>
         </div>
-        <h2 class="text-2xl font-bold text-slate-700 mb-2">Welcome to TestFlow</h2>
-        <p class="text-slate-500 mb-8 max-w-sm">Organize your test suites and cases into projects. Create your first project to get started.</p>
-        <button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm">
-          Create First Project
-        </button>
       </div>`;
     return;
   }
 
   el.innerHTML = `
     <div class="fade-in">
-      <div class="flex items-center justify-between mb-6">
+      ${demoBanner}
+      <div class="flex items-center justify-between mb-4">
         <div>
           <h1 class="text-2xl font-bold text-slate-800">Projects</h1>
           <p class="text-slate-500 text-sm mt-0.5">${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}</p>
