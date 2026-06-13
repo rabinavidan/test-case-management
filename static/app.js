@@ -2303,7 +2303,6 @@ function renderAuthForm(mode) {
       <p class="mt-4 text-center text-xs text-slate-400">Contact your admin to get an account.</p>
     </div>`;
 }
-}
 
 async function submitAuth(e) {
   e.preventDefault();
