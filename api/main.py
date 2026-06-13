@@ -489,6 +489,122 @@ def seed_demo_testflow(db: Session = Depends(get_db)):
     return project
 
 
+_PLAYWRIGHT_SUITES = [
+    ("Spec Layer — UI Tests", "*.spec.ts structure, test.describe, test.step, tags", [
+        ("test is imported from fixtures not from @playwright/test", "active", "high"),
+        ("every test lives inside a test.describe block", "active", "high"),
+        ("test name contains a ticket or feature reference (CI-XXXX:)", "active", "high"),
+        ("every logical action is wrapped in a named test.step()", "active", "high"),
+        ("all four required tag groups are present (@Team, @Product, @TestingLayer, @Component)", "active", "high"),
+        ("@TestingLayer value is one of the five allowed values", "active", "medium"),
+        ("annotation includes numbered Steps description", "active", "medium"),
+        ("test.beforeEach used for setup and state initialization", "active", "medium"),
+        ("test.afterEach cleans up all created test data via API", "active", "high"),
+    ]),
+    ("Spec Layer — API Tests", "*-be.spec.ts structure, @step orchestration", [
+        ("spec file contains no Logger.logging calls", "active", "high"),
+        ("spec file contains no expect() assertions", "active", "high"),
+        ("spec file contains no test.step() calls — uses @step on endpoint methods", "active", "high"),
+        ("every test line has a comment explaining step number and purpose", "active", "medium"),
+        ("created entity IDs are tracked for afterEach cleanup", "active", "high"),
+        ("generateTimestampWithSeconds used for unique entity names", "active", "medium"),
+    ]),
+    ("Fixtures & Injection", "src/fixtures/fixtures.ts, page object injection", [
+        ("page objects injected via fixtures, never instantiated directly in spec", "active", "high"),
+        ("loginPage fixture used for all authentication steps", "active", "high"),
+        ("new page object added to fixtures.ts when created", "active", "medium"),
+        ("fixture teardown releases browser resources correctly", "active", "medium"),
+        ("test user constant used — no hardcoded passwords", "active", "high"),
+    ]),
+    ("Page Object Model", "src/pages/*.ts structure and locator strategy", [
+        ("all locators declared as class properties, not local variables", "active", "high"),
+        ("data-automation-id used as first-choice locator strategy", "active", "high"),
+        ("getByRole used as second-choice locator strategy", "active", "medium"),
+        ("CSS class used as third-choice only when semantic locators unavailable", "active", "low"),
+        ("XPath avoided unless no other option exists", "active", "medium"),
+        ("methods call waitFor before any interaction", "active", "high"),
+        ("methods are public async unless internal-only", "active", "medium"),
+        ("no raw page.locator() calls inside spec files", "active", "high"),
+        ("logger calls inside page object methods not in spec files", "active", "medium"),
+    ]),
+    ("API Endpoint Layer", "*-endpoint.ts: @step decorator, Logger CRUD patterns", [
+        ("@step decorator on all public methods called from specs", "active", "high"),
+        ("@step NOT added to internal or private methods", "active", "high"),
+        ("log before calling base API method with emoji prefix", "active", "medium"),
+        ("log after success including entity ID", "active", "medium"),
+        ("CREATE operations use 📝 emoji prefix", "active", "low"),
+        ("READ operations use 📋 emoji prefix", "active", "low"),
+        ("UPDATE operations use ✏️ emoji prefix", "active", "low"),
+        ("DELETE operations use 🗑️ emoji prefix", "active", "low"),
+        ("SUCCESS logged with ✅ including entity ID", "active", "medium"),
+        ("all assertions in endpoint methods, never in spec files", "active", "high"),
+        ("no console.log — Logger.logging.* used exclusively", "active", "high"),
+    ]),
+    ("API Helper Layer", "*-helper.ts: polling, transformation, validation", [
+        ("@step decorator on public methods called from specs only", "active", "high"),
+        ("no nested @step calls between methods", "active", "high"),
+        ("polling methods log progress per attempt with attempt count", "active", "medium"),
+        ("waitForStatus throws descriptive error after maxAttempts exceeded", "active", "high"),
+        ("WAITING operations use ⏳ emoji prefix", "active", "low"),
+        ("SEARCH operations use 🔍 emoji prefix", "active", "low"),
+        ("TRANSFORMATION operations use 🔄 emoji prefix", "active", "low"),
+        ("input and output logged for transformation methods", "active", "medium"),
+        ("10-second sleep interval between polling attempts", "active", "medium"),
+    ]),
+    ("Logger & Timeouts", "Logger utility and Utilities timeout constants", [
+        ("Logger imported from @shared/utils/logger", "active", "high"),
+        ("no magic number timeouts — Utilities constants used", "active", "high"),
+        ("utils.TEN_SECONDS used for fast elements", "active", "medium"),
+        ("utils.THIRTY_SECONDS used for standard waitFor calls", "active", "medium"),
+        ("utils.SIXTY_SECONDS used for slow network operations", "active", "medium"),
+        ("test.setTimeout used for tests exceeding 25-minute global default", "active", "low"),
+        ("logger.info for general progress with 🌐 or 🔍 emoji", "active", "low"),
+        ("logger.success for verified state with ✅ emoji", "active", "low"),
+        ("logger.warning for recoverable skips with ⚠️ emoji", "active", "low"),
+        ("logger.error for unexpected failures with ❌ emoji", "active", "medium"),
+    ]),
+    ("Test Data & File Conventions", "generateTimestamp, naming, directory structure", [
+        ("generateTimestamp used to generate unique test data names", "active", "high"),
+        ("test data file colocated with spec file as *-test-data.ts", "active", "medium"),
+        ("test constants exported as const for type safety", "active", "medium"),
+        ("spec files named <feature>-<description>.spec.ts in kebab-case", "active", "medium"),
+        ("page objects named <feature>-page.ts in kebab-case", "active", "medium"),
+        ("API clients named <feature>-api-client.ts in kebab-case", "active", "medium"),
+        ("spec files live in playwright/tests/<Feature>/", "active", "low"),
+        ("page objects live in src/pages/", "active", "low"),
+    ]),
+]
+
+
+@app.post("/api/demo/playwright", response_model=schemas.ProjectResponse)
+def seed_demo_playwright(db: Session = Depends(get_db)):
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    project = models.Project(
+        name=f"TestFlow Playwright Tests Architecture Demo {ts}",
+        description="Playwright test architecture based on UI E2E Standards and API Logging Standards skills",
+    )
+    db.add(project)
+    db.flush()
+
+    for suite_name, suite_desc, cases in _PLAYWRIGHT_SUITES:
+        suite = models.TestSuite(
+            project_id=project.id,
+            name=suite_name,
+            description=suite_desc,
+        )
+        db.add(suite)
+        db.flush()
+        for title, status, priority in cases:
+            db.add(models.TestCase(suite_id=suite.id, title=title,
+                                   status=status, priority=priority))
+
+    db.flush()
+    _seed_demo_runs(db, project.id)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 # ─── Static files (must be last) ─────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

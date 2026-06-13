@@ -612,6 +612,13 @@ async function renderProjects() {
             </svg>
             <span id="demo-tf-label">Run TestFlow Demo</span>
           </button>
+          <button id="demo-pw-btn" onclick="seedPlaywrightDemo()"
+            class="bg-white/15 hover:bg-white/25 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/20">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+            </svg>
+            <span id="demo-pw-label">Run Playwright Architecture Demo</span>
+          </button>
         </div>
       </div>
       <!-- Background decoration -->
@@ -1853,6 +1860,28 @@ async function seedTestFlowDemo() {
     toast("Failed to create demo: " + e.message, "error");
     btn.disabled = false;
     label.textContent = "Run TestFlow Demo";
+    btn.classList.remove("opacity-60");
+  }
+}
+
+async function seedPlaywrightDemo() {
+  const btn = document.getElementById("demo-pw-btn");
+  const label = document.getElementById("demo-pw-label");
+  if (!btn) return;
+  btn.disabled = true;
+  label.textContent = "Creating demo project…";
+  btn.classList.add("opacity-60");
+  try {
+    const res = await fetch("/api/demo/playwright", { method: "POST" });
+    if (!res.ok) throw new Error(await res.text());
+    const project = await res.json();
+    toast(`Demo project "${project.name}" created!`, "success");
+    await loadSidebar();
+    navigate(`project/${project.id}`);
+  } catch (e) {
+    toast("Failed to create demo: " + e.message, "error");
+    btn.disabled = false;
+    label.textContent = "Run Playwright Architecture Demo";
     btn.classList.remove("opacity-60");
   }
 }
