@@ -341,6 +341,113 @@ def seed_demo_alerts_microservice(db: Session = Depends(get_db)):
     return project
 
 
+_TESTFLOW_SUITES = [
+    ("Project Management", "Create, edit, and delete projects", [
+        ("Create project with name and description", "active", "high"),
+        ("Project name is required on creation", "active", "high"),
+        ("Delete project removes all suites and cases", "active", "high"),
+        ("Project list shows newest first", "active", "medium"),
+        ("Project count updates after creation", "active", "medium"),
+        ("Filter projects by name", "active", "medium"),
+        ("Sort projects by oldest first", "active", "low"),
+    ]),
+    ("Test Suite Management", "Create, list, and delete test suites", [
+        ("Create suite within a project", "active", "high"),
+        ("Suite name is required", "active", "high"),
+        ("Delete suite removes all test cases", "active", "high"),
+        ("Suites listed newest first", "active", "medium"),
+        ("Suite count shown on project stats card", "active", "medium"),
+    ]),
+    ("Test Case Management", "Add, update, and remove test cases", [
+        ("Create test case with title and priority", "active", "high"),
+        ("Test case title is required", "active", "high"),
+        ("Update test case status to deprecated", "active", "medium"),
+        ("Delete test case removes from suite", "active", "medium"),
+        ("Priority badge renders for high/medium/low", "active", "low"),
+        ("Active cases appear in new test run", "active", "high"),
+        ("Deprecated cases excluded from new run", "active", "medium"),
+    ]),
+    ("Test Run Execution", "Start runs and record results", [
+        ("Create run generates pending results for active cases", "active", "high"),
+        ("Mark result as pass updates run status", "active", "high"),
+        ("Mark result as fail updates run status", "active", "high"),
+        ("Mark result as skip updates run status", "active", "medium"),
+        ("Run marked complete when all results non-pending", "active", "high"),
+        ("Notes saved on result update", "active", "medium"),
+        ("Pass rate calculated correctly on stats", "active", "high"),
+    ]),
+    ("REST API Endpoints", "FastAPI backend contract tests", [
+        ("GET /api/projects returns list", "active", "high"),
+        ("POST /api/projects creates project", "active", "high"),
+        ("DELETE /api/projects/{id} returns 204", "active", "high"),
+        ("GET /api/projects/{id}/suites returns list", "active", "high"),
+        ("POST /api/suites/{id}/testcases creates case", "active", "high"),
+        ("PUT /api/testcases/{id} updates fields", "active", "medium"),
+        ("GET /api/projects/{id}/stats returns correct counts", "active", "high"),
+        ("POST /api/suites/{id}/runs creates results", "active", "high"),
+        ("PUT /api/runs/{id}/results/{tc} updates result", "active", "high"),
+        ("404 returned for missing resources", "active", "medium"),
+    ]),
+    ("UI / SPA Behaviour", "Vanilla JS single-page app tests", [
+        ("Hash routing navigates to correct view", "active", "high"),
+        ("Breadcrumb updates on navigation", "active", "medium"),
+        ("Sidebar project list updates after create", "active", "high"),
+        ("Toast appears on successful create", "active", "medium"),
+        ("Toast appears on delete", "active", "medium"),
+        ("Modal closes on Cancel click", "active", "medium"),
+        ("Modal closes on backdrop click", "active", "low"),
+        ("New Project button hidden on project view", "active", "low"),
+    ]),
+    ("Playwright E2E Tests", "Browser automation with page object model", [
+        ("Navigate to projects page on load", "active", "high"),
+        ("Create project via New Project modal", "active", "high"),
+        ("New project appears in sidebar and grid", "active", "high"),
+        ("Open project and view stats", "active", "high"),
+        ("Create suite from project page", "active", "high"),
+        ("Create test case from suite page", "active", "high"),
+        ("Start test run and mark all results", "active", "high"),
+        ("Pass rate updates after completing run", "active", "medium"),
+        ("Delete project via trash icon", "active", "medium"),
+    ]),
+    ("CI / CD Pipeline", "GitHub Actions and Vercel deployment checks", [
+        ("API tests pass on pull request", "active", "high"),
+        ("E2E tests run on push to main", "active", "high"),
+        ("Job summary renders test report table", "active", "medium"),
+        ("Vercel preview URL deployed per PR", "active", "high"),
+        ("Production URL updated on merge to main", "active", "high"),
+        ("Database migrations run on cold start", "active", "medium"),
+        ("Static files served with correct cache headers", "active", "low"),
+    ]),
+]
+
+
+@app.post("/api/demo/testflow", response_model=schemas.ProjectResponse)
+def seed_demo_testflow(db: Session = Depends(get_db)):
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    project = models.Project(
+        name=f"TestFlow {ts}",
+        description="TestFlow — test case management app (FastAPI + Vanilla JS + Neon PostgreSQL)",
+    )
+    db.add(project)
+    db.flush()
+
+    for suite_name, suite_desc, cases in _TESTFLOW_SUITES:
+        suite = models.TestSuite(
+            project_id=project.id,
+            name=suite_name,
+            description=suite_desc,
+        )
+        db.add(suite)
+        db.flush()
+        for title, status, priority in cases:
+            db.add(models.TestCase(suite_id=suite.id, title=title,
+                                   status=status, priority=priority))
+
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 # ─── Static files (must be last) ─────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
