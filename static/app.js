@@ -4,7 +4,21 @@ const state = {
   currentProject: null,
   currentSuite: null,
   currentRun: null,
+  user: null,
 };
+
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
+function getToken() { return localStorage.getItem("tf_token"); }
+function setToken(t) { localStorage.setItem("tf_token", t); }
+function clearToken() { localStorage.removeItem("tf_token"); localStorage.removeItem("tf_user"); }
+function getStoredUser() { try { return JSON.parse(localStorage.getItem("tf_user")); } catch { return null; } }
+function setStoredUser(u) { localStorage.setItem("tf_user", JSON.stringify(u)); }
+
+function logout() {
+  clearToken();
+  state.user = null;
+  showAuthPage();
+}
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -12,8 +26,11 @@ async function api(method, path, body) {
     method,
     headers: { "Content-Type": "application/json" },
   };
+  const token = getToken();
+  if (token) opts.headers["Authorization"] = `Bearer ${token}`;
   if (body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
+  if (res.status === 401) { logout(); return null; }
   if (res.status === 204) return null;
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Request failed");
@@ -1828,7 +1845,7 @@ async function seedAlertsDemo() {
   label.textContent = "Creating demo project…";
   btn.classList.add("opacity-60");
   try {
-    const res = await fetch("/api/demo/alerts-microservice", { method: "POST" });
+    const res = await fetch("/api/demo/alerts-microservice", { method: "POST", headers: { "Authorization": `Bearer ${getToken()}` } });
     if (!res.ok) throw new Error(await res.text());
     const project = await res.json();
     toast(`Demo project "${project.name}" created!`, "success");
@@ -1850,7 +1867,7 @@ async function seedTestFlowDemo() {
   label.textContent = "Creating demo project…";
   btn.classList.add("opacity-60");
   try {
-    const res = await fetch("/api/demo/testflow", { method: "POST" });
+    const res = await fetch("/api/demo/testflow", { method: "POST", headers: { "Authorization": `Bearer ${getToken()}` } });
     if (!res.ok) throw new Error(await res.text());
     const project = await res.json();
     toast(`Demo project "${project.name}" created!`, "success");
@@ -1872,7 +1889,7 @@ async function seedPlaywrightDemo() {
   label.textContent = "Creating demo project…";
   btn.classList.add("opacity-60");
   try {
-    const res = await fetch("/api/demo/playwright", { method: "POST" });
+    const res = await fetch("/api/demo/playwright", { method: "POST", headers: { "Authorization": `Bearer ${getToken()}` } });
     if (!res.ok) throw new Error(await res.text());
     const project = await res.json();
     toast(`Demo project "${project.name}" created!`, "success");
@@ -2043,9 +2060,146 @@ function testflowArchDiagram() {
   </style>`;
 }
 
-// ─── Bootstrap ───────────────────────────────────────────────────────────────
-window.addEventListener("hashchange", router);
-document.addEventListener("DOMContentLoaded", () => {
+// ─── Auth UI ─────────────────────────────────────────────────────────────────
+function showAuthPage() {
+  document.getElementById("app-shell").classList.add("hidden");
+  document.getElementById("auth-page").classList.remove("hidden");
+  renderAuthForm("login");
+}
+
+function showAppShell(user) {
+  state.user = user;
+  document.getElementById("auth-page").classList.add("hidden");
+  document.getElementById("app-shell").classList.remove("hidden");
+  renderUserBadge(user);
   loadSidebar();
   router();
+}
+
+function renderUserBadge(user) {
+  const el = document.getElementById("user-badge");
+  if (!el) return;
+  el.innerHTML = `
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+        ${escHtml(user.username[0].toUpperCase())}
+      </div>
+      <span class="text-sm font-medium text-slate-700 hidden sm:block">${escHtml(user.username)}</span>
+      <button onclick="logout()" title="Log out"
+        class="ml-1 text-slate-400 hover:text-red-500 transition-colors" data-testid="logout-btn">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+      </button>
+    </div>`;
+}
+
+function renderAuthForm(mode) {
+  const isLogin = mode === "login";
+  document.getElementById("auth-form-container").innerHTML = `
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-8 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-800">TestFlow</h1>
+          <p class="text-xs text-slate-400">Test Case Management</p>
+        </div>
+      </div>
+
+      <h2 class="text-lg font-semibold text-slate-800 mb-5">${isLogin ? "Sign in" : "Create account"}</h2>
+
+      <form onsubmit="submitAuth(event, '${mode}')" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Username</label>
+          <input id="auth-username" data-testid="auth-username" type="text" autocomplete="username"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            placeholder="your_username" required autofocus />
+        </div>
+        ${!isLogin ? `
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+          <input id="auth-email" data-testid="auth-email" type="email" autocomplete="email"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            placeholder="you@example.com" required />
+        </div>` : ""}
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+          <input id="auth-password" data-testid="auth-password" type="password" autocomplete="${isLogin ? "current-password" : "new-password"}"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            placeholder="${isLogin ? "••••••••" : "Min. 6 characters"}" required />
+        </div>
+        <div id="auth-error" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
+        <button type="submit" data-testid="auth-submit-btn"
+          class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
+          ${isLogin ? "Sign in" : "Create account"}
+        </button>
+      </form>
+
+      <p class="mt-5 text-center text-sm text-slate-500">
+        ${isLogin
+          ? `Don't have an account? <button onclick="renderAuthForm('register')" class="text-brand-600 hover:underline font-medium">Sign up</button>`
+          : `Already have an account? <button onclick="renderAuthForm('login')" class="text-brand-600 hover:underline font-medium">Sign in</button>`
+        }
+      </p>
+    </div>`;
+}
+
+async function submitAuth(e, mode) {
+  e.preventDefault();
+  const errEl = document.getElementById("auth-error");
+  errEl.classList.add("hidden");
+  const username = document.getElementById("auth-username").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const btn = e.target.querySelector("button[type=submit]");
+  btn.disabled = true;
+  btn.textContent = mode === "login" ? "Signing in…" : "Creating account…";
+
+  try {
+    let res, data;
+    if (mode === "login") {
+      res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+    } else {
+      const email = document.getElementById("auth-email").value.trim();
+      res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+      });
+    }
+    data = await res.json();
+    if (!res.ok) { throw new Error(data.detail || "Authentication failed"); }
+    setToken(data.access_token);
+    setStoredUser(data.user);
+    showAppShell(data.user);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+    btn.disabled = false;
+    btn.textContent = mode === "login" ? "Sign in" : "Create account";
+  }
+}
+
+// ─── Bootstrap ───────────────────────────────────────────────────────────────
+window.addEventListener("hashchange", () => { if (getToken()) router(); });
+document.addEventListener("DOMContentLoaded", async () => {
+  const token = getToken();
+  if (!token) { showAuthPage(); return; }
+  // Verify token is still valid
+  const res = await fetch("/api/auth/me", {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+  if (!res.ok) { clearToken(); showAuthPage(); return; }
+  const user = await res.json();
+  setStoredUser(user);
+  showAppShell(user);
 });

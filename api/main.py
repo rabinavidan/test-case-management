@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -10,6 +10,7 @@ import random
 
 from .database import engine, get_db, Base
 from . import models, schemas
+from .auth import hash_password, verify_password, create_access_token, get_current_user
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
@@ -24,15 +25,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+
+@app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=201)
+def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
+    if db.query(models.User).filter(models.User.username == body.username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+    if db.query(models.User).filter(models.User.email == body.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    user = models.User(
+        username=body.username,
+        email=body.email,
+        hashed_password=hash_password(body.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"access_token": create_access_token(user.id), "user": user}
+
+
+@app.post("/api/auth/login", response_model=schemas.TokenResponse)
+def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == body.username).first()
+    if not user or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return {"access_token": create_access_token(user.id), "user": user}
+
+
+@app.get("/api/auth/me", response_model=schemas.UserResponse)
+def me(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+
 # ─── Projects ────────────────────────────────────────────────────────────────
 
 @app.get("/api/projects", response_model=List[schemas.ProjectResponse])
-def list_projects(db: Session = Depends(get_db)):
+def list_projects(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     return db.query(models.Project).order_by(models.Project.created_at.desc()).all()
 
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse, status_code=201)
-def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)):
+def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     project = models.Project(**payload.model_dump())
     db.add(project)
     db.commit()
@@ -41,7 +76,7 @@ def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)
 
 
 @app.delete("/api/projects/{project_id}", status_code=204)
-def delete_project(project_id: int, db: Session = Depends(get_db)):
+def delete_project(project_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -52,7 +87,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 # ─── Test Suites ─────────────────────────────────────────────────────────────
 
 @app.get("/api/projects/{project_id}/suites", response_model=List[schemas.TestSuiteResponse])
-def list_suites(project_id: int, db: Session = Depends(get_db)):
+def list_suites(project_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -62,7 +97,7 @@ def list_suites(project_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/projects/{project_id}/suites", response_model=schemas.TestSuiteResponse, status_code=201)
-def create_suite(project_id: int, payload: schemas.TestSuiteCreate, db: Session = Depends(get_db)):
+def create_suite(project_id: int, payload: schemas.TestSuiteCreate, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -74,7 +109,7 @@ def create_suite(project_id: int, payload: schemas.TestSuiteCreate, db: Session 
 
 
 @app.delete("/api/suites/{suite_id}", status_code=204)
-def delete_suite(suite_id: int, db: Session = Depends(get_db)):
+def delete_suite(suite_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -85,7 +120,7 @@ def delete_suite(suite_id: int, db: Session = Depends(get_db)):
 # ─── Test Cases ───────────────────────────────────────────────────────────────
 
 @app.get("/api/suites/{suite_id}/testcases", response_model=List[schemas.TestCaseResponse])
-def list_testcases(suite_id: int, db: Session = Depends(get_db)):
+def list_testcases(suite_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -95,7 +130,7 @@ def list_testcases(suite_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/suites/{suite_id}/testcases", response_model=schemas.TestCaseResponse, status_code=201)
-def create_testcase(suite_id: int, payload: schemas.TestCaseCreate, db: Session = Depends(get_db)):
+def create_testcase(suite_id: int, payload: schemas.TestCaseCreate, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -107,7 +142,7 @@ def create_testcase(suite_id: int, payload: schemas.TestCaseCreate, db: Session 
 
 
 @app.put("/api/testcases/{tc_id}", response_model=schemas.TestCaseResponse)
-def update_testcase(tc_id: int, payload: schemas.TestCaseUpdate, db: Session = Depends(get_db)):
+def update_testcase(tc_id: int, payload: schemas.TestCaseUpdate, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     tc = db.query(models.TestCase).filter(models.TestCase.id == tc_id).first()
     if not tc:
         raise HTTPException(status_code=404, detail="Test case not found")
@@ -119,7 +154,7 @@ def update_testcase(tc_id: int, payload: schemas.TestCaseUpdate, db: Session = D
 
 
 @app.delete("/api/testcases/{tc_id}", status_code=204)
-def delete_testcase(tc_id: int, db: Session = Depends(get_db)):
+def delete_testcase(tc_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     tc = db.query(models.TestCase).filter(models.TestCase.id == tc_id).first()
     if not tc:
         raise HTTPException(status_code=404, detail="Test case not found")
@@ -130,7 +165,7 @@ def delete_testcase(tc_id: int, db: Session = Depends(get_db)):
 # ─── Test Runs ────────────────────────────────────────────────────────────────
 
 @app.post("/api/suites/{suite_id}/runs", response_model=schemas.TestRunResponse, status_code=201)
-def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depends(get_db)):
+def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -155,7 +190,7 @@ def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depe
 
 
 @app.get("/api/suites/{suite_id}/runs", response_model=List[schemas.TestRunResponse])
-def list_runs(suite_id: int, db: Session = Depends(get_db)):
+def list_runs(suite_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -165,7 +200,7 @@ def list_runs(suite_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/runs/{run_id}", response_model=schemas.TestRunResponse)
-def get_run(run_id: int, db: Session = Depends(get_db)):
+def get_run(run_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     run = db.query(models.TestRun).filter(models.TestRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -173,7 +208,7 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/api/runs/{run_id}/results/{tc_id}")
-def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db)):
+def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     result = db.query(models.TestResult).filter(
         models.TestResult.run_id == run_id,
         models.TestResult.testcase_id == tc_id
@@ -199,7 +234,7 @@ def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db
 # ─── Stats ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/projects/{project_id}/stats", response_model=schemas.ProjectStats)
-def project_stats(project_id: int, db: Session = Depends(get_db)):
+def project_stats(project_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -352,7 +387,7 @@ def _seed_demo_runs(db, project_id):
 
 
 @app.post("/api/demo/alerts-microservice", response_model=schemas.ProjectResponse)
-def seed_demo_alerts_microservice(db: Session = Depends(get_db)):
+def seed_demo_alerts_microservice(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
     project = models.Project(
         name=f"Alerts Microservice {ts}",
@@ -461,7 +496,7 @@ _TESTFLOW_SUITES = [
 
 
 @app.post("/api/demo/testflow", response_model=schemas.ProjectResponse)
-def seed_demo_testflow(db: Session = Depends(get_db)):
+def seed_demo_testflow(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
     project = models.Project(
         name=f"TestFlow {ts}",
@@ -561,7 +596,7 @@ _PLAYWRIGHT_SUITES = [
 
 
 @app.post("/api/demo/playwright", response_model=schemas.ProjectResponse)
-def seed_demo_playwright(db: Session = Depends(get_db)):
+def seed_demo_playwright(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
     project = models.Project(
         name=f"TestFlow Repo — API & E2E Tests Demo {ts}",
