@@ -42,6 +42,35 @@ def test_me(auth_client):
 
 
 def test_protected_without_token(client):
-    # GET /api/projects is public; POST requires auth
+    # GET /api/projects is public; POST requires admin
     r = client.post("/api/projects", json={"name": "No Auth"})
     assert r.status_code == 401
+
+
+def test_first_user_is_admin(client):
+    r = client.post("/api/auth/register", json={
+        "username": "firstuser", "email": "first@example.com", "password": "secret",
+    })
+    assert r.json()["user"]["role"] == "admin"
+
+
+def test_second_user_is_executor(client):
+    client.post("/api/auth/register", json={
+        "username": "first", "email": "first@example.com", "password": "secret",
+    })
+    r = client.post("/api/auth/register", json={
+        "username": "second", "email": "second@example.com", "password": "secret",
+    })
+    assert r.json()["user"]["role"] == "executor"
+
+
+def test_executor_cannot_create_project(executor_client):
+    client, headers = executor_client
+    r = client.post("/api/projects", json={"name": "No Permission"}, headers=headers)
+    assert r.status_code == 403
+
+
+def test_admin_can_create_project(auth_client):
+    client, headers = auth_client
+    r = client.post("/api/projects", json={"name": "Admin Project"}, headers=headers)
+    assert r.status_code == 201
