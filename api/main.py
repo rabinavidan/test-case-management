@@ -249,6 +249,98 @@ def project_stats(project_id: int, db: Session = Depends(get_db)):
     )
 
 
+# ─── Demo seed ───────────────────────────────────────────────────────────────
+
+_DEMO_SUITES = [
+    ("Data Ingestion", "Kafka and GCP Pub/Sub message ingestion", [
+        ("Kafka topic receives alert event", "active", "high"),
+        ("GCP Pub/Sub message published successfully", "active", "high"),
+        ("Malformed message is rejected with error", "active", "medium"),
+        ("Message retry on transient failure", "active", "medium"),
+        ("Dead-letter queue captures failed messages", "active", "low"),
+    ]),
+    ("Alerts Logic Engine", "Core alert evaluation and rule matching", [
+        ("Alert triggers when threshold exceeded", "active", "high"),
+        ("No alert when value is within threshold", "active", "high"),
+        ("Multi-condition rule evaluates correctly", "active", "high"),
+        ("Alert deduplication prevents duplicate notifications", "active", "medium"),
+        ("Alert severity mapped correctly (low/med/high)", "active", "medium"),
+        ("Stale alert expires after TTL", "active", "low"),
+    ]),
+    ("Rule Validator", "Alert rule syntax and validation", [
+        ("Valid rule passes validation", "active", "high"),
+        ("Missing required field returns 400", "active", "high"),
+        ("Invalid operator type rejected", "active", "medium"),
+        ("Threshold out of range rejected", "active", "medium"),
+        ("Rule with valid schedule accepted", "active", "low"),
+    ]),
+    ("Scheduler Service", "Scheduled alert job execution", [
+        ("Scheduled job fires at correct interval", "active", "high"),
+        ("Job does not fire when disabled", "active", "high"),
+        ("Missed job recovers on restart", "active", "medium"),
+        ("Concurrent jobs do not duplicate alerts", "active", "medium"),
+        ("Job logs execution timestamp", "active", "low"),
+    ]),
+    ("Notification Engine", "Notification dispatch orchestration", [
+        ("Notification routed to correct channel", "active", "high"),
+        ("UI-only alert does not trigger email", "active", "high"),
+        ("Daily digest batches alerts correctly", "active", "medium"),
+        ("Weekly digest contains correct date range", "active", "medium"),
+        ("Failed notification retried up to 3 times", "active", "medium"),
+    ]),
+    ("Email Engine", "Email delivery via SMTP/SendGrid", [
+        ("Alert email sent with correct subject", "active", "high"),
+        ("Email contains alert details and timestamp", "active", "high"),
+        ("Unsubscribed user does not receive email", "active", "high"),
+        ("Bounce handling marks address as invalid", "active", "medium"),
+        ("SendGrid API failure falls back to SMTP", "active", "low"),
+    ]),
+    ("Data Persistence", "MongoDB, Elasticsearch, Solr, Redis, BigQuery storage", [
+        ("User preferences saved to MongoDB", "active", "high"),
+        ("Alert indexed in Elasticsearch", "active", "high"),
+        ("Funding data queryable via Solr", "active", "medium"),
+        ("Historical data retrievable from BigQuery", "active", "medium"),
+        ("Cache hit served from Redis", "active", "high"),
+        ("Redis cache invalidated on data update", "active", "medium"),
+        ("Elasticsearch query returns ranked results", "active", "low"),
+    ]),
+    ("Notification Center UI", "Client-side notification center", [
+        ("Notification center shows unread count", "active", "high"),
+        ("Clicking notification marks it as read", "active", "high"),
+        ("Real-time update appears without page reload", "active", "medium"),
+        ("Empty state shown when no notifications", "active", "low"),
+        ("Notification links to correct resource", "active", "medium"),
+    ]),
+]
+
+
+@app.post("/api/demo/alerts-microservice", response_model=schemas.ProjectResponse)
+def seed_demo_alerts_microservice(db: Session = Depends(get_db)):
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    project = models.Project(
+        name=f"Alerts Microservice {ts}",
+        description="Alerts Microservice with Kafka, MongoDB, Elasticsearch, etc.",
+    )
+    db.add(project)
+    db.flush()
+
+    for suite_name, suite_desc, cases in _DEMO_SUITES:
+        suite = models.TestSuite(
+            project_id=project.id,
+            name=suite_name,
+            description=suite_desc,
+        )
+        db.add(suite)
+        db.flush()
+        for title, status, priority in cases:
+            db.add(models.TestCase(suite_id=suite.id, title=title,
+                                   status=status, priority=priority))
+
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 # ─── Static files (must be last) ─────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
