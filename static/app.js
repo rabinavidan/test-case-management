@@ -1002,8 +1002,8 @@ async function renderProject(projectId) {
         </div>
       </div>
 
-      <!-- Architecture diagram (Alerts Microservice projects only) -->
-      ${project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : ""}
+      <!-- Architecture diagram (admin only, Alerts Microservice / TestFlow projects) -->
+      ${isAdmin() && (project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : "")}
 
       <!-- Last run progress bar (non-demo projects only) -->
       ${total && !project.name.startsWith("Alerts Microservice") && !project.name.startsWith("TestFlow") ? `
