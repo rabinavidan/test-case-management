@@ -1,0 +1,105 @@
+name: Playwright Regression Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target URL (leave blank to use VERCEL_PRODUCTION_URL secret)"
+        required: false
+        default: ""
+
+jobs:
+  regression:
+    name: Regression Suite (Playwright)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Install Playwright browsers
+        run: playwright install --with-deps chromium
+
+      - name: Resolve target URL
+        id: url
+        run: |
+          URL="${{ github.event.inputs.base_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
+          fi
+          echo "base_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Run @regression tests
+        run: |
+          python -m pytest tests/ \
+            -m regression \
+            --base-url=${{ steps.url.outputs.base_url }} \
+            -v --tb=short \
+            --json-report --json-report-file=pw-report.json
+        continue-on-error: true
+
+      - name: Write job summary
+        if: always()
+        run: |
+          python - <<'EOF'
+          import json, os, pathlib
+          p = pathlib.Path("pw-report.json")
+          if not p.exists():
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("## ❌ Regression Report\n\nTest run crashed before producing a report — check the logs.\n")
+            raise SystemExit(0)
+          r = json.loads(p.read_text())
+          s = r["summary"]
+          passed   = s.get("passed", 0)
+          failed   = s.get("failed", 0)
+          error    = s.get("error", 0)
+          total    = s.get("total", 0)
+          duration = r.get("duration", 0)
+          icon     = "✅" if failed == 0 and error == 0 else "❌"
+          lines = [
+            f"## {icon} Playwright Regression Report",
+            "| Result | Count |",
+            "|--------|-------|",
+            f"| ✅ Passed | {passed} |",
+            f"| ❌ Failed | {failed} |",
+            f"| 💥 Error  | {error}  |",
+            f"| **Total** | **{total}** |",
+            f"| ⏱ Duration | {duration:.2f}s |",
+            "",
+            "### Test Results",
+            "| Test | Result | Duration |",
+            "|------|--------|----------|",
+          ]
+          for t in r.get("tests", []):
+            name    = t["nodeid"].split("::")[-1]
+            outcome = t["outcome"]
+            dur     = (t.get("call") or {}).get("duration", 0)
+            badge   = "✅ passed" if outcome == "passed" else ("❌ failed" if outcome == "failed" else "💥 error")
+            lines.append(f"| `{name}` | {badge} | {dur:.3f}s |")
+          lines.append("")
+          for t in r.get("tests", []):
+            if t["outcome"] in ("failed", "error"):
+              name = t["nodeid"].split("::")[-1]
+              msg  = (t.get("call") or t.get("setup") or {}).get("longrepr", "")
+              lines.append(f"<details><summary>❌ <code>{name}</code> — failure detail</summary>\n\n```\n{msg}\n```\n</details>")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+            f.write("\n".join(lines))
+          EOF
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-report-${{ github.run_id }}
+          path: pw-report.json
+          retention-days: 14
