@@ -1,3 +1,4 @@
+import logging
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -5,6 +6,22 @@ from sqlalchemy.orm import sessionmaker
 
 from api.database import Base, get_db
 from api.main import app
+
+_pw_log = logging.getLogger("pw.hook")
+
+
+def pytest_runtest_logreport(report):
+    """Surface full failure details in the pw.* log stream immediately on failure."""
+    if report.failed:
+        longrepr = str(report.longrepr) if report.longrepr else "(no details)"
+        _pw_log.error(
+            "\n"
+            + "━" * 70 + "\n"
+            + f"  ❌  FAILED [{report.when.upper()}]  {report.nodeid}\n"
+            + "━" * 70 + "\n"
+            + longrepr + "\n"
+            + "━" * 70
+        )
 
 DATABASE_URL = "sqlite:///./test.db"
 
