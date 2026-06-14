@@ -33,13 +33,19 @@ jobs:
       - name: Resolve target URL
         id: url
         run: |
-          URL="${{ github.event.inputs.base_url }}"
-          if [ -z "$URL" ]; then
-            URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
+          # Read pytest.ini default (always valid — used as ultimate fallback)
+          INI_URL=$(grep '^base_url' pytest.ini | awk '{print $3}')
+          # Start with the hardcoded default
+          URL="$INI_URL"
+          # Override with secret if it looks like a valid https URL
+          SECRET="${{ secrets.VERCEL_PRODUCTION_URL }}"
+          if [[ "$SECRET" == https://* ]]; then
+            URL="$SECRET"
           fi
-          # Fall back to the default URL in pytest.ini if still empty
-          if [ -z "$URL" ]; then
-            URL=$(grep '^base_url' pytest.ini | awk '{print $3}')
+          # Override with manual input if provided and valid
+          INPUT="${{ github.event.inputs.base_url }}"
+          if [[ "$INPUT" == https://* ]]; then
+            URL="$INPUT"
           fi
           echo "Resolved base_url: $URL"
           echo "base_url=$URL" >> $GITHUB_OUTPUT
