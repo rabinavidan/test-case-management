@@ -1246,7 +1246,12 @@ function runCard(r, suiteName) {
         </div>
         <div class="text-right flex-shrink-0">
           <div class="text-xs text-slate-400">${formatDate(r.created_at)}</div>
-          ${r.created_by_username ? `<div class="text-xs text-slate-500 font-medium">${escHtml(r.created_by_username)}</div>` : ""}
+          <div class="flex items-center justify-end gap-1 mt-0.5">
+            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span class="text-xs text-slate-500 font-medium">${r.created_by_username ? escHtml(r.created_by_username) : "—"}</span>
+          </div>
         </div>
       </div>
       ${total ? `
