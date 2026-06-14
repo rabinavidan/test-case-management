@@ -16,8 +16,11 @@ import pytest
 from playwright.sync_api import Page, expect
 from tests.pages import ProjectsPage
 from tests.pages.users_page import UsersPage
+from tests.logger import PWLogger
 
 pytestmark = pytest.mark.regression
+
+_log = PWLogger("test_users_e2e")
 
 
 EXECUTOR_USERNAME = "pw_executor"
@@ -39,32 +42,25 @@ def users_page(page: Page, base_url: str) -> UsersPage:
 
 
 def test_user_management_full_flow(logged_in_admin: ProjectsPage, users_page: UsersPage):
-    """
-    Full flow:
-      1. Log in as admin
-      2. Navigate to User Management via the Users nav button
-      3. Add an executor user
-      4. Verify the user appears in the table
-      5. Delete the user
-      6. Verify the user is removed from the table
-    """
+    _log.section("User Management — Full CRUD flow")
     page = logged_in_admin.page
 
-    # Step 2: Navigate to User Management panel via nav button
+    _log.step("Navigate to User Management panel via nav button")
     users_page.users_btn.click()
     page.wait_for_load_state("networkidle")
     users_page.expect_loaded()
 
-    # Step 3: Add executor user
+    _log.step(f"Add executor '{EXECUTOR_USERNAME}'")
     users_page.add_executor(EXECUTOR_USERNAME, EXECUTOR_EMAIL, EXECUTOR_PASSWORD)
     users_page.expect_toast(f'Executor "{EXECUTOR_USERNAME}" created')
 
-    # Step 4: Verify user appears in the list
+    _log.step(f"Verify '{EXECUTOR_USERNAME}' appears in the user list")
     users_page.expect_user_visible(EXECUTOR_USERNAME)
 
-    # Step 5: Delete the user
+    _log.step(f"Delete user '{EXECUTOR_USERNAME}'")
     users_page.delete_user(EXECUTOR_USERNAME)
     users_page.expect_toast(f'"{EXECUTOR_USERNAME}" removed')
 
-    # Step 6: Verify user is removed from the list
+    _log.step(f"Verify '{EXECUTOR_USERNAME}' is removed from the list")
     users_page.expect_user_not_visible(EXECUTOR_USERNAME)
+    _log.info("User management flow complete ✔")
