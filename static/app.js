@@ -15,9 +15,9 @@ function getStoredUser() { try { return JSON.parse(localStorage.getItem("tf_user
 function setStoredUser(u) { localStorage.setItem("tf_user", JSON.stringify(u)); }
 
 function logout() {
+  if (!confirm("Are you sure you want to log out?")) return;
   clearToken();
   state.user = null;
-  // Restore Sign In button and reload projects list (public)
   document.getElementById("user-badge").innerHTML = `
     <button onclick="showAuthModal('login')" data-testid="signin-btn"
       class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
@@ -2242,11 +2242,12 @@ function renderUserBadge(user) {
     <div class="flex items-center gap-2">
       ${user.role === "admin" ? `
       <button onclick="navigate('users')" title="User Management" data-testid="users-btn"
-        class="md:hidden w-7 h-7 flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        class="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors text-xs font-medium">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
+        <span class="hidden sm:inline">Users</span>
       </button>` : ""}
       <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
         ${escHtml(user.username[0].toUpperCase())}
