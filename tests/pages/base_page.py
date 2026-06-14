@@ -91,48 +91,39 @@ class BasePage:
         expect(self.toast).to_contain_text(text)
 
     # ── Auth ─────────────────────────────────────────────────────────────────
-    def _ensure_admin_exists(self):
-        """If the app shows the first-run setup screen, register the E2E admin via API."""
-        import urllib.request, urllib.error, json as _json
-        api = self.base_url.rstrip("/")
-        try:
-            with urllib.request.urlopen(f"{api}/api/auth/setup", timeout=10) as r:
-                data = _json.loads(r.read())
-        except Exception as exc:
-            self.log.warning(f"Could not check setup status: {exc}")
-            return
-        if not data.get("setup_needed"):
-            return
-        self.log.info("Setup screen detected — registering E2E admin via API")
-        username = os.environ.get("E2E_USERNAME", _DEFAULT_USERNAME)
-        email    = os.environ.get("E2E_EMAIL",    _DEFAULT_EMAIL)
-        password = os.environ.get("E2E_PASSWORD",  _DEFAULT_PASSWORD)
-        payload  = _json.dumps({"username": username, "email": email, "password": password}).encode()
-        req = urllib.request.Request(
-            f"{api}/api/auth/register",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=10):
-                self.log.info(f"Registered admin '{username}' successfully")
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode(errors="replace")
-            self.log.warning(f"Register returned {exc.code}: {body}")
-
     def login(self, username: str | None = None, password: str | None = None):
-        """Log in via the auth modal. Reads credentials from E2E_USERNAME / E2E_PASSWORD env vars."""
+        """Log in via the auth modal. Reads credentials from E2E_USERNAME / E2E_PASSWORD env vars.
+
+        Handles three cases automatically:
+        - Already logged in: no-op
+        - Setup screen (first run, no users): fills registration form in the browser
+        - Normal sign-in: clicks Sign In button then fills login form
+        """
         username = username or os.environ.get("E2E_USERNAME", _DEFAULT_USERNAME)
+        email    = os.environ.get("E2E_EMAIL", _DEFAULT_EMAIL)
         password = password or os.environ.get("E2E_PASSWORD", _DEFAULT_PASSWORD)
-        self._ensure_admin_exists()
         self.log.step(f"Login as '{username}'")
         self.log.navigate(self.base_url)
         self.page.goto(self.base_url)
         self.page.wait_for_load_state("networkidle")
+
         if self.page.get_by_test_id("logout-btn").is_visible():
-            self.log.info(f"Already logged in as '{username}', skipping login")
+            self.log.info(f"Already logged in, skipping login")
             return
+
+        # Setup mode: app shows registration form automatically (no users in DB).
+        # Detected by auth-email field being visible (only present in setup mode).
+        if self.page.get_by_test_id("auth-email").is_visible():
+            self.log.info("Setup screen detected — registering admin via browser form")
+            self.page.get_by_test_id("auth-username").fill(username)
+            self.page.get_by_test_id("auth-email").fill(email)
+            self.page.get_by_test_id("auth-password").fill(password)
+            self.log.action("click", "Create Admin Account button")
+            self.page.get_by_test_id("auth-submit-btn").click()
+            self.page.get_by_test_id("logout-btn").wait_for(state="visible")
+            self.log.assert_("admin registered and logged in", username)
+            return
+
         self.log.action("click", "Sign in button")
         self.page.get_by_test_id("signin-btn").click()
         self.page.get_by_test_id("auth-submit-btn").wait_for(state="visible")
