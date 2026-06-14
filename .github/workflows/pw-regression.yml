@@ -1,16 +1,16 @@
-name: Playwright E2E — Scheduled (Sunday)
+name: Playwright Regression Tests
 
-# Runs at 14:42 and 14:45 Israel Daylight Time (UTC+3) every Sunday
-# 14:42 IDT = 11:42 UTC  |  14:45 IDT = 11:45 UTC
 on:
-  schedule:
-    - cron: "42 11 * * 0"
-    - cron: "45 11 * * 0"
-  workflow_dispatch: {}   # allow manual trigger from Actions tab
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target URL (leave blank to use VERCEL_PRODUCTION_URL secret)"
+        required: false
+        default: ""
 
 jobs:
-  playwright-e2e:
-    name: Playwright E2E Tests
+  regression:
+    name: Regression Suite (Playwright)
     runs-on: ubuntu-latest
 
     steps:
@@ -30,13 +30,20 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install --with-deps chromium
 
-      - name: Run all Playwright E2E tests
-        env:
-          BASE_URL: ${{ secrets.VERCEL_PRODUCTION_URL }}
+      - name: Resolve target URL
+        id: url
         run: |
-          python -m pytest tests/test_e2e.py tests/test_users_e2e.py \
+          URL="${{ github.event.inputs.base_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
+          fi
+          echo "base_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Run @regression tests
+        run: |
+          python -m pytest tests/ \
             -m regression \
-            --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} \
+            --base-url=${{ steps.url.outputs.base_url }} \
             -v --tb=short \
             --json-report --json-report-file=pw-report.json
         continue-on-error: true
@@ -49,7 +56,7 @@ jobs:
           p = pathlib.Path("pw-report.json")
           if not p.exists():
             with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-              f.write("## ❌ Playwright E2E Report\n\nTest run crashed before producing a report — check the logs.\n")
+              f.write("## ❌ Regression Report\n\nTest run crashed before producing a report — check the logs.\n")
             raise SystemExit(0)
           r = json.loads(p.read_text())
           s = r["summary"]
@@ -60,7 +67,7 @@ jobs:
           duration = r.get("duration", 0)
           icon     = "✅" if failed == 0 and error == 0 else "❌"
           lines = [
-            f"## {icon} Playwright E2E Report",
+            f"## {icon} Playwright Regression Report",
             "| Result | Count |",
             "|--------|-------|",
             f"| ✅ Passed | {passed} |",
@@ -89,10 +96,10 @@ jobs:
             f.write("\n".join(lines))
           EOF
 
-      - name: Upload Playwright report
+      - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pw-report-${{ github.run_id }}
+          name: regression-report-${{ github.run_id }}
           path: pw-report.json
           retention-days: 14

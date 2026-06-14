@@ -8,6 +8,8 @@ from datetime import datetime
 from playwright.sync_api import Page, expect
 from tests.pages import ProjectsPage, ProjectPage, SuitePage, NewProjectModal
 
+pytestmark = pytest.mark.regression
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

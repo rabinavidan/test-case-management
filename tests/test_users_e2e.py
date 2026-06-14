@@ -17,6 +17,8 @@ from playwright.sync_api import Page, expect
 from tests.pages import ProjectsPage
 from tests.pages.users_page import UsersPage
 
+pytestmark = pytest.mark.regression
+
 
 EXECUTOR_USERNAME = "pw_executor"
 EXECUTOR_EMAIL = "pw_executor@test.com"
