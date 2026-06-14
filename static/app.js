@@ -2240,6 +2240,14 @@ function renderUserBadge(user) {
     : "bg-amber-100 text-amber-700 border-amber-200";
   el.innerHTML = `
     <div class="flex items-center gap-2">
+      ${user.role === "admin" ? `
+      <button onclick="navigate('users')" title="User Management" data-testid="users-btn"
+        class="md:hidden w-7 h-7 flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>` : ""}
       <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
         ${escHtml(user.username[0].toUpperCase())}
       </div>
