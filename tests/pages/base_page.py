@@ -1,5 +1,10 @@
+import os
 from playwright.sync_api import Page, Locator, expect
 from tests.logger import PWLogger
+
+_DEFAULT_USERNAME = "e2eadmin"
+_DEFAULT_EMAIL    = "e2eadmin@test.com"
+_DEFAULT_PASSWORD = "e2epass1"
 
 
 class BasePage:
@@ -86,8 +91,41 @@ class BasePage:
         expect(self.toast).to_contain_text(text)
 
     # ── Auth ─────────────────────────────────────────────────────────────────
-    def login(self, username: str = "e2euser", password: str = "e2epass1"):
-        """Log in via the auth modal. The user must already exist (created via API or bootstrap)."""
+    def _ensure_admin_exists(self):
+        """If the app shows the first-run setup screen, register the E2E admin via API."""
+        import urllib.request, urllib.error, json as _json
+        api = self.base_url.rstrip("/")
+        try:
+            with urllib.request.urlopen(f"{api}/api/auth/setup", timeout=10) as r:
+                data = _json.loads(r.read())
+        except Exception as exc:
+            self.log.warning(f"Could not check setup status: {exc}")
+            return
+        if not data.get("setup_needed"):
+            return
+        self.log.info("Setup screen detected — registering E2E admin via API")
+        username = os.environ.get("E2E_USERNAME", _DEFAULT_USERNAME)
+        email    = os.environ.get("E2E_EMAIL",    _DEFAULT_EMAIL)
+        password = os.environ.get("E2E_PASSWORD",  _DEFAULT_PASSWORD)
+        payload  = _json.dumps({"username": username, "email": email, "password": password}).encode()
+        req = urllib.request.Request(
+            f"{api}/api/auth/register",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10):
+                self.log.info(f"Registered admin '{username}' successfully")
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors="replace")
+            self.log.warning(f"Register returned {exc.code}: {body}")
+
+    def login(self, username: str | None = None, password: str | None = None):
+        """Log in via the auth modal. Reads credentials from E2E_USERNAME / E2E_PASSWORD env vars."""
+        username = username or os.environ.get("E2E_USERNAME", _DEFAULT_USERNAME)
+        password = password or os.environ.get("E2E_PASSWORD", _DEFAULT_PASSWORD)
+        self._ensure_admin_exists()
         self.log.step(f"Login as '{username}'")
         self.log.navigate(self.base_url)
         self.page.goto(self.base_url)
