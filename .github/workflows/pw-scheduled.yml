@@ -50,6 +50,9 @@ jobs:
             -m regression \
             --base-url=${{ steps.url.outputs.base_url }} \
             -v --tb=short \
+            --log-cli-level=INFO \
+            --log-cli-format="%(asctime)s %(levelname)-7s %(name)s  %(message)s" \
+            --log-cli-date-format="%H:%M:%S" \
             --json-report --json-report-file=pw-report.json
         continue-on-error: true
 
