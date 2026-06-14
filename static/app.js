@@ -2379,6 +2379,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   loadSidebar();
   router();
+  // Fetch and display live version
+  fetch("/api/version").then(r => r.json()).then(d => {
+    const el = document.getElementById("app-version");
+    if (el && d.version) el.textContent = `v${d.version}`;
+  }).catch(() => {});
   // Check if first-time setup is needed (no admin account yet)
   if (!state.user) {
     try {

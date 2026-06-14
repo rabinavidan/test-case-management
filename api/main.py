@@ -7,6 +7,9 @@ from typing import List
 from datetime import datetime, timedelta
 import os
 import random
+import pathlib
+
+VERSION = pathlib.Path(__file__).parent.parent.joinpath("VERSION").read_text().strip()
 
 from .database import engine, get_db, Base
 from . import models, schemas
@@ -62,7 +65,7 @@ def _seed_admin():
 
 _seed_admin()
 
-app = FastAPI(title="Test Case Management API")
+app = FastAPI(title="Test Case Management API", version=VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,6 +76,10 @@ app.add_middleware(
 )
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
+
+@app.get("/api/version")
+def get_version():
+    return {"version": VERSION}
 
 @app.get("/api/auth/setup")
 def setup_status(db: Session = Depends(get_db)):
