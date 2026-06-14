@@ -74,6 +74,12 @@ app.add_middleware(
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
+@app.get("/api/auth/setup")
+def setup_status(db: Session = Depends(get_db)):
+    """Returns whether the system needs initial admin setup."""
+    return {"setup_needed": db.query(models.User).count() == 0}
+
+
 @app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=201)
 def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
     """Bootstrap endpoint — only works when no users exist (creates the admin account)."""

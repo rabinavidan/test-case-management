@@ -2258,14 +2258,15 @@ function renderUserBadge(user) {
 }
 
 function renderAuthForm(mode) {
+  const isSetup = mode === "setup";
   document.getElementById("auth-form-container").innerHTML = `
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full p-8 fade-in relative">
-      <button onclick="hideAuthModal()" aria-label="Close"
+      ${!isSetup ? `<button onclick="hideAuthModal()" aria-label="Close"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
-      </button>
+      </button>` : ""}
 
       <div class="flex items-center gap-3 mb-6">
         <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
@@ -2280,33 +2281,48 @@ function renderAuthForm(mode) {
         </div>
       </div>
 
-      <h2 class="text-lg font-semibold text-slate-800 mb-5">Sign in</h2>
+      ${isSetup ? `
+      <div class="mb-5 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+        <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
+        </svg>
+        <p class="text-xs text-amber-700">No accounts yet. Create the admin account to get started.</p>
+      </div>` : ""}
 
-      <form onsubmit="submitAuth(event)" class="space-y-4">
+      <h2 class="text-lg font-semibold text-slate-800 mb-5">${isSetup ? "Create Admin Account" : "Sign in"}</h2>
+
+      <form onsubmit="submitAuth(event, '${mode}')" class="space-y-4">
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Username</label>
           <input id="auth-username" data-testid="auth-username" type="text" autocomplete="username"
             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            placeholder="your_username" required autofocus />
+            placeholder="${isSetup ? "admin" : "your_username"}" required autofocus />
         </div>
+        ${isSetup ? `
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+          <input id="auth-email" data-testid="auth-email" type="email" autocomplete="email"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            placeholder="admin@company.com" required />
+        </div>` : ""}
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
-          <input id="auth-password" data-testid="auth-password" type="password" autocomplete="current-password"
+          <input id="auth-password" data-testid="auth-password" type="password" autocomplete="${isSetup ? "new-password" : "current-password"}"
             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            placeholder="••••••••" required />
+            placeholder="${isSetup ? "Min. 6 characters" : "••••••••"}" required />
         </div>
         <div id="auth-error" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
         <button type="submit" data-testid="auth-submit-btn"
           class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
-          Sign in
+          ${isSetup ? "Create Admin Account" : "Sign in"}
         </button>
       </form>
 
-      <p class="mt-4 text-center text-xs text-slate-400">Contact your admin to get an account.</p>
+      ${!isSetup ? `<p class="mt-4 text-center text-xs text-slate-400">Contact your admin to get an account.</p>` : ""}
     </div>`;
 }
 
-async function submitAuth(e) {
+async function submitAuth(e, mode) {
   e.preventDefault();
   const errEl = document.getElementById("auth-error");
   errEl.classList.add("hidden");
@@ -2314,23 +2330,33 @@ async function submitAuth(e) {
   const password = document.getElementById("auth-password").value;
   const btn = e.target.querySelector("button[type=submit]");
   btn.disabled = true;
-  btn.textContent = "Signing in…";
+  btn.textContent = mode === "setup" ? "Creating…" : "Signing in…";
   try {
-    const res = await fetch("/api/auth/login", {
+    let url, body;
+    if (mode === "setup") {
+      const email = document.getElementById("auth-email").value.trim();
+      url = "/api/auth/register";
+      body = { username, email, password };
+    } else {
+      url = "/api/auth/login";
+      body = { username, password };
+    }
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) { throw new Error(data.detail || "Authentication failed"); }
     setToken(data.access_token);
     setStoredUser(data.user);
+    hideAuthModal();
     showAppShell(data.user);
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove("hidden");
     btn.disabled = false;
-    btn.textContent = "Sign in";
+    btn.textContent = mode === "setup" ? "Create Admin Account" : "Sign in";
   }
 }
 
@@ -2339,7 +2365,6 @@ window.addEventListener("hashchange", () => router());
 document.addEventListener("DOMContentLoaded", async () => {
   const token = getToken();
   if (token) {
-    // Verify token is still valid
     const res = await fetch("/api/auth/me", {
       headers: { "Authorization": `Bearer ${token}` },
     });
@@ -2354,4 +2379,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   loadSidebar();
   router();
+  // Check if first-time setup is needed (no admin account yet)
+  if (!state.user) {
+    try {
+      const setup = await fetch("/api/auth/setup").then(r => r.json());
+      if (setup.setup_needed) {
+        renderAuthForm("setup");
+        document.getElementById("auth-modal").classList.remove("hidden");
+      }
+    } catch { /* ignore — server may be starting up */ }
+  }
 });
