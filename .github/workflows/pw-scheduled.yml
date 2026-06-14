@@ -1,0 +1,97 @@
+name: Playwright E2E — Scheduled (Sunday)
+
+# Runs at 14:42 and 14:45 Israel Daylight Time (UTC+3) every Sunday
+# 14:42 IDT = 11:42 UTC  |  14:45 IDT = 11:45 UTC
+on:
+  schedule:
+    - cron: "42 11 * * 0"
+    - cron: "45 11 * * 0"
+  workflow_dispatch: {}   # allow manual trigger from Actions tab
+
+jobs:
+  playwright-e2e:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Install Playwright browsers
+        run: playwright install --with-deps chromium
+
+      - name: Run all Playwright E2E tests
+        env:
+          BASE_URL: ${{ secrets.VERCEL_PRODUCTION_URL }}
+        run: |
+          python -m pytest tests/test_e2e.py tests/test_users_e2e.py \
+            --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} \
+            -v --tb=short \
+            --json-report --json-report-file=pw-report.json
+        continue-on-error: true
+
+      - name: Write job summary
+        if: always()
+        run: |
+          python - <<'EOF'
+          import json, os, pathlib
+          p = pathlib.Path("pw-report.json")
+          if not p.exists():
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("## ❌ Playwright E2E Report\n\nTest run crashed before producing a report — check the logs.\n")
+            raise SystemExit(0)
+          r = json.loads(p.read_text())
+          s = r["summary"]
+          passed   = s.get("passed", 0)
+          failed   = s.get("failed", 0)
+          error    = s.get("error", 0)
+          total    = s.get("total", 0)
+          duration = r.get("duration", 0)
+          icon     = "✅" if failed == 0 and error == 0 else "❌"
+          lines = [
+            f"## {icon} Playwright E2E Report",
+            "| Result | Count |",
+            "|--------|-------|",
+            f"| ✅ Passed | {passed} |",
+            f"| ❌ Failed | {failed} |",
+            f"| 💥 Error  | {error}  |",
+            f"| **Total** | **{total}** |",
+            f"| ⏱ Duration | {duration:.2f}s |",
+            "",
+            "### Test Results",
+            "| Test | Result | Duration |",
+            "|------|--------|----------|",
+          ]
+          for t in r.get("tests", []):
+            name    = t["nodeid"].split("::")[-1]
+            outcome = t["outcome"]
+            dur     = (t.get("call") or {}).get("duration", 0)
+            badge   = "✅ passed" if outcome == "passed" else ("❌ failed" if outcome == "failed" else "💥 error")
+            lines.append(f"| `{name}` | {badge} | {dur:.3f}s |")
+          lines.append("")
+          for t in r.get("tests", []):
+            if t["outcome"] in ("failed", "error"):
+              name = t["nodeid"].split("::")[-1]
+              msg  = (t.get("call") or t.get("setup") or {}).get("longrepr", "")
+              lines.append(f"<details><summary>❌ <code>{name}</code> — failure detail</summary>\n\n```\n{msg}\n```\n</details>")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+            f.write("\n".join(lines))
+          EOF
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-report-${{ github.run_id }}
+          path: pw-report.json
+          retention-days: 14
