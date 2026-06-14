@@ -30,13 +30,21 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install --with-deps chromium
 
+      - name: Resolve target URL
+        id: url
+        run: |
+          URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
+          if [ -z "$URL" ]; then
+            URL=$(grep '^base_url' pytest.ini | awk '{print $3}')
+          fi
+          echo "Resolved base_url: $URL"
+          echo "base_url=$URL" >> $GITHUB_OUTPUT
+
       - name: Run all Playwright E2E tests
-        env:
-          BASE_URL: ${{ secrets.VERCEL_PRODUCTION_URL }}
         run: |
           python -m pytest tests/test_e2e.py tests/test_users_e2e.py \
             -m regression \
-            --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} \
+            --base-url=${{ steps.url.outputs.base_url }} \
             -v --tb=short \
             --json-report --json-report-file=pw-report.json
         continue-on-error: true

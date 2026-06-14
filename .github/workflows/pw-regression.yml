@@ -37,6 +37,11 @@ jobs:
           if [ -z "$URL" ]; then
             URL="${{ secrets.VERCEL_PRODUCTION_URL }}"
           fi
+          # Fall back to the default URL in pytest.ini if still empty
+          if [ -z "$URL" ]; then
+            URL=$(grep '^base_url' pytest.ini | awk '{print $3}')
+          fi
+          echo "Resolved base_url: $URL"
           echo "base_url=$URL" >> $GITHUB_OUTPUT
 
       - name: Run @regression tests
