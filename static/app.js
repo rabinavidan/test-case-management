@@ -2184,9 +2184,14 @@ function showAddUserModal() {
         <input id="f-email" type="email" class="${cls}" placeholder="john@company.com" /></div>
       <div><label class="block text-xs font-semibold text-slate-600 mb-1">Password *</label>
         <input id="f-password" type="password" class="${cls}" placeholder="Min. 6 characters" /></div>
+    </div>
+    <div class="flex justify-end gap-2 mt-6">
+      <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+      <button data-testid="modal-submit-btn" onclick="createExecutor()"
+        class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors">
+        Create Executor
+      </button>
     </div>`;
-  document.getElementById("modal-submit-btn").textContent = "Create Executor";
-  document.getElementById("modal-submit-btn").onclick = createExecutor;
   document.getElementById("modal-overlay").classList.remove("hidden");
 }
 
