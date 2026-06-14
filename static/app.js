@@ -2127,6 +2127,9 @@ async function renderUsers() {
   const roleBadge = r => r === "admin"
     ? `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">Admin</span>`
     : `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Executor</span>`;
+  const statusBadge = active => active
+    ? `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Active</span>`
+    : `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Inactive</span>`;
 
   el.innerHTML = `
     <div class="fade-in space-y-6">
@@ -2149,16 +2152,17 @@ async function renderUsers() {
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Username</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Email</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Created</th>
               <th class="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
             ${users.map(u => `
-              <tr class="group hover:bg-slate-50 transition-colors">
+              <tr class="group hover:bg-slate-50 transition-colors ${u.is_active === false ? 'opacity-60' : ''}">
                 <td class="px-4 py-3 font-medium text-slate-800">
                   <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    <div class="w-7 h-7 rounded-full ${u.is_active === false ? 'bg-slate-400' : 'bg-brand-600'} flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                       ${escHtml(u.username[0].toUpperCase())}
                     </div>
                     ${escHtml(u.username)}
@@ -2166,13 +2170,23 @@ async function renderUsers() {
                 </td>
                 <td class="px-4 py-3 text-slate-500 hidden sm:table-cell">${escHtml(u.email)}</td>
                 <td class="px-4 py-3">${roleBadge(u.role)}</td>
+                <td class="px-4 py-3">${statusBadge(u.is_active !== false)}</td>
                 <td class="px-4 py-3 text-slate-400 text-xs hidden sm:table-cell">${formatDate(u.created_at)}</td>
                 <td class="px-4 py-3 text-right">
+                  <div class="flex items-center justify-end gap-1">
                   ${u.role !== "admin" ? `
+                  <button onclick="toggleUserStatus(${u.id}, '${escHtml(u.username)}', ${u.is_active !== false})"
+                    class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-all ${u.is_active !== false ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}"
+                    title="${u.is_active !== false ? 'Deactivate' : 'Activate'}">
+                    ${u.is_active !== false
+                      ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>`
+                      : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`}
+                  </button>
                   <button onclick="deleteUser(${u.id}, '${escHtml(u.username)}')"
                     class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>` : ""}
+                  </div>
                 </td>
               </tr>`).join("")}
           </tbody>
@@ -2221,6 +2235,16 @@ async function deleteUser(userId, username) {
   try {
     await DEL(`/api/users/${userId}`);
     toast(`"${username}" removed`);
+    navigate("users");
+  } catch (e) { toast(e.message, "error"); }
+}
+
+async function toggleUserStatus(userId, username, currentlyActive) {
+  const action = currentlyActive ? "deactivate" : "activate";
+  if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} "${username}"?`)) return;
+  try {
+    await api("PATCH", `/api/users/${userId}/status`);
+    toast(`"${username}" ${currentlyActive ? "deactivated" : "activated"}`);
     navigate("users");
   } catch (e) { toast(e.message, "error"); }
 }
