@@ -1244,7 +1244,10 @@ function runCard(r, suiteName) {
           </div>
           <span class="inline-block text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">${escHtml(suiteName)}</span>
         </div>
-        <span class="text-xs text-slate-400 flex-shrink-0">${formatDate(r.created_at)}</span>
+        <div class="text-right flex-shrink-0">
+          <div class="text-xs text-slate-400">${formatDate(r.created_at)}</div>
+          ${r.created_by_username ? `<div class="text-xs text-slate-500 font-medium">${escHtml(r.created_by_username)}</div>` : ""}
+        </div>
       </div>
       ${total ? `
         <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden flex mb-2">
@@ -1606,7 +1609,7 @@ async function renderRun(runId) {
               ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Completed</span>`
               : `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">In Progress</span>`}
           </div>
-          <p class="text-sm text-slate-500">Started ${formatDate(run.created_at)}</p>
+          <p class="text-sm text-slate-500">Started ${formatDate(run.created_at)}${run.created_by_username ? ` by <span class="font-medium text-slate-700">${escHtml(run.created_by_username)}</span>` : ""}</p>
         </div>
         ${suite ? `
           <button onclick="navigate('suite/${suite.id}')"

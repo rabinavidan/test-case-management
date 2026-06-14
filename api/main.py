@@ -23,12 +23,15 @@ def _run_migrations():
     try:
         with engine.connect() as conn:
             from sqlalchemy import text
-            # Add role column to users if it doesn't exist (older schema omitted it)
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'executor'"))
-                conn.commit()
-            except Exception:
-                conn.rollback()
+            for stmt in [
+                "ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'executor'",
+                "ALTER TABLE test_runs ADD COLUMN created_by_id INTEGER REFERENCES users(id)",
+            ]:
+                try:
+                    conn.execute(text(stmt))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
     except Exception:
         pass
 
@@ -299,12 +302,12 @@ def delete_testcase(tc_id: int, db: Session = Depends(get_db), _: models.User = 
 # ─── Test Runs ────────────────────────────────────────────────────────────────
 
 @app.post("/api/suites/{suite_id}/runs", response_model=schemas.TestRunResponse, status_code=201)
-def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
 
-    run = models.TestRun(suite_id=suite_id, name=payload.name)
+    run = models.TestRun(suite_id=suite_id, name=payload.name, created_by_id=current_user.id)
     db.add(run)
     db.flush()
 

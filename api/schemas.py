@@ -123,7 +123,14 @@ class TestRunResponse(BaseModel):
     name: str
     created_at: datetime
     completed_at: Optional[datetime]
+    created_by_username: Optional[str] = None
     results: List[TestResultResponse] = []
+
+    @classmethod
+    def from_orm_with_user(cls, run):
+        obj = cls.model_validate(run)
+        obj.created_by_username = run.created_by.username if run.created_by else None
+        return obj
 
     class Config:
         from_attributes = True
