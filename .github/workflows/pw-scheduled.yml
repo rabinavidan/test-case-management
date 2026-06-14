@@ -35,6 +35,7 @@ jobs:
           BASE_URL: ${{ secrets.VERCEL_PRODUCTION_URL }}
         run: |
           python -m pytest tests/test_e2e.py tests/test_users_e2e.py \
+            -m regression \
             --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} \
             -v --tb=short \
             --json-report --json-report-file=pw-report.json
