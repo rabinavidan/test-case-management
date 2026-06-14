@@ -26,6 +26,7 @@ def _run_migrations():
             for stmt in [
                 "ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'executor'",
                 "ALTER TABLE test_runs ADD COLUMN created_by_id INTEGER REFERENCES users(id)",
+                "ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE",
             ]:
                 try:
                     conn.execute(text(stmt))
@@ -147,6 +148,19 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current: models.Use
     db.commit()
 
 
+@app.patch("/api/users/{user_id}/status", response_model=schemas.UserResponse)
+def toggle_user_status(user_id: int, db: Session = Depends(get_db), current: models.User = Depends(require_admin)):
+    if current.id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot change your own status")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_active = not user.is_active
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @app.get("/api/debug/seed")
 def debug_seed(db: Session = Depends(get_db)):
     import traceback
@@ -188,6 +202,8 @@ def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == body.username).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
     return {"access_token": create_access_token(user.id), "user": user}
 
 
