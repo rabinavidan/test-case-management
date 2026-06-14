@@ -86,9 +86,11 @@ class TestRun(Base):
     name = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     suite = relationship("TestSuite", back_populates="runs")
     results = relationship("TestResult", back_populates="run", cascade="all, delete-orphan")
+    created_by = relationship("User")
 
 
 class TestResult(Base):
