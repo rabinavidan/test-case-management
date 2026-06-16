@@ -877,6 +877,7 @@ async function renderProjects() {
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</th>
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Description</th>
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell w-32">Created</th>
+              <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell w-44">Last Run</th>
               <th class="w-16 px-3 py-3"></th>
             </tr>
           </thead>
@@ -887,6 +888,54 @@ async function renderProjects() {
         <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-400 text-sm">No projects match your filter.</div>
       </div>
     </div>`;
+  loadProjectStats(state.projects);
+}
+
+async function loadProjectStats(projects) {
+  if (!getToken() || !projects.length) {
+    projects.forEach(p => {
+      const cell = document.getElementById(`pstats-${p.id}`);
+      if (cell) cell.innerHTML = `<span class="text-slate-300 text-xs">—</span>`;
+    });
+    return;
+  }
+  await Promise.all(projects.map(async p => {
+    const cell = document.getElementById(`pstats-${p.id}`);
+    if (!cell) return;
+    try {
+      const s = await GET(`/api/projects/${p.id}/stats`);
+      const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
+      if (!total) {
+        cell.innerHTML = `<span class="text-slate-300 text-xs italic">No runs</span>`;
+        return;
+      }
+      const pct = v => Math.round((v / total) * 100);
+      const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
+      const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
+      const dot = overall === "fail" ? "bg-red-500" : overall === "pending" ? "bg-amber-400" : "bg-emerald-500";
+      cell.innerHTML = `
+        <div class="flex flex-col gap-1 min-w-[120px]">
+          <div class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full ${dot} flex-shrink-0"></span>
+            <span class="text-[10px] text-slate-500 truncate max-w-[110px]" title="${escHtml(s.last_run_name||'')}">${escHtml(s.last_run_name||'Last run')}</span>
+          </div>
+          <div class="flex h-1.5 rounded-full overflow-hidden w-full bg-slate-100 gap-px">
+            ${passW ? `<div class="bg-emerald-500 h-full rounded-l-full transition-all" style="width:${passW}%"></div>` : ""}
+            ${failW ? `<div class="bg-red-500 h-full transition-all" style="width:${failW}%"></div>` : ""}
+            ${skipW ? `<div class="bg-amber-400 h-full transition-all" style="width:${skipW}%"></div>` : ""}
+            ${pendW ? `<div class="bg-slate-300 h-full rounded-r-full transition-all" style="width:${pendW}%"></div>` : ""}
+          </div>
+          <div class="flex items-center gap-2 text-[9px] font-semibold">
+            ${s.last_run_pass ? `<span class="text-emerald-600">${s.last_run_pass}P</span>` : ""}
+            ${s.last_run_fail ? `<span class="text-red-500">${s.last_run_fail}F</span>` : ""}
+            ${s.last_run_skip ? `<span class="text-amber-500">${s.last_run_skip}S</span>` : ""}
+            ${s.last_run_pending ? `<span class="text-slate-400">${s.last_run_pending}?</span>` : ""}
+          </div>
+        </div>`;
+    } catch {
+      if (cell) cell.innerHTML = `<span class="text-slate-300 text-xs">—</span>`;
+    }
+  }));
 }
 
 function projectRow(p) {
@@ -911,6 +960,9 @@ function projectRow(p) {
         <span class="line-clamp-1">${escHtml(p.description || "—")}</span>
       </td>
       <td class="px-3 py-3 hidden sm:table-cell text-slate-400 text-xs whitespace-nowrap">${formatDate(p.created_at)}</td>
+      <td id="pstats-${p.id}" class="px-3 py-3 hidden lg:table-cell">
+        <div class="w-6 h-6 border-2 border-slate-200 border-t-transparent rounded-full animate-spin opacity-40"></div>
+      </td>
       <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
         ${isAdmin() ? `<button data-testid="delete-project-${p.id}" onclick="deleteProject(${p.id})"
           class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
@@ -945,6 +997,7 @@ function filterProjectTable() {
   } else {
     empty.classList.add("hidden");
     tbody.innerHTML = rows.map(p => projectRow(p)).join("");
+    loadProjectStats(rows);
     // Re-apply selection state
     _selectedProjects.forEach(id => {
       const cb = document.getElementById(`pcheck-${id}`);
