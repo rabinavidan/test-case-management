@@ -698,11 +698,69 @@ async function renderProjects() {
     </style>
   `;
 
+  const techStackBanner = !getToken() ? `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 overflow-hidden">
+      <div class="mb-5">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Under the Hood</p>
+        <h2 class="text-base font-bold text-slate-800">Technologies &amp; Infrastructure</h2>
+      </div>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <!-- Frontend -->
+        <div class="tech-card rounded-xl border border-blue-100 bg-blue-50 p-4 flex flex-col gap-2 opacity-0" style="animation:techCardIn .4s ease forwards;animation-delay:0ms">
+          <div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center text-lg">🖥️</div>
+          <p class="text-xs font-bold text-blue-800 mt-1">Frontend</p>
+          <div class="flex flex-col gap-1">
+            <span class="tech-pill bg-blue-100 text-blue-700">Vanilla JS</span>
+            <span class="tech-pill bg-blue-100 text-blue-700">Tailwind CSS</span>
+            <span class="tech-pill bg-blue-100 text-blue-700">Hash routing SPA</span>
+          </div>
+        </div>
+        <!-- Backend -->
+        <div class="tech-card rounded-xl border border-violet-100 bg-violet-50 p-4 flex flex-col gap-2 opacity-0" style="animation:techCardIn .4s ease forwards;animation-delay:100ms">
+          <div class="w-9 h-9 bg-violet-100 rounded-lg flex items-center justify-center text-lg">⚡</div>
+          <p class="text-xs font-bold text-violet-800 mt-1">Backend</p>
+          <div class="flex flex-col gap-1">
+            <span class="tech-pill bg-violet-100 text-violet-700">FastAPI</span>
+            <span class="tech-pill bg-violet-100 text-violet-700">SQLAlchemy</span>
+            <span class="tech-pill bg-violet-100 text-violet-700">Pydantic v2</span>
+          </div>
+        </div>
+        <!-- Database -->
+        <div class="tech-card rounded-xl border border-emerald-100 bg-emerald-50 p-4 flex flex-col gap-2 opacity-0" style="animation:techCardIn .4s ease forwards;animation-delay:200ms">
+          <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center text-lg">🗄️</div>
+          <p class="text-xs font-bold text-emerald-800 mt-1">Database</p>
+          <div class="flex flex-col gap-1">
+            <span class="tech-pill bg-emerald-100 text-emerald-700">PostgreSQL (Neon)</span>
+            <span class="tech-pill bg-emerald-100 text-emerald-700">SQLite (local dev)</span>
+            <span class="tech-pill bg-emerald-100 text-emerald-700">JWT Auth</span>
+          </div>
+        </div>
+        <!-- Infrastructure -->
+        <div class="tech-card rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-col gap-2 opacity-0" style="animation:techCardIn .4s ease forwards;animation-delay:300ms">
+          <div class="w-9 h-9 bg-slate-200 rounded-lg flex items-center justify-center text-lg">▲</div>
+          <p class="text-xs font-bold text-slate-700 mt-1">Infrastructure</p>
+          <div class="flex flex-col gap-1">
+            <span class="tech-pill bg-slate-200 text-slate-700">Vercel (serverless)</span>
+            <span class="tech-pill bg-slate-200 text-slate-700">GitHub Actions CI</span>
+            <span class="tech-pill bg-slate-200 text-slate-700">Playwright E2E</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes techCardIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      .tech-pill { font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; display:inline-block; }
+      .tech-card { transition: box-shadow .2s; }
+      .tech-card:hover { box-shadow: 0 4px 16px 0 rgba(0,0,0,.07); }
+    </style>
+  ` : "";
+
   if (!state.projects.length) {
     el.innerHTML = `
       <div class="fade-in">
         ${archDiagram}
         ${demoBanner}
+        ${techStackBanner}
         <div class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -723,6 +781,7 @@ async function renderProjects() {
     <div class="fade-in">
       ${archDiagram}
       ${demoBanner}
+      ${techStackBanner}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
