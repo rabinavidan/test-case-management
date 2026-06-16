@@ -805,41 +805,70 @@ async function renderProjects() {
   ` : "";
 
   const ownerCard = !getToken() ? `
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm mb-6 overflow-hidden opacity-0" style="animation:techCardIn .5s ease forwards;animation-delay:100ms">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 p-5">
-        <!-- Avatar initials -->
-        <div class="flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-lg" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">RA</div>
-        <!-- Info -->
+    <div class="relative rounded-2xl mb-6 overflow-hidden opacity-0 owner-banner" style="animation:techCardIn .5s ease forwards;animation-delay:50ms;min-height:160px;background:linear-gradient(120deg,#020b18 0%,#041830 40%,#061f3a 60%,#050d20 100%)">
+      <!-- Animated grid -->
+      <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(0,180,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,.06) 1px,transparent 1px);background-size:36px 36px"></div>
+      <!-- Horizontal scan line -->
+      <div class="absolute inset-x-0 pointer-events-none owner-scan" style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,200,255,.4),transparent)"></div>
+      <!-- Glow orbs -->
+      <div class="absolute pointer-events-none" style="top:-40px;left:-40px;width:220px;height:220px;background:radial-gradient(circle,rgba(0,100,255,.18) 0%,transparent 70%)"></div>
+      <div class="absolute pointer-events-none" style="bottom:-30px;right:80px;width:180px;height:180px;background:radial-gradient(circle,rgba(0,180,255,.12) 0%,transparent 70%)"></div>
+      <!-- Diamond sparkle (bottom-right like original) -->
+      <div class="absolute bottom-3 right-4 text-white/20 text-2xl select-none pointer-events-none">✦</div>
+
+      <!-- Content -->
+      <div class="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
+        <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
-          <div class="flex flex-wrap items-center gap-2 mb-1">
-            <h3 class="text-base font-bold text-slate-800">Rabin Avidan</h3>
-            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Site Owner</span>
-            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Open to Opportunities</span>
-          </div>
-          <p class="text-xs text-slate-600 mb-2 leading-relaxed">Senior Automation Engineer · Full-Stack AI-Driven Development @ ZoomInfo · ISTQB · MCSD</p>
-          <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-            <span class="flex items-center gap-1">🏢 <span class="font-semibold text-slate-700">ZoomInfo</span></span>
-            <span class="flex items-center gap-1">🎓 <span class="font-semibold text-slate-700">Tel Aviv University</span></span>
-            <span class="flex items-center gap-1">📍 <span>Tel Aviv District, Israel</span></span>
+          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Senior Automation Engineer</p>
+          <h2 class="text-xl sm:text-2xl font-black text-white leading-tight mb-1" style="text-shadow:0 0 32px rgba(0,160,255,.4)">AI-Powered Quality<br>Engineering at Scale.</h2>
+          <p class="text-xs mb-4" style="color:rgba(100,200,255,.7)">Full-Stack AI-Driven Development · ISTQB · MCSD</p>
+          <!-- Meta row -->
+          <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
+            <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🏢</span><span class="font-semibold text-white/70">ZoomInfo</span></span>
+            <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🎓</span><span class="font-semibold text-white/70">Tel Aviv University</span></span>
+            <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">📍</span>Tel Aviv District, Israel</span>
           </div>
         </div>
-        <!-- LinkedIn CTA -->
-        <a href="https://www.linkedin.com/in/rabin-avidan-1aab6653/" target="_blank" rel="noopener noreferrer"
-          class="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold shadow transition-all hover:scale-105 hover:shadow-md"
-          style="background:linear-gradient(135deg,#0a66c2,#0077b5)">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-          </svg>
-          Connect on LinkedIn
-        </a>
+
+        <!-- Right: name + badges + CTA -->
+        <div class="flex flex-col items-start sm:items-end gap-3 flex-shrink-0">
+          <div class="flex items-center gap-2 flex-wrap sm:justify-end">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-base font-black text-white flex-shrink-0" style="background:linear-gradient(135deg,#1d6ff5,#5b44f2);box-shadow:0 0 16px rgba(59,130,246,.5)">RA</div>
+            <div>
+              <p class="text-sm font-bold text-white">Rabin Avidan</p>
+              <div class="flex gap-1.5 mt-0.5 flex-wrap">
+                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.2);color:#93c5fd;border:1px solid rgba(59,130,246,.3)">Site Owner</span>
+                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full owner-open-badge" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(52,211,153,.3)">Open to Opportunities</span>
+              </div>
+            </div>
+          </div>
+          <a href="https://www.linkedin.com/in/rabin-avidan-1aab6653/" target="_blank" rel="noopener noreferrer"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
+            style="background:linear-gradient(135deg,#0a66c2,#0f8ce8);box-shadow:0 4px 16px rgba(10,102,194,.4)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            Connect on LinkedIn
+          </a>
+        </div>
       </div>
+
       <!-- Skills strip -->
-      <div class="border-t border-slate-100 px-5 py-3 flex flex-wrap gap-2 bg-slate-50">
+      <div class="relative z-10 border-t flex flex-wrap gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
         ${['Test Automation','AI Vibe Coding','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
-          `<span class="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 shadow-sm">${s}</span>`
+          `<span class="text-[10px] font-semibold px-3 py-1 rounded-full" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
       </div>
     </div>
+    <style>
+      .owner-scan { animation: ownerScan 4s ease-in-out infinite; }
+      @keyframes ownerScan { 0%{top:0%;opacity:0} 10%{opacity:1} 90%{opacity:.3} 100%{top:100%;opacity:0} }
+      .owner-open-badge { animation: openBadgePulse 3s ease-in-out infinite; }
+      @keyframes openBadgePulse { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} 50%{box-shadow:0 0 10px 2px rgba(52,211,153,.25)} }
+      .owner-banner { transition: box-shadow .3s; }
+      .owner-banner:hover { box-shadow: 0 8px 40px rgba(0,100,255,.2); }
+    </style>
   ` : "";
 
   if (!state.projects.length) {
