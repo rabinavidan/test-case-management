@@ -923,6 +923,7 @@ async function loadProjectStats(projects) {
             ${s.last_run_pass ? `<span class="text-emerald-600">${s.last_run_pass}P</span>` : ""}
             ${s.last_run_fail ? `<span class="text-red-500">${s.last_run_fail}F</span>` : ""}
             ${s.last_run_skip ? `<span class="text-amber-500">${s.last_run_skip}S</span>` : ""}
+            <span class="ml-auto font-bold ${overall === 'pass' ? 'text-emerald-600' : overall === 'fail' ? 'text-red-500' : 'text-amber-500'}">${passW}%</span>
             ${s.last_run_pending ? `<span class="text-slate-400">${s.last_run_pending}?</span>` : ""}
           </div>
         </div>`;
