@@ -892,13 +892,7 @@ async function renderProjects() {
 }
 
 async function loadProjectStats(projects) {
-  if (!getToken() || !projects.length) {
-    projects.forEach(p => {
-      const cell = document.getElementById(`pstats-${p.id}`);
-      if (cell) cell.innerHTML = `<span class="text-slate-300 text-xs">—</span>`;
-    });
-    return;
-  }
+  if (!projects.length) return;
   await Promise.all(projects.map(async p => {
     const cell = document.getElementById(`pstats-${p.id}`);
     if (!cell) return;
@@ -948,12 +942,7 @@ function projectRow(p) {
       </td>
       <td class="px-3 py-3">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
-            </svg>
-          </div>
-          <span data-testid="project-name-${p.id}" class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-[180px]">${escHtml(p.name)}</span>
+          <span data-testid="project-name-${p.id}" class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-[220px]">${escHtml(p.name)}</span>
         </div>
       </td>
       <td class="px-3 py-3 hidden md:table-cell text-slate-500 text-xs max-w-[260px]">

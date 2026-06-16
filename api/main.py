@@ -387,7 +387,7 @@ def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db
 # ─── Stats ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/projects/{project_id}/stats", response_model=schemas.ProjectStats)
-def project_stats(project_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+def project_stats(project_id: int, db: Session = Depends(get_db)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
