@@ -771,7 +771,7 @@ async function renderProjects() {
               <div class="flex flex-col gap-1.5">
                 <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">Vercel · Serverless</span>
                 <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">GitHub Actions CI</span>
-                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">Playwright E2E</span>
+                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">PW E2E + API Tests</span>
               </div>
             </div>
           </div>
