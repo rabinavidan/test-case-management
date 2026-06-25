@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SuitePage } from '../pages/suite.page';
+import { log } from '../logger';
 
 function getAuthToken(): string {
   const authStatePath = path.join(__dirname, '..', 'auth-state.json');
@@ -12,6 +13,10 @@ function getAuthToken(): string {
 function uniqueName(base: string): string {
   return `${base}_${Date.now()}`;
 }
+
+// Test cases render as cards: data-testid="testcase-card-{id}"
+// Edit button:   data-testid="edit-testcase-{id}"   title="Edit"  (no visible text)
+// Delete button: data-testid="delete-testcase-{id}" title="Delete" (no visible text)
 
 test.describe('Test Cases', () => {
   let authToken: string;
@@ -26,14 +31,13 @@ test.describe('Test Cases', () => {
       headers: { Authorization: `Bearer ${authToken}` },
     });
     const proj = await projRes.json();
-    projectId = proj.id || proj.data?.id;
+    projectId = proj.id;
 
     const suiteRes = await request.post(`/api/projects/${projectId}/suites`, {
       data: { name: uniqueName('TC Suite'), description: 'For test cases' },
       headers: { Authorization: `Bearer ${authToken}` },
     });
-    const suite = await suiteRes.json();
-    suiteId = suite.id || suite.data?.id;
+    suiteId = (await suiteRes.json()).id;
   });
 
   test.afterAll(async ({ request }) => {
@@ -56,16 +60,20 @@ test.describe('Test Cases', () => {
   test('can create a test case with all fields', async ({ page }) => {
     const title = uniqueName('Full Test Case');
     const suitePage = new SuitePage(page);
+    log.section('can create a test case with all fields');
 
     await test.step('Navigate to suite', async () => {
+      log.step('Navigate to suite');
       await suitePage.goto(suiteId);
     });
 
     await test.step('Open new test case form', async () => {
+      log.step('Open new test case form');
       await suitePage.clickNewTestCase();
     });
 
     await test.step('Fill all test case fields', async () => {
+      log.step('Fill all test case fields');
       await suitePage.fillTestCaseForm({
         title,
         description: 'This test verifies the login flow',
@@ -77,16 +85,20 @@ test.describe('Test Cases', () => {
     });
 
     await test.step('Submit and verify', async () => {
+      log.step('Submit and verify');
       await suitePage.submitTestCaseForm();
       await expect(page.getByText(title)).toBeVisible({ timeout: 10000 });
+      log.assert('test case visible after creation', title);
     });
   });
 
   test('test case appears with correct priority badge', async ({ page }) => {
     const title = uniqueName('Critical Test');
     const suitePage = new SuitePage(page);
+    log.section('test case appears with correct priority badge');
 
     await test.step('Create test case with critical priority', async () => {
+      log.step('Create critical test case');
       await suitePage.goto(suiteId);
       await suitePage.clickNewTestCase();
       await suitePage.fillTestCaseForm({ title, priority: 'critical' });
@@ -94,80 +106,100 @@ test.describe('Test Cases', () => {
     });
 
     await test.step('Verify critical badge is visible', async () => {
-      const row = page.locator('tr, .testcase-row, [data-testid="testcase-row"]').filter({ hasText: title });
-      const badge = row.getByText(/critical/i);
+      log.step('Verify critical badge');
+      // Cards use data-testid="testcase-card-{id}"; find by title text then check for badge
+      const card = page.locator('[data-testid^="testcase-card-"]').filter({ hasText: title });
+      const badge = card.getByText(/critical/i);
       await expect(badge).toBeVisible({ timeout: 5000 });
+      log.assert('critical badge visible on card');
     });
   });
 
   test('can edit a test case', async ({ page, request }) => {
     const originalTitle = uniqueName('Editable TC');
-    const updatedTitle = uniqueName('Updated TC');
+    const updatedTitle  = `Updated_${Date.now()}`;
     let tcId: number;
+    log.section('can edit a test case');
 
     await test.step('Create test case via API', async () => {
+      log.step('Create test case via API');
       const res = await request.post(`/api/suites/${suiteId}/testcases`, {
-        data: { title: originalTitle, description: 'Original description', priority: 'low' },
+        data: { title: originalTitle, description: 'Original description', priority: 'low', status: 'active' },
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      const body = await res.json();
-      tcId = body.id || body.data?.id;
+      tcId = (await res.json()).id;
+      log.info(`Created TC id=${tcId}`);
     });
 
     const suitePage = new SuitePage(page);
 
     await test.step('Navigate to suite and find the test case', async () => {
+      log.step('Navigate to suite');
       await suitePage.goto(suiteId);
       await expect(page.getByText(originalTitle)).toBeVisible({ timeout: 10000 });
     });
 
-    await test.step('Click edit and update title', async () => {
-      const row = page.locator('tr, .testcase-row, [data-testid="testcase-row"]').filter({ hasText: originalTitle });
-      await row.getByRole('button', { name: /edit/i }).click();
+    await test.step('Click edit button and update title', async () => {
+      log.step('Click edit button');
+      // Edit button has data-testid="edit-testcase-{id}" with no visible text
+      await page.locator(`[data-testid="edit-testcase-${tcId}"]`).click();
 
-      const titleInput = page.getByLabel(/title|name/i);
+      log.step('Update title in edit modal');
+      const titleInput = page.locator('#f-title');
       await titleInput.clear();
       await titleInput.fill(updatedTitle);
 
-      await page.getByRole('button', { name: /save|update|submit/i }).click();
+      log.action('click', 'Save Changes button');
+      await page.locator('[data-testid="modal-submit-btn"]').click();
       await page.waitForLoadState('networkidle');
     });
 
     await test.step('Verify updated title is shown', async () => {
+      log.step('Verify updated title');
       await expect(page.getByText(updatedTitle)).toBeVisible({ timeout: 10000 });
+      log.assert('updated title visible', updatedTitle);
     });
   });
 
   test('can delete a test case', async ({ page, request }) => {
     const title = uniqueName('Delete TC');
+    let tcId: number;
+    log.section('can delete a test case');
 
     await test.step('Create test case via API', async () => {
-      await request.post(`/api/suites/${suiteId}/testcases`, {
-        data: { title, description: 'To be deleted', priority: 'medium' },
+      log.step('Create test case via API');
+      const res = await request.post(`/api/suites/${suiteId}/testcases`, {
+        data: { title, description: 'To be deleted', priority: 'medium', status: 'active' },
         headers: { Authorization: `Bearer ${authToken}` },
       });
+      tcId = (await res.json()).id;
     });
 
     const suitePage = new SuitePage(page);
 
     await test.step('Navigate to suite', async () => {
+      log.step('Navigate to suite');
       await suitePage.goto(suiteId);
       await expect(page.getByText(title)).toBeVisible({ timeout: 10000 });
     });
 
     await test.step('Delete the test case', async () => {
-      const row = page.locator('tr, .testcase-row, [data-testid="testcase-row"]').filter({ hasText: title });
-      await row.getByRole('button', { name: /delete/i }).click();
+      log.step('Click delete button');
+      await page.locator(`[data-testid="delete-testcase-${tcId}"]`).click();
 
+      // Confirm dialog if present
       const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i });
       if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        log.action('click', 'confirm delete');
         await confirmBtn.click();
       }
       await page.waitForLoadState('networkidle');
     });
 
     await test.step('Verify test case is gone', async () => {
+      log.step('Verify test case removed');
       await expect(page.getByText(title)).not.toBeVisible({ timeout: 5000 });
+      log.assert('test case no longer visible');
     });
   });
 });

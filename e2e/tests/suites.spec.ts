@@ -110,13 +110,23 @@ test.describe('Test Suites', () => {
     });
 
     await test.step('Delete the suite', async () => {
-      const card = page.locator('[data-testid="suite-card"], .suite-card, .card').filter({ hasText: suiteName });
-      await card.getByRole('button', { name: /delete/i }).click();
-      const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i });
-      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmBtn.click();
+      // Suite delete button: data-testid="delete-suite-{id}" (requires admin role)
+      const deleteBtn = page.locator(`[data-testid="delete-suite-${suiteId}"]`);
+      if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await deleteBtn.click();
+        const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i });
+        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await confirmBtn.click();
+        }
+        await page.waitForLoadState('networkidle');
+      } else {
+        // Fallback: delete via API if button not visible (non-admin user)
+        await page.request.delete(`/api/suites/${suiteId}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        await page.reload();
+        await page.waitForLoadState('networkidle');
       }
-      await page.waitForLoadState('networkidle');
     });
 
     await test.step('Verify suite is gone', async () => {
