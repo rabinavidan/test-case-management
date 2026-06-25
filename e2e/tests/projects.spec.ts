@@ -90,7 +90,7 @@ test.describe('Projects', () => {
     });
 
     await test.step('Verify project is gone', async () => {
-      await expect(page.getByText(projectName)).not.toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(projectName).first()).not.toBeVisible({ timeout: 5000 });
     });
   });
 

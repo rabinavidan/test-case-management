@@ -85,6 +85,7 @@ export class SuitePage extends BasePage {
     await this.clickStartRun();
     await this.fillRunForm(name);
     await this.submitRunForm();
+    await this.page.waitForURL(/run\/\d+/, { timeout: 10000 });
     const url = this.page.url();
     const match = url.match(/run\/(\d+)/);
     return match ? parseInt(match[1], 10) : 0;
