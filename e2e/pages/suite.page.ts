@@ -27,30 +27,35 @@ export class SuitePage extends BasePage {
   }
 
   async fillTestCaseForm(data: TestCaseData): Promise<void> {
-    await this.page.getByLabel(/title|test case name|name/i).fill(data.title);
+    // Use data-testid or #id selectors — labels have no `for` attribute
+    log.action('fill', 'title', data.title);
+    await this.page.locator('[data-testid="f-title"], #f-title').fill(data.title);
 
     if (data.description) {
-      await this.page.getByLabel(/description/i).fill(data.description);
+      log.action('fill', 'description', data.description);
+      await this.page.locator('[data-testid="f-desc"], #f-desc').fill(data.description);
     }
     if (data.steps) {
-      await this.page.getByLabel(/steps/i).fill(data.steps);
+      log.action('fill', 'steps');
+      await this.page.locator('[data-testid="f-steps"], #f-steps').fill(data.steps);
     }
     if (data.expected) {
-      await this.page.getByLabel(/expected/i).fill(data.expected);
+      log.action('fill', 'expected result');
+      await this.page.locator('[data-testid="f-expected"], #f-expected').fill(data.expected);
     }
     if (data.priority) {
-      const prioritySelect = this.page.getByLabel(/priority/i);
-      await prioritySelect.selectOption(data.priority);
+      log.action('select', 'priority', data.priority);
+      await this.page.locator('[data-testid="f-priority"], #f-priority').selectOption(data.priority);
     }
     if (data.status) {
-      const statusSelect = this.page.getByLabel(/status/i);
-      await statusSelect.selectOption(data.status);
+      log.action('select', 'status', data.status);
+      await this.page.locator('[data-testid="f-status"], #f-status').selectOption(data.status);
     }
   }
 
   async submitTestCaseForm(): Promise<void> {
     log.action('click', 'Submit test case form');
-    await this.page.getByRole('button', { name: /create|save|submit/i }).click();
+    await this.page.locator('[data-testid="modal-submit-btn"]').click();
     await this.waitForNetworkIdle();
   }
 
@@ -65,15 +70,17 @@ export class SuitePage extends BasePage {
 
   async fillRunForm(name: string): Promise<void> {
     log.action('fill', 'run name', name);
-    await this.page.getByLabel(/run name|name/i).fill(name);
+    // Modal input has id="f-name"; label has no `for` attribute so getByLabel won't work
+    await this.page.locator('#f-name').fill(name);
   }
 
   async submitRunForm(): Promise<void> {
-    await this.page.getByRole('button', { name: /start|create|submit/i }).click();
+    log.action('click', 'Submit run form');
+    await this.page.getByRole('button', { name: /^start run$/i }).click();
     await this.waitForNetworkIdle();
   }
 
-  /** Convenience: click Start Run, fill the name, submit, and return the new run ID from the URL. */
+  /** Convenience: click Start Run, fill the name, submit, return the new run ID from the URL. */
   async startRun(name: string): Promise<number> {
     await this.clickStartRun();
     await this.fillRunForm(name);

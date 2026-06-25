@@ -19,16 +19,16 @@ export class ProjectsPage extends BasePage {
 
   async fillProjectForm(name: string, desc?: string): Promise<void> {
     log.action('fill', 'project name', name);
-    await this.page.getByLabel(/project name|name/i).fill(name);
+    await this.page.locator('[data-testid="f-name"], #f-name').fill(name);
     if (desc) {
       log.action('fill', 'description', desc);
-      await this.page.getByLabel(/description/i).fill(desc);
+      await this.page.locator('[data-testid="f-desc"], #f-desc').fill(desc);
     }
   }
 
   async submitProjectForm(): Promise<void> {
     log.action('click', 'Submit project form');
-    await this.page.getByRole('button', { name: /create|save|submit/i }).click();
+    await this.page.locator('[data-testid="modal-submit-btn"]').click();
     await this.waitForNetworkIdle();
   }
 
