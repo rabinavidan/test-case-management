@@ -9,10 +9,13 @@ on:
       - 'static/**'
   pull_request:
     branches: [main]
+  schedule:
+    # Run daily at 06:00 UTC against the production Vercel deployment
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       base_url:
-        description: 'Target URL'
+        description: 'Target URL (leave blank to use VERCEL_PRODUCTION_URL secret or localhost)'
         required: false
         default: ''
 
@@ -40,8 +43,23 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox
 
-      - name: Start app
-        if: ${{ !inputs.base_url }}
+      - name: Resolve target URL
+        id: url
+        run: |
+          # Priority: workflow_dispatch input > VERCEL_PRODUCTION_URL secret > localhost (for push/PR)
+          if [ -n "${{ inputs.base_url }}" ]; then
+            echo "target=${{ inputs.base_url }}" >> $GITHUB_OUTPUT
+            echo "local=false" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.VERCEL_PRODUCTION_URL }}" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "target=${{ secrets.VERCEL_PRODUCTION_URL }}" >> $GITHUB_OUTPUT
+            echo "local=false" >> $GITHUB_OUTPUT
+          else
+            echo "target=http://localhost:8000" >> $GITHUB_OUTPUT
+            echo "local=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Start app (local runs only)
+        if: steps.url.outputs.local == 'true'
         working-directory: .
         run: |
           pip install -r requirements.txt
@@ -51,7 +69,7 @@ jobs:
       - name: Run Playwright tests
         run: npx playwright test
         env:
-          BASE_URL: ${{ inputs.base_url || 'http://localhost:8000' }}
+          BASE_URL: ${{ steps.url.outputs.target }}
           CI: true
 
       - name: Upload report
