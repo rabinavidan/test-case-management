@@ -113,11 +113,8 @@ test.describe('Test Suites', () => {
       // Suite delete button: data-testid="delete-suite-{id}" (requires admin role)
       const deleteBtn = page.locator(`[data-testid="delete-suite-${suiteId}"]`);
       if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        page.once('dialog', d => d.accept());
         await deleteBtn.click();
-        const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i });
-        if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await confirmBtn.click();
-        }
         await page.waitForLoadState('networkidle');
       } else {
         // Fallback: delete via API if button not visible (non-admin user)

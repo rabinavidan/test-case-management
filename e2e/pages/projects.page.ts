@@ -14,7 +14,7 @@ export class ProjectsPage extends BasePage {
 
   async clickNewProject(): Promise<void> {
     log.action('click', 'New Project button');
-    await this.page.getByRole('button', { name: /new project|add project|create project/i }).click();
+    await this.page.locator('[data-testid="nav-new-btn"]').click();
   }
 
   async fillProjectForm(name: string, desc?: string): Promise<void> {
@@ -39,12 +39,8 @@ export class ProjectsPage extends BasePage {
   async deleteProject(name: string): Promise<void> {
     log.action('delete', `project "${name}"`);
     const card = this.page.locator('[data-testid="project-card"], .project-card, .card').filter({ hasText: name });
+    this.page.once('dialog', d => d.accept());
     await card.getByRole('button', { name: /delete/i }).click();
-    // Confirm dialog if present
-    const confirmBtn = this.page.getByRole('button', { name: /confirm|yes|delete/i });
-    if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await confirmBtn.click();
-    }
     await this.waitForNetworkIdle();
   }
 }

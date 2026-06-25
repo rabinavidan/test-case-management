@@ -14,7 +14,7 @@ export class ProjectPage extends BasePage {
 
   async clickNewSuite(): Promise<void> {
     log.action('click', 'New Suite button');
-    await this.page.getByRole('button', { name: /new suite|add suite|create suite/i }).click();
+    await this.page.locator('[data-testid="nav-new-btn"]').click();
   }
 
   async fillSuiteForm(name: string, desc?: string): Promise<void> {

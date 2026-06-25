@@ -23,7 +23,7 @@ export class SuitePage extends BasePage {
 
   async clickNewTestCase(): Promise<void> {
     log.action('click', 'New Test Case button');
-    await this.page.locator('#view-suite').getByRole('button', { name: /new test case|add test case|create test case/i }).click();
+    await this.page.locator('[data-testid="nav-new-btn"]').click();
   }
 
   async fillTestCaseForm(data: TestCaseData): Promise<void> {
@@ -76,7 +76,7 @@ export class SuitePage extends BasePage {
 
   async submitRunForm(): Promise<void> {
     log.action('click', 'Submit run form');
-    await this.page.getByRole('button', { name: /^start run$/i }).click();
+    await this.page.locator('[data-testid="modal-body"]').getByRole('button', { name: /start run/i }).click();
     await this.waitForNetworkIdle();
   }
 

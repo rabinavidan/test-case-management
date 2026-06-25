@@ -109,7 +109,7 @@ test.describe('Test Cases', () => {
       log.step('Verify critical badge');
       // Cards use data-testid="testcase-card-{id}"; find by title text then check for badge
       const card = page.locator('[data-testid^="testcase-card-"]').filter({ hasText: title });
-      const badge = card.getByText(/critical/i);
+      const badge = card.getByText('critical', { exact: true });
       await expect(badge).toBeVisible({ timeout: 5000 });
       log.assert('critical badge visible on card');
     });
@@ -150,7 +150,7 @@ test.describe('Test Cases', () => {
       await titleInput.fill(updatedTitle);
 
       log.action('click', 'Save Changes button');
-      await page.locator('[data-testid="modal-submit-btn"]').click();
+      await page.getByRole('button', { name: /save changes/i }).click();
       await page.waitForLoadState('networkidle');
     });
 
@@ -185,14 +185,8 @@ test.describe('Test Cases', () => {
 
     await test.step('Delete the test case', async () => {
       log.step('Click delete button');
+      page.once('dialog', d => d.accept());
       await page.locator(`[data-testid="delete-testcase-${tcId}"]`).click();
-
-      // Confirm dialog if present
-      const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete/i });
-      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        log.action('click', 'confirm delete');
-        await confirmBtn.click();
-      }
       await page.waitForLoadState('networkidle');
     });
 
