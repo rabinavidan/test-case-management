@@ -1,5 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './base.page';
+import { log } from '../logger';
 
 export class ProjectPage extends BasePage {
   constructor(page: Page) {
@@ -12,17 +13,21 @@ export class ProjectPage extends BasePage {
   }
 
   async clickNewSuite(): Promise<void> {
+    log.action('click', 'New Suite button');
     await this.page.getByRole('button', { name: /new suite|add suite|create suite/i }).click();
   }
 
   async fillSuiteForm(name: string, desc?: string): Promise<void> {
+    log.action('fill', 'suite name', name);
     await this.page.getByLabel(/suite name|name/i).fill(name);
     if (desc) {
+      log.action('fill', 'description', desc);
       await this.page.getByLabel(/description/i).fill(desc);
     }
   }
 
   async submitSuiteForm(): Promise<void> {
+    log.action('click', 'Submit suite form');
     await this.page.getByRole('button', { name: /create|save|submit/i }).click();
     await this.waitForNetworkIdle();
   }

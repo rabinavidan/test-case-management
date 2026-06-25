@@ -1,5 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './base.page';
+import { log } from '../logger';
 
 export class ProjectsPage extends BasePage {
   constructor(page: Page) {
@@ -12,17 +13,21 @@ export class ProjectsPage extends BasePage {
   }
 
   async clickNewProject(): Promise<void> {
+    log.action('click', 'New Project button');
     await this.page.getByRole('button', { name: /new project|add project|create project/i }).click();
   }
 
   async fillProjectForm(name: string, desc?: string): Promise<void> {
+    log.action('fill', 'project name', name);
     await this.page.getByLabel(/project name|name/i).fill(name);
     if (desc) {
+      log.action('fill', 'description', desc);
       await this.page.getByLabel(/description/i).fill(desc);
     }
   }
 
   async submitProjectForm(): Promise<void> {
+    log.action('click', 'Submit project form');
     await this.page.getByRole('button', { name: /create|save|submit/i }).click();
     await this.waitForNetworkIdle();
   }
@@ -32,6 +37,7 @@ export class ProjectsPage extends BasePage {
   }
 
   async deleteProject(name: string): Promise<void> {
+    log.action('delete', `project "${name}"`);
     const card = this.page.locator('[data-testid="project-card"], .project-card, .card').filter({ hasText: name });
     await card.getByRole('button', { name: /delete/i }).click();
     // Confirm dialog if present

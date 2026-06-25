@@ -1,5 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './base.page';
+import { log } from '../logger';
 
 export interface TestCaseData {
   title: string;
@@ -21,6 +22,7 @@ export class SuitePage extends BasePage {
   }
 
   async clickNewTestCase(): Promise<void> {
+    log.action('click', 'New Test Case button');
     await this.page.getByRole('button', { name: /new test case|add test case|create test case/i }).click();
   }
 
@@ -47,6 +49,7 @@ export class SuitePage extends BasePage {
   }
 
   async submitTestCaseForm(): Promise<void> {
+    log.action('click', 'Submit test case form');
     await this.page.getByRole('button', { name: /create|save|submit/i }).click();
     await this.waitForNetworkIdle();
   }
@@ -56,10 +59,12 @@ export class SuitePage extends BasePage {
   }
 
   async clickStartRun(): Promise<void> {
+    log.action('click', 'Start Run button');
     await this.page.getByRole('button', { name: /start run|new run|create run/i }).click();
   }
 
   async fillRunForm(name: string): Promise<void> {
+    log.action('fill', 'run name', name);
     await this.page.getByLabel(/run name|name/i).fill(name);
   }
 
