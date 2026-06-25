@@ -53,6 +53,8 @@ test.describe('Test Cases', () => {
     await page.evaluate((token) => {
       localStorage.setItem('tf_token', token);
     }, authToken);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
   });
 
   test('can create a test case with all fields', async ({ page }) => {

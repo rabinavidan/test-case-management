@@ -40,6 +40,8 @@ test.describe('Test Suites', () => {
     await page.evaluate((token) => {
       localStorage.setItem('tf_token', token);
     }, authToken);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
   });
 
   test('can create a test suite inside a project', async ({ page }) => {
@@ -83,8 +85,8 @@ test.describe('Test Suites', () => {
 
     await test.step('Navigate to project and verify both suites listed', async () => {
       await projectPage.goto(projectId);
-      await expect(page.getByText(suite1)).toBeVisible({ timeout: 10000 });
-      await expect(page.getByText(suite2)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(suite1).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(suite2).first()).toBeVisible({ timeout: 10000 });
     });
   });
 
