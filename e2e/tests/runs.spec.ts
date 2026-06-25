@@ -39,7 +39,7 @@ test.describe('Test Runs', () => {
 
   test('can start a test run from a suite', async ({ page }) => {
     await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('token', t), token);
+    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
 
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);
@@ -50,7 +50,7 @@ test.describe('Test Runs', () => {
 
   test('can mark test cases as pass and fail', async ({ page }) => {
     await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('token', t), token);
+    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
 
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);
@@ -68,7 +68,7 @@ test.describe('Test Runs', () => {
 
   test('run summary shows correct counts after all results', async ({ page }) => {
     await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('token', t), token);
+    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
 
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);
@@ -87,7 +87,7 @@ test.describe('Test Runs', () => {
 
   test('all-pass run has no failures or pending', async ({ page }) => {
     await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('token', t), token);
+    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
 
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);

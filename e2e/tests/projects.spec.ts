@@ -22,9 +22,7 @@ test.describe('Projects', () => {
     // Inject auth token into localStorage/sessionStorage so the SPA can use it
     await page.goto('/');
     await page.evaluate((token) => {
-      localStorage.setItem('token', token);
-      localStorage.setItem('authToken', token);
-      sessionStorage.setItem('token', token);
+      localStorage.setItem('tf_token', token);
     }, authToken);
   });
 

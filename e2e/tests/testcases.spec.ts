@@ -51,9 +51,7 @@ test.describe('Test Cases', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.evaluate((token) => {
-      localStorage.setItem('token', token);
-      localStorage.setItem('authToken', token);
-      sessionStorage.setItem('token', token);
+      localStorage.setItem('tf_token', token);
     }, authToken);
   });
 
