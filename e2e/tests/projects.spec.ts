@@ -61,7 +61,7 @@ test.describe('Projects', () => {
     });
 
     await test.step('Verify project appears in the list', async () => {
-      await expect(page.getByText(projectName)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(projectName).first()).toBeVisible({ timeout: 10000 });
     });
   });
 

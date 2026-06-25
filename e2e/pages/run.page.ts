@@ -37,26 +37,27 @@ export class RunPage extends BasePage {
       }
     }
 
-    // Submit the result
+    // Submit the result; wait for modal to close before continuing
     await this.page.getByRole('button', { name: /save result/i }).click();
+    await this.page.locator('#modal-overlay').waitFor({ state: 'hidden', timeout: 10000 });
     await this.waitForNetworkIdle();
   }
 
   async getSummary(): Promise<RunSummary> {
     log.step('Reading run summary');
 
-    // Summary grid: 4 cells in order — Pass, Fail, Skip, Pending
     const cells = this.page.locator('#view-run .grid-cols-4 > div');
-    const passText    = await cells.nth(0).textContent() || '0';
-    const failText    = await cells.nth(1).textContent() || '0';
-    const skipText    = await cells.nth(2).textContent() || '0';
-    const pendingText = await cells.nth(3).textContent() || '0';
+    const getCount = async (label: string): Promise<number> => {
+      const cell = cells.filter({ hasText: label });
+      const text = await cell.textContent() || '0';
+      return parseInt(text.match(/\d+/)?.[0] || '0', 10);
+    };
 
     const result = {
-      pass:    parseInt(passText.match(/\d+/)?.[0]    || '0', 10),
-      fail:    parseInt(failText.match(/\d+/)?.[0]    || '0', 10),
-      skip:    parseInt(skipText.match(/\d+/)?.[0]    || '0', 10),
-      pending: parseInt(pendingText.match(/\d+/)?.[0] || '0', 10),
+      pass:    await getCount('Pass'),
+      fail:    await getCount('Fail'),
+      skip:    await getCount('Skip'),
+      pending: await getCount('Pending'),
     };
     log.info(`Summary → pass:${result.pass} fail:${result.fail} skip:${result.skip} pending:${result.pending}`);
     return result;
