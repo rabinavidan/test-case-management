@@ -38,9 +38,9 @@ export class ProjectsPage extends BasePage {
 
   async deleteProject(name: string): Promise<void> {
     log.action('delete', `project "${name}"`);
-    const card = this.page.locator('[data-testid="project-card"], .project-card, .card').filter({ hasText: name });
+    const row = this.page.locator('[data-testid^="project-row-"]').filter({ hasText: name });
     this.page.once('dialog', d => d.accept());
-    await card.getByRole('button', { name: /delete/i }).click();
+    await row.locator('[data-testid^="delete-project-"]').click({ force: true });
     await this.waitForNetworkIdle();
   }
 }

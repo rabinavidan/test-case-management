@@ -62,7 +62,7 @@ test.describe('Test Suites', () => {
     });
 
     await test.step('Verify suite appears on page', async () => {
-      await expect(page.getByText(suiteName)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(suiteName).first()).toBeVisible({ timeout: 10000 });
     });
   });
 

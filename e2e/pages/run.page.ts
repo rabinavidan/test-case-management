@@ -21,43 +21,42 @@ export class RunPage extends BasePage {
 
   async markResult(testCaseTitle: string, status: 'pass' | 'fail' | 'skip', notes?: string): Promise<void> {
     log.action('mark', `"${testCaseTitle}"`, status);
-    const row = this.page.locator('tr, .result-row, [data-testid="result-row"]').filter({ hasText: testCaseTitle });
+
+    // Result rows are divs in .space-y-3; click the Record/Update button to open modal
+    const row = this.page.locator('.space-y-3 > div').filter({ hasText: testCaseTitle });
+    await row.getByRole('button', { name: /record|update/i }).click();
+
+    // Click the status button in the modal (id="rs-{status}")
+    await this.page.locator(`#rs-${status}`).click();
 
     if (notes) {
-      const notesInput = row.getByPlaceholder(/notes/i);
-      if (await notesInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      const notesField = this.page.locator('#f-notes');
+      if (await notesField.isVisible({ timeout: 1000 }).catch(() => false)) {
         log.action('fill', 'notes', notes);
-        await notesInput.fill(notes);
+        await notesField.fill(notes);
       }
     }
 
-    // Try button with status name first, then radio/select
-    const statusBtn = row.getByRole('button', { name: new RegExp(status, 'i') });
-    if (await statusBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await statusBtn.click();
-    } else {
-      const radio = row.getByRole('radio', { name: new RegExp(status, 'i') });
-      if (await radio.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await radio.click();
-      } else {
-        const select = row.locator('select');
-        await select.selectOption(status);
-      }
-    }
-
+    // Submit the result
+    await this.page.getByRole('button', { name: /save result/i }).click();
     await this.waitForNetworkIdle();
   }
 
   async getSummary(): Promise<RunSummary> {
     log.step('Reading run summary');
-    const summary = this.page.locator('[data-testid="run-summary"], .run-summary, .summary');
-    const text = await summary.textContent() || '';
+
+    // Summary grid: 4 cells in order — Pass, Fail, Skip, Pending
+    const cells = this.page.locator('#view-run .grid-cols-4 > div');
+    const passText    = await cells.nth(0).textContent() || '0';
+    const failText    = await cells.nth(1).textContent() || '0';
+    const skipText    = await cells.nth(2).textContent() || '0';
+    const pendingText = await cells.nth(3).textContent() || '0';
 
     const result = {
-      pass: parseInt(text.match(/(\d+)\s*pass(ed)?/i)?.[1] || '0', 10),
-      fail: parseInt(text.match(/(\d+)\s*fail(ed)?/i)?.[1] || '0', 10),
-      skip: parseInt(text.match(/(\d+)\s*skip(ped)?/i)?.[1] || '0', 10),
-      pending: parseInt(text.match(/(\d+)\s*pending/i)?.[1] || '0', 10),
+      pass:    parseInt(passText.match(/\d+/)?.[0]    || '0', 10),
+      fail:    parseInt(failText.match(/\d+/)?.[0]    || '0', 10),
+      skip:    parseInt(skipText.match(/\d+/)?.[0]    || '0', 10),
+      pending: parseInt(pendingText.match(/\d+/)?.[0] || '0', 10),
     };
     log.info(`Summary → pass:${result.pass} fail:${result.fail} skip:${result.skip} pending:${result.pending}`);
     return result;
