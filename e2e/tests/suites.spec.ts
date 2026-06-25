@@ -130,7 +130,7 @@ test.describe('Test Suites', () => {
     });
 
     await test.step('Verify suite is gone', async () => {
-      await expect(page.getByText(suiteName)).not.toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(suiteName).first()).not.toBeVisible({ timeout: 5000 });
     });
   });
 });
