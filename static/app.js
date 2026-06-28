@@ -908,12 +908,14 @@ async function renderProjects() {
         </div>
         <div class="flex items-center gap-2">
           <div id="bulk-toolbar" class="hidden items-center gap-2">
+            ${isAdmin() ? `
             <span id="bulk-count" class="text-sm text-slate-600 font-medium"></span>
             <button onclick="bulkDeleteProjects()" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               Remove Selected
             </button>
             <button onclick="clearProjectSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+            ` : ""}
           </div>
           ${isAdmin() ? `<button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -940,8 +942,8 @@ async function renderProjects() {
           <thead>
             <tr class="border-b border-slate-100 bg-slate-50">
               <th class="w-10 px-4 py-3">
-                <input type="checkbox" id="proj-select-all" onchange="toggleSelectAllProjects(this.checked)"
-                  class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />
+                ${isAdmin() ? `<input type="checkbox" id="proj-select-all" onchange="toggleSelectAllProjects(this.checked)"
+                  class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />` : ""}
               </th>
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</th>
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Description</th>
@@ -1007,8 +1009,8 @@ function projectRow(p) {
     <tr id="pcard-${p.id}" data-testid="project-row-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
       class="border-b border-slate-100 last:border-0 hover:bg-blue-50/40 transition-colors cursor-pointer group select-none">
       <td class="px-4 py-3" onclick="event.stopPropagation()">
-        <input type="checkbox" id="pcheck-${p.id}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
-          class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />
+        ${isAdmin() ? `<input type="checkbox" id="pcheck-${p.id}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
+          class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />` : ""}
       </td>
       <td class="px-3 py-3">
         <div class="flex items-center gap-3">
