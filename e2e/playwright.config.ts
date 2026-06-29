@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './tests',
   timeout: 30000,
   retries: process.env.CI ? 1 : 0,
-  reporter: [['html', { open: 'never' }], ['list', { printSteps: true }]],
+  reporter: [['html', { open: 'never' }], ['list', { printSteps: true }], ['json', { outputFile: 'test-results/results.json' }]],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:8000',
     screenshot: 'only-on-failure',
