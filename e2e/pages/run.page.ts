@@ -30,7 +30,6 @@ export class RunPage extends BasePage {
     log.action('mark', `"${testCaseTitle}"`, status);
 
     const row = this.resultRows.filter({ hasText: testCaseTitle });
-    await row.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
     const recordBtn = row.getByRole('button', { name: /record|update/i });
     await recordBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
     await recordBtn.click();
