@@ -541,15 +541,14 @@ async function renderProjects() {
       <div class="flex items-center justify-between mb-4">
         <div>
           <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Live Architecture</p>
-          <h2 class="text-base font-bold text-slate-800">TestFlow — System Overview</h2>
+          <h2 class="text-base font-bold text-slate-800">TestFlow — Microservice Overview</h2>
         </div>
         <span class="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 arch-live-dot"></span>Live
         </span>
       </div>
-      <!-- Architecture rows -->
       <div class="space-y-3">
-        <!-- Row 1: Client -->
+        <!-- Row 1: Browser -->
         <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:0ms">
           <div class="w-24 flex-shrink-0 flex items-center">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Browser</span>
@@ -566,7 +565,7 @@ async function renderProjects() {
           </div>
         </div>
         <!-- Arrow -->
-        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:80ms">
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:70ms">
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
@@ -574,49 +573,65 @@ async function renderProjects() {
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
-        <!-- Row 2: API -->
-        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:160ms">
+        <!-- Row 2: Gateway -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:140ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">API Layer</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gateway</span>
           </div>
-          <div class="flex-1 bg-violet-50 border border-violet-200 rounded-xl p-3 flex items-center gap-3">
-            <div class="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">⚡</div>
+          <div class="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🔀</div>
             <div class="flex-1 min-w-0">
-              <p class="text-xs font-semibold text-violet-800">FastAPI + SQLAlchemy</p>
-              <p class="text-[10px] text-violet-500 truncate">api/main.py · models · schemas · CORS · WebSocket · Structured logging · Pydantic v2</p>
+              <p class="text-xs font-semibold text-indigo-800">API Gateway — services/gateway :8000</p>
+              <p class="text-[10px] text-indigo-500 truncate">httpx proxy · WebSocket bridge · serves SPA · routes /api/* to downstream services</p>
             </div>
             <div class="flex gap-1.5 flex-wrap justify-end">
-              ${['FastAPI','SQLAlchemy','WebSocket','Pydantic'].map(t=>`<span class="arch-tag bg-violet-100 text-violet-700">${t}</span>`).join('')}
+              ${['FastAPI','httpx','WebSocket bridge','Static SPA'].map(t=>`<span class="arch-tag bg-indigo-100 text-indigo-700">${t}</span>`).join('')}
             </div>
           </div>
         </div>
-        <!-- Arrow -->
-        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:240ms">
+        <!-- Arrow fan-out -->
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:200ms">
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">ORM / SQL</span>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP route fan-out</span>
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
-        <!-- Row 3: Database -->
-        <!-- Row AI: Claude / Anthropic -->
-        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:290ms">
+        <!-- Row 3: Services -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:270ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI Layer</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Services</span>
           </div>
-          <div class="flex-1 bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-3 flex items-center gap-3">
-            <div class="w-8 h-8 bg-fuchsia-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🤖</div>
-            <div class="flex-1 min-w-0">
-              <p class="text-xs font-semibold text-fuchsia-800">Anthropic Claude Haiku</p>
-              <p class="text-[10px] text-fuchsia-500 truncate">AI test case generation · POST /generate · JSON schema output · streaming</p>
-            </div>
-            <div class="flex gap-1.5 flex-wrap justify-end">
-              ${['Claude Haiku','Anthropic SDK','AI Generate'].map(t=>`<span class="arch-tag bg-fuchsia-100 text-fuchsia-700">${t}</span>`).join('')}
-            </div>
+          <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            ${[
+              {icon:'🔑', name:'Auth',     port:':8001', desc:'JWT · login · users',               bg:'bg-amber-50',   border:'border-amber-200',   tag:'bg-amber-100 text-amber-700'},
+              {icon:'📁', name:'Projects', port:':8002', desc:'Projects · suites · test cases',    bg:'bg-violet-50',  border:'border-violet-200',  tag:'bg-violet-100 text-violet-700'},
+              {icon:'▶️', name:'Runs',     port:':8003', desc:'Runs · results · WebSocket · Redis',bg:'bg-emerald-50', border:'border-emerald-200', tag:'bg-emerald-100 text-emerald-700'},
+              {icon:'🤖', name:'AI',       port:':8004', desc:'Claude Haiku generation',           bg:'bg-fuchsia-50', border:'border-fuchsia-200', tag:'bg-fuchsia-100 text-fuchsia-700'},
+            ].map(s => `
+              <div class="${s.bg} border ${s.border} rounded-xl p-3 flex flex-col gap-1.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-base">${s.icon}</span>
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-bold text-slate-800 truncate">${s.name} <span class="font-normal text-slate-400">${s.port}</span></p>
+                  </div>
+                </div>
+                <p class="text-[9px] text-slate-500 leading-relaxed">${s.desc}</p>
+              </div>`).join('')}
           </div>
         </div>
-        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:320ms">
+        <!-- Arrow -->
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:340ms">
+          <div class="w-24"></div>
+          <div class="flex-1 flex items-center gap-2 pl-4">
+            <div class="h-px flex-1 bg-slate-200"></div>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">ORM / SQL · Redis Pub/Sub</span>
+            <div class="h-px flex-1 bg-slate-200"></div>
+          </div>
+        </div>
+        <!-- Row 4: Storage -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:410ms">
           <div class="w-24 flex-shrink-0 flex items-center">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Storage</span>
           </div>
@@ -624,21 +639,28 @@ async function renderProjects() {
             <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🗄️</div>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-emerald-800">PostgreSQL (Neon)</p>
-                <p class="text-[10px] text-emerald-600">Production · Vercel env var</p>
+                <p class="text-xs font-semibold text-emerald-800">PostgreSQL 16</p>
+                <p class="text-[10px] text-emerald-600">Schemas: auth · projects · runs</p>
               </div>
             </div>
-            <div class="flex-1 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
-              <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">📦</div>
+            <div class="flex-1 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">⚡</div>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-amber-800">SQLite</p>
-                <p class="text-[10px] text-amber-600">Local dev · /tmp on Vercel</p>
+                <p class="text-xs font-semibold text-red-800">Redis 7</p>
+                <p class="text-[10px] text-red-600">Pub/Sub · runs.completed events</p>
+              </div>
+            </div>
+            <div class="flex-1 bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-fuchsia-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🤖</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-fuchsia-800">Anthropic Claude Haiku</p>
+                <p class="text-[10px] text-fuchsia-600">External AI API · test generation</p>
               </div>
             </div>
           </div>
         </div>
-        <!-- Row 4: CI/CD + Tests side by side -->
-        <div class="arch-row flex items-stretch gap-2 opacity-0 mt-1" style="animation:archRowIn .35s ease forwards;animation-delay:440ms">
+        <!-- Row 5: CI/CD -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0 mt-1" style="animation:archRowIn .35s ease forwards;animation-delay:500ms">
           <div class="w-24 flex-shrink-0 flex items-center">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CI / Deploy</span>
           </div>
@@ -654,14 +676,21 @@ async function renderProjects() {
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">▲</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Vercel</p>
-                <p class="text-[10px] text-slate-500">Serverless · Preview per PR · Production</p>
+                <p class="text-[10px] text-slate-500">Monolith serverless · Preview per PR</p>
+              </div>
+            </div>
+            <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🐳</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-700">Docker Compose</p>
+                <p class="text-[10px] text-slate-500">Microservice mode · 5 containers + Redis</p>
               </div>
             </div>
             <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🧪</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Tests</p>
-                <p class="text-[10px] text-slate-500">pytest + Playwright POM · MCP browser tools · 20 API · 16 E2E</p>
+                <p class="text-[10px] text-slate-500">pytest · Playwright POM · MCP tools</p>
               </div>
             </div>
           </div>
@@ -956,6 +985,201 @@ async function renderProjects() {
     </style>
   ` : "";
 
+  const sysArchBanner = !getToken() ? `
+    <div class="relative rounded-2xl mb-6 overflow-hidden" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)">
+      <!-- Grid -->
+      <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
+      <!-- Glow orbs -->
+      <div class="absolute pointer-events-none" style="top:-80px;left:-60px;width:360px;height:360px;background:radial-gradient(circle,rgba(99,102,241,.12) 0%,transparent 65%)"></div>
+      <div class="absolute pointer-events-none" style="bottom:-60px;right:-40px;width:300px;height:300px;background:radial-gradient(circle,rgba(16,185,129,.09) 0%,transparent 65%)"></div>
+
+      <div class="relative z-10 p-5 sm:p-6">
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-5 flex-wrap gap-3">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-[.22em] mb-1" style="color:rgba(99,102,241,.7)">Microservice · Event-Driven · Real-time</p>
+            <h2 class="text-lg sm:text-xl font-extrabold text-white">System Architecture</h2>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28)">
+              <span class="text-sm font-black text-indigo-300">5</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(99,102,241,.6)">Services</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25)">
+              <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+              <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Live WS</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2)">
+              <span class="text-sm font-black text-yellow-300">Redis</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(251,191,36,.55)">Pub/Sub</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 1: Browser -->
+        <div class="flex justify-center mb-1 opacity-0" style="animation:sysArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:0ms">
+          <div class="rounded-xl px-5 py-2.5 flex items-center gap-3" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)">
+            <span class="text-lg">🌐</span>
+            <div>
+              <p class="text-[11px] font-bold text-white">Browser SPA</p>
+              <p class="text-[9px]" style="color:rgba(255,255,255,.35)">Vanilla JS · Hash routing · Chart.js · WebSocket</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector → Gateway (animated packet) -->
+        <div class="flex justify-center items-center py-1 opacity-0" style="animation:sysArchIn .3s ease forwards;animation-delay:150ms">
+          <div class="flex flex-col items-center gap-0.5 relative">
+            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+            <div class="sys-pkt" style="width:6px;height:6px;border-radius:50%;background:#6366f1;position:absolute;top:0;animation:sysPacket 1.8s ease-in-out infinite;animation-delay:0ms"></div>
+            <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(99,102,241,.8)"></div>
+            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+          </div>
+        </div>
+
+        <!-- Row 2: Gateway -->
+        <div class="flex justify-center mb-1 opacity-0" style="animation:sysArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:200ms">
+          <div class="rounded-xl px-5 py-2.5 flex items-center gap-3 w-full max-w-sm" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3)">
+            <span class="text-lg">🔀</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-[11px] font-bold text-indigo-200">API Gateway <span class="text-[9px] font-mono text-indigo-400">:8000</span></p>
+              <p class="text-[9px]" style="color:rgba(99,102,241,.55)">httpx proxy · WebSocket bridge · Static SPA serving</p>
+            </div>
+            <div class="sys-scan-bar flex-shrink-0" style="width:36px;height:4px;border-radius:2px;background:rgba(99,102,241,.15);overflow:hidden">
+              <div style="height:100%;width:30%;background:rgba(99,102,241,.8);border-radius:2px;animation:sysGwScan 1.4s ease-in-out infinite"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector Gateway → 4 services (fan-out) -->
+        <div class="flex justify-around items-start py-1 opacity-0" style="animation:sysArchIn .3s ease forwards;animation-delay:340ms">
+          ${[
+            {color:'rgba(56,189,248,.6)', delay:0},
+            {color:'rgba(16,185,129,.6)', delay:120},
+            {color:'rgba(251,113,133,.6)', delay:240},
+            {color:'rgba(251,191,36,.6)', delay:360},
+          ].map(s => `
+            <div class="flex flex-col items-center gap-0.5 relative">
+              <div class="w-px h-3" style="background:${s.color}"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-fanpkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-px h-3" style="background:${s.color}"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Row 3: 4 services -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-1 opacity-0" style="animation:sysArchIn .5s cubic-bezier(.22,1,.36,1) forwards;animation-delay:380ms">
+          ${[
+            {icon:'🔐', name:'Auth',     port:':8001', desc:'JWT · Register · Login · Roles', bg:'rgba(56,189,248,.08)', border:'rgba(56,189,248,.22)', title:'text-sky-300'},
+            {icon:'📋', name:'Projects', port:':8002', desc:'CRUD · Suites · Cases · Analytics', bg:'rgba(16,185,129,.07)', border:'rgba(16,185,129,.2)',  title:'text-emerald-300'},
+            {icon:'▶️', name:'Runs',     port:':8003', desc:'Results · WebSocket · Redis events', bg:'rgba(251,113,133,.07)', border:'rgba(251,113,133,.2)', title:'text-pink-300'},
+            {icon:'🤖', name:'AI',       port:':8004', desc:'Claude Haiku · Test generation', bg:'rgba(251,191,36,.06)', border:'rgba(251,191,36,.18)', title:'text-yellow-300'},
+          ].map((s,i) => `
+            <div class="rounded-xl p-2.5 flex flex-col gap-1 opacity-0" style="animation:sysArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${420+i*60}ms;background:${s.bg};border:1px solid ${s.border}">
+              <div class="flex items-center gap-1.5">
+                <span class="text-base">${s.icon}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-[11px] font-bold ${s.title} leading-none">${s.name}</p>
+                  <p class="text-[9px] font-mono" style="color:rgba(255,255,255,.25)">${s.port}</p>
+                </div>
+              </div>
+              <p class="text-[9px] leading-relaxed" style="color:rgba(255,255,255,.35)">${s.desc}</p>
+              <div class="h-0.5 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)">
+                <div class="h-full rounded-full sys-svc-bar" style="background:${s.border};animation-delay:${i*200}ms"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Connector → storage -->
+        <div class="flex justify-around items-center py-1 opacity-0" style="animation:sysArchIn .3s ease forwards;animation-delay:680ms">
+          ${[
+            {color:'rgba(168,85,247,.55)', delay:0},
+            {color:'rgba(251,191,36,.55)', delay:200},
+            {color:'rgba(239,68,68,.55)', delay:400},
+          ].map(s => `
+            <div class="flex flex-col items-center gap-0.5 relative">
+              <div class="w-px h-3" style="background:${s.color}"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-storepkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-px h-3" style="background:${s.color}"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Row 4: Storage -->
+        <div class="grid grid-cols-3 gap-2 mb-4 opacity-0" style="animation:sysArchIn .5s cubic-bezier(.22,1,.36,1) forwards;animation-delay:720ms">
+          <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.22)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-base">🐘</span>
+              <p class="text-[10px] font-bold text-purple-300">PostgreSQL 16</p>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              ${['auth','projects','runs'].map((s,i) => `
+                <div class="flex items-center gap-1.5">
+                  <div class="w-1.5 h-1.5 rounded-sm flex-shrink-0" style="background:rgba(168,85,247,${.4+i*.2})"></div>
+                  <p class="text-[9px] font-mono" style="color:rgba(168,85,247,.6)">schema: ${s}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-base">⚡</span>
+              <p class="text-[10px] font-bold text-yellow-300">Redis 7</p>
+            </div>
+            <p class="text-[9px]" style="color:rgba(251,191,36,.55)">Pub/Sub channel</p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <div class="w-1.5 h-1.5 rounded-full sys-redis-dot"></div>
+              <p class="text-[9px] font-mono" style="color:rgba(251,191,36,.4)">runs.completed</p>
+            </div>
+          </div>
+          <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-base">🧠</span>
+              <p class="text-[10px] font-bold text-red-300">Anthropic</p>
+            </div>
+            <p class="text-[9px]" style="color:rgba(239,68,68,.5)">Claude Haiku</p>
+            <p class="text-[9px]" style="color:rgba(239,68,68,.35)">Test generation</p>
+          </div>
+        </div>
+
+        <!-- Bottom strip: legend -->
+        <div class="pt-4 flex items-center justify-between flex-wrap gap-3 opacity-0" style="animation:sysArchIn .4s ease forwards;animation-delay:900ms;border-top:1px solid rgba(255,255,255,.07)">
+          <div class="flex flex-wrap gap-3">
+            ${[
+              {dot:'#6366f1', label:'HTTP/REST (httpx)'},
+              {dot:'#fbbf24', label:'Redis Pub/Sub'},
+              {dot:'#34d399', label:'WebSocket (live)'},
+              {dot:'#f87171', label:'Anthropic API'},
+            ].map(l => `
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${l.dot}"></span>
+                <span class="text-[9px]" style="color:rgba(255,255,255,.35)">${l.label}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="flex gap-2">
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">Docker Compose</span>
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">FastAPI</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes sysArchIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes sysPacket { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
+      @keyframes sysGwScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }
+      .sys-fanpkt { animation: sysFanPulse 1.4s ease-in-out infinite; }
+      @keyframes sysFanPulse { 0%,100%{opacity:.3;transform:scale(.7)} 50%{opacity:1;transform:scale(1.5)} }
+      .sys-storepkt { animation: sysStorePulse 2s ease-in-out infinite; }
+      @keyframes sysStorePulse { 0%,100%{opacity:.25;transform:scale(.8)} 50%{opacity:1;transform:scale(1.4)} }
+      .sys-svc-bar { animation: sysSvcBar 3s ease-in-out infinite alternate; width: 40%; }
+      @keyframes sysSvcBar { from{width:30%} to{width:90%} }
+      .sys-redis-dot { width:6px;height:6px;border-radius:50%;background:#fbbf24;animation:sysRedisPulse 1.2s ease-in-out infinite; }
+      @keyframes sysRedisPulse { 0%,100%{opacity:.3;box-shadow:0 0 0 0 rgba(251,191,36,0)} 50%{opacity:1;box-shadow:0 0 0 4px rgba(251,191,36,.2)} }
+    </style>
+  ` : "";
+
   const ownerCard = !getToken() ? `
     <div class="relative rounded-2xl mb-6 overflow-hidden opacity-0 owner-banner" style="animation:techCardIn .5s ease forwards;animation-delay:50ms;min-height:160px;background:linear-gradient(120deg,#020b18 0%,#041830 40%,#061f3a 60%,#050d20 100%)">
       <!-- Animated grid -->
@@ -1031,6 +1255,7 @@ async function renderProjects() {
         ${archDiagram}
         ${demoBanner}
         ${techStackBanner}
+        ${sysArchBanner}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1053,6 +1278,7 @@ async function renderProjects() {
       ${archDiagram}
       ${demoBanner}
       ${techStackBanner}
+      ${sysArchBanner}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
