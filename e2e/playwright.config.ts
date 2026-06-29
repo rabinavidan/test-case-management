@@ -13,6 +13,7 @@ export default defineConfig({
     testIdAttribute: 'data-testid',
   },
   globalSetup: './global-setup.ts',
+  globalTeardown: './global-teardown.ts',
   projects: [
     {
       name: 'chromium',
