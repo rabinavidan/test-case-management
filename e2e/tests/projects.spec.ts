@@ -10,10 +10,9 @@ test.describe('Projects', () => {
   const createdProjectIds: number[] = [];
 
   test.beforeEach(async ({ page, authToken }) => {
+    await page.addInitScript((token) => localStorage.setItem('tf_token', token), authToken);
     await page.goto('/');
-    await page.evaluate((token) => {
-      localStorage.setItem('tf_token', token);
-    }, authToken);
+    await page.waitForLoadState('networkidle');
   });
 
   test.afterEach(async ({ request, authToken }) => {
