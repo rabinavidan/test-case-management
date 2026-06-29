@@ -23,9 +23,8 @@ test.describe('Test Runs', () => {
       });
     }
 
+    await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
     await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('tf_token', t), authToken);
-    await page.reload();
     await page.waitForLoadState('networkidle');
   });
 

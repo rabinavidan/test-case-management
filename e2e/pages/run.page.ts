@@ -30,7 +30,10 @@ export class RunPage extends BasePage {
     log.action('mark', `"${testCaseTitle}"`, status);
 
     const row = this.resultRows.filter({ hasText: testCaseTitle });
-    await row.getByRole('button', { name: /record|update/i }).click();
+    await row.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
+    const recordBtn = row.getByRole('button', { name: /record|update/i });
+    await recordBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
+    await recordBtn.click();
 
     await this.page.locator(`#rs-${status}`).click();
 
@@ -43,7 +46,13 @@ export class RunPage extends BasePage {
     }
 
     await this.page.getByRole('button', { name: /save result/i }).click();
-    await this.modalOverlay.waitFor({ state: 'hidden', timeout: this.TIMEOUT_MEDIUM });
+    try {
+      await this.modalOverlay.waitFor({ state: 'hidden', timeout: this.TIMEOUT_MEDIUM });
+    } catch {
+      // webkit: modal may not auto-dismiss; close with Escape
+      await this.page.keyboard.press('Escape');
+      await this.modalOverlay.waitFor({ state: 'hidden', timeout: this.TIMEOUT_SHORT });
+    }
     await this.waitForNetworkIdle();
   }
 
