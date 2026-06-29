@@ -1,13 +1,24 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional, Dict, Set
 from datetime import datetime, timedelta
 import os
 import random
 import pathlib
+import json
+import time
+import logging
+import asyncio
+
+# ─── Structured logging setup ────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"time":"%(asctime)s","level":"%(levelname)s","msg":"%(message)s"}',
+)
+logger = logging.getLogger("testflow")
 
 VERSION = pathlib.Path(__file__).parent.parent.joinpath("VERSION").read_text().strip()
 
@@ -69,7 +80,11 @@ def _seed_admin():
 
 _seed_admin()
 
-app = FastAPI(title="Test Case Management API", version=VERSION)
+app = FastAPI(
+    title="TestFlow API",
+    version=VERSION,
+    description="AI-powered test case management with real-time collaboration",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,6 +93,49 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ─── Request/Response logging middleware ──────────────────────────────────────
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = round((time.perf_counter() - start) * 1000, 1)
+    if not request.url.path.startswith("/static"):
+        logger.info(f'{request.method} {request.url.path} {response.status_code} {duration_ms}ms')
+    return response
+
+
+# ─── WebSocket connection manager ─────────────────────────────────────────────
+class ConnectionManager:
+    def __init__(self):
+        # run_id -> set of connected WebSockets
+        self._rooms: Dict[int, Set[WebSocket]] = {}
+
+    async def connect(self, run_id: int, ws: WebSocket):
+        await ws.accept()
+        self._rooms.setdefault(run_id, set()).add(ws)
+        logger.info(f"WS connected run={run_id} total={len(self._rooms[run_id])}")
+
+    def disconnect(self, run_id: int, ws: WebSocket):
+        room = self._rooms.get(run_id, set())
+        room.discard(ws)
+        if not room:
+            self._rooms.pop(run_id, None)
+
+    async def broadcast(self, run_id: int, payload: dict):
+        room = self._rooms.get(run_id, set())
+        dead = set()
+        for ws in room:
+            try:
+                await ws.send_text(json.dumps(payload))
+            except Exception:
+                dead.add(ws)
+        for ws in dead:
+            room.discard(ws)
+
+
+ws_manager = ConnectionManager()
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -214,9 +272,26 @@ def me(current_user: models.User = Depends(get_current_user)):
 
 # ─── Projects ────────────────────────────────────────────────────────────────
 
-@app.get("/api/projects", response_model=List[schemas.ProjectResponse])
-def list_projects(db: Session = Depends(get_db)):
-    return db.query(models.Project).order_by(models.Project.created_at.desc()).all()
+@app.get("/api/projects", response_model=schemas.PaginatedProjects)
+def list_projects(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None),
+):
+    q = db.query(models.Project)
+    if search:
+        q = q.filter(models.Project.name.ilike(f"%{search}%"))
+    total = q.count()
+    items = q.order_by(models.Project.created_at.desc()) \
+             .offset((page - 1) * page_size).limit(page_size).all()
+    return schemas.PaginatedProjects(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=max(1, (total + page_size - 1) // page_size),
+    )
 
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse, status_code=201)
@@ -361,7 +436,7 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/api/runs/{run_id}/results/{tc_id}")
-def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), current: models.User = Depends(get_current_user)):
     result = db.query(models.TestResult).filter(
         models.TestResult.run_id == run_id,
         models.TestResult.testcase_id == tc_id
@@ -373,15 +448,190 @@ def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db
     result.notes = payload.notes
     result.executed_at = datetime.utcnow()
 
-    # Check if all results are done; if so, mark run complete
     run = db.query(models.TestRun).filter(models.TestRun.id == run_id).first()
     all_results = db.query(models.TestResult).filter(models.TestResult.run_id == run_id).all()
-    if all(r.status != "pending" for r in all_results):
+    run_completed = all(r.status != "pending" for r in all_results)
+    if run_completed:
         run.completed_at = datetime.utcnow()
 
     db.commit()
     db.refresh(result)
+
+    # Broadcast live update to all WebSocket subscribers on this run
+    await ws_manager.broadcast(run_id, {
+        "type": "result_updated",
+        "testcase_id": tc_id,
+        "status": result.status,
+        "notes": result.notes,
+        "updated_by": current.username,
+        "run_completed": run_completed,
+    })
+
     return {"id": result.id, "status": result.status, "notes": result.notes}
+
+
+# ─── WebSocket: live run collaboration ────────────────────────────────────────
+
+@app.websocket("/ws/runs/{run_id}")
+async def run_websocket(run_id: int, ws: WebSocket):
+    await ws_manager.connect(run_id, ws)
+    try:
+        while True:
+            # Keep connection alive; client sends ping, we echo pong
+            data = await ws.receive_text()
+            if data == "ping":
+                await ws.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(run_id, ws)
+        logger.info(f"WS disconnected run={run_id}")
+
+
+# ─── AI Test Case Generation ──────────────────────────────────────────────────
+
+@app.post("/api/suites/{suite_id}/testcases/generate", response_model=schemas.AIGenerateResponse)
+async def generate_testcases(
+    suite_id: int,
+    payload: schemas.AIGenerateRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_admin),
+):
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI generation unavailable: ANTHROPIC_API_KEY not configured",
+        )
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+
+        system_prompt = (
+            "You are a senior QA engineer. Generate detailed, actionable test cases for the given feature. "
+            "Each test case must be concise, unambiguous, and cover a distinct scenario. "
+            "Respond with a JSON object matching exactly this schema:\n"
+            '{"test_cases": [{"title": str, "description": str, "steps": str, '
+            '"expected_result": str, "priority": "low"|"medium"|"high"|"critical"}]}'
+        )
+
+        user_prompt = (
+            f"Suite: {suite.name}\n"
+            f"Feature description: {payload.feature_description}\n"
+            f"Generate exactly {payload.count} test cases."
+        )
+
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+
+        raw = message.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        parsed = json.loads(raw)
+        test_cases = parsed.get("test_cases", [])
+
+        logger.info(f"AI generated {len(test_cases)} test cases for suite={suite_id}")
+        return schemas.AIGenerateResponse(
+            test_cases=[schemas.AIGeneratedTestCase(**tc) for tc in test_cases],
+            model=message.model,
+        )
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="AI returned invalid JSON; try again")
+    except Exception as e:
+        logger.error(f"AI generation error: {e}")
+        raise HTTPException(status_code=502, detail=f"AI generation failed: {str(e)}")
+
+
+@app.post("/api/suites/{suite_id}/testcases/generate/save")
+async def save_generated_testcases(
+    suite_id: int,
+    payload: List[schemas.AIGeneratedTestCase],
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_admin),
+):
+    """Bulk-save AI-generated test cases to a suite."""
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
+    created = []
+    for tc in payload:
+        obj = models.TestCase(suite_id=suite_id, status="draft", **tc.model_dump())
+        db.add(obj)
+        created.append(obj)
+    db.commit()
+    for obj in created:
+        db.refresh(obj)
+    logger.info(f"Saved {len(created)} AI-generated test cases to suite={suite_id}")
+    return {"saved": len(created)}
+
+
+# ─── Analytics ────────────────────────────────────────────────────────────────
+
+@app.get("/api/projects/{project_id}/analytics", response_model=schemas.ProjectAnalytics)
+def project_analytics(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    suites = db.query(models.TestSuite).filter(models.TestSuite.project_id == project_id).all()
+    suite_ids = [s.id for s in suites]
+
+    # Last 15 runs across all suites, newest first
+    runs = []
+    if suite_ids:
+        runs = db.query(models.TestRun).filter(
+            models.TestRun.suite_id.in_(suite_ids),
+            models.TestRun.completed_at.isnot(None),
+        ).order_by(models.TestRun.created_at.desc()).limit(15).all()
+
+    run_history = []
+    for run in reversed(runs):
+        results = db.query(models.TestResult).filter(models.TestResult.run_id == run.id).all()
+        p = sum(1 for r in results if r.status == "pass")
+        f = sum(1 for r in results if r.status == "fail")
+        s = sum(1 for r in results if r.status == "skip")
+        total = len(results)
+        run_history.append(schemas.RunDataPoint(
+            run_name=run.name,
+            created_at=run.created_at,
+            pass_count=p,
+            fail_count=f,
+            skip_count=s,
+            total=total,
+            pass_rate=round(p / total * 100, 1) if total else 0,
+        ))
+
+    # Suite coverage: active cases vs total per suite
+    suite_coverage = []
+    for suite in suites:
+        total_cases = db.query(models.TestCase).filter(models.TestCase.suite_id == suite.id).count()
+        active_cases = db.query(models.TestCase).filter(
+            models.TestCase.suite_id == suite.id,
+            models.TestCase.status == "active",
+        ).count()
+        suite_coverage.append({
+            "suite_name": suite.name,
+            "total": total_cases,
+            "active": active_cases,
+        })
+
+    return schemas.ProjectAnalytics(
+        project_id=project_id,
+        project_name=project.name,
+        run_history=run_history,
+        suite_coverage=suite_coverage,
+    )
 
 
 # ─── Stats ────────────────────────────────────────────────────────────────────

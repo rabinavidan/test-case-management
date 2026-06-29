@@ -355,6 +355,12 @@ async function router() {
   } else {
     await renderProjects();
   }
+
+  // Tear down WebSocket if we navigated away from a run
+  if (parts[0] !== "run" && _activeRunWs) {
+    _activeRunWs.close();
+    _activeRunWs = null;
+  }
 }
 
 // ─── Breadcrumb ──────────────────────────────────────────────────────────────
@@ -377,7 +383,8 @@ async function loadSidebar() {
   const newProjBtn = document.getElementById("sidebar-new-project-btn");
   if (newProjBtn) newProjBtn.style.display = isAdmin() ? "" : "none";
   try {
-    state.projects = await GET("/api/projects");
+    const _pr = await GET("/api/projects");
+    state.projects = _pr?.items ?? _pr ?? [];
     if (!state.projects.length) {
       ul.innerHTML = `<li class="px-4 py-3 text-sm text-slate-400 italic">No projects yet</li>`;
       return;
@@ -1257,7 +1264,7 @@ async function renderProject(projectId) {
 
   let project, suites, stats;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     project = projects.find(p => p.id === projectId);
     if (!project) throw new Error("Project not found");
     [suites, stats] = await Promise.all([
@@ -1296,11 +1303,18 @@ async function renderProject(projectId) {
           <h1 class="text-2xl font-bold text-slate-800">${escHtml(project.name)}</h1>
           ${project.description ? `<p class="text-slate-500 text-sm mt-1">${escHtml(project.description)}</p>` : ""}
         </div>
-        ${isAdmin() ? `<button onclick="showModal('suite', {projectId: ${projectId}})"
-          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          New Suite
-        </button>` : ""}
+        <div class="flex items-center gap-2">
+          <button onclick="renderAnalytics(${projectId})"
+            class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Analytics
+          </button>
+          ${isAdmin() ? `<button onclick="showModal('suite', {projectId: ${projectId}})"
+            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Suite
+          </button>` : ""}
+        </div>
       </div>
 
       <!-- Stats -->
@@ -1678,7 +1692,7 @@ async function renderSuite(suiteId) {
 
   let suite, testcases, project, runs;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === suiteId);
@@ -1732,6 +1746,11 @@ async function renderSuite(suiteId) {
             class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New Test Case
+          </button>
+          <button onclick="showAIGenerateModal(${suiteId})"
+            class="bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Generate with AI
           </button>` : ""}
         </div>
       </div>
@@ -1889,7 +1908,7 @@ async function renderSuiteTestCases(suiteId) {
 
   let suite, project, testcases;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === suiteId);
@@ -1973,7 +1992,7 @@ async function renderSuiteRuns(suiteId) {
 
   let suite, project, runs;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === suiteId);
@@ -2031,7 +2050,7 @@ async function renderRun(runId) {
   let run, suite = null, project = null;
   try {
     run = await GET(`/api/runs/${runId}`);
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === run.suite_id);
@@ -2123,16 +2142,24 @@ async function renderRun(runId) {
 
       <!-- Results list -->
       <div>
-        <h2 class="text-lg font-semibold text-slate-700 mb-3">Test Cases</h2>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-slate-700">Test Cases</h2>
+          <span id="ws-indicator" class="hidden items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live
+          </span>
+        </div>
         ${!results.length ? `
           <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-slate-400">
             No active test cases were found in this suite when the run was created.
           </div>` : `
-          <div class="space-y-3">
+          <div id="results-list" class="space-y-3">
             ${results.map(r => resultRow(r, runId)).join("")}
           </div>`}
       </div>
     </div>`;
+
+  // Start WebSocket for live collaboration
+  connectRunWebSocket(runId);
 }
 
 function resultRow(r, runId) {
@@ -2146,7 +2173,7 @@ function resultRow(r, runId) {
   const s = styles[r.status] || styles.pending;
 
   return `
-    <div class="bg-white rounded-2xl border ${s.border} shadow-sm transition-all">
+    <div class="bg-white rounded-2xl border ${s.border} shadow-sm transition-all" data-tc-id="${tc.id}">
       <div class="p-4 flex items-start gap-3">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap mb-0.5">
@@ -2158,7 +2185,7 @@ function resultRow(r, runId) {
           ${r.executed_at ? `<p class="text-xs text-slate-400 mt-1">Executed ${formatDate(r.executed_at)}</p>` : ""}
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.badge}">${s.label}</span>
+          <span data-status-badge="${r.status}" class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.badge}">${s.label}</span>
           <button
             onclick="showModal('result', {runId: ${runId}, tcId: ${tc.id}, tcTitle: ${escHtml(JSON.stringify(tc.title))}, currentStatus: '${r.status}', currentNotes: ${escHtml(JSON.stringify(r.notes || ''))}})"
             class="px-3 py-1 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 rounded-lg text-xs font-semibold transition-all">
@@ -2904,3 +2931,323 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch { /* ignore — server may be starting up */ }
   }
 });
+
+// ─── WebSocket: Live Run Collaboration ────────────────────────────────────────
+let _activeRunWs = null;
+
+function connectRunWebSocket(runId) {
+  if (_activeRunWs) {
+    _activeRunWs.close();
+    _activeRunWs = null;
+  }
+
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${proto}://${location.host}/ws/runs/${runId}`);
+  _activeRunWs = ws;
+
+  ws.onopen = () => {
+    const ind = document.getElementById("ws-indicator");
+    if (ind) ind.classList.remove("hidden"), ind.classList.add("flex");
+    // Keepalive ping every 25s
+    ws._ping = setInterval(() => { if (ws.readyState === 1) ws.send("ping"); }, 25000);
+  };
+
+  ws.onmessage = (evt) => {
+    if (evt.data === "pong") return;
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === "result_updated") {
+        applyLiveResultUpdate(msg);
+        if (msg.run_completed) {
+          toast(`Run completed by ${msg.updated_by}`, "info");
+        }
+      }
+    } catch { /* ignore malformed */ }
+  };
+
+  ws.onclose = () => {
+    clearInterval(ws._ping);
+    const ind = document.getElementById("ws-indicator");
+    if (ind) ind.classList.add("hidden");
+    _activeRunWs = null;
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function applyLiveResultUpdate(msg) {
+  // Find the result row for this testcase and update its badge
+  const row = document.querySelector(`[data-tc-id="${msg.testcase_id}"]`);
+  if (!row) return;
+  const badge = row.querySelector("[data-status-badge]");
+  if (badge) {
+    const labels = { pass: "Pass", fail: "Fail", skip: "Skip", pending: "Pending" };
+    const colors = {
+      pass:    "bg-emerald-100 text-emerald-700",
+      fail:    "bg-red-100 text-red-700",
+      skip:    "bg-amber-100 text-amber-700",
+      pending: "bg-slate-100 text-slate-500",
+    };
+    badge.className = `px-2 py-0.5 rounded-full text-xs font-semibold ${colors[msg.status] || colors.pending}`;
+    badge.setAttribute("data-status-badge", msg.status);
+    badge.textContent = labels[msg.status] || msg.status;
+  }
+  // Flash the row
+  row.classList.add("ring-2", "ring-blue-400");
+  setTimeout(() => row.classList.remove("ring-2", "ring-blue-400"), 1500);
+  toast(`${msg.updated_by} marked a test as ${msg.status}`, "info");
+}
+
+
+// ─── AI Test Case Generation ──────────────────────────────────────────────────
+function showAIGenerateModal(suiteId) {
+  const title = document.getElementById("modal-title");
+  const body  = document.getElementById("modal-body");
+  const overlay = document.getElementById("modal-overlay");
+  title.textContent = "Generate Test Cases with AI";
+  body.innerHTML = `
+    <div class="space-y-4">
+      <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-sm text-violet-700">
+        Describe the feature or scenario you want to test. Claude AI will generate detailed, actionable test cases.
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Feature Description</label>
+        <textarea id="ai-desc" rows="4" placeholder="e.g. User login with email and password, including error cases for wrong credentials and locked accounts..."
+          class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Number of test cases</label>
+        <select id="ai-count" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+          <option value="3">3</option>
+          <option value="5" selected>5</option>
+          <option value="8">8</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div id="ai-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"></div>
+      <div id="ai-results" class="hidden space-y-3"></div>
+      <div class="flex gap-2 pt-2">
+        <button id="ai-generate-btn" onclick="runAIGenerate(${suiteId})"
+          class="flex-1 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Generate
+        </button>
+        <button onclick="hideModal()" class="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-xl transition-colors">Cancel</button>
+      </div>
+    </div>`;
+  overlay.classList.remove("hidden");
+}
+
+async function runAIGenerate(suiteId) {
+  const desc = document.getElementById("ai-desc")?.value.trim();
+  const count = parseInt(document.getElementById("ai-count")?.value || "5");
+  const errEl = document.getElementById("ai-error");
+  const btn   = document.getElementById("ai-generate-btn");
+  const resultsEl = document.getElementById("ai-results");
+
+  errEl.classList.add("hidden");
+  if (!desc) { errEl.textContent = "Please enter a feature description."; errEl.classList.remove("hidden"); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path fill="currentColor" class="opacity-75" d="M4 12a8 8 0 018-8v8z"/></svg> Generating…`;
+
+  try {
+    const data = await POST(`/api/suites/${suiteId}/testcases/generate`, { feature_description: desc, count });
+    if (!data) throw new Error("No response from server");
+
+    const tcs = data.test_cases || [];
+    resultsEl.classList.remove("hidden");
+    resultsEl.innerHTML = `
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-semibold text-slate-700">${tcs.length} test cases generated <span class="text-xs font-normal text-slate-400">via ${data.model}</span></p>
+        <button onclick="saveAllAITestCases(${suiteId})"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+          Save All
+        </button>
+      </div>
+      ${tcs.map((tc, i) => `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-sm font-semibold text-slate-800">${escHtml(tc.title)}</p>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+              tc.priority === 'critical' ? 'bg-red-100 text-red-700' :
+              tc.priority === 'high'     ? 'bg-orange-100 text-orange-700' :
+              tc.priority === 'medium'   ? 'bg-blue-100 text-blue-700' :
+                                          'bg-slate-100 text-slate-600'
+            }">${tc.priority}</span>
+          </div>
+          <p class="text-xs text-slate-500">${escHtml(tc.description)}</p>
+          ${tc.steps ? `<p class="text-xs text-slate-600 mt-1"><strong>Steps:</strong> ${escHtml(tc.steps)}</p>` : ""}
+          ${tc.expected_result ? `<p class="text-xs text-slate-600"><strong>Expected:</strong> ${escHtml(tc.expected_result)}</p>` : ""}
+        </div>`).join("")}`;
+
+    // Store generated cases for bulk save
+    window._aiGeneratedCases = tcs;
+    window._aiTargetSuiteId  = suiteId;
+
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Regenerate`;
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove("hidden");
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate`;
+  }
+}
+
+async function saveAllAITestCases(suiteId) {
+  const cases = window._aiGeneratedCases;
+  if (!cases || !cases.length) return;
+  try {
+    const result = await api("POST", `/api/suites/${suiteId}/testcases/generate/save`, cases);
+    toast(`${result.saved} test cases saved!`, "success");
+    hideModal();
+    await renderSuite(suiteId);
+  } catch (e) {
+    toast(e.message, "error");
+  }
+}
+
+
+// ─── Analytics Dashboard ──────────────────────────────────────────────────────
+let _analyticsChart = null;
+
+async function renderAnalytics(projectId) {
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  const el = document.getElementById("view-analytics");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+
+  let data;
+  try {
+    data = await GET(`/api/projects/${projectId}/analytics`);
+  } catch (e) {
+    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
+    return;
+  }
+
+  setBreadcrumb([
+    { label: "Projects", href: "projects" },
+    { label: data.project_name, href: `project/${projectId}` },
+    { label: "Analytics", href: `project/${projectId}` },
+  ]);
+
+  const history = data.run_history || [];
+  const coverage = data.suite_coverage || [];
+
+  el.innerHTML = `
+    <div class="fade-in space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Analytics</h1>
+          <p class="text-sm text-slate-500 mt-0.5">${escHtml(data.project_name)}</p>
+        </div>
+        <button onclick="navigate('project/${projectId}')" class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Back
+        </button>
+      </div>
+
+      ${!history.length ? `
+        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center">
+          <p class="text-slate-400 text-sm">No completed runs yet. Execute some test runs to see analytics.</p>
+        </div>` : `
+
+      <!-- Pass rate trend -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-base font-semibold text-slate-700 mb-1">Pass Rate Trend</h2>
+        <p class="text-xs text-slate-400 mb-4">Last ${history.length} completed runs across all suites</p>
+        <div style="position:relative;height:240px">
+          <canvas id="analytics-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Run breakdown table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100">
+          <h2 class="text-base font-semibold text-slate-700">Run History</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 font-medium uppercase tracking-wider">
+              <tr>
+                <th class="px-4 py-3 text-left">Run</th>
+                <th class="px-4 py-3 text-right text-emerald-600">Pass</th>
+                <th class="px-4 py-3 text-right text-red-600">Fail</th>
+                <th class="px-4 py-3 text-right text-amber-600">Skip</th>
+                <th class="px-4 py-3 text-right">Pass Rate</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${history.map(r => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                  <td class="px-4 py-3 font-medium text-slate-800">${escHtml(r.run_name)}</td>
+                  <td class="px-4 py-3 text-right text-emerald-600 font-semibold">${r.pass_count}</td>
+                  <td class="px-4 py-3 text-right text-red-600 font-semibold">${r.fail_count}</td>
+                  <td class="px-4 py-3 text-right text-amber-600 font-semibold">${r.skip_count}</td>
+                  <td class="px-4 py-3 text-right">
+                    <span class="font-bold ${r.pass_rate >= 80 ? 'text-emerald-600' : r.pass_rate >= 50 ? 'text-amber-600' : 'text-red-600'}">${r.pass_rate}%</span>
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Suite coverage -->
+      ${coverage.length ? `
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-base font-semibold text-slate-700 mb-4">Suite Coverage</h2>
+        <div class="space-y-3">
+          ${coverage.map(s => {
+            const pct = s.total ? Math.round(s.active / s.total * 100) : 0;
+            return `
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="font-medium text-slate-700 truncate max-w-[60%]">${escHtml(s.suite_name)}</span>
+                <span class="text-slate-500 flex-shrink-0">${s.active}/${s.total} active (${pct}%)</span>
+              </div>
+              <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500 rounded-full transition-all" style="width:${pct}%"></div>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>` : ""}
+      `}
+    </div>`;
+
+  if (history.length) {
+    if (_analyticsChart) { _analyticsChart.destroy(); _analyticsChart = null; }
+    const ctx = document.getElementById("analytics-chart")?.getContext("2d");
+    if (ctx) {
+      _analyticsChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: history.map(r => r.run_name),
+          datasets: [
+            {
+              label: "Pass Rate %",
+              data: history.map(r => r.pass_rate),
+              borderColor: "#10b981",
+              backgroundColor: "rgba(16,185,129,0.08)",
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: "#10b981",
+              pointRadius: 5,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, max: 100, ticks: { callback: v => v + "%" }, grid: { color: "#f1f5f9" } },
+            x: { grid: { display: false }, ticks: { maxRotation: 30 } },
+          },
+        },
+      });
+    }
+  }
+}
