@@ -48,11 +48,34 @@ e2e/
 │   ├── suites.spec.ts       # Suite CRUD
 │   ├── testcases.spec.ts    # Test case CRUD
 │   ├── runs.spec.ts         # Test run execution
-│   └── api.spec.ts          # API-level tests (no browser)
+│   └── api.spec.ts          # API-level tests (no browser) — includes paginated
+│                            #   response assertions ({items, total, page, total_pages})
+│                            #   and full CRUD flow covering analytics endpoint
 ├── global-setup.ts          # Registers e2e test user and saves auth token
+├── global-teardown.ts       # Deletes leftover test projects by name prefix
 ├── playwright.config.ts
 └── tsconfig.json
 ```
+
+## API pagination
+
+`GET /api/projects` now returns a paginated envelope:
+
+```json
+{ "items": [...], "total": 42, "page": 1, "page_size": 50, "total_pages": 1 }
+```
+
+All tests unwrap `.items` before filtering or asserting length.
+Query params: `?page=1&page_size=50&search=keyword`.
+
+## New features covered by tests
+
+| Feature | Where tested |
+|---------|-------------|
+| AI test case generation (`POST /api/suites/{id}/testcases/generate`) | `api.spec.ts` full CRUD flow |
+| WebSocket live updates (`/ws/runs/{run_id}`) | run view in browser tests |
+| Analytics endpoint (`GET /api/projects/{id}/analytics`) | `api.spec.ts` full CRUD flow |
+| Paginated project list | `api.spec.ts`, `projects.spec.ts` |
 
 ## Claude Code – Playwright MCP
 

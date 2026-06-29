@@ -26,11 +26,13 @@ test.describe('API Tests (no browser)', () => {
     await request.delete(`/api/projects/${body.id}`, { headers });
   });
 
-  test('GET /api/projects returns a list', async ({ request }) => {
+  test('GET /api/projects returns a paginated list', async ({ request }) => {
     const res = await request.get('/api/projects', { headers });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
-    expect(Array.isArray(body)).toBeTruthy();
+    expect(Array.isArray(body.items)).toBeTruthy();
+    expect(typeof body.total).toBe('number');
+    expect(typeof body.page).toBe('number');
   });
 
   test('DELETE /api/projects/{id} removes the project', async ({ request }) => {
@@ -43,7 +45,7 @@ test.describe('API Tests (no browser)', () => {
     expect(del.status()).toBe(204);
 
     const get = await request.get('/api/projects', { headers });
-    const list = await get.json();
+    const { items: list } = await get.json();
     expect(list.find((p: { id: number }) => p.id === id)).toBeUndefined();
   });
 
