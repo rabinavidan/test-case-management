@@ -440,8 +440,9 @@ async function loadSidebar() {
     // Admin-only: Users link at bottom of sidebar
     if (isAdmin()) {
       const usersActive = window.location.hash === "#users";
+      document.getElementById("sidebar-admin-section")?.remove();
       ul.insertAdjacentHTML("afterend", `
-        <div class="mt-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div id="sidebar-admin-section" class="mt-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Admin</span>
           </div>
