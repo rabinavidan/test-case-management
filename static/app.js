@@ -530,10 +530,10 @@ async function renderProjects() {
             <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🖥️</div>
             <div class="flex-1 min-w-0">
               <p class="text-xs font-semibold text-blue-800">Vanilla JS SPA</p>
-              <p class="text-[10px] text-blue-500 truncate">static/index.html · static/app.js · Hash routing · Tailwind CSS</p>
+              <p class="text-[10px] text-blue-500 truncate">static/index.html · static/app.js · Hash routing · Tailwind CSS · Chart.js</p>
             </div>
             <div class="flex gap-1.5 flex-wrap justify-end">
-              ${['index.html','app.js','TailwindCSS'].map(t=>`<span class="arch-tag bg-blue-100 text-blue-700">${t}</span>`).join('')}
+              ${['index.html','app.js','TailwindCSS','Chart.js'].map(t=>`<span class="arch-tag bg-blue-100 text-blue-700">${t}</span>`).join('')}
             </div>
           </div>
         </div>
@@ -542,7 +542,7 @@ async function renderProjects() {
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP / REST API</span>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP / REST · WebSocket</span>
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
@@ -555,10 +555,10 @@ async function renderProjects() {
             <div class="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">⚡</div>
             <div class="flex-1 min-w-0">
               <p class="text-xs font-semibold text-violet-800">FastAPI + SQLAlchemy</p>
-              <p class="text-[10px] text-violet-500 truncate">api/main.py · models · schemas · CORS middleware · Pydantic v2</p>
+              <p class="text-[10px] text-violet-500 truncate">api/main.py · models · schemas · CORS · WebSocket · Structured logging · Pydantic v2</p>
             </div>
             <div class="flex gap-1.5 flex-wrap justify-end">
-              ${['FastAPI','SQLAlchemy','Pydantic'].map(t=>`<span class="arch-tag bg-violet-100 text-violet-700">${t}</span>`).join('')}
+              ${['FastAPI','SQLAlchemy','WebSocket','Pydantic'].map(t=>`<span class="arch-tag bg-violet-100 text-violet-700">${t}</span>`).join('')}
             </div>
           </div>
         </div>
@@ -572,6 +572,22 @@ async function renderProjects() {
           </div>
         </div>
         <!-- Row 3: Database -->
+        <!-- Row AI: Claude / Anthropic -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:290ms">
+          <div class="w-24 flex-shrink-0 flex items-center">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AI Layer</span>
+          </div>
+          <div class="flex-1 bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-3 flex items-center gap-3">
+            <div class="w-8 h-8 bg-fuchsia-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🤖</div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-fuchsia-800">Anthropic Claude Haiku</p>
+              <p class="text-[10px] text-fuchsia-500 truncate">AI test case generation · POST /generate · JSON schema output · streaming</p>
+            </div>
+            <div class="flex gap-1.5 flex-wrap justify-end">
+              ${['Claude Haiku','Anthropic SDK','AI Generate'].map(t=>`<span class="arch-tag bg-fuchsia-100 text-fuchsia-700">${t}</span>`).join('')}
+            </div>
+          </div>
+        </div>
         <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:320ms">
           <div class="w-24 flex-shrink-0 flex items-center">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Storage</span>
@@ -665,6 +681,10 @@ async function renderProjects() {
         <!-- Key feature highlights -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           ${[
+            {icon:'🤖', label:'AI Generation',    desc:'Claude Haiku generates test cases from feature descriptions'},
+            {icon:'⚡', label:'Live Collab',      desc:'WebSocket real-time run updates across all tabs'},
+            {icon:'📈', label:'Analytics',        desc:'Chart.js pass-rate trends & suite coverage'},
+            {icon:'🐳', label:'Docker Ready',     desc:'Docker Compose + Postgres 16 one-command setup'},
             {icon:'🔍', label:'Filter & Search',  desc:'Find projects and cases instantly'},
             {icon:'🏷️', label:'Priority Levels',  desc:'Critical · High · Medium · Low'},
             {icon:'📝', label:'Run Notes',        desc:'Add comments per test result'},
