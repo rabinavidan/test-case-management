@@ -198,17 +198,17 @@ async function submitTestCase(suiteId) {
 function buildEditTestCaseModal(title, body, tc) {
   title.textContent = "Edit Test Case";
   body.innerHTML = `
-    ${field("Title *", `<input id="f-title" class="${inputCls}" value="${escHtml(tc.title)}" />`)}
-    ${field("Description", `<textarea id="f-desc" class="${textareaCls}" rows="2">${escHtml(tc.description || "")}</textarea>`)}
-    ${field("Steps", `<textarea id="f-steps" class="${textareaCls}" rows="4">${escHtml(tc.steps || "")}</textarea>`)}
-    ${field("Expected Result", `<textarea id="f-expected" class="${textareaCls}" rows="2">${escHtml(tc.expected_result || "")}</textarea>`)}
+    ${field("Title *", `<input id="f-title" data-testid="f-title" class="${inputCls}" value="${escHtml(tc.title)}" />`)}
+    ${field("Description", `<textarea id="f-desc" data-testid="f-desc" class="${textareaCls}" rows="2">${escHtml(tc.description || "")}</textarea>`)}
+    ${field("Steps", `<textarea id="f-steps" data-testid="f-steps" class="${textareaCls}" rows="4">${escHtml(tc.steps || "")}</textarea>`)}
+    ${field("Expected Result", `<textarea id="f-expected" data-testid="f-expected" class="${textareaCls}" rows="2">${escHtml(tc.expected_result || "")}</textarea>`)}
     <div class="grid grid-cols-2 gap-4">
-      ${field("Status", `<select id="f-status" class="${inputCls}">
+      ${field("Status", `<select id="f-status" data-testid="f-status" class="${inputCls}">
         <option value="draft" ${tc.status === "draft" ? "selected" : ""}>Draft</option>
         <option value="active" ${tc.status === "active" ? "selected" : ""}>Active</option>
         <option value="deprecated" ${tc.status === "deprecated" ? "selected" : ""}>Deprecated</option>
       </select>`)}
-      ${field("Priority", `<select id="f-priority" class="${inputCls}">
+      ${field("Priority", `<select id="f-priority" data-testid="f-priority" class="${inputCls}">
         <option value="low" ${tc.priority === "low" ? "selected" : ""}>Low</option>
         <option value="medium" ${tc.priority === "medium" ? "selected" : ""}>Medium</option>
         <option value="high" ${tc.priority === "high" ? "selected" : ""}>High</option>
@@ -216,8 +216,8 @@ function buildEditTestCaseModal(title, body, tc) {
       </select>`)}
     </div>
     <div class="flex justify-end gap-2 mt-2">
-      <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
-      <button onclick="submitEditTestCase(${tc.id}, ${tc.suite_id})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Save Changes</button>
+      <button data-testid="modal-cancel-btn" onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+      <button data-testid="modal-submit-btn" onclick="submitEditTestCase(${tc.id}, ${tc.suite_id})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Save Changes</button>
     </div>`;
 }
 
@@ -600,7 +600,7 @@ async function renderProjects() {
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🧪</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Tests</p>
-                <p class="text-[10px] text-slate-500">pytest + Playwright POM · 20 API · 16 E2E</p>
+                <p class="text-[10px] text-slate-500">pytest + Playwright POM · MCP browser tools · 20 API · 16 E2E</p>
               </div>
             </div>
           </div>
@@ -878,7 +878,7 @@ async function renderProjects() {
         ${archDiagram}
         ${demoBanner}
         ${techStackBanner}
-        <div class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>

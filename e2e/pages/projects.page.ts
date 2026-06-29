@@ -45,7 +45,7 @@ export class ProjectsPage extends BasePage {
   }
 
   getProjectCards(): Locator {
-    return this.page.locator('[data-testid="project-card"], .project-card, .card').filter({ hasText: /./  });
+    return this.page.locator('[data-testid^="project-row-"]').filter({ hasText: /./ });
   }
 
   async deleteProject(name: string): Promise<void> {

@@ -47,7 +47,7 @@ export class ProjectPage extends BasePage {
   }
 
   getSuiteCards(): Locator {
-    return this.page.locator('[data-testid="suite-card"], .suite-card, .card').filter({ hasText: /./ });
+    return this.page.locator('[data-testid^="suite-card-"]').filter({ hasText: /./ });
   }
 
   async getStats(): Promise<{ suites: number; cases: number; runs: number }> {
