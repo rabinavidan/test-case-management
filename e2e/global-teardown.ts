@@ -39,7 +39,7 @@ async function globalTeardown() {
       return;
     }
 
-    const projects: Array<{ id: number; name: string }> = await res.json();
+    const { items: projects }: { items: Array<{ id: number; name: string }> } = await res.json();
     const toDelete = projects.filter(p =>
       TEST_NAME_PREFIXES.some(prefix => p.name.startsWith(prefix))
     );
