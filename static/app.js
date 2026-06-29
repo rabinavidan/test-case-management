@@ -1172,6 +1172,7 @@ async function renderProject(projectId) {
   }
 
   state.currentProject = project;
+  _selectedSuites.clear();
   await loadSidebar();
 
   setBreadcrumb([
@@ -1275,7 +1276,17 @@ async function renderProject(projectId) {
 
       <!-- Suites list -->
       <div>
-        <h2 class="text-lg font-semibold text-slate-700 mb-3">Test Suites</h2>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-slate-700">Test Suites</h2>
+          ${isAdmin() ? `<div id="suite-bulk-toolbar" class="hidden items-center gap-2">
+            <span id="suite-bulk-count" class="text-sm text-slate-600 font-medium"></span>
+            <button onclick="bulkDeleteSuites(${projectId})" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Remove Selected
+            </button>
+            <button onclick="clearSuiteSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+          </div>` : ""}
+        </div>
         ${!suites.length ? `
           <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
             <p class="text-slate-400 mb-3">No test suites yet.</p>
@@ -1422,9 +1433,13 @@ async function loadTestReport(suites) {
 
 function suiteCard(s, projectId) {
   return `
-    <div data-testid="suite-card-${s.id}" onclick="navigate('suite/${s.id}')"
+    <div id="scard-${s.id}" data-testid="suite-card-${s.id}" onclick="handleSuiteCardClick(event, ${s.id})"
       class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group">
       <div class="p-4 flex items-center gap-4">
+        ${isAdmin() ? `<div onclick="event.stopPropagation()" class="flex-shrink-0">
+          <input type="checkbox" id="scheck-${s.id}" onchange="toggleSuiteSelect(${s.id}, this.checked)"
+            class="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer accent-indigo-600" />
+        </div>` : ""}
         <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -1501,6 +1516,62 @@ async function deleteSuite(suiteId, projectId) {
   } catch (e) { toast(e.message, "error"); }
 }
 
+const _selectedSuites = new Set();
+
+function handleSuiteCardClick(event, id) {
+  if (_selectedSuites.size > 0) {
+    toggleSuiteSelect(id, !_selectedSuites.has(id));
+  } else {
+    navigate(`suite/${id}`);
+  }
+}
+
+function toggleSuiteSelect(id, checked) {
+  const card = document.getElementById(`scard-${id}`);
+  const cb = document.getElementById(`scheck-${id}`);
+  if (checked) {
+    _selectedSuites.add(id);
+    if (card) card.classList.add("ring-2", "ring-inset", "ring-indigo-300", "bg-indigo-50");
+    if (cb) cb.checked = true;
+  } else {
+    _selectedSuites.delete(id);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-indigo-300", "bg-indigo-50");
+    if (cb) cb.checked = false;
+  }
+  const toolbar = document.getElementById("suite-bulk-toolbar");
+  const countEl = document.getElementById("suite-bulk-count");
+  if (_selectedSuites.size > 0) {
+    if (toolbar) { toolbar.classList.remove("hidden"); toolbar.classList.add("flex"); }
+    if (countEl) countEl.textContent = `${_selectedSuites.size} selected`;
+  } else {
+    if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+  }
+}
+
+function clearSuiteSelection() {
+  [..._selectedSuites].forEach(id => {
+    const card = document.getElementById(`scard-${id}`);
+    const cb = document.getElementById(`scheck-${id}`);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-indigo-300", "bg-indigo-50");
+    if (cb) cb.checked = false;
+  });
+  _selectedSuites.clear();
+  const toolbar = document.getElementById("suite-bulk-toolbar");
+  if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+}
+
+async function bulkDeleteSuites(projectId) {
+  const ids = [..._selectedSuites];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} suite${ids.length > 1 ? "s" : ""} and all their test cases?`)) return;
+  try {
+    await Promise.all(ids.map(id => DEL(`/api/suites/${id}`)));
+    toast(`${ids.length} suite${ids.length > 1 ? "s" : ""} deleted`);
+    _selectedSuites.clear();
+    navigate(`project/${projectId}`);
+  } catch (e) { toast(e.message, "error"); }
+}
+
 // ─── Suite View ───────────────────────────────────────────────────────────────
 async function renderSuite(suiteId) {
   const el = document.getElementById("view-suite");
@@ -1528,6 +1599,7 @@ async function renderSuite(suiteId) {
   state.currentSuite = suite;
   state.currentProject = project;
   state.currentView = null;
+  _selectedTestCases.clear();
   await loadSidebar();
 
   setBreadcrumb([
@@ -1582,8 +1654,18 @@ async function renderSuite(suiteId) {
             Add your first test case
           </button>
         </div>` : `
-        <div class="space-y-3">
-          ${testcases.map(tc => testCaseCard(tc)).join("")}
+        <div>
+          ${isAdmin() ? `<div id="tc-bulk-toolbar" class="hidden items-center gap-2 mb-3">
+            <span id="tc-bulk-count" class="text-sm text-slate-600 font-medium"></span>
+            <button onclick="bulkDeleteTestCases(${suiteId})" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Remove Selected
+            </button>
+            <button onclick="clearTestCaseSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+          </div>` : ""}
+          <div class="space-y-3">
+            ${testcases.map(tc => testCaseCard(tc)).join("")}
+          </div>
         </div>`}
 
       <!-- Runs history -->
@@ -1603,7 +1685,7 @@ async function renderSuite(suiteId) {
 function testCaseCard(tc) {
   const tcJson = JSON.stringify(tc).replace(/\\/g, "\\\\").replace(/"/g, "&quot;");
   return `
-    <div data-testid="testcase-card-${tc.id}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+    <div id="tccard-${tc.id}" data-testid="testcase-card-${tc.id}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
       <div class="p-4">
         <div class="flex items-start gap-3">
           <div class="flex-1 min-w-0">
@@ -1627,6 +1709,8 @@ function testCaseCard(tc) {
           </div>
           <div class="flex items-center gap-1 flex-shrink-0 ml-2">
             ${isAdmin() ? `
+            <input type="checkbox" id="tccheck-${tc.id}" onchange="toggleTestCaseSelect(${tc.id}, this.checked)"
+              class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600 mr-1" />
             <button data-testid="edit-testcase-${tc.id}" onclick='showModal("editTestCase", JSON.parse(this.dataset.tc))'
               data-tc="${tcJson}"
               class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
@@ -1647,6 +1731,54 @@ async function deleteTestCase(tcId, suiteId) {
   try {
     await DEL(`/api/testcases/${tcId}`);
     toast("Test case deleted");
+    navigate(`suite/${suiteId}`);
+  } catch (e) { toast(e.message, "error"); }
+}
+
+const _selectedTestCases = new Set();
+
+function toggleTestCaseSelect(id, checked) {
+  const card = document.getElementById(`tccard-${id}`);
+  const cb = document.getElementById(`tccheck-${id}`);
+  if (checked) {
+    _selectedTestCases.add(id);
+    if (card) card.classList.add("ring-2", "ring-inset", "ring-blue-300", "bg-blue-50");
+    if (cb) cb.checked = true;
+  } else {
+    _selectedTestCases.delete(id);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-blue-300", "bg-blue-50");
+    if (cb) cb.checked = false;
+  }
+  const toolbar = document.getElementById("tc-bulk-toolbar");
+  const countEl = document.getElementById("tc-bulk-count");
+  if (_selectedTestCases.size > 0) {
+    if (toolbar) { toolbar.classList.remove("hidden"); toolbar.classList.add("flex"); }
+    if (countEl) countEl.textContent = `${_selectedTestCases.size} selected`;
+  } else {
+    if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+  }
+}
+
+function clearTestCaseSelection() {
+  [..._selectedTestCases].forEach(id => {
+    const card = document.getElementById(`tccard-${id}`);
+    const cb = document.getElementById(`tccheck-${id}`);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-blue-300", "bg-blue-50");
+    if (cb) cb.checked = false;
+  });
+  _selectedTestCases.clear();
+  const toolbar = document.getElementById("tc-bulk-toolbar");
+  if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+}
+
+async function bulkDeleteTestCases(suiteId) {
+  const ids = [..._selectedTestCases];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} test case${ids.length > 1 ? "s" : ""}?`)) return;
+  try {
+    await Promise.all(ids.map(id => DEL(`/api/testcases/${id}`)));
+    toast(`${ids.length} test case${ids.length > 1 ? "s" : ""} deleted`);
+    _selectedTestCases.clear();
     navigate(`suite/${suiteId}`);
   } catch (e) { toast(e.message, "error"); }
 }
@@ -1675,6 +1807,7 @@ async function renderSuiteTestCases(suiteId) {
   state.currentSuite = suite;
   state.currentProject = project;
   state.currentView = `suite-cases-${suiteId}`;
+  _selectedTestCases.clear();
   await loadSidebar();
 
   setBreadcrumb([
@@ -1718,8 +1851,18 @@ async function renderSuiteTestCases(suiteId) {
             Add your first test case
           </button>
         </div>` : `
-        <div class="space-y-3">
-          ${testcases.map(tc => testCaseCard(tc)).join("")}
+        <div>
+          ${isAdmin() ? `<div id="tc-bulk-toolbar" class="hidden items-center gap-2 mb-3">
+            <span id="tc-bulk-count" class="text-sm text-slate-600 font-medium"></span>
+            <button onclick="bulkDeleteTestCases(${suiteId})" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Remove Selected
+            </button>
+            <button onclick="clearTestCaseSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+          </div>` : ""}
+          <div class="space-y-3">
+            ${testcases.map(tc => testCaseCard(tc)).join("")}
+          </div>
         </div>`}
     </div>`;
 }
