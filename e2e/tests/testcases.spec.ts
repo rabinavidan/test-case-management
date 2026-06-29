@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/auth.fixture';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SuitePage } from '../pages/suite.page';

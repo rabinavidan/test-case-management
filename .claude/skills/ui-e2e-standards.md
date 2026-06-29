@@ -312,6 +312,21 @@ apps/salesOS/
 
 ---
 
+## 14. Playwright MCP – Assisted Test Authoring
+
+When writing or debugging E2E tests with Claude Code, use the `playwright` MCP server (configured in `.claude/settings.json`) to inspect the live app before writing selectors or assertions.
+
+**Workflow:**
+1. Start the backend: `uvicorn api.main:app --reload` (from the repo root)
+2. Ask Claude to navigate and snapshot: *"Navigate to http://localhost:8000 and give me a snapshot of the projects page"*
+3. Use the snapshot to find the right `data-testid` or ARIA role for your locator
+4. Ask Claude to screenshot after an action to verify state
+
+**Rules:**
+- Use MCP snapshots to discover locators — do not guess selectors
+- Do not commit tests whose selectors were written without verifying the element exists in a snapshot or screenshot
+- MCP tools are for authoring time only; they are not used during `npm test` runs
+
 ## Compliance Checklist
 
 Before committing a UI E2E test, verify:

@@ -54,6 +54,24 @@ e2e/
 └── tsconfig.json
 ```
 
+## Claude Code – Playwright MCP
+
+This project includes a [Playwright MCP](https://github.com/microsoft/playwright-mcp) server configured for Claude Code (`.claude/settings.json`). When you open a Claude Code session in the repo root, the `playwright` MCP server starts automatically and gives Claude live browser tools:
+
+| Tool | What it does |
+|------|-------------|
+| `browser_navigate` | Open any URL in a headless Chromium |
+| `browser_snapshot` | Get an accessibility snapshot of the current page |
+| `browser_screenshot` | Capture a screenshot |
+| `browser_click` / `browser_type` | Interact with elements |
+
+**Typical use cases:**
+- Ask Claude to navigate to `http://localhost:8000` and verify UI state before writing a test
+- Let Claude take a screenshot to confirm a selector exists
+- Use Claude to draft a new page object by inspecting the live app
+
+The MCP server uses the Chromium pre-installed in the Claude Code remote environment (`/opt/pw-browsers/chromium`) and runs headless. To verify the server is active run `/mcp` inside a Claude Code session.
+
 ## CI
 
 The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, and uploads the HTML report as an artifact.

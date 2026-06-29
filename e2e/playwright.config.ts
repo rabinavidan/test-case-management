@@ -9,8 +9,8 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || 'http://localhost:8000',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    // Capture all console output (log.*) so it appears in the HTML report
     trace: 'retain-on-failure',
+    testIdAttribute: 'data-testid',
   },
   globalSetup: './global-setup.ts',
   projects: [
