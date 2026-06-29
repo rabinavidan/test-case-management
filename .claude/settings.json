@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "e2e/node_modules/.bin/playwright-mcp",
+      "args": [
+        "--browser", "chromium",
+        "--executable-path", "/opt/pw-browsers/chromium",
+        "--headless",
+        "--viewport-size", "1280x720",
+        "--caps", "vision"
+      ]
+    }
+  }
+}
