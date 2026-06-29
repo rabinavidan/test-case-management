@@ -56,7 +56,7 @@ def cleanup_leaked_projects(api: APIRequestContext, auth_headers: dict):
         r = api.get("/api/projects", headers=auth_headers)
         if not r.ok:
             return
-        for p in r.json():
+        for p in r.json().get("items", []):
             if any(p.get("name", "").startswith(prefix) for prefix in _LEAKED_NAMES):
                 api.delete(f"/api/projects/{p['id']}", headers=auth_headers)
     except Exception:
@@ -140,7 +140,9 @@ def test_me_without_token_is_401(api: APIRequestContext):
 def test_list_projects_public(api: APIRequestContext):
     r = api.get("/api/projects")
     assert r.status == 200
-    assert isinstance(r.json(), list)
+    body = r.json()
+    assert isinstance(body["items"], list)
+    assert "total" in body
 
 
 def test_create_project_requires_auth(api: APIRequestContext):

@@ -66,7 +66,7 @@ test.describe('Projects', () => {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (res.ok()) {
-        const projects: Array<{ id: number; name: string }> = await res.json();
+        const { items: projects }: { items: Array<{ id: number; name: string }> } = await res.json();
         const created = projects.find((p) => p.name === projectName);
         if (created) createdProjectIds.push(created.id);
       }
