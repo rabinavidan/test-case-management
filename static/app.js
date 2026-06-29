@@ -1207,7 +1207,7 @@ async function renderProjects() {
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
           <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Senior Automation Engineer</p>
-          <h2 class="text-xl sm:text-2xl font-black text-white leading-tight mb-1" style="text-shadow:0 0 32px rgba(0,160,255,.4)">AI-Powered Quality<br>Engineering at Scale.</h2>
+          <h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">AI-Powered Quality<br>Engineering at Scale</h2>
           <p class="text-xs mb-4" style="color:rgba(100,200,255,.7)">Full-Stack AI-Driven Development · ISTQB · MCSD</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
@@ -1252,6 +1252,16 @@ async function renderProjects() {
       .owner-scan { animation: ownerScan 4s ease-in-out infinite; }
       @keyframes ownerScan { 0%{top:0%;opacity:0} 10%{opacity:1} 90%{opacity:.3} 100%{top:100%;opacity:0} }
       .owner-open-badge { animation: openBadgePulse 3s ease-in-out infinite; }
+      .owner-title-flash {
+        background: linear-gradient(90deg,#ffffff,#60a5fa,#a78bfa,#34d399,#fbbf24,#f472b6,#ffffff);
+        background-size: 300% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: ownerTitleShine 3s linear infinite, ownerTitlePulse 1.6s ease-in-out infinite;
+      }
+      @keyframes ownerTitleShine { to { background-position: 300% center; } }
+      @keyframes ownerTitlePulse { 0%,100%{filter:brightness(1) drop-shadow(0 0 8px rgba(96,165,250,.3))} 50%{filter:brightness(1.35) drop-shadow(0 0 20px rgba(167,139,250,.6))} }
       @keyframes openBadgePulse { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} 50%{box-shadow:0 0 10px 2px rgba(52,211,153,.25)} }
       .owner-banner { transition: box-shadow .3s; }
       .owner-banner:hover { box-shadow: 0 8px 40px rgba(0,100,255,.2); }
