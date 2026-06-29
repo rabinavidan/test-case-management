@@ -1,22 +1,15 @@
-import { test, expect } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
+import { test, expect } from '../fixtures/auth.fixture';
 import { SuitePage } from '../pages/suite.page';
 import { RunPage } from '../pages/run.page';
 
-function getToken(): string {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'auth-state.json'), 'utf-8')).token;
-}
 const uid = () => `${Date.now()}`;
 
 test.describe('Test Runs', () => {
-  let token: string;
   let projectId: number;
   let suiteId: number;
 
-  test.beforeEach(async ({ request }) => {
-    token = getToken();
-    const h = { Authorization: `Bearer ${token}` };
+  test.beforeEach(async ({ page, request, authToken }) => {
+    const h = { Authorization: `Bearer ${authToken}` };
 
     const proj = await request.post('/api/projects', { data: { name: `RunProj-${uid()}` }, headers: h });
     projectId = (await proj.json()).id;
@@ -29,20 +22,20 @@ test.describe('Test Runs', () => {
         data: { title, status: 'active', priority: 'medium' }, headers: h,
       });
     }
+
+    await page.goto('/');
+    await page.evaluate((t) => localStorage.setItem('tf_token', t), authToken);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
   });
 
-  test.afterEach(async ({ request }) => {
+  test.afterEach(async ({ request, authToken }) => {
     await request.delete(`/api/projects/${projectId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${authToken}` },
     });
   });
 
   test('can start a test run from a suite', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);
     const runId = await suitePage.startRun(`Run-${uid()}`);
@@ -51,11 +44,6 @@ test.describe('Test Runs', () => {
   });
 
   test('can mark test cases as pass and fail', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);
     const runId = await suitePage.startRun(`Run-${uid()}`);
@@ -71,11 +59,6 @@ test.describe('Test Runs', () => {
   });
 
   test('run summary shows correct counts after all results', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);
     const runId = await suitePage.startRun(`Run-${uid()}`);
@@ -92,11 +75,6 @@ test.describe('Test Runs', () => {
   });
 
   test('all-pass run has no failures or pending', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate((t) => localStorage.setItem('tf_token', t), token);
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
     const suitePage = new SuitePage(page);
     await suitePage.goto(suiteId);
     const runId = await suitePage.startRun(`Run-${uid()}`);

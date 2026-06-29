@@ -1,25 +1,13 @@
-import { test, expect } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
+import { test, expect } from '../fixtures/auth.fixture';
 import { ProjectsPage } from '../pages/projects.page';
 import { ProjectPage } from '../pages/project.page';
-
-function getAuthToken(): string {
-  const authStatePath = path.join(__dirname, '..', 'auth-state.json');
-  const { token } = JSON.parse(fs.readFileSync(authStatePath, 'utf-8'));
-  return token;
-}
 
 function uniqueName(base: string): string {
   return `${base}_${Date.now()}`;
 }
 
 test.describe('Projects', () => {
-  let authToken: string;
-
-  test.beforeEach(async ({ page }) => {
-    authToken = getAuthToken();
-    // Inject auth token into localStorage/sessionStorage so the SPA can use it
+  test.beforeEach(async ({ page, authToken }) => {
     await page.goto('/');
     await page.evaluate((token) => {
       localStorage.setItem('tf_token', token);
@@ -33,12 +21,11 @@ test.describe('Projects', () => {
     });
 
     await test.step('Verify empty state or welcome message', async () => {
-      const hasWelcome = await page.getByText(/welcome to testflow/i).isVisible({ timeout: 5000 }).catch(() => false);
+      const hasWelcome    = await page.getByText(/welcome to testflow/i).isVisible({ timeout: 5000 }).catch(() => false);
       const hasNoProjects = await page.getByText(/no projects/i).isVisible({ timeout: 5000 }).catch(() => false);
       const hasEmptyState = await page.locator('[data-testid="empty-state"], .empty-state').isVisible({ timeout: 5000 }).catch(() => false);
 
       expect(hasWelcome || hasNoProjects || hasEmptyState || true).toBeTruthy();
-      // Page loaded without error
       await expect(page).not.toHaveTitle(/error|404|500/i);
     });
   });
@@ -65,7 +52,7 @@ test.describe('Projects', () => {
     });
   });
 
-  test('can delete a project', async ({ page, request }) => {
+  test('can delete a project', async ({ page, request, authToken }) => {
     const projectName = uniqueName('Delete Me');
     let projectId: number;
 
@@ -94,7 +81,7 @@ test.describe('Projects', () => {
     });
   });
 
-  test('shows project stats after creation', async ({ page, request }) => {
+  test('shows project stats after creation', async ({ page, request, authToken }) => {
     const projectName = uniqueName('Stats Project');
     let projectId: number;
 
@@ -113,11 +100,8 @@ test.describe('Projects', () => {
     });
 
     await test.step('Check stats show zeros', async () => {
-      // Page should load without error
       await expect(page).not.toHaveTitle(/error|404|500/i);
-      // Stats should show 0 or be present
       const pageText = await page.textContent('body');
-      // Just verify the page loaded; stats may be shown in various ways
       expect(pageText).toBeTruthy();
     });
   });

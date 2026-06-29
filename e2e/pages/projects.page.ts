@@ -3,8 +3,17 @@ import { BasePage } from './base.page';
 import { log } from '../logger';
 
 export class ProjectsPage extends BasePage {
+  readonly newProjectBtn: Locator;
+  readonly nameInput:     Locator;
+  readonly descInput:     Locator;
+  readonly submitBtn:     Locator;
+
   constructor(page: Page) {
     super(page);
+    this.newProjectBtn = page.getByTestId('nav-new-btn');
+    this.nameInput     = page.locator('[data-testid="f-name"], #f-name');
+    this.descInput     = page.locator('[data-testid="f-desc"], #f-desc');
+    this.submitBtn     = page.getByTestId('modal-submit-btn');
   }
 
   async goto(): Promise<void> {
@@ -14,21 +23,24 @@ export class ProjectsPage extends BasePage {
 
   async clickNewProject(): Promise<void> {
     log.action('click', 'New Project button');
-    await this.page.locator('[data-testid="nav-new-btn"]').click();
+    await this.newProjectBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
+    await this.newProjectBtn.click();
   }
 
   async fillProjectForm(name: string, desc?: string): Promise<void> {
     log.action('fill', 'project name', name);
-    await this.page.locator('[data-testid="f-name"], #f-name').fill(name);
+    await this.nameInput.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
+    await this.nameInput.fill(name);
     if (desc) {
       log.action('fill', 'description', desc);
-      await this.page.locator('[data-testid="f-desc"], #f-desc').fill(desc);
+      await this.descInput.fill(desc);
     }
   }
 
   async submitProjectForm(): Promise<void> {
     log.action('click', 'Submit project form');
-    await this.page.locator('[data-testid="modal-submit-btn"]').click();
+    await this.submitBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_SHORT });
+    await this.submitBtn.click();
     await this.waitForNetworkIdle();
   }
 
