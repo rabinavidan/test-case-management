@@ -7,11 +7,21 @@ function uniqueName(base: string): string {
 }
 
 test.describe('Projects', () => {
+  const createdProjectIds: number[] = [];
+
   test.beforeEach(async ({ page, authToken }) => {
     await page.goto('/');
     await page.evaluate((token) => {
       localStorage.setItem('tf_token', token);
     }, authToken);
+  });
+
+  test.afterEach(async ({ request, authToken }) => {
+    for (const id of createdProjectIds.splice(0)) {
+      await request.delete(`/api/projects/${id}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      }).catch(() => {});
+    }
   });
 
   test('shows empty state on first load', async ({ page }) => {
@@ -30,7 +40,7 @@ test.describe('Projects', () => {
     });
   });
 
-  test('can create a project', async ({ page }) => {
+  test('can create a project', async ({ page, request, authToken }) => {
     const projectName = uniqueName('Test Project');
     const projectsPage = new ProjectsPage(page);
 
@@ -50,6 +60,17 @@ test.describe('Projects', () => {
     await test.step('Verify project appears in the list', async () => {
       await expect(page.getByText(projectName).first()).toBeVisible({ timeout: 10000 });
     });
+
+    await test.step('Register project for cleanup', async () => {
+      const res = await request.get('/api/projects', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok()) {
+        const projects: Array<{ id: number; name: string }> = await res.json();
+        const created = projects.find((p) => p.name === projectName);
+        if (created) createdProjectIds.push(created.id);
+      }
+    });
   });
 
   test('can delete a project', async ({ page, request, authToken }) => {
@@ -64,6 +85,7 @@ test.describe('Projects', () => {
       expect(res.ok()).toBeTruthy();
       const body = await res.json();
       projectId = body.id || body.data?.id;
+      createdProjectIds.push(projectId);
     });
 
     const projectsPage = new ProjectsPage(page);
@@ -92,6 +114,7 @@ test.describe('Projects', () => {
       });
       const body = await res.json();
       projectId = body.id || body.data?.id;
+      createdProjectIds.push(projectId);
     });
 
     await test.step('Navigate to the project detail page', async () => {
