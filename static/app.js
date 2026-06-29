@@ -622,30 +622,51 @@ async function renderProjects() {
     <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6 overflow-hidden relative">
       <div class="relative z-10">
         <p class="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">How TestFlow works</p>
-        <h2 class="text-white text-lg font-bold mb-4">End-to-end test management pipeline</h2>
-        <!-- Animated pipeline -->
-        <div class="flex items-center gap-2 flex-wrap" id="tf-demo">
+        <h2 class="text-white text-lg font-bold mb-5">End-to-end test management pipeline</h2>
+
+        <!-- Pipeline steps with descriptions -->
+        <div class="flex items-stretch gap-1.5 sm:gap-2 mb-5 overflow-x-auto pb-1" id="tf-demo">
           ${[
-            {icon:'📁', label:'Project',   color:'bg-blue-500',   delay:'0'},
-            {icon:'🗂️', label:'Suite',     color:'bg-indigo-500', delay:'150'},
-            {icon:'✅', label:'Test Case', color:'bg-violet-500', delay:'300'},
-            {icon:'▶️', label:'Run',       color:'bg-purple-500', delay:'450'},
-            {icon:'📊', label:'Results',   color:'bg-emerald-500',delay:'600'},
+            {icon:'📁', label:'Project',   desc:'Organise work into projects — one per app, service or team', color:'bg-blue-500/80',   delay:0},
+            {icon:'🗂️', label:'Suite',     desc:'Group related test cases by feature or user flow',           color:'bg-indigo-500/80', delay:150},
+            {icon:'✅', label:'Test Case', desc:'Define steps, expected result, priority and status',          color:'bg-violet-500/80', delay:300},
+            {icon:'▶️', label:'Run',       desc:'Kick off a run and mark each case pass, fail or skip',        color:'bg-purple-500/80', delay:450},
+            {icon:'📊', label:'Results',   desc:'See pass/fail/skip stats and track quality over time',        color:'bg-emerald-500/80',delay:600},
           ].map((n,i,arr) => `
-            <div class="flex items-center gap-2">
-              <div class="demo-node flex flex-col items-center gap-1 opacity-0" style="animation:demoNodeIn .4s ease forwards;animation-delay:${n.delay}ms">
-                <div class="${n.color} w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-lg demo-pulse" style="animation-delay:${n.delay}ms">
-                  ${n.icon}
+            <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
+              <div class="demo-node opacity-0 flex flex-col gap-2 rounded-xl p-3 w-28 sm:w-32" style="animation:demoNodeIn .4s ease forwards;animation-delay:${n.delay}ms;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15)">
+                <div class="${n.color} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg demo-pulse flex-shrink-0" style="animation-delay:${n.delay}ms">${n.icon}</div>
+                <div>
+                  <p class="text-white text-xs font-bold mb-0.5">${n.label}</p>
+                  <p class="text-[10px] leading-relaxed" style="color:rgba(191,219,254,.75)">${n.desc}</p>
                 </div>
-                <span class="text-white text-xs font-medium">${n.label}</span>
               </div>
-              ${i < arr.length-1 ? `<div class="demo-arrow text-blue-300 text-lg font-bold opacity-0 mb-4" style="animation:demoNodeIn .3s ease forwards;animation-delay:${parseInt(n.delay)+100}ms">→</div>` : ''}
+              ${i < arr.length-1 ? `<div class="demo-arrow self-center text-blue-300/60 text-lg font-bold opacity-0 flex-shrink-0" style="animation:demoNodeIn .3s ease forwards;animation-delay:${n.delay+100}ms">→</div>` : ''}
             </div>
           `).join('')}
         </div>
-        <!-- Animated status bar -->
-        <div class="mt-4 bg-blue-900/40 rounded-lg p-3 flex items-center gap-3">
-          <div class="flex gap-1">
+
+        <!-- Key feature highlights -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          ${[
+            {icon:'🔍', label:'Filter & Search',  desc:'Find projects and cases instantly'},
+            {icon:'🏷️', label:'Priority Levels',  desc:'Critical · High · Medium · Low'},
+            {icon:'📝', label:'Run Notes',        desc:'Add comments per test result'},
+            {icon:'🔄', label:'CI / CD Ready',    desc:'GitHub Actions + Playwright E2E'},
+          ].map(f => `
+            <div class="flex items-center gap-2 rounded-xl p-2.5" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
+              <span class="text-base flex-shrink-0">${f.icon}</span>
+              <div class="min-w-0">
+                <p class="text-white text-[10px] font-bold truncate">${f.label}</p>
+                <p class="text-[9px] truncate" style="color:rgba(191,219,254,.6)">${f.desc}</p>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Animated run status bar -->
+        <div class="bg-blue-900/40 rounded-lg p-3 flex items-center gap-3">
+          <div class="flex gap-1 flex-shrink-0">
             <span class="w-2 h-2 rounded-full bg-emerald-400 demo-blink" style="animation-delay:0ms"></span>
             <span class="w-2 h-2 rounded-full bg-emerald-400 demo-blink" style="animation-delay:200ms"></span>
             <span class="w-2 h-2 rounded-full bg-yellow-400 demo-blink" style="animation-delay:400ms"></span>
@@ -655,8 +676,9 @@ async function renderProjects() {
           <div class="flex-1 bg-blue-900/50 rounded-full h-1.5 overflow-hidden">
             <div class="h-full bg-emerald-400 rounded-full demo-bar"></div>
           </div>
-          <span class="text-emerald-300 text-xs font-bold demo-counter">80% pass rate</span>
+          <span class="text-emerald-300 text-xs font-bold demo-counter flex-shrink-0">80% pass rate</span>
         </div>
+
         <!-- Demo buttons -->
         <div class="mt-4 flex items-center gap-3 flex-wrap">
           <button id="demo-seed-btn" onclick="seedAlertsDemo()"
