@@ -7,6 +7,9 @@ import time
 import pytest
 from playwright.sync_api import APIRequestContext, Playwright
 
+# Known test prefixes that should be removed after a CI run
+_LEAKED_NAMES = ("No Auth", "PW Suite Parent", "API PW Project")
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -19,22 +22,45 @@ def api(playwright: Playwright, base_url: str) -> APIRequestContext:
 
 @pytest.fixture(scope="session")
 def auth_headers(api: APIRequestContext) -> dict:
-    """Register a session-scoped test user and return Bearer headers."""
+    """Return Bearer headers for an admin user.
+
+    Tries known stable credentials first so this works against non-empty DBs
+    (where the bootstrap /register endpoint is closed).
+    """
+    # 1. TypeScript E2E test user (created by global-setup.ts on every TS run)
+    for username, password in [
+        ("testuser_e2e", "Test@12345"),
+    ]:
+        r = api.post("/api/auth/login", data={"username": username, "password": password})
+        if r.ok:
+            return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # 2. Fall back to registering a fresh user (only succeeds on empty DBs)
     username = f"apitest_{int(time.time())}"
     r = api.post("/api/auth/register", data={
         "username": username,
         "email": f"{username}@api.test",
         "password": "apipass1",
     })
-    # If user already exists try login
     if r.status == 400:
-        r = api.post("/api/auth/login", data={
-            "username": username,
-            "password": "apipass1",
-        })
+        r = api.post("/api/auth/login", data={"username": username, "password": "apipass1"})
     assert r.ok, r.text()
-    token = r.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_leaked_projects(api: APIRequestContext, auth_headers: dict):
+    """Delete known test-named projects that leak when auth checks regress."""
+    yield
+    try:
+        r = api.get("/api/projects", headers=auth_headers)
+        if not r.ok:
+            return
+        for p in r.json():
+            if any(p.get("name", "").startswith(prefix) for prefix in _LEAKED_NAMES):
+                api.delete(f"/api/projects/{p['id']}", headers=auth_headers)
+    except Exception:
+        pass
 
 
 # ── Auth tests ────────────────────────────────────────────────────────────────
