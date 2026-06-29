@@ -699,108 +699,173 @@ async function renderProjects() {
   `;
 
   const techStackBanner = !getToken() ? `
-    <div class="relative rounded-2xl mb-6 overflow-hidden tech-stack-wrap" style="background:linear-gradient(135deg,#0f0c29,#1a1040,#0d1b3e)">
-      <!-- Animated grid background -->
-      <div class="absolute inset-0 tech-grid-bg pointer-events-none"></div>
+    <div class="relative rounded-2xl mb-6 overflow-hidden" style="background:linear-gradient(135deg,#050d1a,#0a1830,#07122a)">
+      <!-- Grid background -->
+      <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(56,189,248,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.04) 1px,transparent 1px);background-size:32px 32px"></div>
       <!-- Glow orbs -->
-      <div class="absolute -top-16 -left-16 w-64 h-64 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(139,92,246,.25) 0%,transparent 70%)"></div>
-      <div class="absolute -bottom-16 -right-8 w-56 h-56 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(59,130,246,.2) 0%,transparent 70%)"></div>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-32 pointer-events-none" style="background:radial-gradient(ellipse,rgba(168,85,247,.08) 0%,transparent 70%)"></div>
+      <div class="absolute pointer-events-none" style="top:-60px;left:-40px;width:320px;height:320px;background:radial-gradient(circle,rgba(56,189,248,.1) 0%,transparent 65%)"></div>
+      <div class="absolute pointer-events-none" style="bottom:-60px;right:-40px;width:280px;height:280px;background:radial-gradient(circle,rgba(139,92,246,.1) 0%,transparent 65%)"></div>
 
-      <div class="relative z-10 p-6">
+      <div class="relative z-10 p-5 sm:p-6">
         <!-- Header row -->
-        <div class="flex items-start justify-between mb-6 flex-wrap gap-3">
+        <div class="flex items-start justify-between mb-5 flex-wrap gap-3">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[.2em] mb-1" style="color:rgba(167,139,250,.7)">Under the Hood</p>
-            <h2 class="text-xl font-extrabold text-white leading-tight">Technologies &amp; Infrastructure</h2>
+            <p class="text-[11px] font-bold uppercase tracking-[.22em] mb-1" style="color:rgba(56,189,248,.65)">E2E · API · Integration</p>
+            <h2 class="text-lg sm:text-xl font-extrabold text-white">Playwright Test Architecture</h2>
           </div>
-          <!-- AI Vibe Coding badge -->
-          <div class="flex items-center gap-2 px-4 py-2 rounded-full border border-purple-500/40 ai-badge-glow" style="background:rgba(139,92,246,.15)">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-purple-400"></span>
-            </span>
-            <span class="text-xs font-bold" style="background:linear-gradient(90deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Built with AI Vibe Coding</span>
-            <span class="text-sm">✨</span>
-          </div>
-        </div>
-
-        <!-- Cards grid -->
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
-          <!-- Frontend -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:0ms;background:rgba(255,255,255,.05);border:1px solid rgba(96,165,250,.25)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(59,130,246,.3),rgba(99,102,241,.3));border:1px solid rgba(96,165,250,.3)">🖥️</div>
-            <div>
-              <p class="text-xs font-bold text-blue-300 mb-2 uppercase tracking-wider">Frontend</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(59,130,246,.15);color:#93c5fd;border-color:rgba(59,130,246,.25)">Vanilla JS</span>
-                <span class="tech-tag-dark" style="background:rgba(59,130,246,.15);color:#93c5fd;border-color:rgba(59,130,246,.25)">Tailwind CSS</span>
-                <span class="tech-tag-dark" style="background:rgba(59,130,246,.15);color:#93c5fd;border-color:rgba(59,130,246,.25)">Hash routing SPA</span>
-              </div>
+          <!-- Stat chips -->
+          <div class="flex gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.25)">
+              <span class="text-sm font-black text-sky-300">16</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(56,189,248,.6)">E2E</span>
             </div>
-          </div>
-          <!-- Backend -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:100ms;background:rgba(255,255,255,.05);border:1px solid rgba(167,139,250,.25)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(139,92,246,.3),rgba(168,85,247,.3));border:1px solid rgba(167,139,250,.3)">⚡</div>
-            <div>
-              <p class="text-xs font-bold text-purple-300 mb-2 uppercase tracking-wider">Backend</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(139,92,246,.15);color:#c4b5fd;border-color:rgba(139,92,246,.25)">FastAPI</span>
-                <span class="tech-tag-dark" style="background:rgba(139,92,246,.15);color:#c4b5fd;border-color:rgba(139,92,246,.25)">SQLAlchemy</span>
-                <span class="tech-tag-dark" style="background:rgba(139,92,246,.15);color:#c4b5fd;border-color:rgba(139,92,246,.25)">Pydantic v2</span>
-              </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25)">
+              <span class="text-sm font-black text-violet-300">20</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(139,92,246,.6)">API</span>
             </div>
-          </div>
-          <!-- Database -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:200ms;background:rgba(255,255,255,.05);border:1px solid rgba(52,211,153,.25)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(16,185,129,.3),rgba(52,211,153,.3));border:1px solid rgba(52,211,153,.3)">🗄️</div>
-            <div>
-              <p class="text-xs font-bold text-emerald-300 mb-2 uppercase tracking-wider">Database</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(52,211,153,.25)">PostgreSQL · Neon</span>
-                <span class="tech-tag-dark" style="background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(52,211,153,.25)">SQLite (local dev)</span>
-                <span class="tech-tag-dark" style="background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(52,211,153,.25)">JWT Auth (HS256)</span>
-              </div>
-            </div>
-          </div>
-          <!-- Infrastructure -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:300ms;background:rgba(255,255,255,.05);border:1px solid rgba(251,191,36,.2)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(234,179,8,.25),rgba(251,191,36,.2));border:1px solid rgba(251,191,36,.25)">▲</div>
-            <div>
-              <p class="text-xs font-bold text-yellow-300 mb-2 uppercase tracking-wider">Infrastructure</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">Vercel · Serverless</span>
-                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">GitHub Actions CI</span>
-                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">PW E2E + API Tests</span>
-              </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25)">
+              <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+              <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Live CI</span>
             </div>
           </div>
         </div>
 
-        <!-- Bottom AI attribution strip -->
-        <div class="flex items-center gap-3 pt-4 border-t border-white/10 flex-wrap">
-          <div class="flex items-center gap-2 opacity-0" style="animation:techCardIn .5s ease forwards;animation-delay:450ms">
-            <span class="text-lg">🤖</span>
-            <p class="text-xs" style="color:rgba(255,255,255,.45)">100% built via <span class="font-bold" style="color:rgba(192,132,252,.8)">AI vibe coding</span> — every line of code, test, and deployment pipeline generated with Claude.</p>
+        <!-- Layer 1: Test Specs -->
+        <div class="mb-1">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[9px] font-bold uppercase tracking-[.2em]" style="color:rgba(56,189,248,.5)">Test Specs</span>
+            <div class="flex-1 h-px" style="background:rgba(56,189,248,.12)"></div>
+            <span class="text-[9px] font-mono" style="color:rgba(255,255,255,.2)">e2e/tests/</span>
           </div>
-          <div class="ml-auto flex items-center gap-2 opacity-0" style="animation:techCardIn .5s ease forwards;animation-delay:550ms">
-            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3)">36 API + E2E tests</span>
-            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3)">Serverless deploy</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            ${[
+              {icon:'📁', name:'projects',  count:'4 tests',  delay:0},
+              {icon:'🗂️', name:'suites',    count:'4 tests',  delay:70},
+              {icon:'✅', name:'testcases', count:'4 tests',  delay:140},
+              {icon:'▶️', name:'runs',      count:'4 tests',  delay:210},
+            ].map(s => `
+              <div class="rounded-xl p-2.5 flex items-center gap-2.5 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${s.delay}ms;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.18)">
+                <span class="text-base">${s.icon}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-[11px] font-semibold text-sky-200 truncate">${s.name}.spec.ts</p>
+                  <p class="text-[9px]" style="color:rgba(56,189,248,.45)">${s.count}</p>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Connector A -->
+        <div class="flex justify-around items-center py-1 opacity-0" style="animation:pwArchIn .3s ease forwards;animation-delay:300ms">
+          ${[0, 250, 500].map(d => `
+            <div class="flex flex-col items-center gap-0.5">
+              <div class="w-px h-3" style="background:rgba(139,92,246,.3)"></div>
+              <div class="w-1.5 h-1.5 rounded-full pw-arch-dot" style="background:rgba(139,92,246,.8);animation-delay:${d}ms"></div>
+              <div class="w-px h-3" style="background:rgba(139,92,246,.3)"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Layer 2: POM / Auth Fixture / API Client -->
+        <div class="grid grid-cols-3 gap-2 mb-1 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:350ms">
+          <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(139,92,246,.09);border:1px solid rgba(139,92,246,.22)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(139,92,246,.25)">📄</div>
+              <p class="text-[10px] font-bold text-violet-300">Page Objects</p>
+            </div>
+            <p class="text-[9px] leading-relaxed" style="color:rgba(139,92,246,.6)">BasePage · ProjectsPage · SuitePage · RunPage</p>
+            <p class="text-[9px]" style="color:rgba(139,92,246,.4)">locators · waitFor · POM pattern</p>
+          </div>
+          <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(99,102,241,.09);border:1px solid rgba(99,102,241,.22)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(99,102,241,.25)">🔑</div>
+              <p class="text-[10px] font-bold text-indigo-300">Auth Fixture</p>
+            </div>
+            <p class="text-[9px] leading-relaxed" style="color:rgba(99,102,241,.6)">authToken · authedRequest · JWT</p>
+            <p class="text-[9px]" style="color:rgba(99,102,241,.4)">beforeEach · afterEach cleanup</p>
+          </div>
+          <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(20,184,166,.2)">🌐</div>
+              <p class="text-[10px] font-bold text-teal-300">API Client</p>
+            </div>
+            <p class="text-[9px] leading-relaxed" style="color:rgba(20,184,166,.55)">request fixture · REST calls</p>
+            <p class="text-[9px]" style="color:rgba(20,184,166,.35)">/api/projects · /api/runs</p>
+          </div>
+        </div>
+
+        <!-- Connector B -->
+        <div class="flex justify-around items-center py-1 opacity-0" style="animation:pwArchIn .3s ease forwards;animation-delay:500ms">
+          ${[100, 400].map(d => `
+            <div class="flex flex-col items-center gap-0.5">
+              <div class="w-px h-3" style="background:rgba(16,185,129,.3)"></div>
+              <div class="w-1.5 h-1.5 rounded-full pw-arch-dot" style="background:rgba(16,185,129,.8);animation-delay:${d}ms"></div>
+              <div class="w-px h-3" style="background:rgba(16,185,129,.3)"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Layer 3: Playwright Browser + MCP -->
+        <div class="grid grid-cols-2 gap-2 mb-1 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:550ms">
+          <div class="rounded-xl p-3 flex items-center gap-3" style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2)">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(16,185,129,.2)">🎭</div>
+            <div class="min-w-0">
+              <p class="text-[11px] font-bold text-emerald-300">Playwright Browser</p>
+              <p class="text-[9px] truncate" style="color:rgba(16,185,129,.5)">Chromium · headless · locators · assertions</p>
+            </div>
+          </div>
+          <div class="rounded-xl p-3 flex items-center gap-3" style="background:rgba(124,58,237,.09);border:1px solid rgba(124,58,237,.22)">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(124,58,237,.2)">🤖</div>
+            <div class="min-w-0">
+              <p class="text-[11px] font-bold text-violet-300">MCP Browser Tools</p>
+              <p class="text-[9px] truncate" style="color:rgba(124,58,237,.55)">browser_navigate · snapshot · click · AI-assisted</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector C -->
+        <div class="flex justify-center items-center py-1 opacity-0" style="animation:pwArchIn .3s ease forwards;animation-delay:680ms">
+          <div class="flex flex-col items-center gap-0.5">
+            <div class="w-px h-3" style="background:rgba(251,191,36,.3)"></div>
+            <div class="w-1.5 h-1.5 rounded-full pw-arch-dot" style="background:rgba(251,191,36,.9);animation-delay:200ms"></div>
+            <div class="w-px h-3" style="background:rgba(251,191,36,.3)"></div>
+          </div>
+        </div>
+
+        <!-- Layer 4: App Under Test -->
+        <div class="rounded-xl p-3 flex items-center gap-3 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:720ms;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.18)">
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(251,191,36,.15)">🧪</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-[11px] font-bold text-yellow-200">TestFlow SPA — App Under Test</p>
+            <p class="text-[9px]" style="color:rgba(251,191,36,.5)">Projects · Suites · Test Cases · Runs · FastAPI · PostgreSQL</p>
+          </div>
+          <!-- Animated test result dots -->
+          <div class="flex gap-1 flex-shrink-0">
+            ${['#34d399','#34d399','#34d399','#fbbf24','#34d399'].map((c,i) => `<span class="w-2 h-2 rounded-full pw-arch-res" style="background:${c};animation-delay:${i*280}ms"></span>`).join('')}
+          </div>
+        </div>
+
+        <!-- Bottom strip -->
+        <div class="mt-4 pt-4 flex items-center justify-between flex-wrap gap-3 opacity-0" style="animation:pwArchIn .4s ease forwards;animation-delay:900ms;border-top:1px solid rgba(255,255,255,.07)">
+          <div class="flex items-center gap-2">
+            <span class="text-base">🎭</span>
+            <p class="text-[11px]" style="color:rgba(255,255,255,.4)">
+              <span class="font-semibold" style="color:rgba(56,189,248,.8)">Playwright TypeScript</span> · Page Object Model · Auth Fixtures · MCP Integration
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">TypeScript</span>
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">GitHub Actions CI</span>
           </div>
         </div>
       </div>
     </div>
     <style>
-      @keyframes techCardIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-      .tech-tag-dark { font-size:10px; font-weight:600; padding:3px 9px; border-radius:999px; display:inline-block; border:1px solid transparent; }
-      .tech-card-dark { transition: transform .2s, box-shadow .2s, border-color .2s; }
-      .tech-card-dark:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,0,0,.4); border-color:rgba(255,255,255,.2) !important; }
-      .tech-grid-bg {
-        background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
-        background-size: 40px 40px;
-      }
-      .ai-badge-glow { animation: aiBadgePulse 3s ease-in-out infinite; }
-      @keyframes aiBadgePulse { 0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,0)} 50%{box-shadow:0 0 16px 2px rgba(139,92,246,.3)} }
+      @keyframes pwArchIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      .pw-arch-dot { animation: pwDotPulse 1.6s ease-in-out infinite; }
+      @keyframes pwDotPulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.4)} }
+      .pw-arch-res { animation: pwResPulse 2.2s ease-in-out infinite; }
+      @keyframes pwResPulse { 0%,100%{opacity:.35} 50%{opacity:1} }
     </style>
   ` : "";
 
@@ -862,6 +927,7 @@ async function renderProjects() {
       </div>
     </div>
     <style>
+      @keyframes techCardIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
       .owner-scan { animation: ownerScan 4s ease-in-out infinite; }
       @keyframes ownerScan { 0%{top:0%;opacity:0} 10%{opacity:1} 90%{opacity:.3} 100%{top:100%;opacity:0} }
       .owner-open-badge { animation: openBadgePulse 3s ease-in-out infinite; }
