@@ -67,15 +67,89 @@ jobs:
           sleep 3
 
       - name: Run Playwright tests
-        run: npx playwright test
+        id: pw
+        run: npx playwright test; echo "exit_code=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
         env:
           BASE_URL: ${{ steps.url.outputs.target }}
           CI: true
+
+      - name: Write job summary
+        if: always()
+        working-directory: e2e
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+          const jsonPath = path.join('test-results', 'results.json');
+
+          if (!fs.existsSync(jsonPath)) {
+            fs.appendFileSync(summaryFile, '## ❌ Playwright Report\n\nTest run crashed before producing a report — check the logs.\n');
+            process.exit(0);
+          }
+
+          const r = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+
+          let passed = 0, failed = 0, skipped = 0, flaky = 0, duration = 0;
+          const failures = [];
+
+          for (const suite of r.suites || []) {
+            for (const spec of (suite.specs || [])) {
+              for (const test of (spec.tests || [])) {
+                const status = test.status;
+                const ms = (test.results || []).reduce((a, x) => a + (x.duration || 0), 0);
+                duration += ms;
+                if (status === 'expected') passed++;
+                else if (status === 'unexpected') {
+                  failed++;
+                  const lastResult = (test.results || []).slice(-1)[0] || {};
+                  failures.push({ title: spec.title, file: suite.file || suite.title, error: lastResult.error?.message || '' });
+                } else if (status === 'skipped') skipped++;
+                else if (status === 'flaky') { flaky++; passed++; }
+              }
+            }
+          }
+
+          const total = passed + failed + skipped;
+          const icon = failed === 0 ? '✅' : '❌';
+          const dur = (duration / 1000).toFixed(1);
+
+          const lines = [
+            `## ${icon} Playwright E2E Report`,
+            `| Result | Count |`,
+            `|--------|-------|`,
+            `| ✅ Passed | ${passed} |`,
+            `| ❌ Failed | ${failed} |`,
+            `| ⏭ Skipped | ${skipped} |`,
+            `| 🔁 Flaky  | ${flaky} |`,
+            `| **Total** | **${total}** |`,
+            `| ⏱ Duration | ${dur}s |`,
+            '',
+          ];
+
+          if (failures.length > 0) {
+            lines.push('### Failed Tests');
+            for (const f of failures) {
+              const errSnippet = f.error ? f.error.split('\n').slice(0, 6).join('\n') : 'No error message';
+              lines.push(`<details><summary>❌ <code>${f.title}</code> — ${f.file}</summary>\n\n\`\`\`\n${errSnippet}\n\`\`\`\n</details>`);
+            }
+            lines.push('');
+          }
+
+          fs.appendFileSync(summaryFile, lines.join('\n'));
+          EOF
+
+      - name: Propagate exit code
+        if: always()
+        run: exit ${{ steps.pw.outputs.exit_code }}
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: e2e/playwright-report/
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/results.json
           retention-days: 7

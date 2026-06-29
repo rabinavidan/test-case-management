@@ -997,7 +997,7 @@ async function renderProjects() {
         <!-- Header -->
         <div class="flex items-start justify-between mb-5 flex-wrap gap-3">
           <div>
-            <p class="text-[11px] font-bold uppercase tracking-[.22em] mb-1" style="color:rgba(99,102,241,.7)">Microservice · Event-Driven · Real-time</p>
+            <p class="text-[11px] font-bold uppercase tracking-[.22em] mb-1 sys-arch-label">Microservice · Event-Driven · Real-time</p>
             <h2 class="text-lg sm:text-xl font-extrabold text-white">System Architecture</h2>
           </div>
           <div class="flex gap-2 flex-wrap">
@@ -1177,6 +1177,16 @@ async function renderProjects() {
       @keyframes sysSvcBar { from{width:30%} to{width:90%} }
       .sys-redis-dot { width:6px;height:6px;border-radius:50%;background:#fbbf24;animation:sysRedisPulse 1.2s ease-in-out infinite; }
       @keyframes sysRedisPulse { 0%,100%{opacity:.3;box-shadow:0 0 0 0 rgba(251,191,36,0)} 50%{opacity:1;box-shadow:0 0 0 4px rgba(251,191,36,.2)} }
+      .sys-arch-label {
+        background: linear-gradient(90deg,#818cf8,#f472b6,#34d399,#fbbf24,#818cf8);
+        background-size: 250% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: sysLabelShine 2.8s linear infinite, sysLabelFlash 1.4s ease-in-out infinite;
+      }
+      @keyframes sysLabelShine { to { background-position: 250% center; } }
+      @keyframes sysLabelFlash { 0%,100%{opacity:1;filter:brightness(1)} 50%{opacity:.65;filter:brightness(1.6)} }
     </style>
   ` : "";
 
