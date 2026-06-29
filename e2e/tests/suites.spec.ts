@@ -36,11 +36,8 @@ test.describe('Test Suites', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript((token) => localStorage.setItem('tf_token', token), authToken);
     await page.goto('/');
-    await page.evaluate((token) => {
-      localStorage.setItem('tf_token', token);
-    }, authToken);
-    await page.reload();
     await page.waitForLoadState('networkidle');
   });
 
