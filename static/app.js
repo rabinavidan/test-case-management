@@ -393,6 +393,28 @@ async function loadSidebar() {
     // Build project list; for active project also load its suites
     const items = await Promise.all(state.projects.map(async p => {
       const active = state.currentProject && state.currentProject.id === p.id;
+
+      // Fetch last-run progress bar data
+      let runBarHtml = "";
+      try {
+        const stats = await GET(`/api/projects/${p.id}/stats`);
+        if (stats && (stats.last_run_pass + stats.last_run_fail + stats.last_run_skip) > 0) {
+          const total = stats.last_run_pass + stats.last_run_fail + stats.last_run_skip;
+          const pPct = Math.round(stats.last_run_pass / total * 100);
+          const fPct = Math.round(stats.last_run_fail / total * 100);
+          const sPct = 100 - pPct - fPct;
+          runBarHtml = `
+            <div class="px-4 pb-2">
+              <div class="flex h-1.5 rounded-full overflow-hidden gap-px" title="Pass ${pPct}% · Fail ${fPct}% · Skip ${sPct}%">
+                ${pPct > 0 ? `<div class="bg-emerald-400 rounded-l-full" style="width:${pPct}%"></div>` : ""}
+                ${fPct > 0 ? `<div class="bg-red-400 ${pPct === 0 ? 'rounded-l-full' : ''}" style="width:${fPct}%"></div>` : ""}
+                ${sPct > 0 ? `<div class="bg-slate-300 rounded-r-full flex-1"></div>` : ""}
+              </div>
+              <p class="text-[9px] text-slate-400 mt-0.5">${stats.last_run_pass}✓ ${stats.last_run_fail}✗ ${stats.last_run_skip}– of ${total}</p>
+            </div>`;
+        }
+      } catch {}
+
       let suitesHtml = "";
       if (active) {
         try {
@@ -448,6 +470,7 @@ async function loadSidebar() {
             </svg>
           </button>` : ""}
         </div>
+        ${runBarHtml}
         ${suitesHtml}
       </li>`;
     }));
