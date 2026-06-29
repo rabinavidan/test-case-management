@@ -448,10 +448,12 @@ async function loadSidebar() {
             </svg>
           </button>` : ""}
         </div>
+        <div id="sidebar-pbar-${p.id}" class="px-4 pb-1.5 -mt-0.5"></div>
         ${suitesHtml}
       </li>`;
     }));
     ul.innerHTML = items.join("");
+    loadSidebarProjectStats(state.projects);
 
     // Admin-only: Users link at bottom of sidebar
     if (isAdmin()) {
@@ -479,6 +481,32 @@ async function loadSidebar() {
   } catch {
     ul.innerHTML = `<li class="px-4 py-3 text-sm text-red-400">Failed to load</li>`;
   }
+}
+
+async function loadSidebarProjectStats(projects) {
+  await Promise.all(projects.map(async p => {
+    const bar = document.getElementById(`sidebar-pbar-${p.id}`);
+    if (!bar) return;
+    try {
+      const s = await GET(`/api/projects/${p.id}/stats`);
+      const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
+      if (!total) { bar.innerHTML = ""; return; }
+      const pct = v => Math.round((v / total) * 100);
+      const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
+      const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
+      const labelCls = overall === "fail" ? "text-red-500" : overall === "pending" ? "text-amber-500" : "text-emerald-600";
+      bar.innerHTML = `
+        <div class="flex items-center gap-1.5 mb-0.5">
+          <div class="flex h-1 rounded-full overflow-hidden flex-1 bg-slate-100 gap-px">
+            ${passW ? `<div class="bg-emerald-500 h-full" style="width:${passW}%"></div>` : ""}
+            ${failW ? `<div class="bg-red-500 h-full" style="width:${failW}%"></div>` : ""}
+            ${skipW ? `<div class="bg-amber-400 h-full" style="width:${skipW}%"></div>` : ""}
+            ${pendW ? `<div class="bg-slate-300 h-full" style="width:${pendW}%"></div>` : ""}
+          </div>
+          <span class="text-[9px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
+        </div>`;
+    } catch { bar.innerHTML = ""; }
+  }));
 }
 
 // ─── Projects View ───────────────────────────────────────────────────────────
