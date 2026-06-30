@@ -796,6 +796,14 @@ async function renderProjects() {
             </svg>
             <span id="demo-pw-label">Run Playwright Architecture Demo</span>
           </button>
+          <button id="demo-journey-btn" onclick="openUserJourneyDemo()"
+            class="journey-btn-pulse bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold px-5 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/20 shadow-lg">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>▶ Watch User Journey Demo</span>
+          </button>
         </div>
       </div>
       <!-- Background decoration -->
@@ -811,6 +819,8 @@ async function renderProjects() {
       .demo-bar { animation: demoBar 3s ease-in-out infinite alternate; }
       @keyframes demoBar { from{width:60%} to{width:92%} }
       .demo-counter { animation: demoCounter 3s ease-in-out infinite alternate; }
+      .journey-btn-pulse { animation: journeyBtnPulse 2.2s ease-in-out infinite; }
+      @keyframes journeyBtnPulse { 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5)} 50%{box-shadow:0 0 0 8px rgba(16,185,129,0)} }
     </style>
   `;
 
@@ -2738,6 +2748,188 @@ async function seedPlaywrightDemo() {
     label.textContent = "Run Playwright Architecture Demo";
     btn.classList.remove("opacity-60");
   }
+}
+
+// ─── User Journey Demo (animated, client-side simulation) ────────────────────
+const JOURNEY_STEPS = [
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '🔑', title: 'Admin signs in',
+    desc: 'Authenticates with JWT — role: admin', kind: 'login',
+    data: { name: 'Rabin (Admin)', role: 'admin' } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '📁', title: 'Creates a Project',
+    desc: '"Checkout Service" organizes all related test work', kind: 'create',
+    data: { icon: '📁', entity: 'Project', name: 'Checkout Service', fields: [['Name', 'Checkout Service'], ['Description', 'Payment & checkout coverage']] } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '🗂️', title: 'Creates a Suite',
+    desc: '"Checkout Flow" groups related test cases', kind: 'create',
+    data: { icon: '🗂️', entity: 'Suite', name: 'Checkout Flow', fields: [['Name', 'Checkout Flow'], ['Project', 'Checkout Service']] } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '✅', title: 'Creates a Test Case',
+    desc: '"Apply discount code at checkout" — Priority: High', kind: 'create',
+    data: { icon: '✅', entity: 'Test Case', name: 'Apply discount code at checkout', fields: [['Priority', 'High'], ['Status', 'Active']] } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '👤', title: 'Creates an Executor user',
+    desc: '"jane.tester" — ready to run tests', kind: 'create',
+    data: { icon: '👤', entity: 'User', name: 'jane.tester', fields: [['Role', 'Executor'], ['Email', 'jane@company.com']] } },
+  { actor: 'Executor', avatar: 'J', color: '#8b5cf6', icon: '🔑', title: 'Executor signs in',
+    desc: 'Authenticates with JWT — role: executor', kind: 'login',
+    data: { name: 'Jane Tester', role: 'executor' } },
+  { actor: 'Executor', avatar: 'J', color: '#8b5cf6', icon: '▶️', title: 'Starts a Test Run',
+    desc: '"Sprint 24 Regression" pulls in active test cases', kind: 'create',
+    data: { icon: '▶️', entity: 'Run', name: 'Sprint 24 Regression', fields: [['Suite', 'Checkout Flow'], ['Test cases', '1 active']] } },
+  { actor: 'Executor', avatar: 'J', color: '#8b5cf6', icon: '📊', title: 'Marks results & sees status',
+    desc: 'Pass / fail — live progress updates instantly', kind: 'run' },
+];
+
+let _journeyIndex = 0;
+let _journeyTimer = null;
+let _journeyPlaying = true;
+
+function ensureJourneyStyles() {
+  if (document.getElementById("journey-style")) return;
+  const style = document.createElement("style");
+  style.id = "journey-style";
+  style.textContent = `
+    @keyframes journeyBarFill { from{width:0%} to{width:100%} }
+    @keyframes journeyFadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .journey-fade-in { opacity:0; animation:journeyFadeIn .4s ease forwards; }
+  `;
+  document.head.appendChild(style);
+}
+
+function journeySceneHTML(step) {
+  if (step.kind === 'login') {
+    return `
+      <div class="flex flex-col items-center justify-center h-full gap-3">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style="background:${step.color}">${step.data.name[0]}</div>
+        <p class="text-sm font-bold text-slate-700">${step.data.name}</p>
+        <span class="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full" style="background:${step.color}1a;color:${step.color}">${step.data.role}</span>
+        <div class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold mt-1 journey-fade-in" style="animation-delay:.6s">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          JWT issued
+        </div>
+      </div>`;
+  }
+  if (step.kind === 'create') {
+    return `
+      <div class="flex flex-col items-center justify-center h-full gap-3 w-full max-w-xs mx-auto">
+        <div class="w-full rounded-xl border border-slate-200 bg-white shadow-sm p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg">${step.data.icon}</span>
+            <p class="text-xs font-bold text-slate-700">New ${step.data.entity}</p>
+          </div>
+          ${step.data.fields.map(([l, v], i) => `
+            <div class="mb-1.5 journey-fade-in" style="animation-delay:${.15 + i * .15}s">
+              <p class="text-[9px] font-semibold text-slate-400 uppercase">${l}</p>
+              <p class="text-xs text-slate-700 border border-slate-200 rounded-md px-2 py-1 bg-slate-50 truncate">${v}</p>
+            </div>
+          `).join('')}
+        </div>
+        <div class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold journey-fade-in" style="animation-delay:${.15 + step.data.fields.length * .15 + .2}s">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          "${step.data.name}" created
+        </div>
+      </div>`;
+  }
+  // kind === 'run'
+  const rows = [
+    { name: 'Apply discount code at checkout', badge: 'Pass', cls: 'bg-emerald-100 text-emerald-600', delay: .3 },
+  ];
+  return `
+    <div class="flex flex-col gap-3 w-full max-w-sm mx-auto">
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-100">
+        ${rows.map(r => `
+          <div class="flex items-center justify-between px-3 py-2">
+            <p class="text-xs text-slate-700 truncate pr-2">${r.name}</p>
+            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${r.cls} journey-fade-in" style="animation-delay:${r.delay}s">${r.badge}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 flex items-center justify-between journey-fade-in" style="animation-delay:1.1s">
+        <p class="text-xs font-bold text-emerald-700">Run complete</p>
+        <p class="text-sm font-black text-emerald-600">100% pass</p>
+      </div>
+    </div>`;
+}
+
+function openUserJourneyDemo() {
+  ensureJourneyStyles();
+  _journeyIndex = 0;
+  _journeyPlaying = true;
+  document.getElementById("modal-title").textContent = "Live Demo · User Journey";
+  document.getElementById("modal-overlay").classList.remove("hidden");
+  renderJourneyStep(0);
+}
+
+function startJourneyTimer() {
+  clearInterval(_journeyTimer);
+  _journeyTimer = setInterval(() => {
+    const overlay = document.getElementById("modal-overlay");
+    if (!overlay || overlay.classList.contains("hidden")) { clearInterval(_journeyTimer); return; }
+    if (!_journeyPlaying) return;
+    if (_journeyIndex >= JOURNEY_STEPS.length - 1) { clearInterval(_journeyTimer); return; }
+    _journeyIndex++;
+    renderJourneyStep(_journeyIndex);
+  }, 2400);
+}
+
+function journeyGoto(i) {
+  _journeyIndex = Math.max(0, Math.min(JOURNEY_STEPS.length - 1, i));
+  renderJourneyStep(_journeyIndex);
+}
+
+function journeyToggle() {
+  _journeyPlaying = !_journeyPlaying;
+  renderJourneyStep(_journeyIndex);
+}
+
+function closeJourneyDemo() {
+  clearInterval(_journeyTimer);
+  hideModal();
+}
+
+function renderJourneyStep(i) {
+  const step = JOURNEY_STEPS[i];
+  const body = document.getElementById("modal-body");
+  body.innerHTML = `
+    <div class="w-full">
+      <div class="flex gap-1 mb-4">
+        ${JOURNEY_STEPS.map((s, idx) => `
+          <div class="h-1 flex-1 rounded-full overflow-hidden bg-slate-100">
+            ${idx < i
+              ? `<div class="h-full rounded-full" style="width:100%;background:${s.color}"></div>`
+              : idx === i
+                ? `<div class="h-full rounded-full" style="background:${s.color};${_journeyPlaying ? 'animation:journeyBarFill 2.4s linear forwards' : 'width:0%'}"></div>`
+                : `<div class="h-full rounded-full" style="width:0%;background:${s.color}"></div>`}
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black text-white flex-shrink-0" style="background:${step.color}">${step.avatar}</span>
+        <div class="min-w-0">
+          <p class="text-[10px] font-bold uppercase tracking-wider" style="color:${step.color}">${step.actor} · Step ${i + 1} of ${JOURNEY_STEPS.length}</p>
+          <p class="text-sm font-bold text-slate-800 truncate">${step.icon} ${step.title}</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">${step.desc}</p>
+
+      <div class="rounded-2xl bg-slate-50 border border-slate-200 h-56 flex items-center justify-center p-4 mb-4 overflow-hidden">
+        ${journeySceneHTML(step)}
+      </div>
+
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex gap-1.5">
+          ${JOURNEY_STEPS.map((_, idx) => `
+            <button onclick="journeyGoto(${idx})" class="h-2 rounded-full transition-all ${idx === i ? 'w-5 bg-blue-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}"></button>
+          `).join('')}
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="journeyGoto(${Math.max(0, i - 1)})" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 disabled:opacity-30" ${i === 0 ? 'disabled' : ''}>Prev</button>
+          <button onclick="journeyToggle()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white">${_journeyPlaying ? '⏸ Pause' : '▶ Play'}</button>
+          <button onclick="${i === JOURNEY_STEPS.length - 1 ? 'journeyGoto(0)' : `journeyGoto(${i + 1})`}" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800">${i === JOURNEY_STEPS.length - 1 ? 'Replay' : 'Next'}</button>
+          <button onclick="closeJourneyDemo()" class="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600">Close</button>
+        </div>
+      </div>
+    </div>`;
+
+  if (_journeyPlaying) startJourneyTimer(); else clearInterval(_journeyTimer);
 }
 
 function testflowArchDiagram() {
