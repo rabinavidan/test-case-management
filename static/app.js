@@ -2582,84 +2582,123 @@ function alertsArchDiagram() {
   const lane = (label, clr) =>
     `<p class="text-[9px] font-bold uppercase tracking-widest ${clr} mb-2">${label}</p>`;
 
+  // Small tag chip (used for annotations like JWT / Rate limit / node-pod groups)
+  const tag = (lbl, bg, tc, d = 0) =>
+    `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
+        style="animation:aadIn .3s ease forwards;animation-delay:${d}ms">${lbl}</span>`;
+
   return `
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-slate-800 text-sm">System Architecture</h3>
       <span class="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 aad-live"></span>GCP · Angular MFE
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 aad-live"></span>GCP · GKE
       </span>
     </div>
 
-    <!-- ① Client Layer ─────────────────────────────── -->
+    <!-- ① Subscribe & Gateway Flow ─────────────────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('① Client Layer — Angular Micro Frontends', 'text-blue-500')}
+      ${lane('① Client → Gateway — User Subscribes to an Alert', 'text-blue-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-blue-600','border-blue-700','text-white','Shell Application','Host (Angular)',0)}
-        ${arrow('','70','right','blue',28)}
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Alerts Management MFE','Create / Manage Configs',140)}
+        ${box('bg-slate-700','border-slate-800','text-white','User','',0)}
+        ${arrow('subscribe on alert','70','right','blue',36)}
+        ${box('bg-blue-600','border-blue-700','text-white','FE - SalesOS','Angular Frontend',140)}
+        ${arrow('REST','210','right','blue',28)}
+        ${box('bg-blue-500','border-blue-600','text-white','Apps Gateway (GW)','JWT Auth · Rate Limit',280)}
+        ${arrow('REST','350','right','blue',28)}
+        ${box('bg-indigo-500','border-indigo-600','text-white','BE for FE (BFF)','microservice',420)}
+        ${arrow('write','490','right','slate',28)}
+        ${box('bg-white','border-slate-300','text-slate-700','MongoDB Alerts','Alert Definitions',560)}
+      </div>
+    </div>
+
+    <!-- ② Application Layer - GCP ──────────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('② Application Layer — GCP · Email Alert Cron & Workers', 'text-rose-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-rose-100','border-rose-300','text-rose-800','Email Alert CRON','CronJob · at 12AM',630)}
+        ${arrow('read alerts','700','right','slate',32)}
+        ${box('bg-white','border-slate-300','text-slate-700','MongoDB Alerts','Alert Definitions',770)}
+        ${arrow('','830','left','rose',24)}
+        ${box('bg-rose-100','border-rose-300','text-rose-800','Email Alert CRON','push alerts',900)}
+        ${arrow('push alerts','970','right','amber',36)}
+        ${box('bg-amber-500','border-amber-600','text-white','Redis DB Queue','In-Memory DB',1040)}
+        ${arrow('read events','1110','right','amber',36)}
+        ${box('bg-rose-200','border-rose-400','text-rose-900','Email Alert Workers','GKE x 30',1180)}
+      </div>
+    </div>
+
+    <!-- ③ Search Layer & Async Services ────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('③ Fan-out — Search Enrichment & Notification Delivery', 'text-amber-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-rose-200','border-rose-400','text-rose-900','Email Alert Workers','GKE x 30',1250)}
+        ${arrow('search query on news/company','1320','right','amber',48)}
+        ${box('bg-amber-50','border-amber-300','text-amber-800','Search-Service','Search Layer',1390)}
+        ${arrow('search','1460','right','amber',28)}
+        ${box('bg-white','border-slate-300','text-slate-700','SOLR DB','Full-text Index',1530)}
         <div class="flex-1 min-w-4"></div>
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Notification Display MFE','Realtime Updates',210)}
-        ${arrow('Listen Updates','280','left','emerald',28)}
-        ${box('bg-emerald-500','border-emerald-600','text-white','WebSocket Server','Firebase / Socket.io',350)}
+        ${arrow('send event of notification','1600','left','slate',48)}
+        ${box('bg-amber-50','border-amber-300','text-amber-800','Notification Center','Async Services',1670)}
+        ${arrow('send email','1740','right','slate',28)}
+        ${box('bg-amber-50','border-amber-300','text-amber-800','Emailer service','Async Services',1810)}
+        ${arrow('','1880','right','slate',20)}
+        ${box('bg-slate-100','border-slate-300','text-slate-700','📧 Email','Delivered to user',1950)}
       </div>
     </div>
 
-    <!-- ② Cron / Scanner Flow ─────────────────────── -->
+    <!-- ④ Kubernetes Deployment — Availability ─────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('② Cron Job — Data Scanner (new alert detection)', 'text-violet-500')}
+      ${lane('④ Kubernetes Deployment — Availability (make sure the system is always running)', 'text-violet-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-blue-500','border-blue-600','text-white','Cloud Scheduler','Cron',420)}
-        ${arrow('Trigger Scan (Interval)','490','right','blue',40)}
-        ${box('bg-blue-500','border-blue-600','text-white','Data Scanner Function','Cloud Functions',560)}
-        ${arrow('Query New Data','630','right','slate',36)}
-        ${box('bg-emerald-600','border-emerald-700','text-white','Google BigQuery','Analytics',700)}
-        ${arrow('Check Match Criteria','770','right','slate',36)}
-        ${box('bg-teal-700','border-teal-800','text-white','Elasticsearch','Log / Search',840)}
-        ${arrow('Alert Found →','910','right','red',32)}
-        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',980)}
+        ${box('bg-slate-700','border-slate-800','text-white','User','',2020)}
+        ${arrow('alert app','2090','right','violet',32)}
+        ${box('bg-violet-600','border-violet-700','text-white','Load Balancer','',2160)}
+        ${arrow('','2220','right','violet',24)}
+        ${box('bg-violet-100','border-violet-300','text-violet-800','cluster K8S','GCP: GKE · AWS: EKS',2280)}
+        <div class="flex items-center gap-1.5 flex-wrap">
+          ${tag('Node 1 · Pod 1 → App Alert container','bg-violet-50 border-violet-200','text-violet-700',2350)}
+          ${tag('Node 1 · Pod 2','bg-slate-50 border-slate-200','text-slate-500',2380)}
+          ${tag('Node 2 · Pod 1 → App Alert container','bg-violet-50 border-violet-200','text-violet-700',2410)}
+          ${tag('Node 2 · Pod 2','bg-slate-50 border-slate-200','text-slate-500',2440)}
+        </div>
       </div>
     </div>
 
-    <!-- ③ API / Alert Config Flow ─────────────────── -->
-    <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('③ API Layer — Alert Config & Manual Trigger', 'text-amber-500')}
-      <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Alerts Management MFE','Create Config',1050)}
-        ${arrow('POST /alerts','1120','right','amber',36)}
-        ${box('bg-blue-500','border-blue-600','text-white','Cloud Endpoints','API Gateway',1190)}
-        ${arrow('','1260','right','blue',28)}
-        ${box('bg-blue-600','border-blue-700','text-white','Alert Microservice','Cloud Run',1330)}
-        ${arrow('Cache Config','1400','right','slate',32)}
-        ${box('bg-red-500','border-red-600','text-white','Cloud Memorystore','Redis',1470)}
-        ${arrow('Store Alert Def','1540','right','slate',32)}
-        ${box('bg-white','border-slate-300','text-slate-700','Cloud SQL / Firestore','Structured Data',1610)}
-        ${arrow('Manual Trigger →','1680','right','red',36)}
-        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',1750)}
+    <!-- ⑤ Communication Patterns ────────────────────── -->
+    <div>
+      ${lane('⑤ Communication Patterns — Sync vs Async', 'text-emerald-500')}
+      <div class="flex items-center gap-2 flex-wrap mb-2">
+        ${box('bg-emerald-600','border-emerald-700','text-white','my service','/api/webhook',2470)}
+        ${arrow('subscribe (webhook REST endpoint)','2540','right','emerald',44)}
+        ${box('bg-emerald-50','border-emerald-300','text-emerald-800','external service','',2610)}
+        ${arrow('calculate / response','2680','left','emerald',44)}
+        ${box('bg-emerald-600','border-emerald-700','text-white','my service','',2750)}
+        ${arrow('/api/webhook (async)','2820','right','slate',44)}
+        ${box('bg-emerald-50','border-emerald-300','text-emerald-800','external service','callback',2890)}
       </div>
-    </div>
-
-    <!-- ④ Notification Delivery Flow ──────────────── -->
-    <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('④ Notification Delivery — Async → Realtime Push', 'text-emerald-500')}
-      <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',1820)}
-        ${arrow('Async Notification','1890','right','red',40)}
-        ${box('bg-slate-100','border-slate-300','text-slate-700','Notification Microservice','GKE',1960)}
-        ${arrow('Index for Search','2030','right','slate',36)}
-        ${box('bg-teal-700','border-teal-800','text-white','Elasticsearch','Log / Search',2100)}
-        ${arrow('Check User Cache','2170','right','slate',36)}
-        ${box('bg-red-500','border-red-600','text-white','Cloud Memorystore','Redis',2240)}
-        ${arrow('Push to UI','2310','right','emerald',36)}
-        ${box('bg-emerald-500','border-emerald-600','text-white','WebSocket Server','Firebase / Socket.io',2380)}
-        ${arrow('Real-time Update','2450','right','emerald',40)}
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Notification Display MFE','Updates UI',2520)}
+      <div class="flex items-center gap-4 flex-wrap mt-2">
+        <div>
+          <p class="text-[9px] font-bold text-slate-500 mb-1">Sync (point2point)</p>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${tag('REST','bg-emerald-50 border-emerald-200','text-emerald-700',2960)}
+            ${tag('webSockets','bg-emerald-50 border-emerald-200','text-emerald-700',2990)}
+            ${tag('gRPC · internal','bg-emerald-50 border-emerald-200','text-emerald-700',3020)}
+          </div>
+        </div>
+        <div>
+          <p class="text-[9px] font-bold text-slate-500 mb-1">Async</p>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${tag('Queue','bg-slate-50 border-slate-200','text-slate-600',3050)}
+            ${tag('Pub/sub','bg-slate-50 border-slate-200','text-slate-600',3080)}
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Legend + live indicator ───────────────────── -->
-    <div class="flex items-center gap-4 flex-wrap">
-      ${[['#3b82f6','Platform / Config'],['#f59e0b','Alert Creation'],['#ef4444','Event / Pub-Sub'],['#10b981','Realtime Notify'],['#94a3b8','Data Storage']].map(([c,l])=>`
+    <div class="flex items-center gap-4 flex-wrap mt-4 pt-3 border-t border-slate-100">
+      ${[['#3b82f6','Gateway / Auth'],['#f59e0b','Queue / Workers'],['#ec4899','Application Layer'],['#8b5cf6','K8s Deployment'],['#10b981','Sync / Async Comms']].map(([c,l])=>`
         <div class="flex items-center gap-1.5">
           <div style="height:2px;width:18px;background:repeating-linear-gradient(to right,${c} 0,${c} 4px,transparent 4px,transparent 8px);background-size:10px 100%;animation:aadFlowR .4s linear infinite"></div>
           <span class="text-[9px] text-slate-500">${l}</span>
