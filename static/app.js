@@ -198,17 +198,17 @@ async function submitTestCase(suiteId) {
 function buildEditTestCaseModal(title, body, tc) {
   title.textContent = "Edit Test Case";
   body.innerHTML = `
-    ${field("Title *", `<input id="f-title" class="${inputCls}" value="${escHtml(tc.title)}" />`)}
-    ${field("Description", `<textarea id="f-desc" class="${textareaCls}" rows="2">${escHtml(tc.description || "")}</textarea>`)}
-    ${field("Steps", `<textarea id="f-steps" class="${textareaCls}" rows="4">${escHtml(tc.steps || "")}</textarea>`)}
-    ${field("Expected Result", `<textarea id="f-expected" class="${textareaCls}" rows="2">${escHtml(tc.expected_result || "")}</textarea>`)}
+    ${field("Title *", `<input id="f-title" data-testid="f-title" class="${inputCls}" value="${escHtml(tc.title)}" />`)}
+    ${field("Description", `<textarea id="f-desc" data-testid="f-desc" class="${textareaCls}" rows="2">${escHtml(tc.description || "")}</textarea>`)}
+    ${field("Steps", `<textarea id="f-steps" data-testid="f-steps" class="${textareaCls}" rows="4">${escHtml(tc.steps || "")}</textarea>`)}
+    ${field("Expected Result", `<textarea id="f-expected" data-testid="f-expected" class="${textareaCls}" rows="2">${escHtml(tc.expected_result || "")}</textarea>`)}
     <div class="grid grid-cols-2 gap-4">
-      ${field("Status", `<select id="f-status" class="${inputCls}">
+      ${field("Status", `<select id="f-status" data-testid="f-status" class="${inputCls}">
         <option value="draft" ${tc.status === "draft" ? "selected" : ""}>Draft</option>
         <option value="active" ${tc.status === "active" ? "selected" : ""}>Active</option>
         <option value="deprecated" ${tc.status === "deprecated" ? "selected" : ""}>Deprecated</option>
       </select>`)}
-      ${field("Priority", `<select id="f-priority" class="${inputCls}">
+      ${field("Priority", `<select id="f-priority" data-testid="f-priority" class="${inputCls}">
         <option value="low" ${tc.priority === "low" ? "selected" : ""}>Low</option>
         <option value="medium" ${tc.priority === "medium" ? "selected" : ""}>Medium</option>
         <option value="high" ${tc.priority === "high" ? "selected" : ""}>High</option>
@@ -216,8 +216,8 @@ function buildEditTestCaseModal(title, body, tc) {
       </select>`)}
     </div>
     <div class="flex justify-end gap-2 mt-2">
-      <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
-      <button onclick="submitEditTestCase(${tc.id}, ${tc.suite_id})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Save Changes</button>
+      <button data-testid="modal-cancel-btn" onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+      <button data-testid="modal-submit-btn" onclick="submitEditTestCase(${tc.id}, ${tc.suite_id})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Save Changes</button>
     </div>`;
 }
 
@@ -355,6 +355,12 @@ async function router() {
   } else {
     await renderProjects();
   }
+
+  // Tear down WebSocket if we navigated away from a run
+  if (parts[0] !== "run" && _activeRunWs) {
+    _activeRunWs.close();
+    _activeRunWs = null;
+  }
 }
 
 // ─── Breadcrumb ──────────────────────────────────────────────────────────────
@@ -377,7 +383,8 @@ async function loadSidebar() {
   const newProjBtn = document.getElementById("sidebar-new-project-btn");
   if (newProjBtn) newProjBtn.style.display = isAdmin() ? "" : "none";
   try {
-    state.projects = await GET("/api/projects");
+    const _pr = await GET("/api/projects");
+    state.projects = _pr?.items ?? _pr ?? [];
     if (!state.projects.length) {
       ul.innerHTML = `<li class="px-4 py-3 text-sm text-slate-400 italic">No projects yet</li>`;
       return;
@@ -426,22 +433,34 @@ async function loadSidebar() {
           }
         } catch {}
       }
-      return `<li>
-        <button data-testid="sidebar-project-${p.id}" onclick="navigate('project/${p.id}')"
-          class="w-full text-left px-4 py-2.5 text-sm transition-colors truncate
-            ${active ? "bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600" : "text-slate-700 hover:bg-slate-50 hover:text-blue-700"}">
-          ${escHtml(p.name)}
-        </button>
+      return `<li class="group relative">
+        <div class="flex items-center ${active ? "bg-blue-50 border-r-2 border-blue-600" : "hover:bg-slate-50"}">
+          <button data-testid="sidebar-project-${p.id}" onclick="navigate('project/${p.id}')"
+            class="flex-1 text-left px-4 py-2.5 text-sm transition-colors truncate
+              ${active ? "text-blue-700 font-medium" : "text-slate-700 hover:text-blue-700"}">
+            ${escHtml(p.name)}
+          </button>
+          ${isAdmin() ? `<button data-testid="sidebar-delete-project-${p.id}" onclick="event.stopPropagation(); deleteProject(${p.id})"
+            title="Delete project"
+            class="flex-shrink-0 mr-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 hover:bg-red-50">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>` : ""}
+        </div>
+        <div id="sidebar-pbar-${p.id}" class="px-4 pb-1.5 -mt-0.5"></div>
         ${suitesHtml}
       </li>`;
     }));
     ul.innerHTML = items.join("");
+    loadSidebarProjectStats(state.projects);
 
     // Admin-only: Users link at bottom of sidebar
     if (isAdmin()) {
       const usersActive = window.location.hash === "#users";
+      document.getElementById("sidebar-admin-section")?.remove();
       ul.insertAdjacentHTML("afterend", `
-        <div class="mt-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div id="sidebar-admin-section" class="mt-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="px-4 py-3 bg-slate-50 border-b border-slate-200">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Admin</span>
           </div>
@@ -462,6 +481,32 @@ async function loadSidebar() {
   } catch {
     ul.innerHTML = `<li class="px-4 py-3 text-sm text-red-400">Failed to load</li>`;
   }
+}
+
+async function loadSidebarProjectStats(projects) {
+  await Promise.all(projects.map(async p => {
+    const bar = document.getElementById(`sidebar-pbar-${p.id}`);
+    if (!bar) return;
+    try {
+      const s = await GET(`/api/projects/${p.id}/stats`);
+      const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
+      if (!total) { bar.innerHTML = ""; return; }
+      const pct = v => Math.round((v / total) * 100);
+      const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
+      const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
+      const labelCls = overall === "fail" ? "text-red-500" : overall === "pending" ? "text-amber-500" : "text-emerald-600";
+      bar.innerHTML = `
+        <div class="flex items-center gap-1.5 mb-0.5">
+          <div class="flex h-1 rounded-full overflow-hidden flex-1 bg-slate-100 gap-px">
+            ${passW ? `<div class="bg-emerald-500 h-full" style="width:${passW}%"></div>` : ""}
+            ${failW ? `<div class="bg-red-500 h-full" style="width:${failW}%"></div>` : ""}
+            ${skipW ? `<div class="bg-amber-400 h-full" style="width:${skipW}%"></div>` : ""}
+            ${pendW ? `<div class="bg-slate-300 h-full" style="width:${pendW}%"></div>` : ""}
+          </div>
+          <span class="text-[9px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
+        </div>`;
+    } catch { bar.innerHTML = ""; }
+  }));
 }
 
 // ─── Projects View ───────────────────────────────────────────────────────────
@@ -496,15 +541,14 @@ async function renderProjects() {
       <div class="flex items-center justify-between mb-4">
         <div>
           <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Live Architecture</p>
-          <h2 class="text-base font-bold text-slate-800">TestFlow — System Overview</h2>
+          <h2 class="text-base font-bold text-slate-800">TestFlow — Microservice Overview</h2>
         </div>
         <span class="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 arch-live-dot"></span>Live
         </span>
       </div>
-      <!-- Architecture rows -->
       <div class="space-y-3">
-        <!-- Row 1: Client -->
+        <!-- Row 1: Browser -->
         <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:0ms">
           <div class="w-24 flex-shrink-0 flex items-center">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Browser</span>
@@ -513,49 +557,81 @@ async function renderProjects() {
             <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🖥️</div>
             <div class="flex-1 min-w-0">
               <p class="text-xs font-semibold text-blue-800">Vanilla JS SPA</p>
-              <p class="text-[10px] text-blue-500 truncate">static/index.html · static/app.js · Hash routing · Tailwind CSS</p>
+              <p class="text-[10px] text-blue-500 truncate">static/index.html · static/app.js · Hash routing · Tailwind CSS · Chart.js</p>
             </div>
             <div class="flex gap-1.5 flex-wrap justify-end">
-              ${['index.html','app.js','TailwindCSS'].map(t=>`<span class="arch-tag bg-blue-100 text-blue-700">${t}</span>`).join('')}
+              ${['index.html','app.js','TailwindCSS','Chart.js'].map(t=>`<span class="arch-tag bg-blue-100 text-blue-700">${t}</span>`).join('')}
             </div>
           </div>
         </div>
         <!-- Arrow -->
-        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:80ms">
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:70ms">
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP / REST API</span>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP / REST · WebSocket</span>
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
-        <!-- Row 2: API -->
-        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:160ms">
+        <!-- Row 2: Gateway -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:140ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">API Layer</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gateway</span>
           </div>
-          <div class="flex-1 bg-violet-50 border border-violet-200 rounded-xl p-3 flex items-center gap-3">
-            <div class="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">⚡</div>
+          <div class="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🔀</div>
             <div class="flex-1 min-w-0">
-              <p class="text-xs font-semibold text-violet-800">FastAPI + SQLAlchemy</p>
-              <p class="text-[10px] text-violet-500 truncate">api/main.py · models · schemas · CORS middleware · Pydantic v2</p>
+              <p class="text-xs font-semibold text-indigo-800">API Gateway — services/gateway :8000</p>
+              <p class="text-[10px] text-indigo-500 truncate">httpx proxy · WebSocket bridge · serves SPA · routes /api/* to downstream services</p>
             </div>
             <div class="flex gap-1.5 flex-wrap justify-end">
-              ${['FastAPI','SQLAlchemy','Pydantic'].map(t=>`<span class="arch-tag bg-violet-100 text-violet-700">${t}</span>`).join('')}
+              ${['FastAPI','httpx','WebSocket bridge','Static SPA'].map(t=>`<span class="arch-tag bg-indigo-100 text-indigo-700">${t}</span>`).join('')}
             </div>
           </div>
         </div>
-        <!-- Arrow -->
-        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:240ms">
+        <!-- Arrow fan-out -->
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:200ms">
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">ORM / SQL</span>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP route fan-out</span>
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
-        <!-- Row 3: Database -->
-        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:320ms">
+        <!-- Row 3: Services -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:270ms">
+          <div class="w-24 flex-shrink-0 flex items-center">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Services</span>
+          </div>
+          <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            ${[
+              {icon:'🔑', name:'Auth',     port:':8001', desc:'JWT · login · users',               bg:'bg-amber-50',   border:'border-amber-200',   tag:'bg-amber-100 text-amber-700'},
+              {icon:'📁', name:'Projects', port:':8002', desc:'Projects · suites · test cases',    bg:'bg-violet-50',  border:'border-violet-200',  tag:'bg-violet-100 text-violet-700'},
+              {icon:'▶️', name:'Runs',     port:':8003', desc:'Runs · results · WebSocket · Redis',bg:'bg-emerald-50', border:'border-emerald-200', tag:'bg-emerald-100 text-emerald-700'},
+              {icon:'🤖', name:'AI',       port:':8004', desc:'Claude Haiku generation',           bg:'bg-fuchsia-50', border:'border-fuchsia-200', tag:'bg-fuchsia-100 text-fuchsia-700'},
+            ].map(s => `
+              <div class="${s.bg} border ${s.border} rounded-xl p-3 flex flex-col gap-1.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-base">${s.icon}</span>
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-bold text-slate-800 truncate">${s.name} <span class="font-normal text-slate-400">${s.port}</span></p>
+                  </div>
+                </div>
+                <p class="text-[9px] text-slate-500 leading-relaxed">${s.desc}</p>
+              </div>`).join('')}
+          </div>
+        </div>
+        <!-- Arrow -->
+        <div class="arch-row flex items-center gap-2 opacity-0" style="animation:archRowIn .25s ease forwards;animation-delay:340ms">
+          <div class="w-24"></div>
+          <div class="flex-1 flex items-center gap-2 pl-4">
+            <div class="h-px flex-1 bg-slate-200"></div>
+            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">ORM / SQL · Redis Pub/Sub</span>
+            <div class="h-px flex-1 bg-slate-200"></div>
+          </div>
+        </div>
+        <!-- Row 4: Storage -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:410ms">
           <div class="w-24 flex-shrink-0 flex items-center">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Storage</span>
           </div>
@@ -563,21 +639,28 @@ async function renderProjects() {
             <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🗄️</div>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-emerald-800">PostgreSQL (Neon)</p>
-                <p class="text-[10px] text-emerald-600">Production · Vercel env var</p>
+                <p class="text-xs font-semibold text-emerald-800">PostgreSQL 16</p>
+                <p class="text-[10px] text-emerald-600">Schemas: auth · projects · runs</p>
               </div>
             </div>
-            <div class="flex-1 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
-              <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">📦</div>
+            <div class="flex-1 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">⚡</div>
               <div class="min-w-0">
-                <p class="text-xs font-semibold text-amber-800">SQLite</p>
-                <p class="text-[10px] text-amber-600">Local dev · /tmp on Vercel</p>
+                <p class="text-xs font-semibold text-red-800">Redis 7</p>
+                <p class="text-[10px] text-red-600">Pub/Sub · runs.completed events</p>
+              </div>
+            </div>
+            <div class="flex-1 bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-fuchsia-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🤖</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-fuchsia-800">Anthropic Claude Haiku</p>
+                <p class="text-[10px] text-fuchsia-600">External AI API · test generation</p>
               </div>
             </div>
           </div>
         </div>
-        <!-- Row 4: CI/CD + Tests side by side -->
-        <div class="arch-row flex items-stretch gap-2 opacity-0 mt-1" style="animation:archRowIn .35s ease forwards;animation-delay:440ms">
+        <!-- Row 5: CI/CD -->
+        <div class="arch-row flex items-stretch gap-2 opacity-0 mt-1" style="animation:archRowIn .35s ease forwards;animation-delay:500ms">
           <div class="w-24 flex-shrink-0 flex items-center">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CI / Deploy</span>
           </div>
@@ -593,14 +676,21 @@ async function renderProjects() {
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">▲</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Vercel</p>
-                <p class="text-[10px] text-slate-500">Serverless · Preview per PR · Production</p>
+                <p class="text-[10px] text-slate-500">Monolith serverless · Preview per PR</p>
+              </div>
+            </div>
+            <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
+              <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🐳</div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-700">Docker Compose</p>
+                <p class="text-[10px] text-slate-500">Microservice mode · 5 containers + Redis</p>
               </div>
             </div>
             <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🧪</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Tests</p>
-                <p class="text-[10px] text-slate-500">pytest + Playwright POM · 20 API · 16 E2E</p>
+                <p class="text-[10px] text-slate-500">pytest · Playwright POM · MCP tools</p>
               </div>
             </div>
           </div>
@@ -621,30 +711,55 @@ async function renderProjects() {
     <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6 overflow-hidden relative">
       <div class="relative z-10">
         <p class="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">How TestFlow works</p>
-        <h2 class="text-white text-lg font-bold mb-4">End-to-end test management pipeline</h2>
-        <!-- Animated pipeline -->
-        <div class="flex items-center gap-2 flex-wrap" id="tf-demo">
+        <h2 class="text-white text-lg font-bold mb-5">End-to-end test management pipeline</h2>
+
+        <!-- Pipeline steps with descriptions -->
+        <div class="flex items-stretch gap-1.5 sm:gap-2 mb-5 overflow-x-auto pb-1" id="tf-demo">
           ${[
-            {icon:'📁', label:'Project',   color:'bg-blue-500',   delay:'0'},
-            {icon:'🗂️', label:'Suite',     color:'bg-indigo-500', delay:'150'},
-            {icon:'✅', label:'Test Case', color:'bg-violet-500', delay:'300'},
-            {icon:'▶️', label:'Run',       color:'bg-purple-500', delay:'450'},
-            {icon:'📊', label:'Results',   color:'bg-emerald-500',delay:'600'},
+            {icon:'📁', label:'Project',   desc:'Organise work into projects — one per app, service or team', color:'bg-blue-500/80',   delay:0},
+            {icon:'🗂️', label:'Suite',     desc:'Group related test cases by feature or user flow',           color:'bg-indigo-500/80', delay:150},
+            {icon:'✅', label:'Test Case', desc:'Define steps, expected result, priority and status',          color:'bg-violet-500/80', delay:300},
+            {icon:'▶️', label:'Run',       desc:'Kick off a run and mark each case pass, fail or skip',        color:'bg-purple-500/80', delay:450},
+            {icon:'📊', label:'Results',   desc:'See pass/fail/skip stats and track quality over time',        color:'bg-emerald-500/80',delay:600},
           ].map((n,i,arr) => `
-            <div class="flex items-center gap-2">
-              <div class="demo-node flex flex-col items-center gap-1 opacity-0" style="animation:demoNodeIn .4s ease forwards;animation-delay:${n.delay}ms">
-                <div class="${n.color} w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-lg demo-pulse" style="animation-delay:${n.delay}ms">
-                  ${n.icon}
+            <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
+              <div class="demo-node opacity-0 flex flex-col gap-2 rounded-xl p-3 w-28 sm:w-32" style="animation:demoNodeIn .4s ease forwards;animation-delay:${n.delay}ms;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15)">
+                <div class="${n.color} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg demo-pulse flex-shrink-0" style="animation-delay:${n.delay}ms">${n.icon}</div>
+                <div>
+                  <p class="text-white text-xs font-bold mb-0.5">${n.label}</p>
+                  <p class="text-[10px] leading-relaxed" style="color:rgba(191,219,254,.75)">${n.desc}</p>
                 </div>
-                <span class="text-white text-xs font-medium">${n.label}</span>
               </div>
-              ${i < arr.length-1 ? `<div class="demo-arrow text-blue-300 text-lg font-bold opacity-0 mb-4" style="animation:demoNodeIn .3s ease forwards;animation-delay:${parseInt(n.delay)+100}ms">→</div>` : ''}
+              ${i < arr.length-1 ? `<div class="demo-arrow self-center text-blue-300/60 text-lg font-bold opacity-0 flex-shrink-0" style="animation:demoNodeIn .3s ease forwards;animation-delay:${n.delay+100}ms">→</div>` : ''}
             </div>
           `).join('')}
         </div>
-        <!-- Animated status bar -->
-        <div class="mt-4 bg-blue-900/40 rounded-lg p-3 flex items-center gap-3">
-          <div class="flex gap-1">
+
+        <!-- Key feature highlights -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          ${[
+            {icon:'🤖', label:'AI Generation',    desc:'Claude Haiku generates test cases from feature descriptions'},
+            {icon:'⚡', label:'Live Collab',      desc:'WebSocket real-time run updates across all tabs'},
+            {icon:'📈', label:'Analytics',        desc:'Chart.js pass-rate trends & suite coverage'},
+            {icon:'🐳', label:'Docker Ready',     desc:'Docker Compose + Postgres 16 one-command setup'},
+            {icon:'🔍', label:'Filter & Search',  desc:'Find projects and cases instantly'},
+            {icon:'🏷️', label:'Priority Levels',  desc:'Critical · High · Medium · Low'},
+            {icon:'📝', label:'Run Notes',        desc:'Add comments per test result'},
+            {icon:'🔄', label:'CI / CD Ready',    desc:'GitHub Actions + Playwright E2E'},
+          ].map(f => `
+            <div class="flex items-center gap-2 rounded-xl p-2.5" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
+              <span class="text-base flex-shrink-0">${f.icon}</span>
+              <div class="min-w-0">
+                <p class="text-white text-[10px] font-bold truncate">${f.label}</p>
+                <p class="text-[9px] truncate" style="color:rgba(191,219,254,.6)">${f.desc}</p>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Animated run status bar -->
+        <div class="bg-blue-900/40 rounded-lg p-3 flex items-center gap-3">
+          <div class="flex gap-1 flex-shrink-0">
             <span class="w-2 h-2 rounded-full bg-emerald-400 demo-blink" style="animation-delay:0ms"></span>
             <span class="w-2 h-2 rounded-full bg-emerald-400 demo-blink" style="animation-delay:200ms"></span>
             <span class="w-2 h-2 rounded-full bg-yellow-400 demo-blink" style="animation-delay:400ms"></span>
@@ -654,8 +769,9 @@ async function renderProjects() {
           <div class="flex-1 bg-blue-900/50 rounded-full h-1.5 overflow-hidden">
             <div class="h-full bg-emerald-400 rounded-full demo-bar"></div>
           </div>
-          <span class="text-emerald-300 text-xs font-bold demo-counter">80% pass rate</span>
+          <span class="text-emerald-300 text-xs font-bold demo-counter flex-shrink-0">80% pass rate</span>
         </div>
+
         <!-- Demo buttons -->
         <div class="mt-4 flex items-center gap-3 flex-wrap">
           <button id="demo-seed-btn" onclick="seedAlertsDemo()"
@@ -680,6 +796,14 @@ async function renderProjects() {
             </svg>
             <span id="demo-pw-label">Run Playwright Architecture Demo</span>
           </button>
+          <button id="demo-journey-btn" onclick="openUserJourneyDemo()"
+            class="journey-btn-pulse bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold px-5 py-2 rounded-xl transition-colors flex items-center gap-2 border border-white/20 shadow-lg">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>▶ Watch User Journey Demo</span>
+          </button>
         </div>
       </div>
       <!-- Background decoration -->
@@ -695,112 +819,384 @@ async function renderProjects() {
       .demo-bar { animation: demoBar 3s ease-in-out infinite alternate; }
       @keyframes demoBar { from{width:60%} to{width:92%} }
       .demo-counter { animation: demoCounter 3s ease-in-out infinite alternate; }
+      .journey-btn-pulse { animation: journeyBtnPulse 2.2s ease-in-out infinite; }
+      @keyframes journeyBtnPulse { 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5)} 50%{box-shadow:0 0 0 8px rgba(16,185,129,0)} }
     </style>
   `;
 
   const techStackBanner = !getToken() ? `
-    <div class="relative rounded-2xl mb-6 overflow-hidden tech-stack-wrap" style="background:linear-gradient(135deg,#0f0c29,#1a1040,#0d1b3e)">
-      <!-- Animated grid background -->
-      <div class="absolute inset-0 tech-grid-bg pointer-events-none"></div>
+    <div class="relative rounded-2xl mb-6 overflow-hidden" style="background:linear-gradient(135deg,#050d1a,#0a1830,#07122a)">
+      <!-- Grid background -->
+      <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(56,189,248,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.04) 1px,transparent 1px);background-size:32px 32px"></div>
       <!-- Glow orbs -->
-      <div class="absolute -top-16 -left-16 w-64 h-64 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(139,92,246,.25) 0%,transparent 70%)"></div>
-      <div class="absolute -bottom-16 -right-8 w-56 h-56 rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(59,130,246,.2) 0%,transparent 70%)"></div>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-32 pointer-events-none" style="background:radial-gradient(ellipse,rgba(168,85,247,.08) 0%,transparent 70%)"></div>
+      <div class="absolute pointer-events-none" style="top:-60px;left:-40px;width:320px;height:320px;background:radial-gradient(circle,rgba(56,189,248,.1) 0%,transparent 65%)"></div>
+      <div class="absolute pointer-events-none" style="bottom:-60px;right:-40px;width:280px;height:280px;background:radial-gradient(circle,rgba(139,92,246,.1) 0%,transparent 65%)"></div>
 
-      <div class="relative z-10 p-6">
+      <div class="relative z-10 p-5 sm:p-6">
         <!-- Header row -->
-        <div class="flex items-start justify-between mb-6 flex-wrap gap-3">
+        <div class="flex items-start justify-between mb-5 flex-wrap gap-3">
           <div>
-            <p class="text-xs font-bold uppercase tracking-[.2em] mb-1" style="color:rgba(167,139,250,.7)">Under the Hood</p>
-            <h2 class="text-xl font-extrabold text-white leading-tight">Technologies &amp; Infrastructure</h2>
+            <p class="text-[11px] font-bold uppercase tracking-[.22em] mb-1" style="color:rgba(56,189,248,.65)">E2E · API · Integration</p>
+            <h2 class="text-lg sm:text-xl font-extrabold text-white">Playwright Test Architecture</h2>
           </div>
-          <!-- AI Vibe Coding badge -->
-          <div class="flex items-center gap-2 px-4 py-2 rounded-full border border-purple-500/40 ai-badge-glow" style="background:rgba(139,92,246,.15)">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-purple-400"></span>
-            </span>
-            <span class="text-xs font-bold" style="background:linear-gradient(90deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Built with AI Vibe Coding</span>
-            <span class="text-sm">✨</span>
-          </div>
-        </div>
-
-        <!-- Cards grid -->
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
-          <!-- Frontend -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:0ms;background:rgba(255,255,255,.05);border:1px solid rgba(96,165,250,.25)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(59,130,246,.3),rgba(99,102,241,.3));border:1px solid rgba(96,165,250,.3)">🖥️</div>
-            <div>
-              <p class="text-xs font-bold text-blue-300 mb-2 uppercase tracking-wider">Frontend</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(59,130,246,.15);color:#93c5fd;border-color:rgba(59,130,246,.25)">Vanilla JS</span>
-                <span class="tech-tag-dark" style="background:rgba(59,130,246,.15);color:#93c5fd;border-color:rgba(59,130,246,.25)">Tailwind CSS</span>
-                <span class="tech-tag-dark" style="background:rgba(59,130,246,.15);color:#93c5fd;border-color:rgba(59,130,246,.25)">Hash routing SPA</span>
-              </div>
+          <!-- Stat chips -->
+          <div class="flex gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.25)">
+              <span class="text-sm font-black text-sky-300">16</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(56,189,248,.6)">E2E</span>
             </div>
-          </div>
-          <!-- Backend -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:100ms;background:rgba(255,255,255,.05);border:1px solid rgba(167,139,250,.25)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(139,92,246,.3),rgba(168,85,247,.3));border:1px solid rgba(167,139,250,.3)">⚡</div>
-            <div>
-              <p class="text-xs font-bold text-purple-300 mb-2 uppercase tracking-wider">Backend</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(139,92,246,.15);color:#c4b5fd;border-color:rgba(139,92,246,.25)">FastAPI</span>
-                <span class="tech-tag-dark" style="background:rgba(139,92,246,.15);color:#c4b5fd;border-color:rgba(139,92,246,.25)">SQLAlchemy</span>
-                <span class="tech-tag-dark" style="background:rgba(139,92,246,.15);color:#c4b5fd;border-color:rgba(139,92,246,.25)">Pydantic v2</span>
-              </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25)">
+              <span class="text-sm font-black text-violet-300">20</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(139,92,246,.6)">API</span>
             </div>
-          </div>
-          <!-- Database -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:200ms;background:rgba(255,255,255,.05);border:1px solid rgba(52,211,153,.25)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(16,185,129,.3),rgba(52,211,153,.3));border:1px solid rgba(52,211,153,.3)">🗄️</div>
-            <div>
-              <p class="text-xs font-bold text-emerald-300 mb-2 uppercase tracking-wider">Database</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(52,211,153,.25)">PostgreSQL · Neon</span>
-                <span class="tech-tag-dark" style="background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(52,211,153,.25)">SQLite (local dev)</span>
-                <span class="tech-tag-dark" style="background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(52,211,153,.25)">JWT Auth (HS256)</span>
-              </div>
-            </div>
-          </div>
-          <!-- Infrastructure -->
-          <div class="tech-card-dark rounded-xl p-4 flex flex-col gap-3 opacity-0 cursor-default" style="animation:techCardIn .45s cubic-bezier(.22,1,.36,1) forwards;animation-delay:300ms;background:rgba(255,255,255,.05);border:1px solid rgba(251,191,36,.2)">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:linear-gradient(135deg,rgba(234,179,8,.25),rgba(251,191,36,.2));border:1px solid rgba(251,191,36,.25)">▲</div>
-            <div>
-              <p class="text-xs font-bold text-yellow-300 mb-2 uppercase tracking-wider">Infrastructure</p>
-              <div class="flex flex-col gap-1.5">
-                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">Vercel · Serverless</span>
-                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">GitHub Actions CI</span>
-                <span class="tech-tag-dark" style="background:rgba(234,179,8,.12);color:#fde68a;border-color:rgba(251,191,36,.2)">PW E2E + API Tests</span>
-              </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25)">
+              <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+              <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Live CI</span>
             </div>
           </div>
         </div>
 
-        <!-- Bottom AI attribution strip -->
-        <div class="flex items-center gap-3 pt-4 border-t border-white/10 flex-wrap">
-          <div class="flex items-center gap-2 opacity-0" style="animation:techCardIn .5s ease forwards;animation-delay:450ms">
-            <span class="text-lg">🤖</span>
-            <p class="text-xs" style="color:rgba(255,255,255,.45)">100% built via <span class="font-bold" style="color:rgba(192,132,252,.8)">AI vibe coding</span> — every line of code, test, and deployment pipeline generated with Claude.</p>
+        <!-- Layer 1: Test Specs -->
+        <div class="mb-1">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[9px] font-bold uppercase tracking-[.2em]" style="color:rgba(56,189,248,.5)">Test Specs</span>
+            <div class="flex-1 h-px" style="background:rgba(56,189,248,.12)"></div>
+            <span class="text-[9px] font-mono" style="color:rgba(255,255,255,.2)">e2e/tests/</span>
           </div>
-          <div class="ml-auto flex items-center gap-2 opacity-0" style="animation:techCardIn .5s ease forwards;animation-delay:550ms">
-            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3)">36 API + E2E tests</span>
-            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3)">Serverless deploy</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            ${[
+              {icon:'📁', name:'projects',  count:'4 tests',  delay:0},
+              {icon:'🗂️', name:'suites',    count:'4 tests',  delay:70},
+              {icon:'✅', name:'testcases', count:'4 tests',  delay:140},
+              {icon:'▶️', name:'runs',      count:'4 tests',  delay:210},
+            ].map(s => `
+              <div class="rounded-xl p-2.5 flex items-center gap-2.5 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${s.delay}ms;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.18)">
+                <span class="text-base">${s.icon}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-[11px] font-semibold text-sky-200 truncate">${s.name}.spec.ts</p>
+                  <p class="text-[9px]" style="color:rgba(56,189,248,.45)">${s.count}</p>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Connector A -->
+        <div class="flex justify-around items-center py-1 opacity-0" style="animation:pwArchIn .3s ease forwards;animation-delay:300ms">
+          ${[0, 250, 500].map(d => `
+            <div class="flex flex-col items-center gap-0.5">
+              <div class="w-px h-3" style="background:rgba(139,92,246,.3)"></div>
+              <div class="w-1.5 h-1.5 rounded-full pw-arch-dot" style="background:rgba(139,92,246,.8);animation-delay:${d}ms"></div>
+              <div class="w-px h-3" style="background:rgba(139,92,246,.3)"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Layer 2: POM / Auth Fixture / API Client -->
+        <div class="grid grid-cols-3 gap-2 mb-1 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:350ms">
+          <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(139,92,246,.09);border:1px solid rgba(139,92,246,.22)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(139,92,246,.25)">📄</div>
+              <p class="text-[10px] font-bold text-violet-300">Page Objects</p>
+            </div>
+            <p class="text-[9px] leading-relaxed" style="color:rgba(139,92,246,.6)">BasePage · ProjectsPage · SuitePage · RunPage</p>
+            <p class="text-[9px]" style="color:rgba(139,92,246,.4)">locators · waitFor · POM pattern</p>
+          </div>
+          <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(99,102,241,.09);border:1px solid rgba(99,102,241,.22)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(99,102,241,.25)">🔑</div>
+              <p class="text-[10px] font-bold text-indigo-300">Auth Fixture</p>
+            </div>
+            <p class="text-[9px] leading-relaxed" style="color:rgba(99,102,241,.6)">authToken · authedRequest · JWT</p>
+            <p class="text-[9px]" style="color:rgba(99,102,241,.4)">beforeEach · afterEach cleanup</p>
+          </div>
+          <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(20,184,166,.2)">🌐</div>
+              <p class="text-[10px] font-bold text-teal-300">API Client</p>
+            </div>
+            <p class="text-[9px] leading-relaxed" style="color:rgba(20,184,166,.55)">request fixture · REST calls</p>
+            <p class="text-[9px]" style="color:rgba(20,184,166,.35)">/api/projects · /api/runs</p>
+          </div>
+        </div>
+
+        <!-- Connector B -->
+        <div class="flex justify-around items-center py-1 opacity-0" style="animation:pwArchIn .3s ease forwards;animation-delay:500ms">
+          ${[100, 400].map(d => `
+            <div class="flex flex-col items-center gap-0.5">
+              <div class="w-px h-3" style="background:rgba(16,185,129,.3)"></div>
+              <div class="w-1.5 h-1.5 rounded-full pw-arch-dot" style="background:rgba(16,185,129,.8);animation-delay:${d}ms"></div>
+              <div class="w-px h-3" style="background:rgba(16,185,129,.3)"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Layer 3: Playwright Browser + MCP -->
+        <div class="grid grid-cols-2 gap-2 mb-1 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:550ms">
+          <div class="rounded-xl p-3 flex items-center gap-3" style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2)">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(16,185,129,.2)">🎭</div>
+            <div class="min-w-0">
+              <p class="text-[11px] font-bold text-emerald-300">Playwright Browser</p>
+              <p class="text-[9px] truncate" style="color:rgba(16,185,129,.5)">Chromium · headless · locators · assertions</p>
+            </div>
+          </div>
+          <div class="rounded-xl p-3 flex items-center gap-3" style="background:rgba(124,58,237,.09);border:1px solid rgba(124,58,237,.22)">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(124,58,237,.2)">🤖</div>
+            <div class="min-w-0">
+              <p class="text-[11px] font-bold text-violet-300">MCP Browser Tools</p>
+              <p class="text-[9px] truncate" style="color:rgba(124,58,237,.55)">browser_navigate · snapshot · click · AI-assisted</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector C -->
+        <div class="flex justify-center items-center py-1 opacity-0" style="animation:pwArchIn .3s ease forwards;animation-delay:680ms">
+          <div class="flex flex-col items-center gap-0.5">
+            <div class="w-px h-3" style="background:rgba(251,191,36,.3)"></div>
+            <div class="w-1.5 h-1.5 rounded-full pw-arch-dot" style="background:rgba(251,191,36,.9);animation-delay:200ms"></div>
+            <div class="w-px h-3" style="background:rgba(251,191,36,.3)"></div>
+          </div>
+        </div>
+
+        <!-- Layer 4: App Under Test -->
+        <div class="rounded-xl p-3 flex items-center gap-3 opacity-0" style="animation:pwArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:720ms;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.18)">
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(251,191,36,.15)">🧪</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-[11px] font-bold text-yellow-200">TestFlow SPA — App Under Test</p>
+            <p class="text-[9px]" style="color:rgba(251,191,36,.5)">Projects · Suites · Test Cases · Runs · FastAPI · PostgreSQL</p>
+          </div>
+          <!-- Animated test result dots -->
+          <div class="flex gap-1 flex-shrink-0">
+            ${['#34d399','#34d399','#34d399','#fbbf24','#34d399'].map((c,i) => `<span class="w-2 h-2 rounded-full pw-arch-res" style="background:${c};animation-delay:${i*280}ms"></span>`).join('')}
+          </div>
+        </div>
+
+        <!-- Bottom strip -->
+        <div class="mt-4 pt-4 flex items-center justify-between flex-wrap gap-3 opacity-0" style="animation:pwArchIn .4s ease forwards;animation-delay:900ms;border-top:1px solid rgba(255,255,255,.07)">
+          <div class="flex items-center gap-2">
+            <span class="text-base">🎭</span>
+            <p class="text-[11px]" style="color:rgba(255,255,255,.4)">
+              <span class="font-semibold" style="color:rgba(56,189,248,.8)">Playwright TypeScript</span> · Page Object Model · Auth Fixtures · MCP Integration
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">TypeScript</span>
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">GitHub Actions CI</span>
           </div>
         </div>
       </div>
     </div>
     <style>
-      @keyframes techCardIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-      .tech-tag-dark { font-size:10px; font-weight:600; padding:3px 9px; border-radius:999px; display:inline-block; border:1px solid transparent; }
-      .tech-card-dark { transition: transform .2s, box-shadow .2s, border-color .2s; }
-      .tech-card-dark:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,0,0,.4); border-color:rgba(255,255,255,.2) !important; }
-      .tech-grid-bg {
-        background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
-        background-size: 40px 40px;
+      @keyframes pwArchIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      .pw-arch-dot { animation: pwDotPulse 1.6s ease-in-out infinite; }
+      @keyframes pwDotPulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.4)} }
+      .pw-arch-res { animation: pwResPulse 2.2s ease-in-out infinite; }
+      @keyframes pwResPulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+    </style>
+  ` : "";
+
+  const sysArchBanner = !getToken() ? `
+    <div class="relative rounded-2xl mb-6 overflow-hidden" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)">
+      <!-- Grid -->
+      <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
+      <!-- Glow orbs -->
+      <div class="absolute pointer-events-none" style="top:-80px;left:-60px;width:360px;height:360px;background:radial-gradient(circle,rgba(99,102,241,.12) 0%,transparent 65%)"></div>
+      <div class="absolute pointer-events-none" style="bottom:-60px;right:-40px;width:300px;height:300px;background:radial-gradient(circle,rgba(16,185,129,.09) 0%,transparent 65%)"></div>
+
+      <div class="relative z-10 p-5 sm:p-6">
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-5 flex-wrap gap-3">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-[.22em] mb-1 sys-arch-label">Microservice · Event-Driven · Real-time</p>
+            <h2 class="text-lg sm:text-xl font-extrabold text-white">System Architecture</h2>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28)">
+              <span class="text-sm font-black text-indigo-300">5</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(99,102,241,.6)">Services</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25)">
+              <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+              <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Live WS</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2)">
+              <span class="text-sm font-black text-yellow-300">Redis</span>
+              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(251,191,36,.55)">Pub/Sub</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 1: Browser -->
+        <div class="flex justify-center mb-1 opacity-0" style="animation:sysArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:0ms">
+          <div class="rounded-xl px-5 py-2.5 flex items-center gap-3" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)">
+            <span class="text-lg">🌐</span>
+            <div>
+              <p class="text-[11px] font-bold text-white">Browser SPA</p>
+              <p class="text-[9px]" style="color:rgba(255,255,255,.35)">Vanilla JS · Hash routing · Chart.js · WebSocket</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector → Gateway (animated packet) -->
+        <div class="flex justify-center items-center py-1 opacity-0" style="animation:sysArchIn .3s ease forwards;animation-delay:150ms">
+          <div class="flex flex-col items-center gap-0.5 relative">
+            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+            <div class="sys-pkt" style="width:6px;height:6px;border-radius:50%;background:#6366f1;position:absolute;top:0;animation:sysPacket 1.8s ease-in-out infinite;animation-delay:0ms"></div>
+            <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(99,102,241,.8)"></div>
+            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+          </div>
+        </div>
+
+        <!-- Row 2: Gateway -->
+        <div class="flex justify-center mb-1 opacity-0" style="animation:sysArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:200ms">
+          <div class="rounded-xl px-5 py-2.5 flex items-center gap-3 w-full max-w-sm" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3)">
+            <span class="text-lg">🔀</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-[11px] font-bold text-indigo-200">API Gateway <span class="text-[9px] font-mono text-indigo-400">:8000</span></p>
+              <p class="text-[9px]" style="color:rgba(99,102,241,.55)">httpx proxy · WebSocket bridge · Static SPA serving</p>
+            </div>
+            <div class="sys-scan-bar flex-shrink-0" style="width:36px;height:4px;border-radius:2px;background:rgba(99,102,241,.15);overflow:hidden">
+              <div style="height:100%;width:30%;background:rgba(99,102,241,.8);border-radius:2px;animation:sysGwScan 1.4s ease-in-out infinite"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connector Gateway → 4 services (fan-out) -->
+        <div class="flex justify-around items-start py-1 opacity-0" style="animation:sysArchIn .3s ease forwards;animation-delay:340ms">
+          ${[
+            {color:'rgba(56,189,248,.6)', delay:0},
+            {color:'rgba(16,185,129,.6)', delay:120},
+            {color:'rgba(251,113,133,.6)', delay:240},
+            {color:'rgba(251,191,36,.6)', delay:360},
+          ].map(s => `
+            <div class="flex flex-col items-center gap-0.5 relative">
+              <div class="w-px h-3" style="background:${s.color}"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-fanpkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-px h-3" style="background:${s.color}"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Row 3: 4 services -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-1 opacity-0" style="animation:sysArchIn .5s cubic-bezier(.22,1,.36,1) forwards;animation-delay:380ms">
+          ${[
+            {icon:'🔐', name:'Auth',     port:':8001', desc:'JWT · Register · Login · Roles', bg:'rgba(56,189,248,.08)', border:'rgba(56,189,248,.22)', title:'text-sky-300'},
+            {icon:'📋', name:'Projects', port:':8002', desc:'CRUD · Suites · Cases · Analytics', bg:'rgba(16,185,129,.07)', border:'rgba(16,185,129,.2)',  title:'text-emerald-300'},
+            {icon:'▶️', name:'Runs',     port:':8003', desc:'Results · WebSocket · Redis events', bg:'rgba(251,113,133,.07)', border:'rgba(251,113,133,.2)', title:'text-pink-300'},
+            {icon:'🤖', name:'AI',       port:':8004', desc:'Claude Haiku · Test generation', bg:'rgba(251,191,36,.06)', border:'rgba(251,191,36,.18)', title:'text-yellow-300'},
+          ].map((s,i) => `
+            <div class="rounded-xl p-2.5 flex flex-col gap-1 opacity-0" style="animation:sysArchIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${420+i*60}ms;background:${s.bg};border:1px solid ${s.border}">
+              <div class="flex items-center gap-1.5">
+                <span class="text-base">${s.icon}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-[11px] font-bold ${s.title} leading-none">${s.name}</p>
+                  <p class="text-[9px] font-mono" style="color:rgba(255,255,255,.25)">${s.port}</p>
+                </div>
+              </div>
+              <p class="text-[9px] leading-relaxed" style="color:rgba(255,255,255,.35)">${s.desc}</p>
+              <div class="h-0.5 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)">
+                <div class="h-full rounded-full sys-svc-bar" style="background:${s.border};animation-delay:${i*200}ms"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Connector → storage -->
+        <div class="flex justify-around items-center py-1 opacity-0" style="animation:sysArchIn .3s ease forwards;animation-delay:680ms">
+          ${[
+            {color:'rgba(168,85,247,.55)', delay:0},
+            {color:'rgba(251,191,36,.55)', delay:200},
+            {color:'rgba(239,68,68,.55)', delay:400},
+          ].map(s => `
+            <div class="flex flex-col items-center gap-0.5 relative">
+              <div class="w-px h-3" style="background:${s.color}"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-storepkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-px h-3" style="background:${s.color}"></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Row 4: Storage -->
+        <div class="grid grid-cols-3 gap-2 mb-4 opacity-0" style="animation:sysArchIn .5s cubic-bezier(.22,1,.36,1) forwards;animation-delay:720ms">
+          <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.22)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-base">🐘</span>
+              <p class="text-[10px] font-bold text-purple-300">PostgreSQL 16</p>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              ${['auth','projects','runs'].map((s,i) => `
+                <div class="flex items-center gap-1.5">
+                  <div class="w-1.5 h-1.5 rounded-sm flex-shrink-0" style="background:rgba(168,85,247,${.4+i*.2})"></div>
+                  <p class="text-[9px] font-mono" style="color:rgba(168,85,247,.6)">schema: ${s}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-base">⚡</span>
+              <p class="text-[10px] font-bold text-yellow-300">Redis 7</p>
+            </div>
+            <p class="text-[9px]" style="color:rgba(251,191,36,.55)">Pub/Sub channel</p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <div class="w-1.5 h-1.5 rounded-full sys-redis-dot"></div>
+              <p class="text-[9px] font-mono" style="color:rgba(251,191,36,.4)">runs.completed</p>
+            </div>
+          </div>
+          <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18)">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span class="text-base">🧠</span>
+              <p class="text-[10px] font-bold text-red-300">Anthropic</p>
+            </div>
+            <p class="text-[9px]" style="color:rgba(239,68,68,.5)">Claude Haiku</p>
+            <p class="text-[9px]" style="color:rgba(239,68,68,.35)">Test generation</p>
+          </div>
+        </div>
+
+        <!-- Bottom strip: legend -->
+        <div class="pt-4 flex items-center justify-between flex-wrap gap-3 opacity-0" style="animation:sysArchIn .4s ease forwards;animation-delay:900ms;border-top:1px solid rgba(255,255,255,.07)">
+          <div class="flex flex-wrap gap-3">
+            ${[
+              {dot:'#6366f1', label:'HTTP/REST (httpx)'},
+              {dot:'#fbbf24', label:'Redis Pub/Sub'},
+              {dot:'#34d399', label:'WebSocket (live)'},
+              {dot:'#f87171', label:'Anthropic API'},
+            ].map(l => `
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${l.dot}"></span>
+                <span class="text-[9px]" style="color:rgba(255,255,255,.35)">${l.label}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="flex gap-2">
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">Docker Compose</span>
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">FastAPI</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes sysArchIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes sysPacket { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
+      @keyframes sysGwScan { 0%{transform:translateX(-100%)} 100%{transform:translateX(400%)} }
+      .sys-fanpkt { animation: sysFanPulse 1.4s ease-in-out infinite; }
+      @keyframes sysFanPulse { 0%,100%{opacity:.3;transform:scale(.7)} 50%{opacity:1;transform:scale(1.5)} }
+      .sys-storepkt { animation: sysStorePulse 2s ease-in-out infinite; }
+      @keyframes sysStorePulse { 0%,100%{opacity:.25;transform:scale(.8)} 50%{opacity:1;transform:scale(1.4)} }
+      .sys-svc-bar { animation: sysSvcBar 3s ease-in-out infinite alternate; width: 40%; }
+      @keyframes sysSvcBar { from{width:30%} to{width:90%} }
+      .sys-redis-dot { width:6px;height:6px;border-radius:50%;background:#fbbf24;animation:sysRedisPulse 1.2s ease-in-out infinite; }
+      @keyframes sysRedisPulse { 0%,100%{opacity:.3;box-shadow:0 0 0 0 rgba(251,191,36,0)} 50%{opacity:1;box-shadow:0 0 0 4px rgba(251,191,36,.2)} }
+      .sys-arch-label {
+        background: linear-gradient(90deg,#818cf8,#f472b6,#34d399,#fbbf24,#818cf8);
+        background-size: 250% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: sysLabelShine 2.8s linear infinite, sysLabelFlash 1.4s ease-in-out infinite;
       }
-      .ai-badge-glow { animation: aiBadgePulse 3s ease-in-out infinite; }
-      @keyframes aiBadgePulse { 0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,0)} 50%{box-shadow:0 0 16px 2px rgba(139,92,246,.3)} }
+      @keyframes sysLabelShine { to { background-position: 250% center; } }
+      @keyframes sysLabelFlash { 0%,100%{opacity:1;filter:brightness(1)} 50%{opacity:.65;filter:brightness(1.6)} }
     </style>
   ` : "";
 
@@ -821,7 +1217,7 @@ async function renderProjects() {
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
           <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Senior Automation Engineer</p>
-          <h2 class="text-xl sm:text-2xl font-black text-white leading-tight mb-1" style="text-shadow:0 0 32px rgba(0,160,255,.4)">AI-Powered Quality<br>Engineering at Scale.</h2>
+          <h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">AI-Powered Quality<br>Engineering at Scale</h2>
           <p class="text-xs mb-4" style="color:rgba(100,200,255,.7)">Full-Stack AI-Driven Development · ISTQB · MCSD</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
@@ -862,9 +1258,20 @@ async function renderProjects() {
       </div>
     </div>
     <style>
+      @keyframes techCardIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
       .owner-scan { animation: ownerScan 4s ease-in-out infinite; }
       @keyframes ownerScan { 0%{top:0%;opacity:0} 10%{opacity:1} 90%{opacity:.3} 100%{top:100%;opacity:0} }
       .owner-open-badge { animation: openBadgePulse 3s ease-in-out infinite; }
+      .owner-title-flash {
+        background: linear-gradient(90deg,#ffffff,#60a5fa,#a78bfa,#34d399,#fbbf24,#f472b6,#ffffff);
+        background-size: 300% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: ownerTitleShine 3s linear infinite, ownerTitlePulse 1.6s ease-in-out infinite;
+      }
+      @keyframes ownerTitleShine { to { background-position: 300% center; } }
+      @keyframes ownerTitlePulse { 0%,100%{filter:brightness(1) drop-shadow(0 0 8px rgba(96,165,250,.3))} 50%{filter:brightness(1.35) drop-shadow(0 0 20px rgba(167,139,250,.6))} }
       @keyframes openBadgePulse { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} 50%{box-shadow:0 0 10px 2px rgba(52,211,153,.25)} }
       .owner-banner { transition: box-shadow .3s; }
       .owner-banner:hover { box-shadow: 0 8px 40px rgba(0,100,255,.2); }
@@ -878,7 +1285,8 @@ async function renderProjects() {
         ${archDiagram}
         ${demoBanner}
         ${techStackBanner}
-        <div class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+        ${sysArchBanner}
+        <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -900,6 +1308,7 @@ async function renderProjects() {
       ${archDiagram}
       ${demoBanner}
       ${techStackBanner}
+      ${sysArchBanner}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
@@ -908,12 +1317,14 @@ async function renderProjects() {
         </div>
         <div class="flex items-center gap-2">
           <div id="bulk-toolbar" class="hidden items-center gap-2">
+            ${isAdmin() ? `
             <span id="bulk-count" class="text-sm text-slate-600 font-medium"></span>
             <button onclick="bulkDeleteProjects()" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               Remove Selected
             </button>
             <button onclick="clearProjectSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+            ` : ""}
           </div>
           ${isAdmin() ? `<button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -940,8 +1351,8 @@ async function renderProjects() {
           <thead>
             <tr class="border-b border-slate-100 bg-slate-50">
               <th class="w-10 px-4 py-3">
-                <input type="checkbox" id="proj-select-all" onchange="toggleSelectAllProjects(this.checked)"
-                  class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />
+                ${isAdmin() ? `<input type="checkbox" id="proj-select-all" onchange="toggleSelectAllProjects(this.checked)"
+                  class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />` : ""}
               </th>
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</th>
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Description</th>
@@ -1007,8 +1418,8 @@ function projectRow(p) {
     <tr id="pcard-${p.id}" data-testid="project-row-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
       class="border-b border-slate-100 last:border-0 hover:bg-blue-50/40 transition-colors cursor-pointer group select-none">
       <td class="px-4 py-3" onclick="event.stopPropagation()">
-        <input type="checkbox" id="pcheck-${p.id}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
-          class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />
+        ${isAdmin() ? `<input type="checkbox" id="pcheck-${p.id}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
+          class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />` : ""}
       </td>
       <td class="px-3 py-3">
         <div class="flex items-center gap-3">
@@ -1157,7 +1568,7 @@ async function renderProject(projectId) {
 
   let project, suites, stats;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     project = projects.find(p => p.id === projectId);
     if (!project) throw new Error("Project not found");
     [suites, stats] = await Promise.all([
@@ -1170,6 +1581,7 @@ async function renderProject(projectId) {
   }
 
   state.currentProject = project;
+  _selectedSuites.clear();
   await loadSidebar();
 
   setBreadcrumb([
@@ -1195,11 +1607,18 @@ async function renderProject(projectId) {
           <h1 class="text-2xl font-bold text-slate-800">${escHtml(project.name)}</h1>
           ${project.description ? `<p class="text-slate-500 text-sm mt-1">${escHtml(project.description)}</p>` : ""}
         </div>
-        ${isAdmin() ? `<button onclick="showModal('suite', {projectId: ${projectId}})"
-          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          New Suite
-        </button>` : ""}
+        <div class="flex items-center gap-2">
+          <button onclick="renderAnalytics(${projectId})"
+            class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Analytics
+          </button>
+          ${isAdmin() ? `<button onclick="showModal('suite', {projectId: ${projectId}})"
+            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Suite
+          </button>` : ""}
+        </div>
       </div>
 
       <!-- Stats -->
@@ -1273,7 +1692,17 @@ async function renderProject(projectId) {
 
       <!-- Suites list -->
       <div>
-        <h2 class="text-lg font-semibold text-slate-700 mb-3">Test Suites</h2>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-slate-700">Test Suites</h2>
+          ${isAdmin() ? `<div id="suite-bulk-toolbar" class="hidden items-center gap-2">
+            <span id="suite-bulk-count" class="text-sm text-slate-600 font-medium"></span>
+            <button onclick="bulkDeleteSuites(${projectId})" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Remove Selected
+            </button>
+            <button onclick="clearSuiteSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+          </div>` : ""}
+        </div>
         ${!suites.length ? `
           <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
             <p class="text-slate-400 mb-3">No test suites yet.</p>
@@ -1420,9 +1849,13 @@ async function loadTestReport(suites) {
 
 function suiteCard(s, projectId) {
   return `
-    <div data-testid="suite-card-${s.id}" onclick="navigate('suite/${s.id}')"
+    <div id="scard-${s.id}" data-testid="suite-card-${s.id}" onclick="handleSuiteCardClick(event, ${s.id})"
       class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group">
       <div class="p-4 flex items-center gap-4">
+        ${isAdmin() ? `<div onclick="event.stopPropagation()" class="flex-shrink-0">
+          <input type="checkbox" id="scheck-${s.id}" onchange="toggleSuiteSelect(${s.id}, this.checked)"
+            class="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer accent-indigo-600" />
+        </div>` : ""}
         <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -1499,6 +1932,62 @@ async function deleteSuite(suiteId, projectId) {
   } catch (e) { toast(e.message, "error"); }
 }
 
+const _selectedSuites = new Set();
+
+function handleSuiteCardClick(event, id) {
+  if (_selectedSuites.size > 0) {
+    toggleSuiteSelect(id, !_selectedSuites.has(id));
+  } else {
+    navigate(`suite/${id}`);
+  }
+}
+
+function toggleSuiteSelect(id, checked) {
+  const card = document.getElementById(`scard-${id}`);
+  const cb = document.getElementById(`scheck-${id}`);
+  if (checked) {
+    _selectedSuites.add(id);
+    if (card) card.classList.add("ring-2", "ring-inset", "ring-indigo-300", "bg-indigo-50");
+    if (cb) cb.checked = true;
+  } else {
+    _selectedSuites.delete(id);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-indigo-300", "bg-indigo-50");
+    if (cb) cb.checked = false;
+  }
+  const toolbar = document.getElementById("suite-bulk-toolbar");
+  const countEl = document.getElementById("suite-bulk-count");
+  if (_selectedSuites.size > 0) {
+    if (toolbar) { toolbar.classList.remove("hidden"); toolbar.classList.add("flex"); }
+    if (countEl) countEl.textContent = `${_selectedSuites.size} selected`;
+  } else {
+    if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+  }
+}
+
+function clearSuiteSelection() {
+  [..._selectedSuites].forEach(id => {
+    const card = document.getElementById(`scard-${id}`);
+    const cb = document.getElementById(`scheck-${id}`);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-indigo-300", "bg-indigo-50");
+    if (cb) cb.checked = false;
+  });
+  _selectedSuites.clear();
+  const toolbar = document.getElementById("suite-bulk-toolbar");
+  if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+}
+
+async function bulkDeleteSuites(projectId) {
+  const ids = [..._selectedSuites];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} suite${ids.length > 1 ? "s" : ""} and all their test cases?`)) return;
+  try {
+    await Promise.all(ids.map(id => DEL(`/api/suites/${id}`)));
+    toast(`${ids.length} suite${ids.length > 1 ? "s" : ""} deleted`);
+    _selectedSuites.clear();
+    navigate(`project/${projectId}`);
+  } catch (e) { toast(e.message, "error"); }
+}
+
 // ─── Suite View ───────────────────────────────────────────────────────────────
 async function renderSuite(suiteId) {
   const el = document.getElementById("view-suite");
@@ -1507,7 +1996,7 @@ async function renderSuite(suiteId) {
 
   let suite, testcases, project, runs;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === suiteId);
@@ -1526,6 +2015,7 @@ async function renderSuite(suiteId) {
   state.currentSuite = suite;
   state.currentProject = project;
   state.currentView = null;
+  _selectedTestCases.clear();
   await loadSidebar();
 
   setBreadcrumb([
@@ -1560,6 +2050,11 @@ async function renderSuite(suiteId) {
             class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New Test Case
+          </button>
+          <button onclick="showAIGenerateModal(${suiteId})"
+            class="bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Generate with AI
           </button>` : ""}
         </div>
       </div>
@@ -1580,8 +2075,18 @@ async function renderSuite(suiteId) {
             Add your first test case
           </button>
         </div>` : `
-        <div class="space-y-3">
-          ${testcases.map(tc => testCaseCard(tc)).join("")}
+        <div>
+          ${isAdmin() ? `<div id="tc-bulk-toolbar" class="hidden items-center gap-2 mb-3">
+            <span id="tc-bulk-count" class="text-sm text-slate-600 font-medium"></span>
+            <button onclick="bulkDeleteTestCases(${suiteId})" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Remove Selected
+            </button>
+            <button onclick="clearTestCaseSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+          </div>` : ""}
+          <div class="space-y-3">
+            ${testcases.map(tc => testCaseCard(tc)).join("")}
+          </div>
         </div>`}
 
       <!-- Runs history -->
@@ -1601,7 +2106,7 @@ async function renderSuite(suiteId) {
 function testCaseCard(tc) {
   const tcJson = JSON.stringify(tc).replace(/\\/g, "\\\\").replace(/"/g, "&quot;");
   return `
-    <div data-testid="testcase-card-${tc.id}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+    <div id="tccard-${tc.id}" data-testid="testcase-card-${tc.id}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
       <div class="p-4">
         <div class="flex items-start gap-3">
           <div class="flex-1 min-w-0">
@@ -1625,6 +2130,8 @@ function testCaseCard(tc) {
           </div>
           <div class="flex items-center gap-1 flex-shrink-0 ml-2">
             ${isAdmin() ? `
+            <input type="checkbox" id="tccheck-${tc.id}" onchange="toggleTestCaseSelect(${tc.id}, this.checked)"
+              class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600 mr-1" />
             <button data-testid="edit-testcase-${tc.id}" onclick='showModal("editTestCase", JSON.parse(this.dataset.tc))'
               data-tc="${tcJson}"
               class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
@@ -1649,6 +2156,54 @@ async function deleteTestCase(tcId, suiteId) {
   } catch (e) { toast(e.message, "error"); }
 }
 
+const _selectedTestCases = new Set();
+
+function toggleTestCaseSelect(id, checked) {
+  const card = document.getElementById(`tccard-${id}`);
+  const cb = document.getElementById(`tccheck-${id}`);
+  if (checked) {
+    _selectedTestCases.add(id);
+    if (card) card.classList.add("ring-2", "ring-inset", "ring-blue-300", "bg-blue-50");
+    if (cb) cb.checked = true;
+  } else {
+    _selectedTestCases.delete(id);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-blue-300", "bg-blue-50");
+    if (cb) cb.checked = false;
+  }
+  const toolbar = document.getElementById("tc-bulk-toolbar");
+  const countEl = document.getElementById("tc-bulk-count");
+  if (_selectedTestCases.size > 0) {
+    if (toolbar) { toolbar.classList.remove("hidden"); toolbar.classList.add("flex"); }
+    if (countEl) countEl.textContent = `${_selectedTestCases.size} selected`;
+  } else {
+    if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+  }
+}
+
+function clearTestCaseSelection() {
+  [..._selectedTestCases].forEach(id => {
+    const card = document.getElementById(`tccard-${id}`);
+    const cb = document.getElementById(`tccheck-${id}`);
+    if (card) card.classList.remove("ring-2", "ring-inset", "ring-blue-300", "bg-blue-50");
+    if (cb) cb.checked = false;
+  });
+  _selectedTestCases.clear();
+  const toolbar = document.getElementById("tc-bulk-toolbar");
+  if (toolbar) { toolbar.classList.add("hidden"); toolbar.classList.remove("flex"); }
+}
+
+async function bulkDeleteTestCases(suiteId) {
+  const ids = [..._selectedTestCases];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} test case${ids.length > 1 ? "s" : ""}?`)) return;
+  try {
+    await Promise.all(ids.map(id => DEL(`/api/testcases/${id}`)));
+    toast(`${ids.length} test case${ids.length > 1 ? "s" : ""} deleted`);
+    _selectedTestCases.clear();
+    navigate(`suite/${suiteId}`);
+  } catch (e) { toast(e.message, "error"); }
+}
+
 // ─── Suite Test Cases View ────────────────────────────────────────────────────
 async function renderSuiteTestCases(suiteId) {
   const el = document.getElementById("view-suite");
@@ -1657,7 +2212,7 @@ async function renderSuiteTestCases(suiteId) {
 
   let suite, project, testcases;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === suiteId);
@@ -1673,6 +2228,7 @@ async function renderSuiteTestCases(suiteId) {
   state.currentSuite = suite;
   state.currentProject = project;
   state.currentView = `suite-cases-${suiteId}`;
+  _selectedTestCases.clear();
   await loadSidebar();
 
   setBreadcrumb([
@@ -1716,8 +2272,18 @@ async function renderSuiteTestCases(suiteId) {
             Add your first test case
           </button>
         </div>` : `
-        <div class="space-y-3">
-          ${testcases.map(tc => testCaseCard(tc)).join("")}
+        <div>
+          ${isAdmin() ? `<div id="tc-bulk-toolbar" class="hidden items-center gap-2 mb-3">
+            <span id="tc-bulk-count" class="text-sm text-slate-600 font-medium"></span>
+            <button onclick="bulkDeleteTestCases(${suiteId})" class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Remove Selected
+            </button>
+            <button onclick="clearTestCaseSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
+          </div>` : ""}
+          <div class="space-y-3">
+            ${testcases.map(tc => testCaseCard(tc)).join("")}
+          </div>
         </div>`}
     </div>`;
 }
@@ -1730,7 +2296,7 @@ async function renderSuiteRuns(suiteId) {
 
   let suite, project, runs;
   try {
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === suiteId);
@@ -1788,7 +2354,7 @@ async function renderRun(runId) {
   let run, suite = null, project = null;
   try {
     run = await GET(`/api/runs/${runId}`);
-    const projects = await GET("/api/projects");
+    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
     for (const p of projects) {
       const suites = await GET(`/api/projects/${p.id}/suites`);
       const found = suites.find(s => s.id === run.suite_id);
@@ -1880,16 +2446,24 @@ async function renderRun(runId) {
 
       <!-- Results list -->
       <div>
-        <h2 class="text-lg font-semibold text-slate-700 mb-3">Test Cases</h2>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-slate-700">Test Cases</h2>
+          <span id="ws-indicator" class="hidden items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live
+          </span>
+        </div>
         ${!results.length ? `
           <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-slate-400">
             No active test cases were found in this suite when the run was created.
           </div>` : `
-          <div class="space-y-3">
+          <div id="results-list" class="space-y-3">
             ${results.map(r => resultRow(r, runId)).join("")}
           </div>`}
       </div>
     </div>`;
+
+  // Start WebSocket for live collaboration
+  connectRunWebSocket(runId);
 }
 
 function resultRow(r, runId) {
@@ -1903,7 +2477,7 @@ function resultRow(r, runId) {
   const s = styles[r.status] || styles.pending;
 
   return `
-    <div class="bg-white rounded-2xl border ${s.border} shadow-sm transition-all">
+    <div class="bg-white rounded-2xl border ${s.border} shadow-sm transition-all" data-tc-id="${tc.id}">
       <div class="p-4 flex items-start gap-3">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap mb-0.5">
@@ -1915,7 +2489,7 @@ function resultRow(r, runId) {
           ${r.executed_at ? `<p class="text-xs text-slate-400 mt-1">Executed ${formatDate(r.executed_at)}</p>` : ""}
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.badge}">${s.label}</span>
+          <span data-status-badge="${r.status}" class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.badge}">${s.label}</span>
           <button
             onclick="showModal('result', {runId: ${runId}, tcId: ${tc.id}, tcTitle: ${escHtml(JSON.stringify(tc.title))}, currentStatus: '${r.status}', currentNotes: ${escHtml(JSON.stringify(r.notes || ''))}})"
             class="px-3 py-1 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 rounded-lg text-xs font-semibold transition-all">
@@ -2008,84 +2582,123 @@ function alertsArchDiagram() {
   const lane = (label, clr) =>
     `<p class="text-[9px] font-bold uppercase tracking-widest ${clr} mb-2">${label}</p>`;
 
+  // Small tag chip (used for annotations like JWT / Rate limit / node-pod groups)
+  const tag = (lbl, bg, tc, d = 0) =>
+    `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
+        style="animation:aadIn .3s ease forwards;animation-delay:${d}ms">${lbl}</span>`;
+
   return `
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-slate-800 text-sm">System Architecture</h3>
       <span class="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 aad-live"></span>GCP · Angular MFE
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 aad-live"></span>GCP · GKE
       </span>
     </div>
 
-    <!-- ① Client Layer ─────────────────────────────── -->
+    <!-- ① Subscribe & Gateway Flow ─────────────────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('① Client Layer — Angular Micro Frontends', 'text-blue-500')}
+      ${lane('① Client → Gateway — User Subscribes to an Alert', 'text-blue-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-blue-600','border-blue-700','text-white','Shell Application','Host (Angular)',0)}
-        ${arrow('','70','right','blue',28)}
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Alerts Management MFE','Create / Manage Configs',140)}
+        ${box('bg-slate-700','border-slate-800','text-white','User','',0)}
+        ${arrow('subscribe on alert','70','right','blue',36)}
+        ${box('bg-blue-600','border-blue-700','text-white','FE - SalesOS','Angular Frontend',140)}
+        ${arrow('REST','210','right','blue',28)}
+        ${box('bg-blue-500','border-blue-600','text-white','Apps Gateway (GW)','JWT Auth · Rate Limit',280)}
+        ${arrow('REST','350','right','blue',28)}
+        ${box('bg-indigo-500','border-indigo-600','text-white','BE for FE (BFF)','microservice',420)}
+        ${arrow('write','490','right','slate',28)}
+        ${box('bg-white','border-slate-300','text-slate-700','MongoDB Alerts','Alert Definitions',560)}
+      </div>
+    </div>
+
+    <!-- ② Application Layer - GCP ──────────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('② Application Layer — GCP · Email Alert Cron & Workers', 'text-rose-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-rose-100','border-rose-300','text-rose-800','Email Alert CRON','CronJob · at 12AM',630)}
+        ${arrow('read alerts','700','right','slate',32)}
+        ${box('bg-white','border-slate-300','text-slate-700','MongoDB Alerts','Alert Definitions',770)}
+        ${arrow('','830','left','rose',24)}
+        ${box('bg-rose-100','border-rose-300','text-rose-800','Email Alert CRON','push alerts',900)}
+        ${arrow('push alerts','970','right','amber',36)}
+        ${box('bg-amber-500','border-amber-600','text-white','Redis DB Queue','In-Memory DB',1040)}
+        ${arrow('read events','1110','right','amber',36)}
+        ${box('bg-rose-200','border-rose-400','text-rose-900','Email Alert Workers','GKE x 30',1180)}
+      </div>
+    </div>
+
+    <!-- ③ Search Layer & Async Services ────────────── -->
+    <div class="mb-3 pb-3 border-b border-slate-100">
+      ${lane('③ Fan-out — Search Enrichment & Notification Delivery', 'text-amber-500')}
+      <div class="flex items-center gap-2 flex-wrap">
+        ${box('bg-rose-200','border-rose-400','text-rose-900','Email Alert Workers','GKE x 30',1250)}
+        ${arrow('search query on news/company','1320','right','amber',48)}
+        ${box('bg-amber-50','border-amber-300','text-amber-800','Search-Service','Search Layer',1390)}
+        ${arrow('search','1460','right','amber',28)}
+        ${box('bg-white','border-slate-300','text-slate-700','SOLR DB','Full-text Index',1530)}
         <div class="flex-1 min-w-4"></div>
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Notification Display MFE','Realtime Updates',210)}
-        ${arrow('Listen Updates','280','left','emerald',28)}
-        ${box('bg-emerald-500','border-emerald-600','text-white','WebSocket Server','Firebase / Socket.io',350)}
+        ${arrow('send event of notification','1600','left','slate',48)}
+        ${box('bg-amber-50','border-amber-300','text-amber-800','Notification Center','Async Services',1670)}
+        ${arrow('send email','1740','right','slate',28)}
+        ${box('bg-amber-50','border-amber-300','text-amber-800','Emailer service','Async Services',1810)}
+        ${arrow('','1880','right','slate',20)}
+        ${box('bg-slate-100','border-slate-300','text-slate-700','📧 Email','Delivered to user',1950)}
       </div>
     </div>
 
-    <!-- ② Cron / Scanner Flow ─────────────────────── -->
+    <!-- ④ Kubernetes Deployment — Availability ─────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('② Cron Job — Data Scanner (new alert detection)', 'text-violet-500')}
+      ${lane('④ Kubernetes Deployment — Availability (make sure the system is always running)', 'text-violet-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-blue-500','border-blue-600','text-white','Cloud Scheduler','Cron',420)}
-        ${arrow('Trigger Scan (Interval)','490','right','blue',40)}
-        ${box('bg-blue-500','border-blue-600','text-white','Data Scanner Function','Cloud Functions',560)}
-        ${arrow('Query New Data','630','right','slate',36)}
-        ${box('bg-emerald-600','border-emerald-700','text-white','Google BigQuery','Analytics',700)}
-        ${arrow('Check Match Criteria','770','right','slate',36)}
-        ${box('bg-teal-700','border-teal-800','text-white','Elasticsearch','Log / Search',840)}
-        ${arrow('Alert Found →','910','right','red',32)}
-        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',980)}
+        ${box('bg-slate-700','border-slate-800','text-white','User','',2020)}
+        ${arrow('alert app','2090','right','violet',32)}
+        ${box('bg-violet-600','border-violet-700','text-white','Load Balancer','',2160)}
+        ${arrow('','2220','right','violet',24)}
+        ${box('bg-violet-100','border-violet-300','text-violet-800','cluster K8S','GCP: GKE · AWS: EKS',2280)}
+        <div class="flex items-center gap-1.5 flex-wrap">
+          ${tag('Node 1 · Pod 1 → App Alert container','bg-violet-50 border-violet-200','text-violet-700',2350)}
+          ${tag('Node 1 · Pod 2','bg-slate-50 border-slate-200','text-slate-500',2380)}
+          ${tag('Node 2 · Pod 1 → App Alert container','bg-violet-50 border-violet-200','text-violet-700',2410)}
+          ${tag('Node 2 · Pod 2','bg-slate-50 border-slate-200','text-slate-500',2440)}
+        </div>
       </div>
     </div>
 
-    <!-- ③ API / Alert Config Flow ─────────────────── -->
-    <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('③ API Layer — Alert Config & Manual Trigger', 'text-amber-500')}
-      <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Alerts Management MFE','Create Config',1050)}
-        ${arrow('POST /alerts','1120','right','amber',36)}
-        ${box('bg-blue-500','border-blue-600','text-white','Cloud Endpoints','API Gateway',1190)}
-        ${arrow('','1260','right','blue',28)}
-        ${box('bg-blue-600','border-blue-700','text-white','Alert Microservice','Cloud Run',1330)}
-        ${arrow('Cache Config','1400','right','slate',32)}
-        ${box('bg-red-500','border-red-600','text-white','Cloud Memorystore','Redis',1470)}
-        ${arrow('Store Alert Def','1540','right','slate',32)}
-        ${box('bg-white','border-slate-300','text-slate-700','Cloud SQL / Firestore','Structured Data',1610)}
-        ${arrow('Manual Trigger →','1680','right','red',36)}
-        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',1750)}
+    <!-- ⑤ Communication Patterns ────────────────────── -->
+    <div>
+      ${lane('⑤ Communication Patterns — Sync vs Async', 'text-emerald-500')}
+      <div class="flex items-center gap-2 flex-wrap mb-2">
+        ${box('bg-emerald-600','border-emerald-700','text-white','my service','/api/webhook',2470)}
+        ${arrow('subscribe (webhook REST endpoint)','2540','right','emerald',44)}
+        ${box('bg-emerald-50','border-emerald-300','text-emerald-800','external service','',2610)}
+        ${arrow('calculate / response','2680','left','emerald',44)}
+        ${box('bg-emerald-600','border-emerald-700','text-white','my service','',2750)}
+        ${arrow('/api/webhook (async)','2820','right','slate',44)}
+        ${box('bg-emerald-50','border-emerald-300','text-emerald-800','external service','callback',2890)}
       </div>
-    </div>
-
-    <!-- ④ Notification Delivery Flow ──────────────── -->
-    <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('④ Notification Delivery — Async → Realtime Push', 'text-emerald-500')}
-      <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-red-500','border-red-600','text-white','GCP Pub/Sub','Event Streaming',1820)}
-        ${arrow('Async Notification','1890','right','red',40)}
-        ${box('bg-slate-100','border-slate-300','text-slate-700','Notification Microservice','GKE',1960)}
-        ${arrow('Index for Search','2030','right','slate',36)}
-        ${box('bg-teal-700','border-teal-800','text-white','Elasticsearch','Log / Search',2100)}
-        ${arrow('Check User Cache','2170','right','slate',36)}
-        ${box('bg-red-500','border-red-600','text-white','Cloud Memorystore','Redis',2240)}
-        ${arrow('Push to UI','2310','right','emerald',36)}
-        ${box('bg-emerald-500','border-emerald-600','text-white','WebSocket Server','Firebase / Socket.io',2380)}
-        ${arrow('Real-time Update','2450','right','emerald',40)}
-        ${box('bg-amber-400','border-amber-500','text-slate-900','Notification Display MFE','Updates UI',2520)}
+      <div class="flex items-center gap-4 flex-wrap mt-2">
+        <div>
+          <p class="text-[9px] font-bold text-slate-500 mb-1">Sync (point2point)</p>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${tag('REST','bg-emerald-50 border-emerald-200','text-emerald-700',2960)}
+            ${tag('webSockets','bg-emerald-50 border-emerald-200','text-emerald-700',2990)}
+            ${tag('gRPC · internal','bg-emerald-50 border-emerald-200','text-emerald-700',3020)}
+          </div>
+        </div>
+        <div>
+          <p class="text-[9px] font-bold text-slate-500 mb-1">Async</p>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${tag('Queue','bg-slate-50 border-slate-200','text-slate-600',3050)}
+            ${tag('Pub/sub','bg-slate-50 border-slate-200','text-slate-600',3080)}
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Legend + live indicator ───────────────────── -->
-    <div class="flex items-center gap-4 flex-wrap">
-      ${[['#3b82f6','Platform / Config'],['#f59e0b','Alert Creation'],['#ef4444','Event / Pub-Sub'],['#10b981','Realtime Notify'],['#94a3b8','Data Storage']].map(([c,l])=>`
+    <div class="flex items-center gap-4 flex-wrap mt-4 pt-3 border-t border-slate-100">
+      ${[['#3b82f6','Gateway / Auth'],['#f59e0b','Queue / Workers'],['#ec4899','Application Layer'],['#8b5cf6','K8s Deployment'],['#10b981','Sync / Async Comms']].map(([c,l])=>`
         <div class="flex items-center gap-1.5">
           <div style="height:2px;width:18px;background:repeating-linear-gradient(to right,${c} 0,${c} 4px,transparent 4px,transparent 8px);background-size:10px 100%;animation:aadFlowR .4s linear infinite"></div>
           <span class="text-[9px] text-slate-500">${l}</span>
@@ -2174,6 +2787,188 @@ async function seedPlaywrightDemo() {
     label.textContent = "Run Playwright Architecture Demo";
     btn.classList.remove("opacity-60");
   }
+}
+
+// ─── User Journey Demo (animated, client-side simulation) ────────────────────
+const JOURNEY_STEPS = [
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '🔑', title: 'Admin signs in',
+    desc: 'Authenticates with JWT — role: admin', kind: 'login',
+    data: { name: 'Rabin (Admin)', role: 'admin' } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '📁', title: 'Creates a Project',
+    desc: '"Checkout Service" organizes all related test work', kind: 'create',
+    data: { icon: '📁', entity: 'Project', name: 'Checkout Service', fields: [['Name', 'Checkout Service'], ['Description', 'Payment & checkout coverage']] } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '🗂️', title: 'Creates a Suite',
+    desc: '"Checkout Flow" groups related test cases', kind: 'create',
+    data: { icon: '🗂️', entity: 'Suite', name: 'Checkout Flow', fields: [['Name', 'Checkout Flow'], ['Project', 'Checkout Service']] } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '✅', title: 'Creates a Test Case',
+    desc: '"Apply discount code at checkout" — Priority: High', kind: 'create',
+    data: { icon: '✅', entity: 'Test Case', name: 'Apply discount code at checkout', fields: [['Priority', 'High'], ['Status', 'Active']] } },
+  { actor: 'Admin', avatar: 'A', color: '#3b82f6', icon: '👤', title: 'Creates an Executor user',
+    desc: '"jane.tester" — ready to run tests', kind: 'create',
+    data: { icon: '👤', entity: 'User', name: 'jane.tester', fields: [['Role', 'Executor'], ['Email', 'jane@company.com']] } },
+  { actor: 'Executor', avatar: 'J', color: '#8b5cf6', icon: '🔑', title: 'Executor signs in',
+    desc: 'Authenticates with JWT — role: executor', kind: 'login',
+    data: { name: 'Jane Tester', role: 'executor' } },
+  { actor: 'Executor', avatar: 'J', color: '#8b5cf6', icon: '▶️', title: 'Starts a Test Run',
+    desc: '"Sprint 24 Regression" pulls in active test cases', kind: 'create',
+    data: { icon: '▶️', entity: 'Run', name: 'Sprint 24 Regression', fields: [['Suite', 'Checkout Flow'], ['Test cases', '1 active']] } },
+  { actor: 'Executor', avatar: 'J', color: '#8b5cf6', icon: '📊', title: 'Marks results & sees status',
+    desc: 'Pass / fail — live progress updates instantly', kind: 'run' },
+];
+
+let _journeyIndex = 0;
+let _journeyTimer = null;
+let _journeyPlaying = true;
+
+function ensureJourneyStyles() {
+  if (document.getElementById("journey-style")) return;
+  const style = document.createElement("style");
+  style.id = "journey-style";
+  style.textContent = `
+    @keyframes journeyBarFill { from{width:0%} to{width:100%} }
+    @keyframes journeyFadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .journey-fade-in { opacity:0; animation:journeyFadeIn .4s ease forwards; }
+  `;
+  document.head.appendChild(style);
+}
+
+function journeySceneHTML(step) {
+  if (step.kind === 'login') {
+    return `
+      <div class="flex flex-col items-center justify-center h-full gap-3">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style="background:${step.color}">${step.data.name[0]}</div>
+        <p class="text-sm font-bold text-slate-700">${step.data.name}</p>
+        <span class="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full" style="background:${step.color}1a;color:${step.color}">${step.data.role}</span>
+        <div class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold mt-1 journey-fade-in" style="animation-delay:.6s">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          JWT issued
+        </div>
+      </div>`;
+  }
+  if (step.kind === 'create') {
+    return `
+      <div class="flex flex-col items-center justify-center h-full gap-3 w-full max-w-xs mx-auto">
+        <div class="w-full rounded-xl border border-slate-200 bg-white shadow-sm p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg">${step.data.icon}</span>
+            <p class="text-xs font-bold text-slate-700">New ${step.data.entity}</p>
+          </div>
+          ${step.data.fields.map(([l, v], i) => `
+            <div class="mb-1.5 journey-fade-in" style="animation-delay:${.15 + i * .15}s">
+              <p class="text-[9px] font-semibold text-slate-400 uppercase">${l}</p>
+              <p class="text-xs text-slate-700 border border-slate-200 rounded-md px-2 py-1 bg-slate-50 truncate">${v}</p>
+            </div>
+          `).join('')}
+        </div>
+        <div class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold journey-fade-in" style="animation-delay:${.15 + step.data.fields.length * .15 + .2}s">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          "${step.data.name}" created
+        </div>
+      </div>`;
+  }
+  // kind === 'run'
+  const rows = [
+    { name: 'Apply discount code at checkout', badge: 'Pass', cls: 'bg-emerald-100 text-emerald-600', delay: .3 },
+  ];
+  return `
+    <div class="flex flex-col gap-3 w-full max-w-sm mx-auto">
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-100">
+        ${rows.map(r => `
+          <div class="flex items-center justify-between px-3 py-2">
+            <p class="text-xs text-slate-700 truncate pr-2">${r.name}</p>
+            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${r.cls} journey-fade-in" style="animation-delay:${r.delay}s">${r.badge}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 flex items-center justify-between journey-fade-in" style="animation-delay:1.1s">
+        <p class="text-xs font-bold text-emerald-700">Run complete</p>
+        <p class="text-sm font-black text-emerald-600">100% pass</p>
+      </div>
+    </div>`;
+}
+
+function openUserJourneyDemo() {
+  ensureJourneyStyles();
+  _journeyIndex = 0;
+  _journeyPlaying = true;
+  document.getElementById("modal-title").textContent = "Live Demo · User Journey";
+  document.getElementById("modal-overlay").classList.remove("hidden");
+  renderJourneyStep(0);
+}
+
+function startJourneyTimer() {
+  clearInterval(_journeyTimer);
+  _journeyTimer = setInterval(() => {
+    const overlay = document.getElementById("modal-overlay");
+    if (!overlay || overlay.classList.contains("hidden")) { clearInterval(_journeyTimer); return; }
+    if (!_journeyPlaying) return;
+    if (_journeyIndex >= JOURNEY_STEPS.length - 1) { clearInterval(_journeyTimer); return; }
+    _journeyIndex++;
+    renderJourneyStep(_journeyIndex);
+  }, 2400);
+}
+
+function journeyGoto(i) {
+  _journeyIndex = Math.max(0, Math.min(JOURNEY_STEPS.length - 1, i));
+  renderJourneyStep(_journeyIndex);
+}
+
+function journeyToggle() {
+  _journeyPlaying = !_journeyPlaying;
+  renderJourneyStep(_journeyIndex);
+}
+
+function closeJourneyDemo() {
+  clearInterval(_journeyTimer);
+  hideModal();
+}
+
+function renderJourneyStep(i) {
+  const step = JOURNEY_STEPS[i];
+  const body = document.getElementById("modal-body");
+  body.innerHTML = `
+    <div class="w-full">
+      <div class="flex gap-1 mb-4">
+        ${JOURNEY_STEPS.map((s, idx) => `
+          <div class="h-1 flex-1 rounded-full overflow-hidden bg-slate-100">
+            ${idx < i
+              ? `<div class="h-full rounded-full" style="width:100%;background:${s.color}"></div>`
+              : idx === i
+                ? `<div class="h-full rounded-full" style="background:${s.color};${_journeyPlaying ? 'animation:journeyBarFill 2.4s linear forwards' : 'width:0%'}"></div>`
+                : `<div class="h-full rounded-full" style="width:0%;background:${s.color}"></div>`}
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black text-white flex-shrink-0" style="background:${step.color}">${step.avatar}</span>
+        <div class="min-w-0">
+          <p class="text-[10px] font-bold uppercase tracking-wider" style="color:${step.color}">${step.actor} · Step ${i + 1} of ${JOURNEY_STEPS.length}</p>
+          <p class="text-sm font-bold text-slate-800 truncate">${step.icon} ${step.title}</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">${step.desc}</p>
+
+      <div class="rounded-2xl bg-slate-50 border border-slate-200 h-56 flex items-center justify-center p-4 mb-4 overflow-hidden">
+        ${journeySceneHTML(step)}
+      </div>
+
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex gap-1.5">
+          ${JOURNEY_STEPS.map((_, idx) => `
+            <button onclick="journeyGoto(${idx})" class="h-2 rounded-full transition-all ${idx === i ? 'w-5 bg-blue-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}"></button>
+          `).join('')}
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="journeyGoto(${Math.max(0, i - 1)})" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 disabled:opacity-30" ${i === 0 ? 'disabled' : ''}>Prev</button>
+          <button onclick="journeyToggle()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white">${_journeyPlaying ? '⏸ Pause' : '▶ Play'}</button>
+          <button onclick="${i === JOURNEY_STEPS.length - 1 ? 'journeyGoto(0)' : `journeyGoto(${i + 1})`}" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800">${i === JOURNEY_STEPS.length - 1 ? 'Replay' : 'Next'}</button>
+          <button onclick="closeJourneyDemo()" class="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600">Close</button>
+        </div>
+      </div>
+    </div>`;
+
+  if (_journeyPlaying) startJourneyTimer(); else clearInterval(_journeyTimer);
 }
 
 function testflowArchDiagram() {
@@ -2661,3 +3456,323 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch { /* ignore — server may be starting up */ }
   }
 });
+
+// ─── WebSocket: Live Run Collaboration ────────────────────────────────────────
+let _activeRunWs = null;
+
+function connectRunWebSocket(runId) {
+  if (_activeRunWs) {
+    _activeRunWs.close();
+    _activeRunWs = null;
+  }
+
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${proto}://${location.host}/ws/runs/${runId}`);
+  _activeRunWs = ws;
+
+  ws.onopen = () => {
+    const ind = document.getElementById("ws-indicator");
+    if (ind) ind.classList.remove("hidden"), ind.classList.add("flex");
+    // Keepalive ping every 25s
+    ws._ping = setInterval(() => { if (ws.readyState === 1) ws.send("ping"); }, 25000);
+  };
+
+  ws.onmessage = (evt) => {
+    if (evt.data === "pong") return;
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === "result_updated") {
+        applyLiveResultUpdate(msg);
+        if (msg.run_completed) {
+          toast(`Run completed by ${msg.updated_by}`, "info");
+        }
+      }
+    } catch { /* ignore malformed */ }
+  };
+
+  ws.onclose = () => {
+    clearInterval(ws._ping);
+    const ind = document.getElementById("ws-indicator");
+    if (ind) ind.classList.add("hidden");
+    _activeRunWs = null;
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function applyLiveResultUpdate(msg) {
+  // Find the result row for this testcase and update its badge
+  const row = document.querySelector(`[data-tc-id="${msg.testcase_id}"]`);
+  if (!row) return;
+  const badge = row.querySelector("[data-status-badge]");
+  if (badge) {
+    const labels = { pass: "Pass", fail: "Fail", skip: "Skip", pending: "Pending" };
+    const colors = {
+      pass:    "bg-emerald-100 text-emerald-700",
+      fail:    "bg-red-100 text-red-700",
+      skip:    "bg-amber-100 text-amber-700",
+      pending: "bg-slate-100 text-slate-500",
+    };
+    badge.className = `px-2 py-0.5 rounded-full text-xs font-semibold ${colors[msg.status] || colors.pending}`;
+    badge.setAttribute("data-status-badge", msg.status);
+    badge.textContent = labels[msg.status] || msg.status;
+  }
+  // Flash the row
+  row.classList.add("ring-2", "ring-blue-400");
+  setTimeout(() => row.classList.remove("ring-2", "ring-blue-400"), 1500);
+  toast(`${msg.updated_by} marked a test as ${msg.status}`, "info");
+}
+
+
+// ─── AI Test Case Generation ──────────────────────────────────────────────────
+function showAIGenerateModal(suiteId) {
+  const title = document.getElementById("modal-title");
+  const body  = document.getElementById("modal-body");
+  const overlay = document.getElementById("modal-overlay");
+  title.textContent = "Generate Test Cases with AI";
+  body.innerHTML = `
+    <div class="space-y-4">
+      <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-sm text-violet-700">
+        Describe the feature or scenario you want to test. Claude AI will generate detailed, actionable test cases.
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Feature Description</label>
+        <textarea id="ai-desc" rows="4" placeholder="e.g. User login with email and password, including error cases for wrong credentials and locked accounts..."
+          class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">Number of test cases</label>
+        <select id="ai-count" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+          <option value="3">3</option>
+          <option value="5" selected>5</option>
+          <option value="8">8</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div id="ai-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"></div>
+      <div id="ai-results" class="hidden space-y-3"></div>
+      <div class="flex gap-2 pt-2">
+        <button id="ai-generate-btn" onclick="runAIGenerate(${suiteId})"
+          class="flex-1 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Generate
+        </button>
+        <button onclick="hideModal()" class="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-xl transition-colors">Cancel</button>
+      </div>
+    </div>`;
+  overlay.classList.remove("hidden");
+}
+
+async function runAIGenerate(suiteId) {
+  const desc = document.getElementById("ai-desc")?.value.trim();
+  const count = parseInt(document.getElementById("ai-count")?.value || "5");
+  const errEl = document.getElementById("ai-error");
+  const btn   = document.getElementById("ai-generate-btn");
+  const resultsEl = document.getElementById("ai-results");
+
+  errEl.classList.add("hidden");
+  if (!desc) { errEl.textContent = "Please enter a feature description."; errEl.classList.remove("hidden"); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path fill="currentColor" class="opacity-75" d="M4 12a8 8 0 018-8v8z"/></svg> Generating…`;
+
+  try {
+    const data = await POST(`/api/suites/${suiteId}/testcases/generate`, { feature_description: desc, count });
+    if (!data) throw new Error("No response from server");
+
+    const tcs = data.test_cases || [];
+    resultsEl.classList.remove("hidden");
+    resultsEl.innerHTML = `
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-semibold text-slate-700">${tcs.length} test cases generated <span class="text-xs font-normal text-slate-400">via ${data.model}</span></p>
+        <button onclick="saveAllAITestCases(${suiteId})"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+          Save All
+        </button>
+      </div>
+      ${tcs.map((tc, i) => `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-sm font-semibold text-slate-800">${escHtml(tc.title)}</p>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+              tc.priority === 'critical' ? 'bg-red-100 text-red-700' :
+              tc.priority === 'high'     ? 'bg-orange-100 text-orange-700' :
+              tc.priority === 'medium'   ? 'bg-blue-100 text-blue-700' :
+                                          'bg-slate-100 text-slate-600'
+            }">${tc.priority}</span>
+          </div>
+          <p class="text-xs text-slate-500">${escHtml(tc.description)}</p>
+          ${tc.steps ? `<p class="text-xs text-slate-600 mt-1"><strong>Steps:</strong> ${escHtml(tc.steps)}</p>` : ""}
+          ${tc.expected_result ? `<p class="text-xs text-slate-600"><strong>Expected:</strong> ${escHtml(tc.expected_result)}</p>` : ""}
+        </div>`).join("")}`;
+
+    // Store generated cases for bulk save
+    window._aiGeneratedCases = tcs;
+    window._aiTargetSuiteId  = suiteId;
+
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Regenerate`;
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove("hidden");
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate`;
+  }
+}
+
+async function saveAllAITestCases(suiteId) {
+  const cases = window._aiGeneratedCases;
+  if (!cases || !cases.length) return;
+  try {
+    const result = await api("POST", `/api/suites/${suiteId}/testcases/generate/save`, cases);
+    toast(`${result.saved} test cases saved!`, "success");
+    hideModal();
+    await renderSuite(suiteId);
+  } catch (e) {
+    toast(e.message, "error");
+  }
+}
+
+
+// ─── Analytics Dashboard ──────────────────────────────────────────────────────
+let _analyticsChart = null;
+
+async function renderAnalytics(projectId) {
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  const el = document.getElementById("view-analytics");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+
+  let data;
+  try {
+    data = await GET(`/api/projects/${projectId}/analytics`);
+  } catch (e) {
+    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
+    return;
+  }
+
+  setBreadcrumb([
+    { label: "Projects", href: "projects" },
+    { label: data.project_name, href: `project/${projectId}` },
+    { label: "Analytics", href: `project/${projectId}` },
+  ]);
+
+  const history = data.run_history || [];
+  const coverage = data.suite_coverage || [];
+
+  el.innerHTML = `
+    <div class="fade-in space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Analytics</h1>
+          <p class="text-sm text-slate-500 mt-0.5">${escHtml(data.project_name)}</p>
+        </div>
+        <button onclick="navigate('project/${projectId}')" class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Back
+        </button>
+      </div>
+
+      ${!history.length ? `
+        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center">
+          <p class="text-slate-400 text-sm">No completed runs yet. Execute some test runs to see analytics.</p>
+        </div>` : `
+
+      <!-- Pass rate trend -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-base font-semibold text-slate-700 mb-1">Pass Rate Trend</h2>
+        <p class="text-xs text-slate-400 mb-4">Last ${history.length} completed runs across all suites</p>
+        <div style="position:relative;height:240px">
+          <canvas id="analytics-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Run breakdown table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100">
+          <h2 class="text-base font-semibold text-slate-700">Run History</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 font-medium uppercase tracking-wider">
+              <tr>
+                <th class="px-4 py-3 text-left">Run</th>
+                <th class="px-4 py-3 text-right text-emerald-600">Pass</th>
+                <th class="px-4 py-3 text-right text-red-600">Fail</th>
+                <th class="px-4 py-3 text-right text-amber-600">Skip</th>
+                <th class="px-4 py-3 text-right">Pass Rate</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${history.map(r => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                  <td class="px-4 py-3 font-medium text-slate-800">${escHtml(r.run_name)}</td>
+                  <td class="px-4 py-3 text-right text-emerald-600 font-semibold">${r.pass_count}</td>
+                  <td class="px-4 py-3 text-right text-red-600 font-semibold">${r.fail_count}</td>
+                  <td class="px-4 py-3 text-right text-amber-600 font-semibold">${r.skip_count}</td>
+                  <td class="px-4 py-3 text-right">
+                    <span class="font-bold ${r.pass_rate >= 80 ? 'text-emerald-600' : r.pass_rate >= 50 ? 'text-amber-600' : 'text-red-600'}">${r.pass_rate}%</span>
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Suite coverage -->
+      ${coverage.length ? `
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-base font-semibold text-slate-700 mb-4">Suite Coverage</h2>
+        <div class="space-y-3">
+          ${coverage.map(s => {
+            const pct = s.total ? Math.round(s.active / s.total * 100) : 0;
+            return `
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="font-medium text-slate-700 truncate max-w-[60%]">${escHtml(s.suite_name)}</span>
+                <span class="text-slate-500 flex-shrink-0">${s.active}/${s.total} active (${pct}%)</span>
+              </div>
+              <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-blue-500 rounded-full transition-all" style="width:${pct}%"></div>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>` : ""}
+      `}
+    </div>`;
+
+  if (history.length) {
+    if (_analyticsChart) { _analyticsChart.destroy(); _analyticsChart = null; }
+    const ctx = document.getElementById("analytics-chart")?.getContext("2d");
+    if (ctx) {
+      _analyticsChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: history.map(r => r.run_name),
+          datasets: [
+            {
+              label: "Pass Rate %",
+              data: history.map(r => r.pass_rate),
+              borderColor: "#10b981",
+              backgroundColor: "rgba(16,185,129,0.08)",
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: "#10b981",
+              pointRadius: 5,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, max: 100, ticks: { callback: v => v + "%" }, grid: { color: "#f1f5f9" } },
+            x: { grid: { display: false }, ticks: { maxRotation: 30 } },
+          },
+        },
+      });
+    }
+  }
+}

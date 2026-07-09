@@ -2,7 +2,9 @@ def test_list_projects_empty(auth_client):
     client, headers = auth_client
     r = client.get("/api/projects", headers=headers)
     assert r.status_code == 200
-    assert r.json() == []
+    body = r.json()
+    assert body["items"] == []
+    assert body["total"] == 0
 
 
 def test_create_project(auth_client):
@@ -21,7 +23,9 @@ def test_list_projects_after_create(auth_client):
     client.post("/api/projects", json={"name": "P2"}, headers=headers)
     r = client.get("/api/projects", headers=headers)
     assert r.status_code == 200
-    assert len(r.json()) == 2
+    body = r.json()
+    assert len(body["items"]) == 2
+    assert body["total"] == 2
 
 
 def test_delete_project(auth_client):
@@ -31,7 +35,7 @@ def test_delete_project(auth_client):
     r = client.delete(f"/api/projects/{pid}", headers=headers)
     assert r.status_code == 204
     r = client.get("/api/projects", headers=headers)
-    assert all(p["id"] != pid for p in r.json())
+    assert all(p["id"] != pid for p in r.json()["items"])
 
 
 def test_delete_project_not_found(auth_client):

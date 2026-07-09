@@ -153,3 +153,49 @@ class ProjectStats(BaseModel):
     last_run_skip: int
     last_run_pending: int
     last_run_name: Optional[str]
+
+
+# AI generation schemas
+class AIGenerateRequest(BaseModel):
+    feature_description: str
+    count: Optional[int] = 5
+
+
+class AIGeneratedTestCase(BaseModel):
+    title: str
+    description: str
+    steps: str
+    expected_result: str
+    priority: str
+
+
+class AIGenerateResponse(BaseModel):
+    test_cases: List[AIGeneratedTestCase]
+    model: str
+
+
+# Analytics schemas
+class RunDataPoint(BaseModel):
+    run_name: str
+    created_at: datetime
+    pass_count: int
+    fail_count: int
+    skip_count: int
+    total: int
+    pass_rate: float
+
+
+class ProjectAnalytics(BaseModel):
+    project_id: int
+    project_name: str
+    run_history: List[RunDataPoint]
+    suite_coverage: List[dict]
+
+
+# Pagination
+class PaginatedProjects(BaseModel):
+    items: List[ProjectResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

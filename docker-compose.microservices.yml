@@ -1,0 +1,111 @@
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: testflow
+      POSTGRES_PASSWORD: testflow
+      POSTGRES_DB: testflow
+    volumes:
+      - postgres_data_ms:/var/lib/postgresql/data
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ─── Auth Service (port 8001) ─────────────────────────────────────────────
+  auth:
+    build:
+      context: services/auth
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─── Projects Service (port 8002) ─────────────────────────────────────────
+  projects:
+    build:
+      context: services/projects
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      RUNS_SERVICE_URL: http://runs:8003
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─── Runs Service (port 8003) ─────────────────────────────────────────────
+  runs:
+    build:
+      context: services/runs
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      REDIS_URL: redis://redis:6379
+      PROJECTS_SERVICE_URL: http://projects:8002
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─── AI Service (port 8004) ───────────────────────────────────────────────
+  ai:
+    build:
+      context: services/ai
+    ports:
+      - "8004:8004"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PROJECTS_SERVICE_URL: http://projects:8002
+    restart: unless-stopped
+
+  # ─── API Gateway (port 8000) ──────────────────────────────────────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile_gateway
+
+    ports:
+      - "8000:8000"
+    environment:
+      AUTH_URL: http://auth:8001
+      PROJECTS_URL: http://projects:8002
+      RUNS_URL: http://runs:8003
+      AI_URL: http://ai:8004
+    depends_on:
+      - auth
+      - projects
+      - runs
+      - ai
+    restart: unless-stopped
+
+volumes:
+  postgres_data_ms:

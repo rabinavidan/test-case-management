@@ -1,0 +1,32 @@
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests',
+  timeout: 30000,
+  retries: process.env.CI ? 1 : 0,
+  reporter: [['html', { open: 'never' }], ['list', { printSteps: true }], ['json', { outputFile: 'test-results/results.json' }]],
+  use: {
+    baseURL: process.env.BASE_URL || 'http://localhost:8000',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    trace: 'retain-on-failure',
+    testIdAttribute: 'data-testid',
+  },
+  globalSetup: './global-setup.ts',
+  globalTeardown: './global-teardown.ts',
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+      // off by default; run with --project=webkit to enable
+    },
+  ],
+});

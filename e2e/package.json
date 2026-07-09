@@ -1,0 +1,17 @@
+{
+  "name": "testflow-e2e",
+  "version": "1.0.0",
+  "description": "Playwright TypeScript e2e tests for TestFlow",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "^0.0.76",
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
