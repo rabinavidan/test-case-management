@@ -36,10 +36,10 @@
       "Bash(curl -s http://127.0.0.1:8000/api/auth/setup)",
       "Bash(curl -s http://127.0.0.1:8000/api/debug/seed)",
       "Bash(curl -s -X POST http://127.0.0.1:8000/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"e2eadmin\",\"password\":\"e2epass1\"}')",
-      "Bash(curl -s -X POST http://127.0.0.1:8000/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"262626\"}')",
-      "Bash(E2E_USERNAME=admin E2E_PASSWORD=262626 .venv/bin/python3 -m pytest tests/test_login_e2e.py tests/test_users_e2e.py --base-url=http://127.0.0.1:8000 -v)",
-      "Bash(E2E_USERNAME=admin E2E_PASSWORD=262626 .venv/bin/python3 -m pytest tests/ --base-url=http://127.0.0.1:8000 -v --ignore=tests/test_api_pw.py)",
-      "Bash(E2E_USERNAME=admin E2E_PASSWORD=262626 .venv/bin/python3 -m pytest \"tests/test_e2e.py::test_logo_navigates_to_projects\" --base-url=http://127.0.0.1:8000 -v)"
+      "Bash(gh run *)",
+      "Bash(gh secret *)",
+      "Bash(gh api *)",
+      "Bash(bash -c ' *)"
     ]
   }
 }
