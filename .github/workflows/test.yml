@@ -121,6 +121,9 @@ jobs:
       - name: Run E2E tests
         env:
           BASE_URL: ${{ secrets.VERCEL_PRODUCTION_URL }}
+          E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         run: python -m pytest tests/test_e2e.py --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} -v
         # E2E failures are non-blocking — remove 'continue-on-error' to make them blocking
         continue-on-error: true

@@ -39,7 +39,13 @@
       "Bash(gh run *)",
       "Bash(gh secret *)",
       "Bash(gh api *)",
-      "Bash(bash -c ' *)"
+      "Bash(bash -c ' *)",
+      "Bash(git commit *)",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(E2E_USERNAME=\"\" E2E_PASSWORD=\"\" E2E_EMAIL=\"\" .venv/bin/python3 *)",
+      "Skill(artifact-design)"
     ]
   }
 }

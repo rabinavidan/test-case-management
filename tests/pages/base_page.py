@@ -99,9 +99,9 @@ class BasePage:
         - Setup screen (first run, no users): fills registration form in the browser
         - Normal sign-in: clicks Sign In button then fills login form
         """
-        username = username or os.environ.get("E2E_USERNAME", _DEFAULT_USERNAME)
-        email    = os.environ.get("E2E_EMAIL", _DEFAULT_EMAIL)
-        password = password or os.environ.get("E2E_PASSWORD", _DEFAULT_PASSWORD)
+        username = username or os.environ.get("E2E_USERNAME") or _DEFAULT_USERNAME
+        email    = os.environ.get("E2E_EMAIL") or _DEFAULT_EMAIL
+        password = password or os.environ.get("E2E_PASSWORD") or _DEFAULT_PASSWORD
         self.log.step(f"Login as '{username}'")
         self.log.navigate(self.base_url)
         self.page.goto(self.base_url)
