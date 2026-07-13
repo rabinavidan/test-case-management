@@ -3,6 +3,7 @@ E2E tests using Playwright page objects.
 Requires BASE_URL env var or --base-url flag.
 Run with: pytest tests/test_e2e.py --base-url=https://your-app.vercel.app -v
 """
+import re
 import pytest
 from datetime import datetime
 from playwright.sync_api import Page, expect
@@ -66,7 +67,7 @@ def test_logo_navigates_to_projects(projects_page: ProjectsPage, page: Page):
     _log.section("Smoke — Logo navigates to projects")
     projects_page.click_logo()
     _log.assert_("URL contains 'projects'")
-    expect(page).to_have_url(lambda url: "projects" in url or url.endswith("/"))
+    expect(page).to_have_url(re.compile(r"projects|/$"))
 
 
 # ── Project CRUD ──────────────────────────────────────────────────────────────

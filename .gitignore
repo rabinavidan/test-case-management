@@ -9,3 +9,7 @@ dist/
 build/
 .vercel/
 .idea/
+
+# Claude Code guidance files — kept locally, not pushed to PRs/main
+/*CLAUDE*.md
+.claude/**/*.md

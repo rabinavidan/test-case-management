@@ -1,10 +1,10 @@
 """
-E2E tests for the TestManager login page at /login.
+E2E tests for TestFlow's sign-in modal.
 
 Covers:
-  - Page loads with all expected elements
-  - Valid credentials → successful sign-in (redirected away from /login)
-  - "Create a new account" link navigates to /signup
+  - Modal renders all expected elements when opened
+  - Valid credentials → successful sign-in (logout button appears)
+  - Invalid credentials → error message shown, user stays logged out
 """
 import os
 import pytest
@@ -12,56 +12,49 @@ from playwright.sync_api import Page, expect
 from tests.pages.login_page import LoginPage
 from tests.logger import PWLogger
 
-BASE_URL    = "https://test-case-management.vercel.app"
-TEST_EMAIL    = os.environ.get("LOGIN_EMAIL",    "e2eadmin@test.com")
-TEST_PASSWORD = os.environ.get("LOGIN_PASSWORD", "e2epass1")
+TEST_USERNAME = os.environ.get("E2E_USERNAME", "e2eadmin")
+TEST_PASSWORD = os.environ.get("E2E_PASSWORD", "e2epass1")
 
 log = PWLogger("test_login_e2e")
 
 
 @pytest.fixture
-def login_page(page: Page) -> LoginPage:
-    return LoginPage(page, BASE_URL)
+def login_page(page: Page, base_url: str) -> LoginPage:
+    return LoginPage(page, base_url)
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 @pytest.mark.regression
 def test_login_page_loads(login_page: LoginPage):
-    """Login page renders all key elements."""
-    log.section("Login page load")
-    log.step("Navigate to /login")
-    login_page.navigate()
+    """Sign-in modal renders all key elements."""
+    log.section("Sign-in modal load")
+    login_page.open()
 
     log.step("Assert all elements visible")
-    login_page.expect_page_loaded()
-    login_page.expect_create_account_link_visible()
-    log.assert_("login page fully rendered")
+    login_page.expect_modal_loaded()
+    login_page.expect_contact_admin_text_visible()
+    log.assert_("sign-in modal fully rendered")
 
 
 @pytest.mark.regression
-def test_login_success(login_page: LoginPage, page: Page):
-    """Valid credentials → user is redirected away from /login."""
+def test_login_success(login_page: LoginPage):
+    """Valid credentials → user is signed in."""
     log.section("Successful login")
-    login_page.login(email=TEST_EMAIL, password=TEST_PASSWORD)
+    login_page.login(username=TEST_USERNAME, password=TEST_PASSWORD)
 
-    log.step("Wait for redirect after sign-in")
-    page.wait_for_load_state("networkidle")
-
-    log.assert_("URL no longer /login after success")
-    expect(page).not_to_have_url(f"{BASE_URL}/login")
+    log.step("Wait for modal to close")
+    login_page.expect_logged_in()
 
 
 @pytest.mark.regression
-def test_create_account_link_navigates_to_signup(login_page: LoginPage, page: Page):
-    """'Create a new account' link navigates to /signup."""
-    log.section("Create account link")
-    log.step("Navigate to /login")
-    login_page.navigate()
+def test_login_invalid_credentials_shows_error(login_page: LoginPage):
+    """Wrong password → error message shown, user remains logged out."""
+    log.section("Invalid login")
+    login_page.login(username=TEST_USERNAME, password="not-the-real-password")
 
-    log.step("Click 'create a new account' link")
-    login_page.create_account_link.click()
-    page.wait_for_load_state("networkidle")
+    log.step("Assert error message shown")
+    login_page.expect_login_error("Invalid username or password")
 
-    log.assert_("URL is /signup")
-    expect(page).to_have_url(f"{BASE_URL}/signup")
+    log.assert_("still logged out")
+    expect(login_page.page.get_by_test_id("signin-btn")).to_be_visible()
