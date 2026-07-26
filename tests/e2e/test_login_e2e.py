@@ -9,8 +9,8 @@ Covers:
 import os
 import pytest
 from playwright.sync_api import Page, expect
-from tests.pages.login_page import LoginPage
-from tests.logger import PWLogger
+from tests.e2e.pages.login_page import LoginPage
+from tests.e2e.logger import PWLogger
 
 TEST_USERNAME = os.environ.get("E2E_USERNAME") or "e2eadmin"
 TEST_PASSWORD = os.environ.get("E2E_PASSWORD") or "e2epass1"

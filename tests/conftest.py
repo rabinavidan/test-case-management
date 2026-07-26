@@ -1,11 +1,12 @@
-import logging
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+"""Root conftest — shared across all test layers (unit / api / e2e).
 
-from api.database import Base, get_db
-from api.main import app
+Layer-specific fixtures live in each layer's own conftest.py:
+  tests/unit/  — none needed (pure functions, no fixtures)
+  tests/api/   — DB engine + TestClient/auth fixtures (tests/api/conftest.py)
+  tests/e2e/   — Playwright browser fixtures live inline per test module
+"""
+import logging
+import pathlib
 
 _pw_log = logging.getLogger("pw.hook")
 
@@ -23,65 +24,17 @@ def pytest_runtest_logreport(report):
             + "━" * 70
         )
 
-DATABASE_URL = "sqlite:///./test.db"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture()
-def client():
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture()
-def auth_client(client):
-    """Admin client (first registered user); returns (client, headers)."""
-    client.post("/api/auth/register", json={
-        "username": "testuser",
-        "email": "test@example.com",
-        "password": "testpass",
-    })
-    res = client.post("/api/auth/login", json={
-        "username": "testuser",
-        "password": "testpass",
-    })
-    token = res.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-    return client, headers
-
-
-@pytest.fixture()
-def executor_client(client, auth_client):
-    """Executor client (created by admin); returns (client, headers)."""
-    _, admin_headers = auth_client
-    client.post("/api/users", json={
-        "username": "executor",
-        "email": "executor@example.com",
-        "password": "execpass",
-    }, headers=admin_headers)
-    res = client.post("/api/auth/login", json={
-        "username": "executor",
-        "password": "execpass",
-    })
-    token = res.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-    return client, headers
+def pytest_collection_modifyitems(config, items):
+    """Auto-tag each test with a layer marker (unit/api/e2e) based on its
+    directory, so `pytest -m api` (etc.) works without per-test markers.
+    """
+    root = pathlib.Path(config.rootdir) / "tests"
+    for item in items:
+        try:
+            relative = pathlib.Path(str(item.fspath)).relative_to(root)
+        except ValueError:
+            continue
+        layer = relative.parts[0] if relative.parts else None
+        if layer in ("unit", "api", "e2e"):
+            item.add_marker(layer)

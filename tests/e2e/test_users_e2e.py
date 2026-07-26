@@ -14,9 +14,9 @@ Run with:
 """
 import pytest
 from playwright.sync_api import Page, expect
-from tests.pages import ProjectsPage
-from tests.pages.users_page import UsersPage
-from tests.logger import PWLogger
+from tests.e2e.pages import ProjectsPage
+from tests.e2e.pages.users_page import UsersPage
+from tests.e2e.logger import PWLogger
 
 pytestmark = pytest.mark.regression
 

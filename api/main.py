@@ -982,7 +982,7 @@ _PLAYWRIGHT_SUITES = [
     ("E2E Full Flow — test_e2e.py", "Playwright · end-to-end create project with timestamp", [
         ("test_create_project_with_timestamp — navigate, open modal, fill timestamped name, submit, verify", "active", "high"),
     ]),
-    ("Page Objects — tests/pages/", "POM classes: BasePage, ProjectsPage, ProjectPage, SuitePage, NewProjectModal", [
+    ("Page Objects — tests/e2e/pages/", "POM classes: BasePage, ProjectsPage, ProjectPage, SuitePage, NewProjectModal", [
         ("BasePage — logo, breadcrumb, nav-new-btn, sidebar-projects locators present", "active", "high"),
         ("BasePage — modal_overlay, modal_box, modal_title, modal_body locators present", "active", "high"),
         ("BasePage — toast_inner locator captures success and error messages", "active", "medium"),
