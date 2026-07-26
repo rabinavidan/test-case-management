@@ -50,7 +50,7 @@ jobs:
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         run: |
-          python -m pytest tests/test_e2e.py tests/test_users_e2e.py \
+          python -m pytest tests/e2e/test_e2e.py tests/e2e/test_users_e2e.py \
             -m regression \
             --base-url=${{ steps.url.outputs.base_url }} \
             -v --tb=short \

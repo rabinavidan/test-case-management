@@ -152,11 +152,24 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 
 ## Testing
 
-### pytest (API unit tests)
+Python tests are organized in layers, fastest/most isolated first:
+
+```
+tests/
+├── unit/    # pure functions (JWT/hash logic) — no DB, no HTTP, no I/O
+├── api/     # FastAPI TestClient integration tests against an in-memory SQLite DB
+└── e2e/     # Playwright browser + deployed-instance API tests (page objects in tests/e2e/pages/)
+```
+
+Each layer is auto-tagged with a matching marker (`unit`, `api`, `e2e`), so you can filter with `-m` regardless of which files you point pytest at.
 
 ```bash
-pip install pytest
-pytest tests/ -v
+pip install -r requirements.txt -r requirements-test.txt
+
+pytest tests/unit -v              # unit layer only — milliseconds, no setup
+pytest tests/unit tests/api -v    # unit + api — what CI runs on every PR
+pytest tests/e2e/test_e2e.py --base-url=https://your-app.vercel.app -v   # browser E2E
+pytest tests/ -m regression --base-url=https://your-app.vercel.app -v   # full regression suite
 ```
 
 ### Playwright TypeScript E2E
@@ -197,7 +210,11 @@ See [`e2e/README.md`](e2e/README.md) for full details.
 │   ├── index.html                # SPA shell (Chart.js CDN included)
 │   └── app.js                    # All UI logic — hash routing, WebSocket, Chart.js
 │
-├── tests/                        # pytest API tests
+├── tests/                        # Python pytest suite, layered
+│   ├── unit/                     # pure JWT/hash logic — no DB, no HTTP
+│   ├── api/                      # FastAPI TestClient integration tests
+│   └── e2e/                      # Playwright browser + deployed-instance API tests
+│       └── pages/                # page objects for the browser E2E specs
 ├── e2e/                          # Playwright TypeScript E2E tests
 ├── Dockerfile                    # Monolith container
 ├── docker-compose.yml            # Monolith mode (app + Postgres)

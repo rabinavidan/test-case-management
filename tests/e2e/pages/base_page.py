@@ -1,6 +1,6 @@
 import os
 from playwright.sync_api import Page, Locator, expect
-from tests.logger import PWLogger
+from tests.e2e.logger import PWLogger
 
 _DEFAULT_USERNAME = "e2eadmin"
 _DEFAULT_EMAIL    = "e2eadmin@test.com"

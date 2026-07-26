@@ -8,7 +8,7 @@ on:
 
 jobs:
   api-tests:
-    name: API Tests (pytest)
+    name: Unit & API Tests (pytest)
     runs-on: ubuntu-latest
 
     steps:
@@ -25,13 +25,12 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
-      - name: Run API tests
+      - name: Run unit + API tests
         id: pytest
         continue-on-error: true
         run: |
           set +e
-          python -m pytest tests/ --ignore=tests/test_e2e.py --ignore=tests/test_login_e2e.py \
-            --ignore=tests/test_users_e2e.py --ignore=tests/test_api_pw.py -v \
+          python -m pytest tests/unit tests/api -v \
             --json-report --json-report-file=report.json
           exit_code=$?
           set -e
@@ -124,6 +123,6 @@ jobs:
           E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
-        run: python -m pytest tests/test_e2e.py --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} -v
+        run: python -m pytest tests/e2e/test_e2e.py --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} -v
         # E2E failures are non-blocking — remove 'continue-on-error' to make them blocking
         continue-on-error: true

@@ -7,8 +7,8 @@ import re
 import pytest
 from datetime import datetime
 from playwright.sync_api import Page, expect
-from tests.pages import ProjectsPage, ProjectPage, SuitePage, NewProjectModal
-from tests.logger import PWLogger
+from tests.e2e.pages import ProjectsPage, ProjectPage, SuitePage, NewProjectModal
+from tests.e2e.logger import PWLogger
 
 pytestmark = pytest.mark.regression
 

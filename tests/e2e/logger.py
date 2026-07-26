@@ -2,7 +2,7 @@
 Playwright test logger — structured, timestamped step logging.
 
 Usage:
-    from tests.logger import PWLogger
+    from tests.e2e.logger import PWLogger
     log = PWLogger("MyTest")
     log.step("Navigate to projects page")
     log.action("click", "New Project button")
