@@ -150,18 +150,28 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 
 ---
 
-## Testing
+## Test Architecture
 
-Python tests are organized in layers, fastest/most isolated first:
+Testing follows the classic pyramid — narrow and fast at the bottom, broad and slow at the top — implemented as three physically separate pytest layers under `tests/`, plus a parallel TypeScript Playwright suite.
 
 ```
 tests/
-├── unit/    # pure functions (JWT/hash logic) — no DB, no HTTP, no I/O
-├── api/     # FastAPI TestClient integration tests against an in-memory SQLite DB
-└── e2e/     # Playwright browser + deployed-instance API tests (page objects in tests/e2e/pages/)
+├── conftest.py     # shared failure-logging hook + auto layer-marking (unit/api/e2e)
+├── unit/           # 7 tests   — pure functions, no DB/HTTP/I-O               (~1s total)
+├── api/            # 112 tests — FastAPI TestClient against an in-memory DB   (~30s total)
+│   └── conftest.py #   per-test SQLite engine + admin/executor auth fixtures
+└── e2e/            # 40 tests  — Playwright browser + deployed-instance API   (minutes; needs a running app)
+    └── pages/      #   Page Object Model — locators isolated from test logic
 ```
 
-Each layer is auto-tagged with a matching marker (`unit`, `api`, `e2e`), so you can filter with `-m` regardless of which files you point pytest at.
+**Engineering practices this demonstrates:**
+
+- **Isolation over mocking-everything.** API tests hit the real FastAPI app and a real (but throwaway, per-test) SQLite database via `app.dependency_overrides` — so they verify actual SQLAlchemy behavior, not a stubbed-out fake, while staying hermetic and parallelizable.
+- **Mock the true external boundary, not your own code.** `tests/api/test_ai_generate.py` monkeypatches `anthropic.Anthropic` so AI-generation tests are deterministic and free, without ever faking the FastAPI/Pydantic layers around it.
+- **The same contract tested at two altitudes on purpose.** JWT/password logic is verified as pure functions in `tests/unit/test_auth_tokens.py` *and* through real HTTP status codes in `tests/api/test_auth.py` — a failure in the unit layer localizes to the algorithm; a failure only in the API layer points at the wiring (dependency injection, route guards) instead.
+- **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`e2e` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
+- **Page Object Model** for the browser layer (`tests/e2e/pages/`): locators, `data-testid` selection strategy, and modal/toast helpers live in page classes, never inline in test bodies.
+- **CI runs the right layer at the right cadence** (see below) — fast layers gate every PR, browser E2E runs after deploy, full regression runs on a schedule.
 
 ```bash
 pip install -r requirements.txt -r requirements-test.txt
@@ -171,6 +181,14 @@ pytest tests/unit tests/api -v    # unit + api — what CI runs on every PR
 pytest tests/e2e/test_e2e.py --base-url=https://your-app.vercel.app -v   # browser E2E
 pytest tests/ -m regression --base-url=https://your-app.vercel.app -v   # full regression suite
 ```
+
+### CI wiring (`.github/workflows/`)
+
+| Workflow | Trigger | What runs |
+|----------|---------|-----------|
+| `test.yml` | every PR + push to `main` | `tests/unit` + `tests/api` (blocking); `tests/e2e/test_e2e.py` on push to `main` only (non-blocking) |
+| `pw-scheduled.yml` | weekly cron | `tests/e2e/test_e2e.py` + `tests/e2e/test_users_e2e.py` against the live deployment |
+| `pw-regression.yml` | manual dispatch | full `-m regression` suite across all layers against a chosen target URL |
 
 ### Playwright TypeScript E2E
 
