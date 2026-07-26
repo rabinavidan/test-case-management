@@ -77,3 +77,92 @@ def test_executor_cannot_list_users(executor_client):
     client, headers = executor_client
     r = client.get("/api/users", headers=headers)
     assert r.status_code == 403
+
+
+def test_version_endpoint(client):
+    r = client.get("/api/version")
+    assert r.status_code == 200
+    assert "version" in r.json()
+
+
+def test_setup_status_needed_before_any_user(client):
+    r = client.get("/api/auth/setup")
+    assert r.status_code == 200
+    assert r.json()["setup_needed"] is True
+
+
+def test_setup_status_not_needed_after_register(auth_client):
+    client, _ = auth_client
+    r = client.get("/api/auth/setup")
+    assert r.status_code == 200
+    assert r.json()["setup_needed"] is False
+
+
+def test_register_password_too_short(client):
+    r = client.post("/api/auth/register", json={
+        "username": "shortpw", "email": "shortpw@example.com", "password": "abc",
+    })
+    assert r.status_code == 400
+
+
+def test_login_nonexistent_user(client):
+    r = client.post("/api/auth/login", json={"username": "ghost", "password": "whatever"})
+    assert r.status_code == 401
+
+
+def test_login_deactivated_account(auth_client):
+    client, headers = auth_client
+    r = client.post("/api/users", json={
+        "username": "deactivated", "email": "deactivated@example.com", "password": "execpass",
+    }, headers=headers)
+    user_id = r.json()["id"]
+    client.patch(f"/api/users/{user_id}/status", headers=headers)  # toggle to inactive
+    r = client.post("/api/auth/login", json={"username": "deactivated", "password": "execpass"})
+    assert r.status_code == 403
+
+
+def test_malformed_token_rejected(client):
+    r = client.get("/api/auth/me", headers={"Authorization": "Bearer not-a-valid-token"})
+    assert r.status_code == 401
+
+
+def test_tampered_token_rejected(auth_client):
+    client, headers = auth_client
+    token = headers["Authorization"].split(" ")[1]
+    header, payload, sig = token.split(".")
+    tampered = f"{header}.{payload}.{sig[:-1]}{'a' if sig[-1] != 'a' else 'b'}"
+    r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {tampered}"})
+    assert r.status_code == 401
+
+
+def test_expired_token_rejected(client, monkeypatch):
+    import time
+    from api import auth as auth_module
+
+    client.post("/api/auth/register", json={
+        "username": "expiretest", "email": "expiretest@example.com", "password": "secret",
+    })
+
+    real_time = time.time
+    monkeypatch.setattr(auth_module.time, "time", lambda: real_time() - auth_module.ACCESS_TOKEN_EXPIRE_SECONDS - 10)
+    login = client.post("/api/auth/login", json={"username": "expiretest", "password": "secret"})
+    monkeypatch.setattr(auth_module.time, "time", real_time)
+
+    token = login.json()["access_token"]
+    r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 401
+
+
+def test_token_for_deleted_user_rejected(auth_client):
+    client, admin_headers = auth_client
+    r = client.post("/api/users", json={
+        "username": "todelete", "email": "todelete@example.com", "password": "execpass",
+    }, headers=admin_headers)
+    user_id = r.json()["id"]
+    login = client.post("/api/auth/login", json={"username": "todelete", "password": "execpass"})
+    token = login.json()["access_token"]
+
+    client.delete(f"/api/users/{user_id}", headers=admin_headers)
+
+    r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 401

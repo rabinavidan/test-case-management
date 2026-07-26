@@ -50,3 +50,50 @@ def test_testcase_suite_not_found(auth_client):
     client, headers = auth_client
     r = client.post("/api/suites/999/testcases", json={"title": "TC"}, headers=headers)
     assert r.status_code == 404
+
+
+def test_list_testcases_suite_not_found(auth_client):
+    client, headers = auth_client
+    r = client.get("/api/suites/999/testcases", headers=headers)
+    assert r.status_code == 404
+
+
+def test_update_testcase_not_found(auth_client):
+    client, headers = auth_client
+    r = client.put("/api/testcases/999", json={"title": "New"}, headers=headers)
+    assert r.status_code == 404
+
+
+def test_delete_testcase_not_found(auth_client):
+    client, headers = auth_client
+    r = client.delete("/api/testcases/999", headers=headers)
+    assert r.status_code == 404
+
+
+def test_list_testcases_is_public(client, suite):
+    s, _, _ = suite
+    r = client.get(f"/api/suites/{s['id']}/testcases")
+    assert r.status_code == 200
+
+
+def test_executor_cannot_create_testcase(executor_client, suite):
+    s, _, _ = suite
+    exec_client, exec_headers = executor_client
+    r = exec_client.post(f"/api/suites/{s['id']}/testcases", json={"title": "Nope"}, headers=exec_headers)
+    assert r.status_code == 403
+
+
+def test_executor_cannot_update_testcase(executor_client, suite):
+    s, admin_headers, client = suite
+    exec_client, exec_headers = executor_client
+    tc = client.post(f"/api/suites/{s['id']}/testcases", json={"title": "Old"}, headers=admin_headers).json()
+    r = exec_client.put(f"/api/testcases/{tc['id']}", json={"title": "New"}, headers=exec_headers)
+    assert r.status_code == 403
+
+
+def test_executor_cannot_delete_testcase(executor_client, suite):
+    s, admin_headers, client = suite
+    exec_client, exec_headers = executor_client
+    tc = client.post(f"/api/suites/{s['id']}/testcases", json={"title": "Old"}, headers=admin_headers).json()
+    r = exec_client.delete(f"/api/testcases/{tc['id']}", headers=exec_headers)
+    assert r.status_code == 403

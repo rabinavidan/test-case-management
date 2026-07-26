@@ -56,3 +56,57 @@ def test_run_completes_when_all_results_done(auth_client, suite_with_cases):
         client.put(f"/api/runs/{run['id']}/results/{res['testcase_id']}", json={"status": "pass"}, headers=headers)
     r = client.get(f"/api/runs/{run['id']}", headers=headers)
     assert r.json()["completed_at"] is not None
+
+
+def test_create_run_suite_not_found(auth_client):
+    client, headers = auth_client
+    r = client.post("/api/suites/999/runs", json={"name": "Run"}, headers=headers)
+    assert r.status_code == 404
+
+
+def test_create_run_requires_auth(client, suite_with_cases):
+    s, _, _ = suite_with_cases
+    r = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run"})
+    assert r.status_code == 401
+
+
+def test_executor_can_create_run(executor_client, suite_with_cases):
+    s, _, _ = suite_with_cases
+    exec_client, exec_headers = executor_client
+    r = exec_client.post(f"/api/suites/{s['id']}/runs", json={"name": "Exec Run"}, headers=exec_headers)
+    assert r.status_code == 201
+
+
+def test_list_runs_suite_not_found(auth_client):
+    client, headers = auth_client
+    r = client.get("/api/suites/999/runs", headers=headers)
+    assert r.status_code == 404
+
+
+def test_get_run_not_found(auth_client):
+    client, headers = auth_client
+    r = client.get("/api/runs/999", headers=headers)
+    assert r.status_code == 404
+
+
+def test_update_result_not_found(auth_client, suite_with_cases):
+    s, headers, client = suite_with_cases
+    run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run 1"}, headers=headers).json()
+    r = client.put(f"/api/runs/{run['id']}/results/999", json={"status": "pass"}, headers=headers)
+    assert r.status_code == 404
+
+
+def test_executor_can_update_result(executor_client, suite_with_cases):
+    s, admin_headers, client = suite_with_cases
+    exec_client, exec_headers = executor_client
+    run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run 1"}, headers=admin_headers).json()
+    tc_id = run["results"][0]["testcase_id"]
+    r = exec_client.put(f"/api/runs/{run['id']}/results/{tc_id}", json={"status": "fail"}, headers=exec_headers)
+    assert r.status_code == 200
+    assert r.json()["status"] == "fail"
+
+
+def test_create_run_response_includes_created_by_field(auth_client, suite_with_cases):
+    s, headers, client = suite_with_cases
+    run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run 1"}, headers=headers).json()
+    assert "created_by_username" in run
