@@ -22,17 +22,32 @@ logger = logging.getLogger("testflow")
 
 VERSION = pathlib.Path(__file__).parent.parent.joinpath("VERSION").read_text().strip()
 
+from sqlalchemy.exc import OperationalError
+
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
 
+
+def _with_db_retry(func, attempts=3, base_delay=0.5):
+    """Retry a DB call on transient connection errors (e.g. Neon's pooler
+    briefly rejecting a burst of simultaneous cold-start connections)."""
+    for attempt in range(attempts):
+        try:
+            return func()
+        except OperationalError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(base_delay * (2 ** attempt))
+
+
 # Create all tables
-Base.metadata.create_all(bind=engine)
+_with_db_retry(lambda: Base.metadata.create_all(bind=engine))
 
 # Migrate: add columns that may be missing from older deployments
 def _run_migrations():
     try:
-        with engine.connect() as conn:
+        with _with_db_retry(lambda: engine.connect()) as conn:
             from sqlalchemy import text
             for stmt in [
                 "ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'executor'",
@@ -60,7 +75,9 @@ def _seed_admin():
         from .database import SessionLocal
         db = SessionLocal()
         try:
-            existing = db.query(models.User).filter(models.User.username == seed_user).first()
+            existing = _with_db_retry(
+                lambda: db.query(models.User).filter(models.User.username == seed_user).first()
+            )
             if existing:
                 # Update password and ensure admin role
                 existing.hashed_password = hash_password(seed_pass)
