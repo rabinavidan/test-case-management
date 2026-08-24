@@ -8,7 +8,7 @@ on:
 
 jobs:
   api-tests:
-    name: Unit & API Tests (pytest)
+    name: Unit, API & Contract Tests (pytest)
     runs-on: ubuntu-latest
 
     steps:
@@ -25,12 +25,12 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
-      - name: Run unit + API tests
+      - name: Run unit + API + contract tests
         id: pytest
         continue-on-error: true
         run: |
           set +e
-          python -m pytest tests/unit tests/api -v \
+          python -m pytest tests/unit tests/api tests/contract -v \
             --json-report --json-report-file=report.json \
             --alluredir=allure-results
           exit_code=$?
@@ -56,7 +56,7 @@ jobs:
           duration = r.get("duration", 0)
           icon   = "✅" if failed == 0 and error == 0 else "❌"
           lines  = [
-            f"## {icon} API Test Report",
+            f"## {icon} Unit / API / Contract Test Report",
             "| Result | Count |",
             "|--------|-------|",
             f"| ✅ Passed | {passed} |",

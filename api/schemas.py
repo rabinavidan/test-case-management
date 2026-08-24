@@ -1,6 +1,21 @@
-from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime
+from pydantic import BaseModel, PlainSerializer
+from typing import Annotated, Optional, List
+from datetime import datetime, timezone
+
+
+def _as_utc_isoformat(dt: datetime) -> str:
+    """Serialize with an explicit UTC offset. `datetime.utcnow()` (used throughout
+    api/models.py) produces naive datetimes, which Pydantic renders without a
+    timezone designator — technically violating OpenAPI's `format: date-time`
+    (RFC 3339 requires one). Caught by the contract test suite (tests/contract/),
+    which fuzzes real responses against the app's own OpenAPI schema.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
+UTCDatetime = Annotated[datetime, PlainSerializer(_as_utc_isoformat, return_type=str)]
 
 
 # Auth schemas
@@ -21,7 +36,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     is_active: bool = True
-    created_at: datetime
+    created_at: UTCDatetime
 
     class Config:
         from_attributes = True
@@ -43,7 +58,7 @@ class ProjectResponse(BaseModel):
     id: int
     name: str
     description: Optional[str]
-    created_at: datetime
+    created_at: UTCDatetime
 
     class Config:
         from_attributes = True
@@ -60,7 +75,7 @@ class TestSuiteResponse(BaseModel):
     project_id: int
     name: str
     description: Optional[str]
-    created_at: datetime
+    created_at: UTCDatetime
 
     class Config:
         from_attributes = True
@@ -94,7 +109,7 @@ class TestCaseResponse(BaseModel):
     expected_result: Optional[str]
     status: str
     priority: str
-    created_at: datetime
+    created_at: UTCDatetime
 
     class Config:
         from_attributes = True
@@ -111,7 +126,7 @@ class TestResultResponse(BaseModel):
     testcase_id: int
     status: str
     notes: Optional[str]
-    executed_at: Optional[datetime]
+    executed_at: Optional[UTCDatetime]
     test_case: TestCaseResponse
 
     class Config:
@@ -122,8 +137,8 @@ class TestRunResponse(BaseModel):
     id: int
     suite_id: int
     name: str
-    created_at: datetime
-    completed_at: Optional[datetime]
+    created_at: UTCDatetime
+    completed_at: Optional[UTCDatetime]
     created_by_username: Optional[str] = None
     results: List[TestResultResponse] = []
 
@@ -177,7 +192,7 @@ class AIGenerateResponse(BaseModel):
 # Analytics schemas
 class RunDataPoint(BaseModel):
     run_name: str
-    created_at: datetime
+    created_at: UTCDatetime
     pass_count: int
     fail_count: int
     skip_count: int

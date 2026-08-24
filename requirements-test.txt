@@ -4,3 +4,6 @@ playwright==1.46.0
 pytest-playwright==0.5.0
 pytest-json-report==1.5.0
 allure-pytest==2.13.5
+# Pinned to the 3.x line: 4.x requires pytest>=9, which conflicts with the
+# pytest==7.4.3 / pytest-playwright pins above.
+schemathesis==3.39.16
