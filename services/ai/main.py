@@ -1,11 +1,11 @@
 import os, json, logging
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import httpx
 
 from .schemas import AIGenerateRequest, AIGenerateResponse, AIGeneratedTestCase
 from .auth import require_admin, UserClaims
 from services.common.health import health_response
+from services.common.http import get_with_retry
 
 logger = logging.getLogger("ai")
 PROJECTS_SERVICE_URL = os.getenv("PROJECTS_SERVICE_URL", "http://projects:8002")
@@ -26,7 +26,7 @@ async def generate(suite_id: int, payload: AIGenerateRequest,
     # Get suite name from projects service
     suite_name = f"Suite {suite_id}"
     try:
-        resp = httpx.get(f"{PROJECTS_SERVICE_URL}/internal/suites/{suite_id}", timeout=5)
+        resp = get_with_retry(f"{PROJECTS_SERVICE_URL}/internal/suites/{suite_id}")
         if resp.status_code == 404:
             raise HTTPException(404, "Suite not found")
         suite_name = resp.json().get("name", suite_name)

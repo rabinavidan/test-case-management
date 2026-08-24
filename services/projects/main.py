@@ -10,6 +10,7 @@ from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, require_admin, UserClaims
 from services.common.health import health_response
+from services.common.http import get_with_retry, DEFAULT_TIMEOUT
 
 Base.metadata.create_all(bind=engine)
 
@@ -187,8 +188,8 @@ def project_stats(project_id: int, db: Session = Depends(get_db)):
                  "last_run_skip": 0, "last_run_pending": 0, "last_run_name": None}
     if suite_ids:
         try:
-            resp = httpx.get(f"{RUNS_SERVICE_URL}/internal/projects/last-run-stats",
-                             params={"suite_ids": ",".join(map(str, suite_ids))}, timeout=5)
+            resp = get_with_retry(f"{RUNS_SERVICE_URL}/internal/projects/last-run-stats",
+                                  params={"suite_ids": ",".join(map(str, suite_ids))})
             if resp.status_code == 200:
                 run_stats.update(resp.json())
         except Exception:
@@ -210,8 +211,8 @@ def project_analytics(project_id: int, db: Session = Depends(get_db)):
     run_history = []
     if suite_ids:
         try:
-            resp = httpx.get(f"{RUNS_SERVICE_URL}/internal/projects/run-history",
-                             params={"suite_ids": ",".join(map(str, suite_ids))}, timeout=5)
+            resp = get_with_retry(f"{RUNS_SERVICE_URL}/internal/projects/run-history",
+                                  params={"suite_ids": ",".join(map(str, suite_ids))})
             if resp.status_code == 200:
                 run_history = [schemas.RunDataPoint(**r) for r in resp.json()]
         except Exception:
@@ -288,8 +289,10 @@ def _create_project_with_suites(db, name, description, suites_data):
     # Ask runs service to seed demo runs
     suite_ids = [s.id for s in db.query(models.TestSuite).filter(models.TestSuite.project_id == p.id).all()]
     try:
+        # Not retried: creates rows on every call, so retrying a request whose
+        # response was merely lost (not a real failure) would seed duplicates.
         httpx.post(f"{RUNS_SERVICE_URL}/internal/demo/seed-runs",
-                   json={"suite_ids": suite_ids}, timeout=10)
+                   json={"suite_ids": suite_ids}, timeout=DEFAULT_TIMEOUT * 2)
     except Exception:
         pass
     return p
