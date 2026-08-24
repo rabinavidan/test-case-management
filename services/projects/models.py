@@ -5,8 +5,7 @@ from .database import Base
 
 
 class Project(Base):
-    __tablename__ = "projects"
-    __table_args__ = {"schema": "projects"}
+    __tablename__ = "projects_projects"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
@@ -17,11 +16,10 @@ class Project(Base):
 
 
 class TestSuite(Base):
-    __tablename__ = "test_suites"
-    __table_args__ = {"schema": "projects"}
+    __tablename__ = "projects_test_suites"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.projects.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects_projects.id"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -31,11 +29,10 @@ class TestSuite(Base):
 
 
 class TestCase(Base):
-    __tablename__ = "test_cases"
-    __table_args__ = {"schema": "projects"}
+    __tablename__ = "projects_test_cases"
 
     id = Column(Integer, primary_key=True, index=True)
-    suite_id = Column(Integer, ForeignKey("projects.test_suites.id"), nullable=False)
+    suite_id = Column(Integer, ForeignKey("projects_test_suites.id"), nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     steps = Column(Text, nullable=True)
