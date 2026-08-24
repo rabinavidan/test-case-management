@@ -1,4 +1,5 @@
 import os, json, asyncio, random, logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import List, Dict, Set
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, UserClaims
-from .events import publish_run_completed
+from .events import publish_run_completed, publish_ws_broadcast, listen_for_ws_broadcasts
 from services.common.health import health_response
 from services.common.http import get_with_retry
 from services.common.request_id import RequestIDMiddleware
@@ -18,7 +19,19 @@ Base.metadata.create_all(bind=engine)
 PROJECTS_SERVICE_URL = os.getenv("PROJECTS_SERVICE_URL", "http://projects:8002")
 logger = logging.getLogger("runs")
 
-app = FastAPI(title="Runs Service", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    subscriber_task = asyncio.create_task(listen_for_ws_broadcasts(ws_manager.broadcast))
+    yield
+    subscriber_task.cancel()
+    try:
+        await subscriber_task
+    except asyncio.CancelledError:
+        pass
+
+
+app = FastAPI(title="Runs Service", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(RequestIDMiddleware, logger=logger)
@@ -53,6 +66,15 @@ class ConnectionManager:
 
 
 ws_manager = ConnectionManager()
+
+
+async def broadcast_result_update(run_id: int, payload: dict):
+    """Fan out to every replica's locally-connected clients for `run_id`,
+    via Redis (see services/runs/events.py) - or directly to this
+    replica's own connections if Redis is unreachable, so a single-replica
+    / no-Redis setup still gets real-time updates for its own clients."""
+    if not publish_ws_broadcast(run_id, payload):
+        await ws_manager.broadcast(run_id, payload)
 
 
 @app.get("/health")
@@ -203,7 +225,7 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
         counts = {s: sum(1 for r in all_results if r.status == s) for s in ("pass", "fail", "skip")}
         publish_run_completed(run_id, run.suite_id, counts["pass"], counts["fail"], counts["skip"])
 
-    await ws_manager.broadcast(run_id, {
+    await broadcast_result_update(run_id, {
         "type": "result_updated",
         "testcase_id": tc_id,
         "status": result.status,
