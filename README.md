@@ -48,10 +48,10 @@ users      analytics     WebSocket             test generation
                │              │
                └──────┬───────┘
                       ▼
-               PostgreSQL 16
-               ├─ schema: auth      (users)
-               ├─ schema: projects  (projects, test_suites, test_cases)
-               └─ schema: runs      (test_runs, test_results)
+               PostgreSQL 16 (one shared instance, table-prefixed per service)
+               ├─ auth_users
+               ├─ projects_projects, projects_test_suites, projects_test_cases
+               └─ runs_test_runs, runs_test_results
 
                Redis 7
                └─ channel: runs.completed  (async event pub/sub)
@@ -198,8 +198,8 @@ tests/
 ├── api/            # 112 tests — FastAPI TestClient against an in-memory DB   (~30s total)
 │   └── conftest.py #   per-test SQLite engine + admin/executor auth fixtures
 ├── contract/       # 1 property-based suite (31 operations) — Schemathesis vs. the OpenAPI schema (~10s)
-├── services/       # 59 tests — each services/ microservice in isolation, via TestClient   (~7s total)
-│   └── conftest.py #   SQLite-with-attached-Postgres-schema engines + JWT minting, per service
+├── services/       # each services/ microservice in isolation, via TestClient   (~7s total)
+│   └── conftest.py #   per-service SQLite engine + JWT minting
 └── e2e/            # 40+ tests — Playwright browser + deployed-instance API   (minutes; needs a running app)
     └── pages/      #   Page Object Model — locators isolated from test logic
 ```
@@ -296,9 +296,6 @@ See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 │   ├── runs/                     # :8003 Test runs · results · WebSocket · Redis events
 │   ├── ai/                       # :8004 Claude Haiku AI test case generation
 │   └── README.md                 # Microservice architecture deep-dive
-│
-├── infra/
-│   └── init.sql                  # Creates auth / projects / runs Postgres schemas
 │
 ├── static/
 │   ├── index.html                # SPA shell (Chart.js CDN included)

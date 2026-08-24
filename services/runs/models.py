@@ -5,8 +5,7 @@ from .database import Base
 
 
 class TestRun(Base):
-    __tablename__ = "test_runs"
-    __table_args__ = {"schema": "runs"}
+    __tablename__ = "runs_test_runs"
 
     id = Column(Integer, primary_key=True, index=True)
     suite_id = Column(Integer, nullable=False, index=True)
@@ -19,11 +18,10 @@ class TestRun(Base):
 
 
 class TestResult(Base):
-    __tablename__ = "test_results"
-    __table_args__ = {"schema": "runs"}
+    __tablename__ = "runs_test_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    run_id = Column(Integer, ForeignKey("runs.test_runs.id"), nullable=False)
+    run_id = Column(Integer, ForeignKey("runs_test_runs.id"), nullable=False)
     testcase_id = Column(Integer, nullable=False)
     status = Column(String(20), default="pending")
     notes = Column(Text, nullable=True)

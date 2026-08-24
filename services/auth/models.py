@@ -4,8 +4,7 @@ from .database import Base
 
 
 class User(Base):
-    __tablename__ = "users"
-    __table_args__ = {"schema": "auth"}
+    __tablename__ = "auth_users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(100), unique=True, nullable=False, index=True)

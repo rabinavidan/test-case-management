@@ -8,7 +8,6 @@ services:
       POSTGRES_DB: testflow
     volumes:
       - postgres_data_ms:/var/lib/postgresql/data
-      - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testflow"]
       interval: 5s
