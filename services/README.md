@@ -15,7 +15,7 @@
 | Component | Purpose |
 |-----------|---------|
 | **PostgreSQL 16** | Shared DB — one flat namespace, tables prefixed per owning service (`auth_users`, `projects_projects`, `runs_test_runs`, ...) |
-| **Redis 7** | Pub/Sub for async events (`runs.completed`) |
+| **Redis 7** | Pub/Sub for async events (`runs.completed`) and cross-replica WebSocket fan-out (`runs.ws_broadcast`) |
 
 ## Running
 
@@ -75,7 +75,7 @@ gateway.
 ## Inter-service Communication
 
 - **Sync (HTTP):** Gateway → services; runs ↔ projects for test case lookup
-- **Async (Redis Pub/Sub):** runs service publishes `runs.completed` events on channel `runs.completed`
+- **Async (Redis Pub/Sub):** runs service publishes `runs.completed` events on channel `runs.completed`, and fans out WebSocket broadcasts across replicas on channel `runs.ws_broadcast` (see "WebSocket fan-out across replicas" below)
 
 Direct service-to-service calls (not through the gateway — runs → projects,
 projects → runs, ai → projects) go through [`common/http.py`](common/http.py)'s
@@ -87,6 +87,28 @@ isn't retried at all, since retrying a "successful but the response got lost"
 create would seed duplicates. A service that's genuinely down still fails
 fast into each caller's existing handling (a clean 503, or graceful
 degradation) rather than being retried into masking a real outage.
+
+## WebSocket fan-out across replicas
+
+`ConnectionManager` (`runs/main.py`) only ever tracked WebSocket connections
+held open by the process it runs in — fine for a single `runs` instance, but
+with more than one replica behind a load balancer, a client connected to
+replica A never saw a broadcast triggered by an HTTP request that happened
+to land on replica B; A's in-memory connection table had no way to know
+about it.
+
+[`runs/events.py`](runs/events.py)'s `publish_ws_broadcast` / `listen_for_ws_broadcasts`
+fix that: rather than broadcasting to local connections directly, a replica
+publishes the update to a Redis channel (`runs.ws_broadcast`), and *every*
+replica's own subscriber loop — started as a background task in `runs/main.py`'s
+FastAPI `lifespan`, including the replica that published — receives it and
+broadcasts to its own local connections. If Redis is unreachable,
+`broadcast_result_update` falls back to a direct local broadcast, so a
+single-replica setup (this repo's own tests, or `docker compose` without the
+`redis` container) behaves exactly as it did before this existed. The
+subscriber loop itself retries on a fixed delay if Redis is down at startup
+or the connection drops later, rather than giving up on fan-out for the
+process's lifetime.
 
 ## Correlation IDs
 
