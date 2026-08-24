@@ -57,6 +57,19 @@ Browser
         └─────────┘
 ```
 
+## Gateway routing (`gateway/routes.py`)
+
+The gateway resolves each `/api/*` request to a service via a declarative table
+of `(path template, service name)` pairs — [`gateway/routes.py`](gateway/routes.py) —
+matched by exact template shape rather than string-prefix checks, so a specific
+route (e.g. `/api/suites/{suite_id}/runs`) can't be swallowed by a broader one
+(`/api/suites/{suite_id}`) regardless of table order. `tests/services/test_gateway.py`
+diffs this table against every real service's actual routes in both directions, so
+an endpoint added to a service without a matching table entry — or a stale entry
+left after one is removed — fails a test instead of silently 404ing or misrouting
+at runtime. A path that matches nothing in the table gets a 404 straight from the
+gateway.
+
 ## Inter-service Communication
 
 - **Sync (HTTP):** Gateway → services; runs ↔ projects for test case lookup
