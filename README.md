@@ -193,6 +193,7 @@ tests/
 - **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`e2e` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
 - **Page Object Model** for the browser layer (`tests/e2e/pages/`): locators, `data-testid` selection strategy, and modal/toast helpers live in page classes, never inline in test bodies.
 - **Structured step logging.** `tests/e2e/logger.py` (`PWLogger`) prints a `step/action/assert` trace for every test, so a CI log reads like a script, not a wall of framework noise.
+- **Allure reporting.** `allure-pytest` (wired via `--alluredir`) turns every test run into a browsable Allure report — history, retries, timeline and step-by-step detail — generated in CI (`test.yml`) and uploaded as a build artifact.
 - **CI runs the right layer at the right cadence** (see below) — fast layers gate every PR, browser E2E runs after deploy, full regression runs on a schedule.
 
 ```bash
@@ -202,6 +203,9 @@ pytest tests/unit -v              # unit layer only — milliseconds, no setup
 pytest tests/unit tests/api -v    # unit + api — what CI runs on every PR
 pytest tests/e2e/test_e2e.py --base-url=https://your-app.vercel.app -v   # browser E2E
 pytest tests/ -m regression --base-url=https://your-app.vercel.app -v   # full regression suite
+
+pytest tests/unit tests/api --alluredir=allure-results   # write Allure results
+allure generate allure-results --clean -o allure-report && allure open allure-report
 ```
 
 ### TypeScript · Playwright suite
@@ -226,6 +230,7 @@ e2e/
 - **Multi-browser by default.** Chromium and Firefox run on every pass; WebKit is opt-in (`--project=webkit`) rather than slowing down the default run.
 - **Failure artifacts, not guesswork.** Trace, video and screenshot are captured `on-failure` only — full repro evidence without paying the cost on green runs.
 - **Structured step logging.** `logger.ts` mirrors the Python suite's `PWLogger` output format 1:1, so both stacks read the same way in CI logs.
+- **Allure reporting.** The `allure-playwright` reporter is registered alongside HTML/JSON in `playwright.config.ts`; every run produces a full Allure report (steps, attachments, history), generated in CI (`pw-ts.yml`) and uploaded as a build artifact.
 - **CI posts a live report, not just a badge.** `pw-ts.yml` parses the JSON reporter output into a pass/fail/flaky job-summary table on every run.
 
 ```bash
@@ -234,6 +239,8 @@ npx playwright install chromium firefox
 npm test                                      # headless, chromium + firefox
 npm run test:headed                           # headed chromium, for debugging
 BASE_URL=https://your-app.vercel.app npm test # against staging
+
+npm run allure:report                         # generate + open the Allure report
 ```
 
 See [`e2e/README.md`](e2e/README.md) for the full breakdown.
