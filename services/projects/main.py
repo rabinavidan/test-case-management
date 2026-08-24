@@ -9,6 +9,7 @@ import httpx
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, require_admin, UserClaims
+from services.common.health import health_response
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,7 +22,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "projects"}
+    return health_response("projects")
 
 
 # ─── Internal endpoints (called by other services) ────────────────────────────

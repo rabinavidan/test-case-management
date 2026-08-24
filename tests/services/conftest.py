@@ -77,10 +77,10 @@ def _b64e(data: bytes) -> str:
 
 
 def mint_token(user_id: int, role: str = "admin", ttl: int = 3600) -> str:
-    """Mint a token using the same HMAC-SHA256 scheme every service's
-    verifier (services/_shared_auth.py, services/auth/auth.py) expects —
-    lets tests for projects/runs/ai authenticate without spinning up the
-    auth service.
+    """Mint a token using the same HMAC-SHA256 scheme services.common.jwt
+    (the single shared verifier every service now imports) expects — lets
+    tests for projects/runs/ai authenticate without spinning up the auth
+    service.
     """
     secret = os.environ["JWT_SECRET_KEY"].encode()
     header = _b64e(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())

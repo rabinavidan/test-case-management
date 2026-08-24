@@ -1,20 +1,9 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-import os
+from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./auth.db")
+from services.common.db import build_db
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine, get_db = build_db("./auth.db")
 
 
 class Base(DeclarativeBase):
     pass
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
