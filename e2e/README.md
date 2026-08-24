@@ -55,6 +55,8 @@ e2e/
 │   ├── testcases.spec.ts    # Test case CRUD
 │   ├── runs.spec.ts         # Test run execution
 │   ├── sidebar-progress-bar.spec.ts  # Sidebar pass-rate bar after a run
+│   ├── contract.spec.ts     # Responses validated against /openapi.json (ajv) +
+│   │                        #   property-based edge cases (fast-check)
 │   └── api.spec.ts          # API-level tests (no browser) — includes paginated
 │                            #   response assertions ({items, total, page, total_pages})
 │                            #   and full CRUD flow covering analytics endpoint
@@ -79,6 +81,21 @@ npm run allure:report       # generate + open in one step
 Generating/opening the report requires the `allure` CLI (installed locally via the `allure-commandline`
 devDependency) and a Java runtime on `PATH`. CI (`pw-ts.yml`) sets up Java, generates the report on every run, and
 uploads it as the `allure-report-playwright-ts-<run id>` build artifact.
+
+## Contract testing
+
+`contract.spec.ts` validates real API responses against the app's own OpenAPI schema (`GET /openapi.json`) using
+[ajv](https://ajv.js.org/) (JSON Schema, including strict RFC 3339 `date-time` via `ajv-formats`) and
+[fast-check](https://fast-check.dev/) for property-based edge cases — the TypeScript counterpart to
+[`tests/contract/test_openapi_contract.py`](../tests/contract/test_openapi_contract.py) (Schemathesis) on the
+Python side. It has already found real bugs, not hypothetical ones:
+
+- A CRUD-flow test validates every response — project, suite, test case, run, result, stats — against its declared
+  schema, catching a case where a `datetime` serialization fix in `api/schemas.py` silently dropped
+  `format: date-time` from the generated schema instead of preserving it.
+- A property-based test (`fast-check`) generates extreme integer path params (outside SQLite's 64-bit `INTEGER`
+  range) and asserts the API never crashes with a 5xx — the regression test for an `OverflowError` fixed with a
+  dedicated exception handler in `api/main.py`.
 
 ## API pagination
 

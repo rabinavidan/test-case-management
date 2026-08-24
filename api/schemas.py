@@ -1,4 +1,4 @@
-from pydantic import BaseModel, PlainSerializer
+from pydantic import BaseModel, PlainSerializer, WithJsonSchema
 from typing import Annotated, Optional, List
 from datetime import datetime, timezone
 
@@ -15,7 +15,17 @@ def _as_utc_isoformat(dt: datetime) -> str:
     return dt.isoformat()
 
 
-UTCDatetime = Annotated[datetime, PlainSerializer(_as_utc_isoformat, return_type=str)]
+# `WithJsonSchema` is required here, not decorative: without it, PlainSerializer
+# makes Pydantic emit a bare `{"type": "string"}` for this field in openapi.json —
+# silently dropping `format: date-time` and weakening the very contract the
+# serializer above exists to satisfy. The TypeScript contract suite (e2e/tests/
+# contract.spec.ts), which validates responses with ajv-formats' strict
+# `date-time` check straight from the schema, is what caught this.
+UTCDatetime = Annotated[
+    datetime,
+    PlainSerializer(_as_utc_isoformat, return_type=str),
+    WithJsonSchema({"type": "string", "format": "date-time"}),
+]
 
 
 # Auth schemas

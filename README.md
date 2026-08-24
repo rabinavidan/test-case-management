@@ -152,6 +152,20 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 
 ## Test Architecture
 
+### Test types at a glance
+
+| Type | What it checks | Where |
+|------|-----------------|-------|
+| **Unit** | Pure functions (JWT/hash logic) — no DB, no HTTP, no I/O | `tests/unit/` (pytest) |
+| **API / integration** | Real FastAPI app + real (throwaway, per-test) SQLite DB, via `TestClient` | `tests/api/` (pytest) |
+| **Contract** | Real responses validated against the app's own live OpenAPI schema — property-based edge cases, not just hand-picked examples | `tests/contract/` (pytest + Schemathesis) · `e2e/tests/contract.spec.ts` (Playwright + ajv + fast-check) |
+| **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `tests/e2e/` (pytest + Playwright) · `e2e/tests/*.spec.ts` (Playwright + TypeScript) |
+| **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
+| **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) |
+
+150 pytest tests total (7 unit + 112 API + 31 contract operations), plus 40+ Playwright E2E specs — doubled across
+two independent automation stacks (Python and TypeScript). See the breakdown below for how each stack is built.
+
 This project deliberately maintains **two independent, feature-equivalent browser-automation stacks** against the
 same app — Playwright + TypeScript and Playwright + pytest (Python) — rather than picking one. Both drive the same
 UI through a Page Object Model, both cover the same user flows (auth, projects, suites, test cases, runs), and both
@@ -219,7 +233,7 @@ instance of the app, backed by a shared Page Object Model and an auth fixture.
 e2e/
 ├── fixtures/auth.fixture.ts   # authToken / authedRequest — one login, reused by every spec
 ├── pages/                     # BasePage + one *.page.ts per screen (POM, data-testid locators)
-├── tests/                     # login · projects · suites · testcases · runs · sidebar-progress-bar · api
+├── tests/                     # login · projects · suites · testcases · runs · sidebar-progress-bar · contract · api
 ├── global-setup.ts            # registers the e2e user once, saves the auth token to disk
 └── global-teardown.ts         # deletes leftover test projects by name prefix
 ```
@@ -233,6 +247,7 @@ e2e/
 - **Failure artifacts, not guesswork.** Trace, video and screenshot are captured `on-failure` only — full repro evidence without paying the cost on green runs.
 - **Structured step logging.** `logger.ts` mirrors the Python suite's `PWLogger` output format 1:1, so both stacks read the same way in CI logs.
 - **Allure reporting.** The `allure-playwright` reporter is registered alongside HTML/JSON in `playwright.config.ts`; every run produces a full Allure report (steps, attachments, history), generated in CI (`pw-ts.yml`) and uploaded as a build artifact.
+- **Contract tests, not just example-based ones.** `contract.spec.ts` validates real responses against the app's own `/openapi.json` with `ajv`, and property-tests extreme path-param values with `fast-check` — the TypeScript counterpart to the Python side's Schemathesis suite. It caught a real bug of its own: a `datetime` fix on the Python side had silently dropped `format: date-time` from the generated schema instead of preserving it.
 - **CI posts a live report, not just a badge.** `pw-ts.yml` parses the JSON reporter output into a pass/fail/flaky job-summary table on every run.
 
 ```bash
@@ -286,9 +301,10 @@ See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 ├── tests/                        # Python pytest suite, layered
 │   ├── unit/                     # pure JWT/hash logic — no DB, no HTTP
 │   ├── api/                      # FastAPI TestClient integration tests
+│   ├── contract/                 # Schemathesis property tests vs. the OpenAPI schema
 │   └── e2e/                      # Playwright browser + deployed-instance API tests
 │       └── pages/                # page objects for the browser E2E specs
-├── e2e/                          # Playwright TypeScript E2E tests
+├── e2e/                          # Playwright TypeScript E2E tests (incl. contract.spec.ts)
 ├── Dockerfile                    # Monolith container
 ├── docker-compose.yml            # Monolith mode (app + Postgres)
 ├── docker-compose.microservices.yml  # Microservice mode (5 services + Postgres + Redis)
