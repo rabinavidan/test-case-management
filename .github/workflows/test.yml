@@ -31,7 +31,8 @@ jobs:
         run: |
           set +e
           python -m pytest tests/unit tests/api -v \
-            --json-report --json-report-file=report.json
+            --json-report --json-report-file=report.json \
+            --alluredir=allure-results
           exit_code=$?
           set -e
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
@@ -88,6 +89,27 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("\n".join(lines))
           EOF
+
+      - name: Set up Java (for Allure report generation)
+        if: always()
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Generate Allure report
+        if: always()
+        run: |
+          npm install -g allure-commandline --no-progress
+          allure generate allure-results --clean -o allure-report
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-pytest-${{ github.run_id }}
+          path: allure-report/
+          retention-days: 14
 
       - name: Propagate exit code
         if: always()

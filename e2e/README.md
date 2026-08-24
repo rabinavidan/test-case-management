@@ -64,6 +64,22 @@ e2e/
 └── tsconfig.json
 ```
 
+## Allure reporting
+
+The `allure-playwright` reporter is registered in `playwright.config.ts` alongside HTML/JSON, writing results to
+`allure-results/` on every run.
+
+```bash
+npm test                    # writes allure-results/ (and the html/json reports) as a side effect
+npm run allure:generate     # allure-results/ -> allure-report/ (static HTML)
+npm run allure:open         # serve allure-report/ locally
+npm run allure:report       # generate + open in one step
+```
+
+Generating/opening the report requires the `allure` CLI (installed locally via the `allure-commandline`
+devDependency) and a Java runtime on `PATH`. CI (`pw-ts.yml`) sets up Java, generates the report on every run, and
+uploads it as the `allure-report-playwright-ts-<run id>` build artifact.
+
 ## API pagination
 
 `GET /api/projects` now returns a paginated envelope:
@@ -106,4 +122,4 @@ The MCP server uses the Chromium pre-installed in the Claude Code remote environ
 
 ## CI
 
-The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, and uploads the HTML report as an artifact.
+The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, generates the Allure report, and uploads both the Playwright HTML report and the Allure report as artifacts.

@@ -9,6 +9,8 @@ dist/
 build/
 .vercel/
 .idea/
+allure-results/
+allure-report/
 
 # Claude Code guidance files — kept locally, not pushed to PRs/main
 /*CLAUDE*.md
