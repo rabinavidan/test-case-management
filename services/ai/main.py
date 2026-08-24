@@ -5,6 +5,7 @@ import httpx
 
 from .schemas import AIGenerateRequest, AIGenerateResponse, AIGeneratedTestCase
 from .auth import require_admin, UserClaims
+from services.common.health import health_response
 
 logger = logging.getLogger("ai")
 PROJECTS_SERVICE_URL = os.getenv("PROJECTS_SERVICE_URL", "http://projects:8002")
@@ -16,7 +17,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "ai"}
+    return health_response("ai")
 
 
 @app.post("/api/suites/{suite_id}/testcases/generate", response_model=AIGenerateResponse)

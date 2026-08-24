@@ -10,6 +10,7 @@ from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, UserClaims
 from .events import publish_run_completed
+from services.common.health import health_response
 
 Base.metadata.create_all(bind=engine)
 
@@ -54,7 +55,7 @@ ws_manager = ConnectionManager()
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "runs"}
+    return health_response("runs")
 
 
 # ─── Internal endpoints (called by other services) ────────────────────────────

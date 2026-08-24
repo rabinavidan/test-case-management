@@ -29,6 +29,7 @@ fields serialized without a UTC offset, violating OpenAPI's declared
 `format: date-time` (RFC 3339 requires one) — fixed in `api/schemas.py`
 (`UTCDatetime`), not worked around here.
 """
+import pytest
 import schemathesis
 from hypothesis import HealthCheck, settings
 from schemathesis.checks import ignored_auth, status_code_conformance
@@ -80,6 +81,25 @@ schema = schemathesis.from_asgi(
     # etc.) still parse correctly under the 3.0 code path.
     force_schema_version="30",
 )
+
+
+@pytest.fixture(autouse=True)
+def _reassert_db_override():
+    """`app` (api.main.app) is the same singleton tests/api/conftest.py's
+    fixtures use — its `client` fixture sets `get_db`'s override at setup
+    and *clears the whole dict* at teardown. Since this module only ever set
+    its own override once, at import time, the last tests/api test to run
+    before this file's tests silently wiped it out, and every request here
+    fell through to the real default engine (sqlite:///./testcases.db) —
+    whatever leftover data happened to be sitting in that file, accumulated
+    from unrelated local runs, instead of this suite's own isolated DB. Only
+    reproduces when tests/api and tests/contract run in the same process
+    (exactly what CI does), and only when the leftover/accumulated row
+    counts happen to collide with a fuzzed path-param ID — intermittent,
+    not obviously wrong, and easy to miss. Re-asserting before every test
+    makes this suite's isolation independent of what else shares the app.
+    """
+    app.dependency_overrides[get_db] = _override_get_db
 
 
 @schema.parametrize()

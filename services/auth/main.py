@@ -7,6 +7,7 @@ from typing import List
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import hash_password, create_access_token, get_current_user, require_admin
+from services.common.health import health_response
 
 Base.metadata.create_all(bind=engine)
 
@@ -40,7 +41,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "auth"}
+    return health_response("auth")
 
 
 @app.get("/api/version")
