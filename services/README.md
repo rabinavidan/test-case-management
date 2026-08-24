@@ -77,6 +77,17 @@ gateway.
 - **Sync (HTTP):** Gateway → services; runs ↔ projects for test case lookup
 - **Async (Redis Pub/Sub):** runs service publishes `runs.completed` events on channel `runs.completed`
 
+Direct service-to-service calls (not through the gateway — runs → projects,
+projects → runs, ai → projects) go through [`common/http.py`](common/http.py)'s
+`get_with_retry`: a consistent timeout plus a few bounded retries with a short
+backoff, but *only* for connection/timeout errors on `GET`s. A real response
+from the target service (a 404, whatever) is never retried — it's an answer,
+not a blip — and a non-idempotent call (the one `POST`, seeding demo runs)
+isn't retried at all, since retrying a "successful but the response got lost"
+create would seed duplicates. A service that's genuinely down still fails
+fast into each caller's existing handling (a clean 503, or graceful
+degradation) rather than being retried into masking a real outage.
+
 ## JWT Strategy
 
 Auth service embeds `role` in the JWT payload. Other services verify the token
@@ -96,6 +107,7 @@ Code that used to be copy-pasted into every service now lives here once:
 | `common/auth.py` | The stateless `UserClaims` / `get_current_user` / `require_admin` verifier projects, runs, and ai all need — each service's own `auth.py` is now a two-line re-export so `from .auth import ...` in `main.py` didn't have to change. |
 | `common/db.py` | The `DATABASE_URL` → engine → `SessionLocal` → `get_db()` boilerplate every `database.py` wired by hand. `Base` stays local to each service (its models attach to their own metadata). |
 | `common/health.py` | The `{"status": "ok", "service": ...}` response shape every `/health` route returned inline. |
+| `common/http.py` | `get_with_retry` — a consistent timeout and a bounded, backed-off retry for `GET`s to another service, so a single dropped connection doesn't have to surface as a 503 or silently missing data. See "Inter-service Communication" above for what is and isn't retried, and why. |
 
 ## Schemas shared with the monolith (`../shared/schemas.py`)
 

@@ -4,13 +4,13 @@ from typing import List, Dict, Set
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-import httpx
 
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, UserClaims
 from .events import publish_run_completed
 from services.common.health import health_response
+from services.common.http import get_with_retry
 
 Base.metadata.create_all(bind=engine)
 
@@ -111,7 +111,7 @@ def internal_seed_runs(body: dict, db: Session = Depends(get_db)):
         # Get active testcase count from projects service
         tc_count = 3  # default fallback
         try:
-            resp = httpx.get(f"{PROJECTS_SERVICE_URL}/internal/suites/{suite_id}/active-testcases", timeout=5)
+            resp = get_with_retry(f"{PROJECTS_SERVICE_URL}/internal/suites/{suite_id}/active-testcases")
             if resp.status_code == 200:
                 tc_count = len(resp.json())
         except Exception:
@@ -141,7 +141,7 @@ def create_run(suite_id: int, payload: schemas.TestRunCreate,
                db: Session = Depends(get_db), current: UserClaims = Depends(get_current_user)):
     # Fetch active test cases from projects service
     try:
-        resp = httpx.get(f"{PROJECTS_SERVICE_URL}/internal/suites/{suite_id}/active-testcases", timeout=5)
+        resp = get_with_retry(f"{PROJECTS_SERVICE_URL}/internal/suites/{suite_id}/active-testcases")
         if resp.status_code == 404:
             raise HTTPException(404, "Suite not found")
         test_cases = resp.json()
