@@ -1,6 +1,10 @@
 # TestFlow – Playwright TypeScript E2E Tests
 
 End-to-end tests for the TestFlow Test Case Management app, written with [Playwright](https://playwright.dev/) and TypeScript.
+This is the project's primary automation stack: fixture-based auth, a full Page Object Model, `test.step()`-annotated
+specs, HTML/JSON reporting, and its own CI workflow (`pw-ts.yml`). A feature-equivalent suite also exists in
+Python/pytest under [`../tests/e2e`](../tests/e2e) — see the [root README](../README.md#test-architecture) for how
+the two stacks map to each other.
 
 ## Setup
 
@@ -39,15 +43,18 @@ e2e/
 │   └── auth.fixture.ts      # Extended test with authToken / authedRequest
 ├── pages/
 │   ├── base.page.ts         # BasePage with navigate() + waitForNetworkIdle()
+│   ├── login.page.ts        # Auth modal (sign-in form, error state)
 │   ├── projects.page.ts     # Projects list page
 │   ├── project.page.ts      # Project detail (suites + stats)
 │   ├── suite.page.ts        # Suite detail (test cases + run creation)
 │   └── run.page.ts          # Test run execution + summary
 ├── tests/
+│   ├── login.spec.ts        # Sign-in modal: render, success, invalid credentials
 │   ├── projects.spec.ts     # Project CRUD
 │   ├── suites.spec.ts       # Suite CRUD
 │   ├── testcases.spec.ts    # Test case CRUD
 │   ├── runs.spec.ts         # Test run execution
+│   ├── sidebar-progress-bar.spec.ts  # Sidebar pass-rate bar after a run
 │   └── api.spec.ts          # API-level tests (no browser) — includes paginated
 │                            #   response assertions ({items, total, page, total_pages})
 │                            #   and full CRUD flow covering analytics endpoint
@@ -72,10 +79,12 @@ Query params: `?page=1&page_size=50&search=keyword`.
 
 | Feature | Where tested |
 |---------|-------------|
+| Auth modal (render / success / invalid credentials) | `login.spec.ts` |
 | AI test case generation (`POST /api/suites/{id}/testcases/generate`) | `api.spec.ts` full CRUD flow |
 | WebSocket live updates (`/ws/runs/{run_id}`) | run view in browser tests |
 | Analytics endpoint (`GET /api/projects/{id}/analytics`) | `api.spec.ts` full CRUD flow |
 | Paginated project list | `api.spec.ts`, `projects.spec.ts` |
+| Sidebar pass-rate progress bar | `sidebar-progress-bar.spec.ts` |
 
 ## Claude Code – Playwright MCP
 

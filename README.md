@@ -152,7 +152,23 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 
 ## Test Architecture
 
-Testing follows the classic pyramid — narrow and fast at the bottom, broad and slow at the top — implemented as three physically separate pytest layers under `tests/`, plus a parallel TypeScript Playwright suite.
+This project deliberately maintains **two independent, feature-equivalent browser-automation stacks** against the
+same app — Playwright + TypeScript and Playwright + pytest (Python) — rather than picking one. Both drive the same
+UI through a Page Object Model, both cover the same user flows (auth, projects, suites, test cases, runs), and both
+run in CI. New E2E coverage (e.g. `login.spec.ts` / `test_login_e2e.py`, the sidebar pass-rate bar) is added to both
+stacks to keep them in parity.
+
+| | Playwright · TypeScript | Playwright · Python (pytest) |
+|---|---|---|
+| Location | [`e2e/`](e2e/README.md) | `tests/e2e/` |
+| Run with | `npm test` (`@playwright/test` runner) | `pytest tests/e2e -m regression` (`pytest-playwright`) |
+| Page Object Model | `e2e/pages/*.page.ts` | `tests/e2e/pages/*_page.py` |
+| Auth strategy | fixture-based token injection (`fixtures/auth.fixture.ts`) + a dedicated UI modal spec (`login.spec.ts`) | page-object login flow (`test_login_e2e.py`) |
+| Structured step logging | `logger.ts` (`log.step/action/assert`) | `logger.py` (`PWLogger`) |
+| CI workflow | `.github/workflows/pw-ts.yml` — every PR / push to `main` touching `e2e/`, `api/`, `static/` | `.github/workflows/test.yml`, `pw-scheduled.yml`, `pw-regression.yml` |
+
+Below that, the Python side is further split into the classic pyramid — narrow and fast at the bottom, broad and
+slow at the top — as three physically separate pytest layers under `tests/`.
 
 ```
 tests/
@@ -160,7 +176,7 @@ tests/
 ├── unit/           # 7 tests   — pure functions, no DB/HTTP/I-O               (~1s total)
 ├── api/            # 112 tests — FastAPI TestClient against an in-memory DB   (~30s total)
 │   └── conftest.py #   per-test SQLite engine + admin/executor auth fixtures
-└── e2e/            # 40 tests  — Playwright browser + deployed-instance API   (minutes; needs a running app)
+└── e2e/            # 40+ tests — Playwright browser + deployed-instance API   (minutes; needs a running app)
     └── pages/      #   Page Object Model — locators isolated from test logic
 ```
 
@@ -199,7 +215,9 @@ npm test                                      # headless
 BASE_URL=https://your-app.vercel.app npm test # against staging
 ```
 
-See [`e2e/README.md`](e2e/README.md) for full details.
+Specs: `login.spec.ts` · `projects.spec.ts` · `suites.spec.ts` · `testcases.spec.ts` · `runs.spec.ts` ·
+`sidebar-progress-bar.spec.ts` · `api.spec.ts`. See [`e2e/README.md`](e2e/README.md) for full details
+(fixtures, Page Object Model, CI wiring).
 
 ---
 
