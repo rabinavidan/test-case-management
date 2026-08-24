@@ -63,7 +63,7 @@ def test_runs_response_datetimes_include_utc_offset(monkeypatch):
         def json(self):
             return [{"id": 1}]
 
-    monkeypatch.setattr(httpx_module, "get", lambda url, timeout=None: _FakeResponse())
+    monkeypatch.setattr(httpx_module, "get", lambda url, timeout=None, **kwargs: _FakeResponse())
 
     with TestClient(app) as client:
         res = client.post("/api/suites/1/runs", json={"name": "Run 1"}, headers=headers)

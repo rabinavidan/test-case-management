@@ -76,7 +76,7 @@ class _FakeResponse:
 def test_get_with_retry_succeeds_first_try_makes_one_call(monkeypatch):
     calls = []
 
-    def _get(url, timeout=None):
+    def _get(url, timeout=None, **kwargs):
         calls.append(url)
         return _FakeResponse(200)
 
@@ -89,7 +89,7 @@ def test_get_with_retry_succeeds_first_try_makes_one_call(monkeypatch):
 def test_get_with_retry_recovers_after_transient_connect_errors(monkeypatch):
     attempts = {"n": 0}
 
-    def _get(url, timeout=None):
+    def _get(url, timeout=None, **kwargs):
         attempts["n"] += 1
         if attempts["n"] < 3:
             raise httpx.ConnectError("connection refused", request=None)
@@ -105,7 +105,7 @@ def test_get_with_retry_recovers_after_transient_connect_errors(monkeypatch):
 def test_get_with_retry_gives_up_after_max_attempts(monkeypatch):
     attempts = {"n": 0}
 
-    def _get(url, timeout=None):
+    def _get(url, timeout=None, **kwargs):
         attempts["n"] += 1
         raise httpx.ConnectError("connection refused", request=None)
 
@@ -122,7 +122,7 @@ def test_get_with_retry_does_not_retry_a_real_response(monkeypatch):
     callers can branch on it (e.g. `if resp.status_code == 404: raise ...`)."""
     calls = []
 
-    def _get(url, timeout=None):
+    def _get(url, timeout=None, **kwargs):
         calls.append(url)
         return _FakeResponse(404)
 
@@ -138,7 +138,7 @@ def test_get_with_retry_does_not_retry_non_transient_exceptions(monkeypatch):
     silently retried into a slower failure."""
     calls = []
 
-    def _get(url, timeout=None):
+    def _get(url, timeout=None, **kwargs):
         calls.append(url)
         raise ValueError("not a connectivity problem")
 
@@ -152,7 +152,7 @@ def test_get_with_retry_omits_params_kwarg_when_not_given(monkeypatch):
     """Some call sites (and their tests) call the underlying httpx.get with
     no `params` kwarg at all — get_with_retry must not force one in, or it
     would break a mock with a narrower signature than httpx.get's real one."""
-    def _get(url, timeout=None):
+    def _get(url, timeout=None, **kwargs):
         return _FakeResponse(200)
 
     monkeypatch.setattr(httpx, "get", _get)

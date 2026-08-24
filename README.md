@@ -21,7 +21,7 @@ Designed to demonstrate cutting-edge engineering practices — microservice deco
 | **Real-time Collaboration** | WebSocket + Redis Pub/Sub | `WS /ws/runs/{run_id}` |
 | **Analytics Dashboard** | Chart.js 4 (pass-rate trend line, suite coverage bars) | `GET /api/projects/{id}/analytics` |
 | **Microservice Architecture** | 5 services · Docker Compose · Redis events | `services/` + `docker-compose.microservices.yml` |
-| **Structured Logging** | JSON middleware logging every HTTP request with latency_ms | per service `main.py` |
+| **Structured Logging** | Middleware logging every HTTP request with status and latency_ms; microservice mode also threads a correlation `request_id` across every service | `api/main.py` · `services/common/request_id.py` |
 | **Paginated API** | Envelope `{items, total, page, page_size, total_pages}` | `GET /api/projects` |
 
 ---

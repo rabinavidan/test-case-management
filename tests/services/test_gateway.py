@@ -85,6 +85,49 @@ def test_proxy_passes_through_downstream_response(client, monkeypatch):
     assert res.json() == {"ok": True}
 
 
+def test_proxy_mints_and_forwards_a_request_id_when_client_sends_none(client, monkeypatch):
+    from services.common.request_id import REQUEST_ID_HEADER
+
+    captured_headers = {}
+
+    async def _fake_request(method, url, content=None, headers=None):
+        captured_headers.update(headers or {})
+        class _FakeResponse:
+            status_code = 200
+            content = b'{}'
+            headers = {"content-type": "application/json"}
+        return _FakeResponse()
+
+    from services.gateway import main as gateway_main
+    monkeypatch.setattr(gateway_main._http, "request", _fake_request)
+
+    res = client.get("/api/projects")
+    minted = res.headers[REQUEST_ID_HEADER]
+    assert minted
+    assert captured_headers[REQUEST_ID_HEADER] == minted
+
+
+def test_proxy_forwards_the_clients_own_request_id_unchanged(client, monkeypatch):
+    from services.common.request_id import REQUEST_ID_HEADER
+
+    captured_headers = {}
+
+    async def _fake_request(method, url, content=None, headers=None):
+        captured_headers.update(headers or {})
+        class _FakeResponse:
+            status_code = 200
+            content = b'{}'
+            headers = {"content-type": "application/json"}
+        return _FakeResponse()
+
+    from services.gateway import main as gateway_main
+    monkeypatch.setattr(gateway_main._http, "request", _fake_request)
+
+    res = client.get("/api/projects", headers={REQUEST_ID_HEADER: "client-set-this"})
+    assert res.headers[REQUEST_ID_HEADER] == "client-set-this"
+    assert captured_headers[REQUEST_ID_HEADER] == "client-set-this"
+
+
 # ─── Self-verification: the table vs. the real services ───────────────────────
 #
 # routes.py's exact-template matching already rules out one route silently
