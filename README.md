@@ -167,8 +167,13 @@ stacks to keep them in parity.
 | Structured step logging | `logger.ts` (`log.step/action/assert`) | `logger.py` (`PWLogger`) |
 | CI workflow | `.github/workflows/pw-ts.yml` — every PR / push to `main` touching `e2e/`, `api/`, `static/` | `.github/workflows/test.yml`, `pw-scheduled.yml`, `pw-regression.yml` |
 
-Below that, the Python side is further split into the classic pyramid — narrow and fast at the bottom, broad and
-slow at the top — as three physically separate pytest layers under `tests/`.
+The two stacks get equal billing below — same depth of detail, same structure — since each targets a different
+hiring context (Playwright/TypeScript roles vs. pytest/Python roles) and both are meant to stand on their own.
+
+### Python · pytest suite
+
+The Python side is further split into the classic pyramid — narrow and fast at the bottom, broad and slow at the
+top — as three physically separate pytest layers under `tests/`.
 
 ```
 tests/
@@ -187,6 +192,7 @@ tests/
 - **The same contract tested at two altitudes on purpose.** JWT/password logic is verified as pure functions in `tests/unit/test_auth_tokens.py` *and* through real HTTP status codes in `tests/api/test_auth.py` — a failure in the unit layer localizes to the algorithm; a failure only in the API layer points at the wiring (dependency injection, route guards) instead.
 - **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`e2e` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
 - **Page Object Model** for the browser layer (`tests/e2e/pages/`): locators, `data-testid` selection strategy, and modal/toast helpers live in page classes, never inline in test bodies.
+- **Structured step logging.** `tests/e2e/logger.py` (`PWLogger`) prints a `step/action/assert` trace for every test, so a CI log reads like a script, not a wall of framework noise.
 - **CI runs the right layer at the right cadence** (see below) — fast layers gate every PR, browser E2E runs after deploy, full regression runs on a schedule.
 
 ```bash
@@ -198,6 +204,40 @@ pytest tests/e2e/test_e2e.py --base-url=https://your-app.vercel.app -v   # brows
 pytest tests/ -m regression --base-url=https://your-app.vercel.app -v   # full regression suite
 ```
 
+### TypeScript · Playwright suite
+
+The TypeScript side (`e2e/`) is a single, flat spec layer — every spec drives the real browser against a running
+instance of the app, backed by a shared Page Object Model and an auth fixture.
+
+```
+e2e/
+├── fixtures/auth.fixture.ts   # authToken / authedRequest — one login, reused by every spec
+├── pages/                     # BasePage + one *.page.ts per screen (POM, data-testid locators)
+├── tests/                     # login · projects · suites · testcases · runs · sidebar-progress-bar · api
+├── global-setup.ts            # registers the e2e user once, saves the auth token to disk
+└── global-teardown.ts         # deletes leftover test projects by name prefix
+```
+
+**Engineering practices this demonstrates:**
+
+- **Fixture-based auth, not per-test login.** `fixtures/auth.fixture.ts` extends Playwright's base `test` with an `authToken` fixture read once from `global-setup.ts` — specs inject it via `localStorage`/`Authorization` header instead of repeating a login flow.
+- **UI coverage isn't skipped just because auth is API-driven.** `login.spec.ts` still exercises the real sign-in modal end-to-end (render, success, invalid credentials) as its own unauthenticated spec, so the fixture's shortcut never leaves the actual login UI untested.
+- **Page Object Model** (`pages/*.page.ts`): every page extends a shared `BasePage`, locators use the `data-testid` strategy exclusively, and `test.step()` annotates each action for readable traces.
+- **Multi-browser by default.** Chromium and Firefox run on every pass; WebKit is opt-in (`--project=webkit`) rather than slowing down the default run.
+- **Failure artifacts, not guesswork.** Trace, video and screenshot are captured `on-failure` only — full repro evidence without paying the cost on green runs.
+- **Structured step logging.** `logger.ts` mirrors the Python suite's `PWLogger` output format 1:1, so both stacks read the same way in CI logs.
+- **CI posts a live report, not just a badge.** `pw-ts.yml` parses the JSON reporter output into a pass/fail/flaky job-summary table on every run.
+
+```bash
+cd e2e && npm install
+npx playwright install chromium firefox
+npm test                                      # headless, chromium + firefox
+npm run test:headed                           # headed chromium, for debugging
+BASE_URL=https://your-app.vercel.app npm test # against staging
+```
+
+See [`e2e/README.md`](e2e/README.md) for the full breakdown.
+
 ### CI wiring (`.github/workflows/`)
 
 | Workflow | Trigger | What runs |
@@ -205,19 +245,7 @@ pytest tests/ -m regression --base-url=https://your-app.vercel.app -v   # full r
 | `test.yml` | every PR + push to `main` | `tests/unit` + `tests/api` (blocking); `tests/e2e/test_e2e.py` on push to `main` only (non-blocking) |
 | `pw-scheduled.yml` | weekly cron | `tests/e2e/test_e2e.py` + `tests/e2e/test_users_e2e.py` against the live deployment |
 | `pw-regression.yml` | manual dispatch | full `-m regression` suite across all layers against a chosen target URL |
-
-### Playwright TypeScript E2E
-
-```bash
-cd e2e && npm install
-npx playwright install chromium
-npm test                                      # headless
-BASE_URL=https://your-app.vercel.app npm test # against staging
-```
-
-Specs: `login.spec.ts` · `projects.spec.ts` · `suites.spec.ts` · `testcases.spec.ts` · `runs.spec.ts` ·
-`sidebar-progress-bar.spec.ts` · `api.spec.ts`. See [`e2e/README.md`](e2e/README.md) for full details
-(fixtures, Page Object Model, CI wiring).
+| `pw-ts.yml` | every PR + push to `main` touching `e2e/`, `api/`, `static/`; daily cron | full `e2e/tests/*.spec.ts` suite, HTML/JSON report uploaded as an artifact |
 
 ---
 
