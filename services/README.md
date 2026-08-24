@@ -95,6 +95,22 @@ Code that used to be copy-pasted into every service now lives here once:
 | `common/db.py` | The `DATABASE_URL` → engine → `SessionLocal` → `get_db()` boilerplate every `database.py` wired by hand. `Base` stays local to each service (its models attach to their own metadata). |
 | `common/health.py` | The `{"status": "ok", "service": ...}` response shape every `/health` route returned inline. |
 
+## Schemas shared with the monolith (`../shared/schemas.py`)
+
+`common/` unified duplication *within* the microservices; [`../shared/schemas.py`](../shared/schemas.py)
+does the same *between* `api/` (the monolith) and `services/*` — both stacks model the
+same domain and had drifted into near-duplicate Pydantic schemas. Two real bugs were
+found comparing the copies field-by-field and are now impossible to re-diverge:
+services/auth's `TokenResponse` was silently missing `token_type`, and
+services/auth, services/projects, and services/runs all serialized datetimes
+without a UTC offset — the same OpenAPI `format: date-time` violation
+`tests/contract/` had already caught and fixed in the monolith alone, just never
+applied here since nothing runs an equivalent contract suite against the
+microservices deployment yet. See that module's docstring for the full list
+and for what was deliberately *not* unified (`TestResultResponse` /
+`TestRunResponse` carry data only the monolith's single shared database can
+produce in one query).
+
 ## Testing
 
 Each service is covered in isolation by [`../tests/services/`](../tests/services)
