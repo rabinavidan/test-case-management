@@ -1,44 +1,43 @@
 """Shared fixtures for the microservices test layer (tests/services/).
 
-Each service's models are declared with a Postgres-style `__table_args__ =
-{"schema": ...}` (auth / projects / runs) — needed for the real deployment,
-where all five services share one Postgres instance via separate schemas.
-Plain SQLite has no equivalent notion, so `CREATE TABLE auth.users (...)`
-fails outright against a bare `sqlite:///` engine (confirmed: this is
-*why* these services had zero tests before this file existed — the same
-DB-setup trick the monolith's tests/api/conftest.py uses doesn't apply
-as-is). The fix is SQLite's `ATTACH DATABASE ... AS <schema>`, registered
-on the engine's `connect` event so every connection gets it automatically.
+Each service's models used to be declared with a Postgres-style
+`__table_args__ = {"schema": ...}` (auth / projects / runs) — needed only
+because the real deployment shares one Postgres instance across services
+via separate schemas. Plain SQLite has no equivalent notion, so
+`CREATE TABLE auth.users (...)` failed outright against a bare `sqlite:///`
+engine; this file used to work around that with SQLite's
+`ATTACH DATABASE ... AS <schema>`. Models are now table-name-prefixed
+instead (`auth_users`, `projects_projects`, ...) rather than
+schema-qualified, so that workaround is gone — a plain SQLite file backs
+each service's tests directly, same as the monolith's tests/api/conftest.py.
 
-`import_service_app()` below does this for one service: point its
-`DATABASE_URL` at a throwaway file *before* importing `<service>.main`
-(whose module-level `Base.metadata.create_all(bind=engine)` runs at import
-time, so the attach hook must exist before that import happens), then
-import it and return the FastAPI app plus its `database` module. This
+`import_service_app()` below imports one service (`services.<service>.main`)
+against a throwaway SQLite file, first pointing `DATABASE_URL` at it so the
+module's own `Base.metadata.create_all(bind=engine)` (which runs at import
+time) creates tables there instead of the service's real default path. This
 happens at each test *module's* import time (collection), before any
 fixture runs — so it uses `tempfile` directly rather than the
 `tmp_path_factory` fixture, which isn't available yet at that point.
 """
 import importlib
 import os
+import pathlib
 import tempfile
 import time
 import hashlib
 import hmac
 import json
 import base64
-import pathlib
 
 import pytest
-from sqlalchemy import event
 
 os.environ.setdefault("JWT_SECRET_KEY", "services-test-secret-key")
 
 
 def import_service_app(service: str):
-    """Import `services.<service>.main`, wiring its engine to throwaway SQLite
-    files via the ATTACH trick. Safe to call more than once per session for
-    the same service (subsequent calls just reuse the cached module/engine).
+    """Import `services.<service>.main` against a throwaway SQLite file.
+    Safe to call more than once per session for the same service (subsequent
+    calls just reuse the cached module/engine).
     """
     db_module_name = f"services.{service}.database"
     main_module_name = f"services.{service}.main"
@@ -48,18 +47,10 @@ def import_service_app(service: str):
         db_mod = importlib.sys.modules[db_module_name]
         return main_mod.app, db_mod
 
-    tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix=f"testflow_{service}_"))
-    main_db_path = tmp_dir / "main.db"
-    schema_db_path = tmp_dir / f"{service}.db"
-
+    main_db_path = pathlib.Path(tempfile.mkdtemp(prefix=f"testflow_{service}_")) / "main.db"
     os.environ["DATABASE_URL"] = f"sqlite:///{main_db_path}"
 
     db_mod = importlib.import_module(db_module_name)
-
-    @event.listens_for(db_mod.engine, "connect")
-    def _attach_schema(dbapi_conn, _connection_record):
-        dbapi_conn.execute(f"ATTACH DATABASE '{schema_db_path}' AS {service}")
-
     main_mod = importlib.import_module(main_module_name)
     return main_mod.app, db_mod
 

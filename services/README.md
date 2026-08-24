@@ -14,7 +14,7 @@
 
 | Component | Purpose |
 |-----------|---------|
-| **PostgreSQL 16** | Shared DB — separate schemas: `auth`, `projects`, `runs` |
+| **PostgreSQL 16** | Shared DB — one flat namespace, tables prefixed per owning service (`auth_users`, `projects_projects`, `runs_test_runs`, ...) |
 | **Redis 7** | Pub/Sub for async events (`runs.completed`) |
 
 ## Running
@@ -49,12 +49,14 @@ Browser
      │       │       │
      └───────┴───────┘
              │
-        ┌────▼────┐      ┌───────┐
-        │Postgres │      │ Redis │
-        │auth     │      │pub/sub│
-        │projects │      └───────┘
-        │runs     │
-        └─────────┘
+        ┌────▼─────┐      ┌───────┐
+        │ Postgres │      │ Redis │
+        │(one flat │      │pub/sub│
+        │namespace,│      └───────┘
+        │ tables   │
+        │ prefixed │
+        │per svc)  │
+        └──────────┘
 ```
 
 ## Gateway routing (`gateway/routes.py`)
@@ -110,6 +112,34 @@ microservices deployment yet. See that module's docstring for the full list
 and for what was deliberately *not* unified (`TestResultResponse` /
 `TestRunResponse` carry data only the monolith's single shared database can
 produce in one query).
+
+## Database table naming
+
+Tables are named with a `<service>_` prefix (`auth_users`,
+`projects_projects`, `projects_test_suites`, `projects_test_cases`,
+`runs_test_runs`, `runs_test_results`) instead of being Postgres-schema-qualified.
+Schema qualification (`__table_args__ = {"schema": "auth"}` etc.) only works
+against Postgres, which is why `tests/services/` originally needed a SQLite
+`ATTACH DATABASE` workaround just to run these services' tests at all —
+table-name prefixing needs no such trick and works identically against
+SQLite, Postgres, or any other backend.
+
+> **⚠️ Breaking change for existing microservices-mode deployments.** If you
+> have a Postgres instance with data already in the `auth`, `projects`, or
+> `runs` schemas, this app will *not* read it after upgrading — it now looks
+> for plain tables (`auth_users`, ...) and creates them fresh via
+> `Base.metadata.create_all()` if they don't exist, leaving your old
+> schema-qualified tables untouched but orphaned. To migrate existing data,
+> before deploying this change run, per table, something like:
+> ```sql
+> ALTER TABLE auth.users SET SCHEMA public;
+> ALTER TABLE public.users RENAME TO auth_users;
+> -- repeat for projects.projects -> projects_projects, projects.test_suites
+> -- -> projects_test_suites, projects.test_cases -> projects_test_cases,
+> -- runs.test_runs -> runs_test_runs, runs.test_results -> runs_test_results
+> ```
+> then drop the now-empty `auth` / `projects` / `runs` schemas. `infra/init.sql`
+> (which created those schemas) has been removed since they're no longer used.
 
 ## Testing
 
