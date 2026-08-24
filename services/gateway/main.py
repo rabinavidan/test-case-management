@@ -2,28 +2,20 @@
 API Gateway — routes incoming HTTP and WebSocket requests to the appropriate
 downstream microservice and serves the static SPA files.
 
-Routing table:
-  /api/auth/*                                 → AUTH_URL
-  /api/users/*                                → AUTH_URL
-  /api/version                                → AUTH_URL
-  /api/suites/*/testcases/generate            → AI_URL   (must precede /api/suites/*)
-  /api/suites/*/testcases/generate/save       → PROJECTS_URL
-  /api/suites/*/runs                          → RUNS_URL (must precede /api/suites/*; the
-                                                 runs service — not projects — implements this)
-  /api/projects/*                             → PROJECTS_URL
-  /api/suites/*                               → PROJECTS_URL
-  /api/testcases/*                            → PROJECTS_URL
-  /api/demo/*                                 → PROJECTS_URL
-  /api/runs/*                                 → RUNS_URL
-  /ws/runs/*                                  → RUNS_URL (WebSocket bridge)
+The routing table itself lives in routes.py as declarative data (see that
+module's docstring for why) — this file just resolves a matched service
+name to its actual URL and proxies the request.
 """
 import os, asyncio, logging
+from typing import Optional
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import httpx
 import websockets
+
+from services.gateway.routes import resolve_service
 
 AUTH_URL     = os.getenv("AUTH_URL",     "http://auth:8001")
 PROJECTS_URL = os.getenv("PROJECTS_URL", "http://projects:8002")
@@ -39,39 +31,22 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
 _http = httpx.AsyncClient(timeout=30)
 
 
-def _upstream(path: str) -> str:
-    """Determine which service URL to use based on request path."""
-    p = path.lstrip("/")
-
-    # Auth / user management
-    if p.startswith("api/auth/") or p.startswith("api/users") or p == "api/version":
-        return AUTH_URL
-
-    # AI generation (must match before generic /api/suites/)
-    if "/testcases/generate" in p and not p.endswith("/generate/save"):
-        return AI_URL
-
-    # Run creation/listing within a suite — implemented by the runs service,
-    # not projects, so it must match before the generic /api/suites/ branch.
-    if p.startswith("api/suites") and p.rstrip("/").endswith("/runs"):
-        return RUNS_URL
-
-    # Projects, suites, testcases, demo, analytics, stats
-    if (p.startswith("api/projects") or p.startswith("api/suites")
-            or p.startswith("api/testcases") or p.startswith("api/demo")):
-        return PROJECTS_URL
-
-    # Runs and results
-    if p.startswith("api/runs"):
-        return RUNS_URL
-
-    return AUTH_URL  # fallback (version, health, debug)
+def _upstream(path: str) -> Optional[str]:
+    """Resolve which service URL owns `path`, via the declarative routing
+    table in routes.py. Returns None for a path that matches no known
+    route — the caller responds 404 rather than guessing a service."""
+    service = resolve_service(path)
+    if service is None:
+        return None
+    return {"auth": AUTH_URL, "projects": PROJECTS_URL, "runs": RUNS_URL, "ai": AI_URL}[service]
 
 
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def proxy(path: str, request: Request):
     full_path = f"/api/{path}"
     base = _upstream(full_path)
+    if base is None:
+        return JSONResponse({"detail": "Not found"}, status_code=404)
     url = f"{base}{full_path}"
     if request.query_params:
         url = f"{url}?{request.query_params}"
