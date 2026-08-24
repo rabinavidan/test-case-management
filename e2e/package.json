@@ -12,8 +12,8 @@
     "allure:report": "npm run allure:generate && npm run allure:open"
   },
   "devDependencies": {
-    "@playwright/mcp": "^0.0.76",
-    "@playwright/test": "^1.48.0",
+    "@playwright/mcp": "^0.0.79",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^20.0.0",
     "allure-commandline": "^2.32.0",
     "allure-playwright": "^3.0.0",
