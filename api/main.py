@@ -409,7 +409,15 @@ def update_testcase(tc_id: int, payload: schemas.TestCaseUpdate, db: Session = D
     tc = db.query(models.TestCase).filter(models.TestCase.id == tc_id).first()
     if not tc:
         raise HTTPException(status_code=404, detail="Test case not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    # title/status/priority are non-nullable in TestCaseResponse; an explicit
+    # `null` for one of them (distinct from omitting the field) must not
+    # overwrite it — caught by the contract test suite (tests/contract/),
+    # which fuzzes update payloads and crashed response serialization on this.
+    for field in ("title", "status", "priority"):
+        if updates.get(field) is None:
+            updates.pop(field, None)
+    for field, value in updates.items():
         setattr(tc, field, value)
     db.commit()
     db.refresh(tc)
