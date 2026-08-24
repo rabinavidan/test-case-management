@@ -1,4 +1,4 @@
-import os, pathlib
+import logging, os, pathlib
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -8,6 +8,9 @@ from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import hash_password, create_access_token, get_current_user, require_admin
 from services.common.health import health_response
+from services.common.request_id import RequestIDMiddleware
+
+logger = logging.getLogger("auth")
 
 Base.metadata.create_all(bind=engine)
 
@@ -37,6 +40,7 @@ _seed_admin()
 app = FastAPI(title="Auth Service", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(RequestIDMiddleware, logger=logger)
 
 
 @app.get("/health")

@@ -53,7 +53,7 @@ def test_create_run_success_with_active_testcases(client, monkeypatch):
     fake_testcases = [{"id": 1}, {"id": 2}]
     monkeypatch.setattr(
         httpx_module, "get",
-        lambda url, timeout=None: _FakeResponse(200, fake_testcases),
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, fake_testcases),
     )
 
     created = client.post("/api/suites/5/runs", json={"name": "My Run"}, headers=ADMIN)
@@ -73,7 +73,7 @@ def test_create_run_success_with_active_testcases(client, monkeypatch):
 def test_create_run_404_when_projects_service_says_suite_missing(client, monkeypatch):
     monkeypatch.setattr(
         httpx_module, "get",
-        lambda url, timeout=None: _FakeResponse(404, None),
+        lambda url, timeout=None, **kwargs: _FakeResponse(404, None),
     )
     res = client.post("/api/suites/999/runs", json={"name": "Run"}, headers=ADMIN)
     assert res.status_code == 404
@@ -86,7 +86,7 @@ def test_get_missing_run_404(client):
 def test_update_result_and_run_completion(client, monkeypatch):
     monkeypatch.setattr(
         httpx_module, "get",
-        lambda url, timeout=None: _FakeResponse(200, [{"id": 10}]),
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
     )
     run = client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
 

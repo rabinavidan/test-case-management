@@ -6,6 +6,7 @@ from .schemas import AIGenerateRequest, AIGenerateResponse, AIGeneratedTestCase
 from .auth import require_admin, UserClaims
 from services.common.health import health_response
 from services.common.http import get_with_retry
+from services.common.request_id import RequestIDMiddleware
 
 logger = logging.getLogger("ai")
 PROJECTS_SERVICE_URL = os.getenv("PROJECTS_SERVICE_URL", "http://projects:8002")
@@ -13,6 +14,7 @@ PROJECTS_SERVICE_URL = os.getenv("PROJECTS_SERVICE_URL", "http://projects:8002")
 app = FastAPI(title="AI Service", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(RequestIDMiddleware, logger=logger)
 
 
 @app.get("/health")

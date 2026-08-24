@@ -11,6 +11,7 @@ from .auth import get_current_user, UserClaims
 from .events import publish_run_completed
 from services.common.health import health_response
 from services.common.http import get_with_retry
+from services.common.request_id import RequestIDMiddleware
 
 Base.metadata.create_all(bind=engine)
 
@@ -20,6 +21,7 @@ logger = logging.getLogger("runs")
 app = FastAPI(title="Runs Service", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(RequestIDMiddleware, logger=logger)
 
 
 # ─── WebSocket connection manager ─────────────────────────────────────────────

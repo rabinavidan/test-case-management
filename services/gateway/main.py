@@ -16,6 +16,7 @@ import httpx
 import websockets
 
 from services.gateway.routes import resolve_service
+from services.common.request_id import RequestIDMiddleware, current_request_id, REQUEST_ID_HEADER
 
 AUTH_URL     = os.getenv("AUTH_URL",     "http://auth:8001")
 PROJECTS_URL = os.getenv("PROJECTS_URL", "http://projects:8002")
@@ -27,6 +28,7 @@ logger = logging.getLogger("gateway")
 app = FastAPI(title="API Gateway", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(RequestIDMiddleware, logger=logger)
 
 _http = httpx.AsyncClient(timeout=30)
 
@@ -54,6 +56,10 @@ async def proxy(path: str, request: Request):
     body = await request.body()
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in ("host", "content-length")}
+    # Override rather than rely on whatever the client sent: RequestIDMiddleware
+    # may have just minted this id (client didn't send one), and the downstream
+    # service must see the exact id gateway's own request log used.
+    headers[REQUEST_ID_HEADER] = current_request_id()
 
     try:
         upstream_resp = await _http.request(

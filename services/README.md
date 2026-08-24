@@ -88,6 +88,22 @@ create would seed duplicates. A service that's genuinely down still fails
 fast into each caller's existing handling (a clean 503, or graceful
 degradation) rather than being retried into masking a real outage.
 
+## Correlation IDs
+
+Every service installs [`common/request_id.py`](common/request_id.py)'s
+`RequestIDMiddleware`: it reads `X-Request-ID` off the incoming request (or
+mints a UUID4 if there isn't one — true for the gateway's first hop from a
+browser, which never sets this header), logs every request with it
+(`METHOD path status latency_ms request_id=...`), echoes it back on the
+response, and makes it available to route handlers via `current_request_id()`.
+The gateway explicitly re-attaches it when proxying (rather than relying on
+whatever headers happened to arrive), and `common/http.py`'s `get_with_retry` /
+`request_id_headers()` attach it to every outgoing inter-service call — so the
+same id threads through gateway → service → service in both logs and headers,
+instead of resetting at each hop. WebSocket connections aren't covered (a
+single id per long-lived connection doesn't map cleanly onto per-message
+request/response tracing) — HTTP only, for now.
+
 ## JWT Strategy
 
 Auth service embeds `role` in the JWT payload. Other services verify the token
@@ -108,6 +124,7 @@ Code that used to be copy-pasted into every service now lives here once:
 | `common/db.py` | The `DATABASE_URL` → engine → `SessionLocal` → `get_db()` boilerplate every `database.py` wired by hand. `Base` stays local to each service (its models attach to their own metadata). |
 | `common/health.py` | The `{"status": "ok", "service": ...}` response shape every `/health` route returned inline. |
 | `common/http.py` | `get_with_retry` — a consistent timeout and a bounded, backed-off retry for `GET`s to another service, so a single dropped connection doesn't have to surface as a 503 or silently missing data. See "Inter-service Communication" above for what is and isn't retried, and why. |
+| `common/request_id.py` | `RequestIDMiddleware` / `current_request_id()` — the correlation id every service's request logs and outgoing inter-service calls now carry. See "Correlation IDs" above. |
 
 ## Schemas shared with the monolith (`../shared/schemas.py`)
 

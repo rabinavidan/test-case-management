@@ -1,4 +1,4 @@
-import os, random
+import logging, os, random
 from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
@@ -10,7 +10,10 @@ from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, require_admin, UserClaims
 from services.common.health import health_response
-from services.common.http import get_with_retry, DEFAULT_TIMEOUT
+from services.common.http import get_with_retry, request_id_headers, DEFAULT_TIMEOUT
+from services.common.request_id import RequestIDMiddleware
+
+logger = logging.getLogger("projects")
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,6 +22,7 @@ RUNS_SERVICE_URL = os.getenv("RUNS_SERVICE_URL", "http://runs:8003")
 app = FastAPI(title="Projects Service", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(RequestIDMiddleware, logger=logger)
 
 
 @app.get("/health")
@@ -292,7 +296,8 @@ def _create_project_with_suites(db, name, description, suites_data):
         # Not retried: creates rows on every call, so retrying a request whose
         # response was merely lost (not a real failure) would seed duplicates.
         httpx.post(f"{RUNS_SERVICE_URL}/internal/demo/seed-runs",
-                   json={"suite_ids": suite_ids}, timeout=DEFAULT_TIMEOUT * 2)
+                   json={"suite_ids": suite_ids}, timeout=DEFAULT_TIMEOUT * 2,
+                   headers=request_id_headers())
     except Exception:
         pass
     return p
