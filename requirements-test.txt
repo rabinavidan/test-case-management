@@ -7,3 +7,6 @@ allure-pytest==2.13.5
 # Pinned to the 3.x line: 4.x requires pytest>=9, which conflicts with the
 # pytest==7.4.3 / pytest-playwright pins above.
 schemathesis==3.39.16
+# Only used by tests/services/ (the microservices layer's runs service imports
+# it at module load, whether or not a Redis is actually reachable in CI).
+redis==5.2.1

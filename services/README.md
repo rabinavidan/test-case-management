@@ -67,3 +67,12 @@ Browser
 Auth service embeds `role` in the JWT payload. Other services verify the token
 locally using the shared `JWT_SECRET_KEY` — no round-trip to auth service needed
 per request.
+
+## Testing
+
+Each service is covered in isolation by [`../tests/services/`](../tests/services)
+(pytest + `TestClient`) — auth flows, CRUD, inter-service HTTP calls (mocked for the
+happy path, genuinely unreachable for the graceful-degradation cases), and the
+gateway's routing table. Run with `pytest tests/services -v` from the repo root.
+See [`../README.md#test-architecture`](../README.md#test-architecture) for how this
+fits into the rest of the test suite.

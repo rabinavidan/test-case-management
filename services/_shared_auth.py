@@ -22,7 +22,7 @@ def _b64e(data: bytes) -> str:
 
 
 def _b64d(s: str) -> bytes:
-    return base64.urlsafe_b64decode(s + "=" * (4 - len(s) % 4) % 4)
+    return base64.urlsafe_b64decode(s + "=" * ((4 - len(s) % 4) % 4))
 
 
 def _decode_token(token: str) -> dict:

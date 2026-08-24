@@ -8,6 +8,8 @@ Routing table:
   /api/version                                → AUTH_URL
   /api/suites/*/testcases/generate            → AI_URL   (must precede /api/suites/*)
   /api/suites/*/testcases/generate/save       → PROJECTS_URL
+  /api/suites/*/runs                          → RUNS_URL (must precede /api/suites/*; the
+                                                 runs service — not projects — implements this)
   /api/projects/*                             → PROJECTS_URL
   /api/suites/*                               → PROJECTS_URL
   /api/testcases/*                            → PROJECTS_URL
@@ -48,6 +50,11 @@ def _upstream(path: str) -> str:
     # AI generation (must match before generic /api/suites/)
     if "/testcases/generate" in p and not p.endswith("/generate/save"):
         return AI_URL
+
+    # Run creation/listing within a suite — implemented by the runs service,
+    # not projects, so it must match before the generic /api/suites/ branch.
+    if p.startswith("api/suites") and p.rstrip("/").endswith("/runs"):
+        return RUNS_URL
 
     # Projects, suites, testcases, demo, analytics, stats
     if (p.startswith("api/projects") or p.startswith("api/suites")
