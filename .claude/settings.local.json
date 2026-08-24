@@ -45,7 +45,11 @@
       "Bash(git rebase *)",
       "Bash(git stash *)",
       "Bash(E2E_USERNAME=\"\" E2E_PASSWORD=\"\" E2E_EMAIL=\"\" .venv/bin/python3 *)",
-      "Skill(artifact-design)"
+      "Skill(artifact-design)",
+      "Bash(xargs -I{} gh run view --job={} --log)",
+      "Bash(gh workflow *)",
+      "Bash(echo \"WATCH_EXIT_CODE=$?\")",
+      "Bash(.venv/bin/python3 *)"
     ]
   }
 }

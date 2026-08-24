@@ -93,7 +93,7 @@ def test_nav_label_on_projects_page(logged_in: ProjectsPage):
     _log.assert_("nav label text", "New Project")
     expect(logged_in.nav_new_label).to_have_text("New Project")
 
-
+/Users/root26/test-case-management
 # ── Suite CRUD ────────────────────────────────────────────────────────────────
 
 @pytest.fixture()

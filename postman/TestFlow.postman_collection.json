@@ -1,0 +1,232 @@
+{
+  "info": {
+    "name": "TestFlow API",
+    "description": "TestFlow test-case-management API. Set the `baseUrl` variable (defaults to http://localhost:8000, or your Vercel URL). Run 'Auth / Login' first — it captures the bearer token into the `token` collection variable, which every other request reuses.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "token", "value": "" },
+    { "key": "projectId", "value": "" },
+    { "key": "suiteId", "value": "" },
+    { "key": "runId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"password\": \"Test@12345\",\n  \"email\": \"postman@test.com\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const token = body.access_token || body.token || (body.data && body.data.token);",
+                  "if (token) { pm.collectionVariables.set('token', token); }",
+                  "pm.test('login returns a token', () => pm.expect(token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"password\": \"Test@12345\"\n}" }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "List projects",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/projects?page=1&page_size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "projects"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b && b.id) pm.collectionVariables.set('projectId', b.id);",
+                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/projects", "host": ["{{baseUrl}}"], "path": ["api", "projects"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Project\",\n  \"description\": \"Created from Postman\"\n}" }
+          }
+        },
+        {
+          "name": "Project analytics",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}/analytics", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}", "analytics"] }
+          }
+        },
+        {
+          "name": "Delete project",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Suites",
+      "item": [
+        {
+          "name": "Create suite",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b && b.id) pm.collectionVariables.set('suiteId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}/suites", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}", "suites"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Suite\",\n  \"description\": \"Suite from Postman\"\n}" }
+          }
+        },
+        {
+          "name": "List suites in project",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}/suites", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}", "suites"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Cases",
+      "item": [
+        {
+          "name": "Create test case",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/testcases", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "testcases"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Postman Test Case\",\n  \"description\": \"Steps go here\",\n  \"priority\": \"medium\",\n  \"status\": \"active\"\n}" }
+          }
+        },
+        {
+          "name": "List test cases in suite",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/testcases", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "testcases"] }
+          }
+        },
+        {
+          "name": "AI · Generate test cases",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/testcases/generate", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "testcases", "generate"] },
+            "body": { "mode": "raw", "raw": "{\n  \"prompt\": \"Generate login and checkout test cases\",\n  \"count\": 3\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Runs",
+      "item": [
+        {
+          "name": "Start run",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b && b.id) pm.collectionVariables.set('runId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/runs", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "runs"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Run\"\n}" }
+          }
+        },
+        {
+          "name": "Get run",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/runs/{{runId}}", "host": ["{{baseUrl}}"], "path": ["api", "runs", "{{runId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health & version",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] } }
+        },
+        {
+          "name": "Version",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": { "raw": "{{baseUrl}}/api/version", "host": ["{{baseUrl}}"], "path": ["api", "version"] } }
+        }
+      ]
+    }
+  ]
+}

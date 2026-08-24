@@ -1,7 +1,29 @@
 # TestFlow — Test Case Management
 
+[![Playwright TypeScript E2E](https://github.com/rabinavidan/test-case-management/actions/workflows/pw-ts.yml/badge.svg)](https://github.com/rabinavidan/test-case-management/actions/workflows/pw-ts.yml)
+[![CI](https://github.com/rabinavidan/test-case-management/actions/workflows/test.yml/badge.svg)](https://github.com/rabinavidan/test-case-management/actions/workflows/test.yml)
+
 A full-stack test case management platform built with FastAPI microservices, Vanilla JS, PostgreSQL, and Redis.
 Designed to demonstrate cutting-edge engineering practices — microservice decomposition, event-driven async, real-time WebSocket collaboration, and AI-powered test generation.
+
+---
+
+## Automation & QA — Playwright + TypeScript
+
+Quality is engineered in, not bolted on. Alongside the three-layer `pytest` pyramid, the repo ships a full **Playwright + TypeScript** end-to-end suite under [`e2e/`](e2e/):
+
+- **Page Object Model** — page objects, fixtures and a `data-testid` locator strategy; no selectors inline in tests.
+- **Multi-browser** — Chromium, Firefox and WebKit, with trace, video and screenshot retained on failure.
+- **Smoke vs regression** — a critical-path smoke suite (`npm run test:smoke`, tag `@smoke`) gates fast; full regression runs separately.
+- **CI/CD** — GitHub Actions ([`pw-ts.yml`](.github/workflows/pw-ts.yml)) on every PR and push, plus a daily scheduled run against the live Vercel deployment, with a per-run report summary and uploaded artifacts.
+- **AI-assisted authoring** — built and maintained with Playwright MCP and Claude (see [`e2e/AI.md`](e2e/AI.md)).
+- **API contract** — a Postman collection lives in [`postman/`](postman/TestFlow.postman_collection.json) for manual API validation.
+
+```bash
+cd e2e && npm install && npx playwright install
+npm run test:smoke     # critical-path smoke
+npm test               # full suite across chromium, firefox and webkit
+```
 
 ---
 

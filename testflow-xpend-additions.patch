@@ -1,0 +1,437 @@
+diff --git a/README.md b/README.md
+index d90e28a..252367f 100644
+--- a/README.md
++++ b/README.md
+@@ -1,10 +1,32 @@
+ # TestFlow — Test Case Management
+ 
++[![Playwright TypeScript E2E](https://github.com/rabinavidan/test-case-management/actions/workflows/pw-ts.yml/badge.svg)](https://github.com/rabinavidan/test-case-management/actions/workflows/pw-ts.yml)
++[![CI](https://github.com/rabinavidan/test-case-management/actions/workflows/test.yml/badge.svg)](https://github.com/rabinavidan/test-case-management/actions/workflows/test.yml)
++
+ A full-stack test case management platform built with FastAPI microservices, Vanilla JS, PostgreSQL, and Redis.
+ Designed to demonstrate cutting-edge engineering practices — microservice decomposition, event-driven async, real-time WebSocket collaboration, and AI-powered test generation.
+ 
+ ---
+ 
++## Automation & QA — Playwright + TypeScript
++
++Quality is engineered in, not bolted on. Alongside the three-layer `pytest` pyramid, the repo ships a full **Playwright + TypeScript** end-to-end suite under [`e2e/`](e2e/):
++
++- **Page Object Model** — page objects, fixtures and a `data-testid` locator strategy; no selectors inline in tests.
++- **Multi-browser** — Chromium, Firefox and WebKit, with trace, video and screenshot retained on failure.
++- **Smoke vs regression** — a critical-path smoke suite (`npm run test:smoke`, tag `@smoke`) gates fast; full regression runs separately.
++- **CI/CD** — GitHub Actions ([`pw-ts.yml`](.github/workflows/pw-ts.yml)) on every PR and push, plus a daily scheduled run against the live Vercel deployment, with a per-run report summary and uploaded artifacts.
++- **AI-assisted authoring** — built and maintained with Playwright MCP and Claude (see [`e2e/AI.md`](e2e/AI.md)).
++- **API contract** — a Postman collection lives in [`postman/`](postman/TestFlow.postman_collection.json) for manual API validation.
++
++```bash
++cd e2e && npm install && npx playwright install
++npm run test:smoke     # critical-path smoke
++npm test               # full suite across chromium, firefox and webkit
++```
++
++---
++
+ ## Features
+ 
+ ### Core workflow
+diff --git a/e2e/AI.md b/e2e/AI.md
+new file mode 100644
+index 0000000..4520293
+--- /dev/null
++++ b/e2e/AI.md
+@@ -0,0 +1,43 @@
++# AI-Assisted Automation Workflow
++
++This suite is built and maintained with AI development tools and agents in the
++loop, not just hand-written. The goal is faster authoring and lower maintenance
++while keeping every generated test reviewed and deterministic.
++
++## Playwright MCP
++
++The suite depends on [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp)
++(see `package.json` devDependencies), which exposes Playwright as an MCP server so
++an AI agent can drive a real browser: inspect the live DOM, resolve robust
++`data-testid` locators, and draft page objects and specs against the actual app
++instead of guessing selectors.
++
++Typical loop:
++
++1. Point the agent (via MCP over CLI) at a running instance (`http://localhost:8000`
++   or the deployed Vercel URL).
++2. The agent explores the target flow, reads the real DOM and proposes a spec plus
++   any missing page-object methods under `pages/`.
++3. Output is reviewed, tightened to the suite's conventions (POM, `test.step`,
++   `data-testid` strategy, unique-name + cleanup helpers) and committed.
++
++## Claude for test generation
++
++The application itself ships an AI test-generation endpoint
++(`POST /api/suites/{id}/testcases/generate`) backed by Anthropic Claude, which
++drafts structured test cases from a suite's context. The same model is used
++during development to:
++
++- generate first-draft specs and page objects from a described flow,
++- explain and triage CI failures from Playwright traces and the JSON report,
++- refactor locators and de-flake timing-sensitive steps,
++- keep this suite and the parallel `pytest` layer in sync.
++
++## Guardrails
++
++AI accelerates authoring; it does not get a free pass into `main`:
++
++- every generated spec is reviewed and must pass locally before commit,
++- selectors go through the `data-testid` strategy, never brittle text/CSS,
++- generated tests must clean up their own data (see the `afterEach` patterns),
++- flaky output is fixed or dropped, not merged.
+diff --git a/e2e/package.json b/e2e/package.json
+index a3e38d4..042b49f 100644
+--- a/e2e/package.json
++++ b/e2e/package.json
+@@ -4,6 +4,8 @@
+   "description": "Playwright TypeScript e2e tests for TestFlow",
+   "scripts": {
+     "test": "playwright test",
++    "test:smoke": "playwright test --grep @smoke",
++    "test:regression": "playwright test --grep-invert @smoke",
+     "test:headed": "playwright test --headed",
+     "test:ui": "playwright test --ui",
+     "report": "playwright show-report"
+diff --git a/e2e/tests/smoke.spec.ts b/e2e/tests/smoke.spec.ts
+new file mode 100644
+index 0000000..4388b87
+--- /dev/null
++++ b/e2e/tests/smoke.spec.ts
+@@ -0,0 +1,94 @@
++import { test, expect } from '../fixtures/auth.fixture';
++
++const uid = () => `${Date.now()}`;
++
++/**
++ * Critical-path smoke suite.
++ *
++ * The core Project -> Suite -> Test Cases -> Run flow must work on every deploy.
++ * This is a thin, fast happy-path (API-driven, plus a UI shell check) meant to
++ * gate merges and post-deploy validation without running the full regression.
++ *
++ * Run with:  npm run test:smoke   (== playwright test --grep @smoke)
++ *
++ * Every test here is tagged @smoke and the describe title carries @smoke too,
++ * so both `--grep @smoke` and tag-based filtering select this suite.
++ */
++test.describe('Smoke @smoke', () => {
++  let projectId: number | undefined;
++
++  test.afterEach(async ({ request, authToken }) => {
++    if (projectId) {
++      await request
++        .delete(`/api/projects/${projectId}`, { headers: { Authorization: `Bearer ${authToken}` } })
++        .catch(() => {});
++      projectId = undefined;
++    }
++  });
++
++  test('critical path: project -> suite -> test cases -> run', { tag: '@smoke' }, async ({ request, authToken }) => {
++    const h = { Authorization: `Bearer ${authToken}` };
++
++    await test.step('Create project', async () => {
++      const res = await request.post('/api/projects', {
++        data: { name: `Smoke-${uid()}`, description: 'critical-path smoke' },
++        headers: h,
++      });
++      expect(res.ok()).toBeTruthy();
++      projectId = (await res.json()).id;
++      expect(projectId).toBeGreaterThan(0);
++    });
++
++    let suiteId: number;
++    await test.step('Create suite', async () => {
++      const res = await request.post(`/api/projects/${projectId}/suites`, {
++        data: { name: `SmokeSuite-${uid()}` },
++        headers: h,
++      });
++      expect(res.ok()).toBeTruthy();
++      suiteId = (await res.json()).id;
++      expect(suiteId).toBeGreaterThan(0);
++    });
++
++    await test.step('Create test cases and read them back', async () => {
++      for (const title of ['Smoke-TC-1', 'Smoke-TC-2']) {
++        const res = await request.post(`/api/suites/${suiteId}/testcases`, {
++          data: { title, status: 'active', priority: 'medium' },
++          headers: h,
++        });
++        expect(res.ok()).toBeTruthy();
++      }
++      const list = await request.get(`/api/suites/${suiteId}/testcases`, { headers: h });
++      expect(list.ok()).toBeTruthy();
++      const body = await list.json();
++      const items = Array.isArray(body) ? body : (body.items ?? []);
++      expect(items.length).toBeGreaterThanOrEqual(2);
++    });
++
++    let runId: number;
++    await test.step('Start a run', async () => {
++      const res = await request.post(`/api/suites/${suiteId}/runs`, {
++        data: { name: `SmokeRun-${uid()}` },
++        headers: h,
++      });
++      expect(res.ok()).toBeTruthy();
++      runId = (await res.json()).id;
++      expect(runId).toBeGreaterThan(0);
++    });
++
++    await test.step('Run is retrievable', async () => {
++      const res = await request.get(`/api/runs/${runId}`, { headers: h });
++      expect(res.ok()).toBeTruthy();
++    });
++  });
++
++  test('app shell loads for an authenticated user', { tag: '@smoke' }, async ({ page, authToken }) => {
++    await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
++    await page.goto('/');
++    await page.waitForLoadState('networkidle');
++
++    await expect(page).not.toHaveTitle(/error|404|500/i);
++    const bodyText = await page.textContent('body');
++    expect(bodyText).toBeTruthy();
++  });
++});
+diff --git a/postman/TestFlow.postman_collection.json b/postman/TestFlow.postman_collection.json
+new file mode 100644
+index 0000000..9993f68
+--- /dev/null
++++ b/postman/TestFlow.postman_collection.json
+@@ -0,0 +1,232 @@
++{
++  "info": {
++    "name": "TestFlow API",
++    "description": "TestFlow test-case-management API. Set the `baseUrl` variable (defaults to http://localhost:8000, or your Vercel URL). Run 'Auth / Login' first — it captures the bearer token into the `token` collection variable, which every other request reuses.",
++    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
++  },
++  "variable": [
++    { "key": "baseUrl", "value": "http://localhost:8000" },
++    { "key": "token", "value": "" },
++    { "key": "projectId", "value": "" },
++    { "key": "suiteId", "value": "" },
++    { "key": "runId", "value": "" }
++  ],
++  "auth": {
++    "type": "bearer",
++    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
++  },
++  "item": [
++    {
++      "name": "Auth",
++      "item": [
++        {
++          "name": "Register",
++          "request": {
++            "method": "POST",
++            "auth": { "type": "noauth" },
++            "header": [{ "key": "Content-Type", "value": "application/json" }],
++            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
++            "body": { "mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"password\": \"Test@12345\",\n  \"email\": \"postman@test.com\"\n}" }
++          }
++        },
++        {
++          "name": "Login",
++          "event": [
++            {
++              "listen": "test",
++              "script": {
++                "type": "text/javascript",
++                "exec": [
++                  "const body = pm.response.json();",
++                  "const token = body.access_token || body.token || (body.data && body.data.token);",
++                  "if (token) { pm.collectionVariables.set('token', token); }",
++                  "pm.test('login returns a token', () => pm.expect(token).to.be.a('string'));"
++                ]
++              }
++            }
++          ],
++          "request": {
++            "method": "POST",
++            "auth": { "type": "noauth" },
++            "header": [{ "key": "Content-Type", "value": "application/json" }],
++            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
++            "body": { "mode": "raw", "raw": "{\n  \"username\": \"postman_user\",\n  \"password\": \"Test@12345\"\n}" }
++          }
++        },
++        {
++          "name": "Me",
++          "request": {
++            "method": "GET",
++            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
++          }
++        }
++      ]
++    },
++    {
++      "name": "Projects",
++      "item": [
++        {
++          "name": "List projects",
++          "request": {
++            "method": "GET",
++            "url": {
++              "raw": "{{baseUrl}}/api/projects?page=1&page_size=20",
++              "host": ["{{baseUrl}}"],
++              "path": ["api", "projects"],
++              "query": [
++                { "key": "page", "value": "1" },
++                { "key": "page_size", "value": "20" },
++                { "key": "search", "value": "", "disabled": true }
++              ]
++            }
++          }
++        },
++        {
++          "name": "Create project",
++          "event": [
++            {
++              "listen": "test",
++              "script": {
++                "type": "text/javascript",
++                "exec": [
++                  "const b = pm.response.json();",
++                  "if (b && b.id) pm.collectionVariables.set('projectId', b.id);",
++                  "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
++                ]
++              }
++            }
++          ],
++          "request": {
++            "method": "POST",
++            "header": [{ "key": "Content-Type", "value": "application/json" }],
++            "url": { "raw": "{{baseUrl}}/api/projects", "host": ["{{baseUrl}}"], "path": ["api", "projects"] },
++            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Project\",\n  \"description\": \"Created from Postman\"\n}" }
++          }
++        },
++        {
++          "name": "Project analytics",
++          "request": {
++            "method": "GET",
++            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}/analytics", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}", "analytics"] }
++          }
++        },
++        {
++          "name": "Delete project",
++          "request": {
++            "method": "DELETE",
++            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}"] }
++          }
++        }
++      ]
++    },
++    {
++      "name": "Suites",
++      "item": [
++        {
++          "name": "Create suite",
++          "event": [
++            {
++              "listen": "test",
++              "script": {
++                "type": "text/javascript",
++                "exec": [
++                  "const b = pm.response.json();",
++                  "if (b && b.id) pm.collectionVariables.set('suiteId', b.id);"
++                ]
++              }
++            }
++          ],
++          "request": {
++            "method": "POST",
++            "header": [{ "key": "Content-Type", "value": "application/json" }],
++            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}/suites", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}", "suites"] },
++            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Suite\",\n  \"description\": \"Suite from Postman\"\n}" }
++          }
++        },
++        {
++          "name": "List suites in project",
++          "request": {
++            "method": "GET",
++            "url": { "raw": "{{baseUrl}}/api/projects/{{projectId}}/suites", "host": ["{{baseUrl}}"], "path": ["api", "projects", "{{projectId}}", "suites"] }
++          }
++        }
++      ]
++    },
++    {
++      "name": "Test Cases",
++      "item": [
++        {
++          "name": "Create test case",
++          "request": {
++            "method": "POST",
++            "header": [{ "key": "Content-Type", "value": "application/json" }],
++            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/testcases", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "testcases"] },
++            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Postman Test Case\",\n  \"description\": \"Steps go here\",\n  \"priority\": \"medium\",\n  \"status\": \"active\"\n}" }
++          }
++        },
++        {
++          "name": "List test cases in suite",
++          "request": {
++            "method": "GET",
++            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/testcases", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "testcases"] }
++          }
++        },
++        {
++          "name": "AI · Generate test cases",
++          "request": {
++            "method": "POST",
++            "header": [{ "key": "Content-Type", "value": "application/json" }],
++            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/testcases/generate", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "testcases", "generate"] },
++            "body": { "mode": "raw", "raw": "{\n  \"prompt\": \"Generate login and checkout test cases\",\n  \"count\": 3\n}" }
++          }
++        }
++      ]
++    },
++    {
++      "name": "Runs",
++      "item": [
++        {
++          "name": "Start run",
++          "event": [
++            {
++              "listen": "test",
++              "script": {
++                "type": "text/javascript",
++                "exec": [
++                  "const b = pm.response.json();",
++                  "if (b && b.id) pm.collectionVariables.set('runId', b.id);"
++                ]
++              }
++            }
++          ],
++          "request": {
++            "method": "POST",
++            "header": [{ "key": "Content-Type", "value": "application/json" }],
++            "url": { "raw": "{{baseUrl}}/api/suites/{{suiteId}}/runs", "host": ["{{baseUrl}}"], "path": ["api", "suites", "{{suiteId}}", "runs"] },
++            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Run\"\n}" }
++          }
++        },
++        {
++          "name": "Get run",
++          "request": {
++            "method": "GET",
++            "url": { "raw": "{{baseUrl}}/api/runs/{{runId}}", "host": ["{{baseUrl}}"], "path": ["api", "runs", "{{runId}}"] }
++          }
++        }
++      ]
++    },
++    {
++      "name": "Health & version",
++      "item": [
++        {
++          "name": "Health",
++          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] } }
++        },
++        {
++          "name": "Version",
++          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": { "raw": "{{baseUrl}}/api/version", "host": ["{{baseUrl}}"], "path": ["api", "version"] } }
++        }
++      ]
++    }
++  ]
++}
