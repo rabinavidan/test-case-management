@@ -152,6 +152,20 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 
 ## Test Architecture
 
+### Test types at a glance
+
+| Type | What it checks | Where |
+|------|-----------------|-------|
+| **Unit** | Pure functions (JWT/hash logic) — no DB, no HTTP, no I/O | `tests/unit/` (pytest) |
+| **API / integration** | Real FastAPI app + real (throwaway, per-test) SQLite DB, via `TestClient` | `tests/api/` (pytest) |
+| **Contract** | Real responses validated against the app's own live OpenAPI schema — property-based edge cases, not just hand-picked examples | `tests/contract/` (pytest + Schemathesis) · `e2e/tests/contract.spec.ts` (Playwright + ajv + fast-check) |
+| **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `tests/e2e/` (pytest + Playwright) · `e2e/tests/*.spec.ts` (Playwright + TypeScript) |
+| **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
+| **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) |
+
+150 pytest tests total (7 unit + 112 API + 31 contract operations), plus 40+ Playwright E2E specs — doubled across
+two independent automation stacks (Python and TypeScript). See the breakdown below for how each stack is built.
+
 This project deliberately maintains **two independent, feature-equivalent browser-automation stacks** against the
 same app — Playwright + TypeScript and Playwright + pytest (Python) — rather than picking one. Both drive the same
 UI through a Page Object Model, both cover the same user flows (auth, projects, suites, test cases, runs), and both
@@ -173,14 +187,15 @@ hiring context (Playwright/TypeScript roles vs. pytest/Python roles) and both ar
 ### Python · pytest suite
 
 The Python side is further split into the classic pyramid — narrow and fast at the bottom, broad and slow at the
-top — as three physically separate pytest layers under `tests/`.
+top — as four physically separate pytest layers under `tests/`.
 
 ```
 tests/
-├── conftest.py     # shared failure-logging hook + auto layer-marking (unit/api/e2e)
+├── conftest.py     # shared failure-logging hook + auto layer-marking (unit/api/contract/e2e)
 ├── unit/           # 7 tests   — pure functions, no DB/HTTP/I-O               (~1s total)
 ├── api/            # 112 tests — FastAPI TestClient against an in-memory DB   (~30s total)
 │   └── conftest.py #   per-test SQLite engine + admin/executor auth fixtures
+├── contract/       # 1 property-based suite (31 operations) — Schemathesis vs. the OpenAPI schema (~10s)
 └── e2e/            # 40+ tests — Playwright browser + deployed-instance API   (minutes; needs a running app)
     └── pages/      #   Page Object Model — locators isolated from test logic
 ```
@@ -190,7 +205,8 @@ tests/
 - **Isolation over mocking-everything.** API tests hit the real FastAPI app and a real (but throwaway, per-test) SQLite database via `app.dependency_overrides` — so they verify actual SQLAlchemy behavior, not a stubbed-out fake, while staying hermetic and parallelizable.
 - **Mock the true external boundary, not your own code.** `tests/api/test_ai_generate.py` monkeypatches `anthropic.Anthropic` so AI-generation tests are deterministic and free, without ever faking the FastAPI/Pydantic layers around it.
 - **The same contract tested at two altitudes on purpose.** JWT/password logic is verified as pure functions in `tests/unit/test_auth_tokens.py` *and* through real HTTP status codes in `tests/api/test_auth.py` — a failure in the unit layer localizes to the algorithm; a failure only in the API layer points at the wiring (dependency injection, route guards) instead.
-- **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`e2e` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
+- **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`contract`/`e2e` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
+- **Contract tests, not just example-based ones.** `tests/contract/test_openapi_contract.py` uses Schemathesis to property-test every operation in the app's own OpenAPI schema — generating edge-case inputs per endpoint rather than a handful of hand-picked ones. It already earned its place: it caught response `datetime` fields serializing without a UTC offset (fixed via a shared `UTCDatetime` type in `api/schemas.py`) and out-of-`SQLite-INTEGER`-range path params crashing with an unhandled `OverflowError` instead of a clean 4xx (fixed with a dedicated exception handler in `api/main.py`) — both real bugs, not hypothetical ones.
 - **Page Object Model** for the browser layer (`tests/e2e/pages/`): locators, `data-testid` selection strategy, and modal/toast helpers live in page classes, never inline in test bodies.
 - **Structured step logging.** `tests/e2e/logger.py` (`PWLogger`) prints a `step/action/assert` trace for every test, so a CI log reads like a script, not a wall of framework noise.
 - **Allure reporting.** `allure-pytest` (wired via `--alluredir`) turns every test run into a browsable Allure report — history, retries, timeline and step-by-step detail — generated in CI (`test.yml`) and uploaded as a build artifact.
@@ -199,8 +215,8 @@ tests/
 ```bash
 pip install -r requirements.txt -r requirements-test.txt
 
-pytest tests/unit -v              # unit layer only — milliseconds, no setup
-pytest tests/unit tests/api -v    # unit + api — what CI runs on every PR
+pytest tests/unit -v                       # unit layer only — milliseconds, no setup
+pytest tests/unit tests/api tests/contract -v   # unit + api + contract — what CI runs on every PR
 pytest tests/e2e/test_e2e.py --base-url=https://your-app.vercel.app -v   # browser E2E
 pytest tests/ -m regression --base-url=https://your-app.vercel.app -v   # full regression suite
 
@@ -217,7 +233,7 @@ instance of the app, backed by a shared Page Object Model and an auth fixture.
 e2e/
 ├── fixtures/auth.fixture.ts   # authToken / authedRequest — one login, reused by every spec
 ├── pages/                     # BasePage + one *.page.ts per screen (POM, data-testid locators)
-├── tests/                     # login · projects · suites · testcases · runs · sidebar-progress-bar · api
+├── tests/                     # login · projects · suites · testcases · runs · sidebar-progress-bar · contract · api
 ├── global-setup.ts            # registers the e2e user once, saves the auth token to disk
 └── global-teardown.ts         # deletes leftover test projects by name prefix
 ```
@@ -231,6 +247,7 @@ e2e/
 - **Failure artifacts, not guesswork.** Trace, video and screenshot are captured `on-failure` only — full repro evidence without paying the cost on green runs.
 - **Structured step logging.** `logger.ts` mirrors the Python suite's `PWLogger` output format 1:1, so both stacks read the same way in CI logs.
 - **Allure reporting.** The `allure-playwright` reporter is registered alongside HTML/JSON in `playwright.config.ts`; every run produces a full Allure report (steps, attachments, history), generated in CI (`pw-ts.yml`) and uploaded as a build artifact.
+- **Contract tests, not just example-based ones.** `contract.spec.ts` validates real responses against the app's own `/openapi.json` with `ajv`, and property-tests extreme path-param values with `fast-check` — the TypeScript counterpart to the Python side's Schemathesis suite. It caught a real bug of its own: a `datetime` fix on the Python side had silently dropped `format: date-time` from the generated schema instead of preserving it.
 - **CI posts a live report, not just a badge.** `pw-ts.yml` parses the JSON reporter output into a pass/fail/flaky job-summary table on every run.
 
 ```bash
@@ -249,7 +266,7 @@ See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 
 | Workflow | Trigger | What runs |
 |----------|---------|-----------|
-| `test.yml` | every PR + push to `main` | `tests/unit` + `tests/api` (blocking); `tests/e2e/test_e2e.py` on push to `main` only (non-blocking) |
+| `test.yml` | every PR + push to `main` | `tests/unit` + `tests/api` + `tests/contract` (blocking); `tests/e2e/test_e2e.py` on push to `main` only (non-blocking) |
 | `pw-scheduled.yml` | weekly cron | `tests/e2e/test_e2e.py` + `tests/e2e/test_users_e2e.py` against the live deployment |
 | `pw-regression.yml` | manual dispatch | full `-m regression` suite across all layers against a chosen target URL |
 | `pw-ts.yml` | every PR + push to `main` touching `e2e/`, `api/`, `static/`; daily cron | full `e2e/tests/*.spec.ts` suite, HTML/JSON report uploaded as an artifact |
@@ -284,9 +301,10 @@ See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 ├── tests/                        # Python pytest suite, layered
 │   ├── unit/                     # pure JWT/hash logic — no DB, no HTTP
 │   ├── api/                      # FastAPI TestClient integration tests
+│   ├── contract/                 # Schemathesis property tests vs. the OpenAPI schema
 │   └── e2e/                      # Playwright browser + deployed-instance API tests
 │       └── pages/                # page objects for the browser E2E specs
-├── e2e/                          # Playwright TypeScript E2E tests
+├── e2e/                          # Playwright TypeScript E2E tests (incl. contract.spec.ts)
 ├── Dockerfile                    # Monolith container
 ├── docker-compose.yml            # Monolith mode (app + Postgres)
 ├── docker-compose.microservices.yml  # Microservice mode (5 services + Postgres + Redis)

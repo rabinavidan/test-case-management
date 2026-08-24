@@ -1,9 +1,10 @@
-"""Root conftest — shared across all test layers (unit / api / e2e).
+"""Root conftest — shared across all test layers (unit / api / contract / e2e).
 
 Layer-specific fixtures live in each layer's own conftest.py:
-  tests/unit/  — none needed (pure functions, no fixtures)
-  tests/api/   — DB engine + TestClient/auth fixtures (tests/api/conftest.py)
-  tests/e2e/   — Playwright browser fixtures live inline per test module
+  tests/unit/     — none needed (pure functions, no fixtures)
+  tests/api/      — DB engine + TestClient/auth fixtures (tests/api/conftest.py)
+  tests/contract/ — DB engine + auth setup inline (schemathesis owns the test loop)
+  tests/e2e/      — Playwright browser fixtures live inline per test module
 """
 import logging
 import pathlib
@@ -36,5 +37,5 @@ def pytest_collection_modifyitems(config, items):
         except ValueError:
             continue
         layer = relative.parts[0] if relative.parts else None
-        if layer in ("unit", "api", "e2e"):
+        if layer in ("unit", "api", "contract", "e2e"):
             item.add_marker(layer)

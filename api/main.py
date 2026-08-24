@@ -112,6 +112,24 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(OverflowError)
+async def overflow_error_handler(request: Request, exc: OverflowError):
+    """`int` path params (project_id, suite_id, ...) have no upper bound at
+    the FastAPI/Pydantic layer, so an out-of-SQLite-INTEGER-range value
+    (e.g. > 2**63-1) reaches the DB layer and raises here instead of a clean
+    404/422 — surfaced by the contract test suite (tests/contract/), which
+    fuzzes path params with extreme integers.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [
+                {"loc": ["path"], "msg": "Invalid ID: out of range", "type": "value_error"}
+            ]
+        },
+    )
+
+
 # ─── Request/Response logging middleware ──────────────────────────────────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
