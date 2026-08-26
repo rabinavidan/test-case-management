@@ -1,7 +1,11 @@
 # TestFlow — Test Case Management
 
 A full-stack test case management platform built with FastAPI microservices, Vanilla JS, PostgreSQL, and Redis.
-Designed to demonstrate cutting-edge engineering practices — microservice decomposition, event-driven async, real-time WebSocket collaboration, and AI-powered test generation.
+Designed to demonstrate cutting-edge engineering practices — microservice decomposition, event-driven async,
+real-time WebSocket collaboration, and AI-powered test generation, failure triage, and flaky-test detection
+(via Anthropic's Claude Haiku). Backed by **four independent, feature-equivalent test automation stacks** —
+Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright — see
+[Test Architecture](#test-architecture) below.
 
 ---
 
@@ -155,6 +159,35 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 ---
 
 ## Test Architecture
+
+Four independent, feature-equivalent automation stacks drive the same app — same core flows, same public
+`/api/*` surface — each targeting a different hiring context on purpose (see the breakdown below):
+
+```
+                              TestFlow (api/main.py + static/)
+                                            ▲
+              ┌──────────────┬─────────────┼─────────────┬──────────────┐
+              │              │             │             │              │
+      ┌───────▼──────┐┌──────▼───────┐┌────▼────────┐┌───▼──────────┐┌──▼───────────┐
+      │  Python       ││  TypeScript  ││  Python     ││  Java        ││  Java        │
+      │  pytest       ││  Playwright  ││  Playwright ││  REST Assured││  Playwright  │
+      ├───────────────┤├──────────────┤├─────────────┤├──────────────┤├──────────────┤
+      │ tests/unit    ││ e2e/tests/   ││ tests/e2e/  ││ java-tests/  ││ java-e2e/    │
+      │ tests/api     ││  *.spec.ts   ││  *.py       ││  *.java      ││  *.java      │
+      │ tests/contract││              ││             ││              ││              │
+      │ tests/services││              ││             ││              ││              │
+      ├───────────────┤├──────────────┤├─────────────┤├──────────────┤├──────────────┤
+      │ in-process     ││ real browser ││ real browser││ black-box    ││ real browser │
+      │ TestClient +   ││ + real HTTP  ││ + real HTTP ││ HTTP only —  ││ + real HTTP  │
+      │ throwaway DB   ││              ││             ││ no shortcuts ││              │
+      └───────┬───────┘└──────┬───────┘└──────┬──────┘└──────┬───────┘└──────┬───────┘
+              │                │               │               │               │
+              └────────────────┴───────────────┴───────────────┴───────────────┘
+                                     Allure report (every run, every stack)
+```
+
+225 pytest tests, 40+ Playwright TS specs, 35 REST Assured tests, and a JUnit 5/Playwright Java E2E suite —
+see the full breakdown below.
 
 ### Test types at a glance
 
