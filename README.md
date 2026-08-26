@@ -18,6 +18,8 @@ Designed to demonstrate cutting-edge engineering practices — microservice deco
 | Feature | Tech | Endpoint / File |
 |---------|------|----------------|
 | **AI Test Generation** | Anthropic Claude Haiku (`claude-haiku-4-5-20251001`) | `POST /api/suites/{id}/testcases/generate` |
+| **AI Failure Triage** | Claude Haiku summarizes a run's failed/skipped results into a plain-English root-cause guess | `POST /api/runs/{id}/triage` |
+| **Flaky Test Detection** | Flags test cases whose pass/fail results flip-flop across runs (no AI needed — deterministic pattern matching) | `GET /api/suites/{id}/flaky-tests` |
 | **Real-time Collaboration** | WebSocket + Redis Pub/Sub | `WS /ws/runs/{run_id}` |
 | **Analytics Dashboard** | Chart.js 4 (pass-rate trend line, suite coverage bars) | `GET /api/projects/{id}/analytics` |
 | **Microservice Architecture** | 5 services · Docker Compose · Redis events | `services/` + `docker-compose.microservices.yml` |
@@ -144,6 +146,8 @@ POST   /api/suites/{id}/runs
 GET    /api/suites/{id}/runs
 GET    /api/runs/{id}
 PUT    /api/runs/{id}/results/{testcase_id}
+POST   /api/runs/{id}/triage                    # AI failure triage — plain-English root-cause guess
+GET    /api/suites/{id}/flaky-tests             # Flags test cases with repeated pass/fail flips
 
 WS     /ws/runs/{run_id}                        # Real-time result updates
 ```
@@ -165,7 +169,7 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 | **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
 | **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) · `allure-junit5` (Java) |
 
-209 pytest tests total (7 unit + 112 API + 31 contract operations + 59 services), plus 40+ Playwright E2E specs,
+225 pytest tests total (7 unit + 126 API + 33 contract operations + 59 services), plus 40+ Playwright E2E specs,
 35 JUnit 5/REST Assured API tests, and a JUnit 5/Playwright-Java E2E suite — four independent automation stacks
 (Python, TypeScript, and two in Java) against the same app. See the breakdown below for how each stack is built.
 
@@ -200,9 +204,9 @@ top — as five physically separate pytest layers under `tests/`.
 tests/
 ├── conftest.py     # shared failure-logging hook + auto layer-marking (unit/api/contract/services/e2e)
 ├── unit/           # 7 tests   — pure functions, no DB/HTTP/I-O               (~1s total)
-├── api/            # 112 tests — FastAPI TestClient against an in-memory DB   (~30s total)
+├── api/            # 126 tests — FastAPI TestClient against an in-memory DB   (~30s total)
 │   └── conftest.py #   per-test SQLite engine + admin/executor auth fixtures
-├── contract/       # 1 property-based suite (31 operations) — Schemathesis vs. the OpenAPI schema (~10s)
+├── contract/       # 1 property-based suite (33 operations) — Schemathesis vs. the OpenAPI schema (~10s)
 ├── services/       # each services/ microservice in isolation, via TestClient   (~7s total)
 │   └── conftest.py #   per-service SQLite engine + JWT minting
 └── e2e/            # 40+ tests — Playwright browser + deployed-instance API   (minutes; needs a running app)

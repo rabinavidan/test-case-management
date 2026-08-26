@@ -219,3 +219,34 @@ class AIGeneratedTestCase(BaseModel):
 class AIGenerateResponse(BaseModel):
     test_cases: List[AIGeneratedTestCase]
     model: str
+
+
+# ─── AI failure triage ───────────────────────────────────────────────────────
+
+class TriageResultItem(BaseModel):
+    testcase_id: int
+    title: str
+    status: str
+    notes: Optional[str] = None
+
+
+class TriageResponse(BaseModel):
+    summary: str
+    problem_results: List[TriageResultItem] = []
+    model: Optional[str] = None
+
+
+# ─── Flaky test detection ────────────────────────────────────────────────────
+
+class FlakyTestCase(BaseModel):
+    testcase_id: int
+    title: str
+    executions: int
+    flip_count: int
+    flakiness_score: float
+    history: List[str]
+
+
+class FlakyTestsResponse(BaseModel):
+    suite_id: int
+    flaky_cases: List[FlakyTestCase]

@@ -31,6 +31,10 @@ from shared.schemas import (
     AIGenerateRequest,
     AIGeneratedTestCase,
     AIGenerateResponse,
+    TriageResultItem,
+    TriageResponse,
+    FlakyTestCase,
+    FlakyTestsResponse,
 )
 from pydantic import BaseModel
 
@@ -42,6 +46,8 @@ __all__ = [
     "TestRunCreate", "TestResultUpdate", "TestResultResponse", "TestRunResponse",
     "ProjectStats", "RunDataPoint", "ProjectAnalytics",
     "AIGenerateRequest", "AIGeneratedTestCase", "AIGenerateResponse",
+    "TriageResultItem", "TriageResponse",
+    "FlakyTestCase", "FlakyTestsResponse",
 ]
 
 
