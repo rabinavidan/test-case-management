@@ -513,6 +513,116 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
     return {"id": result.id, "status": result.status, "notes": result.notes}
 
 
+@app.post("/api/runs/{run_id}/triage", response_model=schemas.TriageResponse)
+async def triage_run(run_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+    """AI-powered failure triage: summarizes a run's failed/skipped results into a
+    plain-English root-cause guess, using the same Claude Haiku client as AI test
+    generation."""
+    run = db.query(models.TestRun).filter(models.TestRun.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    problem_results = db.query(models.TestResult).filter(
+        models.TestResult.run_id == run_id,
+        models.TestResult.status.in_(["fail", "skip"]),
+    ).all()
+
+    if not problem_results:
+        return schemas.TriageResponse(
+            summary="No failed or skipped results in this run — nothing to triage.",
+        )
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI triage unavailable: ANTHROPIC_API_KEY not configured",
+        )
+
+    problem_items = []
+    lines = []
+    for result in problem_results:
+        tc = db.query(models.TestCase).filter(models.TestCase.id == result.testcase_id).first()
+        title = tc.title if tc else f"Test case #{result.testcase_id}"
+        problem_items.append(schemas.TriageResultItem(
+            testcase_id=result.testcase_id,
+            title=title,
+            status=result.status,
+            notes=result.notes,
+        ))
+        lines.append(
+            f"- [{result.status.upper()}] {title}\n"
+            f"  Steps: {tc.steps if tc and tc.steps else 'not recorded'}\n"
+            f"  Expected result: {tc.expected_result if tc and tc.expected_result else 'not recorded'}\n"
+            f"  Executor notes: {result.notes or 'none'}"
+        )
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+
+        system_prompt = (
+            "You are a senior QA engineer triaging a failed test run. Given the failed/skipped "
+            "test cases below — each with its steps, expected result, and any notes the executor "
+            "left — write a concise plain-English summary (3-5 sentences) of the likely root "
+            "cause(s) tying these failures together, and suggest what to check first. Synthesize "
+            "a diagnosis; do not just repeat the list back."
+        )
+        user_prompt = f"Run: {run.name}\n\nFailed/skipped results:\n" + "\n".join(lines)
+
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        summary = message.content[0].text.strip()
+        logger.info(f"AI triage generated for run={run_id} ({len(problem_results)} problem results)")
+        return schemas.TriageResponse(summary=summary, problem_results=problem_items, model=message.model)
+    except Exception as e:
+        logger.error(f"AI triage error: {e}")
+        raise HTTPException(status_code=502, detail=f"AI triage failed: {str(e)}")
+
+
+@app.get("/api/suites/{suite_id}/flaky-tests", response_model=schemas.FlakyTestsResponse)
+def flaky_tests(suite_id: int, db: Session = Depends(get_db)):
+    """Flags test cases whose pass/fail results have flip-flopped across runs — a
+    repeated pass->fail or fail->pass transition (skips are excluded from the
+    comparison, since they're inconclusive rather than a flip)."""
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
+
+    test_cases = db.query(models.TestCase).filter(models.TestCase.suite_id == suite_id).all()
+
+    flaky_cases = []
+    for tc in test_cases:
+        history = [
+            r.status for r in
+            db.query(models.TestResult)
+              .join(models.TestRun, models.TestResult.run_id == models.TestRun.id)
+              .filter(
+                  models.TestResult.testcase_id == tc.id,
+                  models.TestResult.status.in_(["pass", "fail"]),
+              )
+              .order_by(models.TestRun.created_at.asc())
+              .all()
+        ]
+        flips = sum(1 for i in range(1, len(history)) if history[i] != history[i - 1])
+        if flips >= 2:
+            flaky_cases.append(schemas.FlakyTestCase(
+                testcase_id=tc.id,
+                title=tc.title,
+                executions=len(history),
+                flip_count=flips,
+                flakiness_score=round(flips / len(history), 2),
+                history=history,
+            ))
+
+    flaky_cases.sort(key=lambda f: f.flakiness_score, reverse=True)
+    return schemas.FlakyTestsResponse(suite_id=suite_id, flaky_cases=flaky_cases)
+
+
 # ─── WebSocket: live run collaboration ────────────────────────────────────────
 
 @app.websocket("/ws/runs/{run_id}")

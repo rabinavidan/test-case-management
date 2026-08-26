@@ -2046,6 +2046,11 @@ async function renderSuite(suiteId) {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             Start Run
           </button>
+          <button onclick="showFlakyTestsModal(${suiteId})"
+            class="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Flaky Tests
+          </button>
           ${isAdmin() ? `<button onclick="showModal('testcase', {suiteId: ${suiteId}})"
             class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -2402,12 +2407,19 @@ async function renderRun(runId) {
           </div>
           <p class="text-sm text-slate-500">Started ${formatDate(run.created_at)}${run.created_by_username ? ` by <span class="font-medium text-slate-700">${escHtml(run.created_by_username)}</span>` : ""}</p>
         </div>
-        ${suite ? `
-          <button onclick="navigate('suite/${suite.id}')"
-            class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            Back to Suite
+        <div class="flex items-center gap-3 flex-wrap">
+          ${isAdmin() ? `<button onclick="showTriageModal(${runId})"
+            class="bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            AI Triage
           </button>` : ""}
+          ${suite ? `
+            <button onclick="navigate('suite/${suite.id}')"
+              class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+              Back to Suite
+            </button>` : ""}
+        </div>
       </div>
 
       <!-- Progress card -->
@@ -3630,6 +3642,84 @@ async function saveAllAITestCases(suiteId) {
     await renderSuite(suiteId);
   } catch (e) {
     toast(e.message, "error");
+  }
+}
+
+
+// ─── Flaky Test Detection ──────────────────────────────────────────────────────
+async function showFlakyTestsModal(suiteId) {
+  const title = document.getElementById("modal-title");
+  const body = document.getElementById("modal-body");
+  const overlay = document.getElementById("modal-overlay");
+  title.textContent = "Flaky Tests";
+  body.innerHTML = `<div class="flex items-center justify-center py-8"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  overlay.classList.remove("hidden");
+
+  try {
+    const data = await GET(`/api/suites/${suiteId}/flaky-tests`);
+    const cases = data.flaky_cases || [];
+    if (!cases.length) {
+      body.innerHTML = `
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-700">
+          No flaky tests detected — every test case's pass/fail history across runs has been stable (or there isn't enough run history yet).
+        </div>
+        <button onclick="hideModal()" class="w-full mt-4 px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-xl transition-colors">Close</button>`;
+      return;
+    }
+    body.innerHTML = `
+      <div class="space-y-3">
+        <p class="text-sm text-slate-500">Test cases whose results have flip-flopped between pass and fail across multiple runs — worth investigating before trusting their result.</p>
+        ${cases.map(c => `
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <p class="text-sm font-semibold text-slate-800">${escHtml(c.title)}</p>
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">${Math.round(c.flakiness_score * 100)}% flaky</span>
+            </div>
+            <p class="text-xs text-slate-500">${c.flip_count} flips across ${c.executions} executions</p>
+            <div class="flex gap-1 mt-2">
+              ${c.history.map(s => `<span class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${s === "pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}" title="${s}">${s === "pass" ? "✓" : "✗"}</span>`).join("")}
+            </div>
+          </div>`).join("")}
+        <button onclick="hideModal()" class="w-full px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-xl transition-colors">Close</button>
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `<div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">${escHtml(e.message)}</div>`;
+  }
+}
+
+
+// ─── AI Failure Triage ──────────────────────────────────────────────────────────
+async function showTriageModal(runId) {
+  const title = document.getElementById("modal-title");
+  const body = document.getElementById("modal-body");
+  const overlay = document.getElementById("modal-overlay");
+  title.textContent = "AI Failure Triage";
+  body.innerHTML = `<div class="flex items-center justify-center py-8"><div class="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  overlay.classList.remove("hidden");
+
+  try {
+    const data = await POST(`/api/runs/${runId}/triage`);
+    body.innerHTML = `
+      <div class="space-y-4">
+        <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-sm text-violet-800">
+          ${escHtml(data.summary)}
+        </div>
+        ${data.problem_results.length ? `
+          <div class="space-y-2">
+            ${data.problem_results.map(r => `
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-sm font-semibold text-slate-800">${escHtml(r.title)}</p>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-medium ${r.status === "fail" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}">${r.status}</span>
+                </div>
+                ${r.notes ? `<p class="text-xs text-slate-500 mt-1">${escHtml(r.notes)}</p>` : ""}
+              </div>`).join("")}
+          </div>` : ""}
+        ${data.model ? `<p class="text-xs text-slate-400">via ${escHtml(data.model)}</p>` : ""}
+        <button onclick="hideModal()" class="w-full px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-xl transition-colors">Close</button>
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `<div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">${escHtml(e.message)}</div>`;
   }
 }
 
