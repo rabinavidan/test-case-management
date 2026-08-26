@@ -441,8 +441,8 @@ async function loadSidebar() {
             ${escHtml(p.name)}
           </button>
           ${isAdmin() ? `<button data-testid="sidebar-delete-project-${p.id}" onclick="event.stopPropagation(); deleteProject(${p.id})"
-            title="Delete project"
-            class="flex-shrink-0 mr-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 hover:bg-red-50">
+            title="Delete project" aria-label="Delete project ${escHtml(p.name)}"
+            class="flex-shrink-0 mr-2 p-1 rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 transition-opacity text-slate-400 hover:text-red-600 hover:bg-red-50">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
             </svg>
@@ -507,6 +507,54 @@ async function loadSidebarProjectStats(projects) {
         </div>`;
     } catch { bar.innerHTML = ""; }
   }));
+}
+
+// ─── Collapsible showcase section (architecture / tech-stack / demo banners) ──
+// The Projects view has several large, animated "showcase" banners aimed at
+// portfolio reviewers (live architecture diagram, demo pipeline, test-stack
+// overview). They're valuable context but push the actual project list below
+// the fold on every load, so they're collapsed by default behind a single
+// toggle — still one click away, but the task list is what a returning user
+// sees first. State is remembered per-browser via localStorage.
+function isShowcaseExpanded() {
+  try { return localStorage.getItem("tf_showcase_expanded") === "1"; } catch { return false; }
+}
+
+function toggleShowcase() {
+  const content = document.getElementById("showcase-content");
+  const icon = document.getElementById("showcase-toggle-icon");
+  const btn = document.getElementById("showcase-toggle-btn");
+  if (!content || !icon || !btn) return;
+  const expanding = content.classList.contains("hidden");
+  content.classList.toggle("hidden");
+  icon.classList.toggle("rotate-180", expanding);
+  btn.setAttribute("aria-expanded", String(expanding));
+  try { localStorage.setItem("tf_showcase_expanded", expanding ? "1" : "0"); } catch {}
+}
+
+function renderShowcaseSection(sections) {
+  const content = sections.filter(Boolean).join("");
+  if (!content) return "";
+  const expanded = isShowcaseExpanded();
+  return `
+    <div class="mb-6">
+      <button type="button" onclick="toggleShowcase()" id="showcase-toggle-btn"
+        aria-expanded="${expanded}" aria-controls="showcase-content"
+        class="w-full flex items-center justify-between gap-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-left transition-colors shadow-sm">
+        <span class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <span class="text-base" aria-hidden="true">🏗️</span>
+          Live architecture, tech stack &amp; demo pipeline
+          <span class="text-xs font-normal text-slate-400">— see how this project is built</span>
+        </span>
+        <svg id="showcase-toggle-icon" class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+      <div id="showcase-content" class="${expanded ? "" : "hidden"} mt-3 space-y-6">
+        ${content}
+      </div>
+    </div>`;
 }
 
 // ─── Projects View ───────────────────────────────────────────────────────────
@@ -1281,11 +1329,7 @@ async function renderProjects() {
   if (!state.projects.length) {
     el.innerHTML = `
       <div class="fade-in">
-        ${ownerCard}
-        ${archDiagram}
-        ${demoBanner}
-        ${techStackBanner}
-        ${sysArchBanner}
+        ${renderShowcaseSection([ownerCard, archDiagram, demoBanner, techStackBanner, sysArchBanner])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1304,11 +1348,7 @@ async function renderProjects() {
 
   el.innerHTML = `
     <div class="fade-in">
-      ${ownerCard}
-      ${archDiagram}
-      ${demoBanner}
-      ${techStackBanner}
-      ${sysArchBanner}
+      ${renderShowcaseSection([ownerCard, archDiagram, demoBanner, techStackBanner, sysArchBanner])}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
@@ -1435,7 +1475,8 @@ function projectRow(p) {
       </td>
       <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
         ${isAdmin() ? `<button data-testid="delete-project-${p.id}" onclick="deleteProject(${p.id})"
-          class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+          title="Delete project" aria-label="Delete project ${escHtml(p.name)}"
+          class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>` : ""}
       </td>
@@ -2139,11 +2180,11 @@ function testCaseCard(tc) {
               class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600 mr-1" />
             <button data-testid="edit-testcase-${tc.id}" onclick='showModal("editTestCase", JSON.parse(this.dataset.tc))'
               data-tc="${tcJson}"
-              class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
+              class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit" aria-label="Edit test case ${escHtml(tc.title)}">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </button>
             <button data-testid="delete-testcase-${tc.id}" onclick="deleteTestCase(${tc.id}, ${tc.suite_id})"
-              class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+              class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete" aria-label="Delete test case ${escHtml(tc.title)}">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>` : ""}
           </div>
@@ -3320,7 +3361,7 @@ function renderUserBadge(user) {
         <span class="text-sm font-medium text-slate-700">${escHtml(user.username)}</span>
         <span class="text-[10px] font-semibold border rounded px-1 mt-0.5 uppercase tracking-wide ${roleCls}">${escHtml(user.role)}</span>
       </div>
-      <button onclick="logout()" title="Log out"
+      <button onclick="logout()" title="Log out" aria-label="Log out"
         class="ml-1 text-slate-400 hover:text-red-500 transition-colors" data-testid="logout-btn">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

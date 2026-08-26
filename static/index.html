@@ -37,6 +37,14 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    /* Consistent keyboard-focus visibility across every button/link/input, without
+       having to add a focus: utility to each of the app's hundreds of elements. */
+    button:focus-visible, a:focus-visible, input:focus-visible,
+    textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
@@ -116,7 +124,7 @@
   <div id="modal-box" data-testid="modal-box" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
       <h2 id="modal-title" data-testid="modal-title" class="text-lg font-semibold text-slate-800"></h2>
-      <button data-testid="modal-close-btn" onclick="hideModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+      <button data-testid="modal-close-btn" onclick="hideModal()" aria-label="Close dialog" class="text-slate-400 hover:text-slate-600 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
