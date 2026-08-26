@@ -27,6 +27,14 @@ public abstract class BaseTest {
 
     @BeforeAll
     static void launchBrowser() {
+        // On a genuinely fresh database, the app auto-opens a full-screen "first-time setup"
+        // modal on load (GET /api/auth/setup -> setup_needed) that blocks every other UI
+        // interaction, including the sign-in button LoginTest drives directly. Registering the
+        // bootstrap admin here — before any test's page ever loads — guarantees setup is already
+        // done no matter which test class runs first, the same ordering guarantee
+        // e2e/global-setup.ts gives the TypeScript suite by running once before every spec.
+        ApiClient.adminToken();
+
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(!HEADED));
     }
