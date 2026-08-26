@@ -161,18 +161,20 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 | **Contract** | Real responses validated against the app's own live OpenAPI schema — property-based edge cases, not just hand-picked examples | `tests/contract/` (pytest + Schemathesis) · `e2e/tests/contract.spec.ts` (Playwright + ajv + fast-check) |
 | **Microservices** | Each of the 5 `services/` (auth, projects, runs, ai, gateway) tested in isolation — auth, CRUD, inter-service HTTP calls, graceful degradation when a downstream service or Redis is unreachable | `tests/services/` (pytest) |
 | **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `tests/e2e/` (pytest + Playwright) · `e2e/tests/*.spec.ts` (Playwright + TypeScript) |
+| **Java API** | Black-box HTTP tests against a running instance — no in-process shortcuts, same public `/api/*` surface as every other stack | `java-tests/` (JUnit 5 + REST Assured) |
 | **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
-| **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) |
+| **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) · `allure-junit5` (Java) |
 
-209 pytest tests total (7 unit + 112 API + 31 contract operations + 59 services), plus 40+ Playwright E2E specs —
-doubled across two independent automation stacks (Python and TypeScript). See the breakdown below for how each
-stack is built.
+209 pytest tests total (7 unit + 112 API + 31 contract operations + 59 services), plus 40+ Playwright E2E specs and
+35 JUnit 5/REST Assured API tests — three independent automation stacks (Python, TypeScript, Java) against the same
+app. See the breakdown below for how each stack is built.
 
 This project deliberately maintains **two independent, feature-equivalent browser-automation stacks** against the
 same app — Playwright + TypeScript and Playwright + pytest (Python) — rather than picking one. Both drive the same
 UI through a Page Object Model, both cover the same user flows (auth, projects, suites, test cases, runs), and both
 run in CI. New E2E coverage (e.g. `login.spec.ts` / `test_login_e2e.py`, the sidebar pass-rate bar) is added to both
-stacks to keep them in parity.
+stacks to keep them in parity. A third stack, JUnit 5 + REST Assured (`java-tests/`), covers the same API surface
+again as pure black-box HTTP tests — see [below](#java--rest-assured-suite).
 
 | | Playwright · TypeScript | Playwright · Python (pytest) |
 |---|---|---|
@@ -184,7 +186,8 @@ stacks to keep them in parity.
 | CI workflow | `.github/workflows/pw-ts.yml` — every PR / push to `main` touching `e2e/`, `api/`, `static/` | `.github/workflows/test.yml`, `pw-scheduled.yml`, `pw-regression.yml` |
 
 The two stacks get equal billing below — same depth of detail, same structure — since each targets a different
-hiring context (Playwright/TypeScript roles vs. pytest/Python roles) and both are meant to stand on their own.
+hiring context (Playwright/TypeScript roles vs. pytest/Python roles) and both are meant to stand on their own. The
+Java stack (below) targets a third hiring context — JUnit/REST Assured roles — the same way.
 
 ### Python · pytest suite
 
@@ -268,6 +271,57 @@ npm run allure:report                         # generate + open the Allure repor
 
 See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 
+### Java · REST Assured suite
+
+The Java side (`java-tests/`) is a fourth, independent stack — black-box HTTP tests against a
+**running instance** of the app, written the way a Java QA engineer would test any deployed
+service, with no in-process shortcuts. It targets a different hiring context again (JUnit/REST
+Assured roles), rounding out the project's automation coverage across Python, TypeScript and Java.
+
+```
+java-tests/
+├── pom.xml
+└── src/test/java/com/testflow/api/
+    ├── support/                # REST Assured config, bootstrap-admin auth, unique naming
+    ├── AuthApiTest.java        # login/me/token validation
+    ├── ProjectsApiTest.java    # CRUD, pagination envelope, admin-only writes
+    ├── SuitesApiTest.java      # CRUD, 404s, admin-only writes
+    ├── TestCasesApiTest.java   # CRUD, defaults, the null-vs-omitted-field regression
+    ├── RunsApiTest.java        # run creation, pending-result seeding, auto-completion
+    └── UsersApiTest.java       # admin user management, self-delete guard
+```
+
+**Engineering practices this demonstrates:**
+
+- **True black-box testing.** Every test is a real HTTP call via REST Assured against a running
+  server — no `TestClient`, no dependency overrides — so it exercises the exact same public
+  contract a real API consumer (or the other two stacks) would hit, monolith or microservices.
+- **A single shared bootstrap-admin convention across stacks.** `POST /api/auth/register` only
+  ever succeeds for the very first user on a given database. `AuthSupport` uses the same
+  register-then-login fallback and the same fixed bootstrap credentials as
+  [`e2e/global-setup.ts`](e2e/global-setup.ts), so this suite, the TypeScript suite, and a human
+  using the app can all run against one live instance without racing to become the first user.
+- **Collision-safe by construction.** Every project/suite/test-case name is UUID-suffixed
+  (`TestData.uniqueName`), so the suite is safe to run repeatedly against a persistent database
+  (SQLite/Postgres), not just a throwaway one.
+- **Regression coverage carried over from the Python suite.** `TestCasesApiTest` re-asserts the
+  explicit-`null`-doesn't-clear-a-non-nullable-field fix documented in `api/main.py`'s
+  `update_testcase`, so the same real bug the contract suite caught stays covered here too.
+- **Allure reporting**, via `allure-junit5` + `allure-rest-assured`, in the same format the
+  Python and TypeScript stacks already produce.
+
+```bash
+# app must be running first (see Quick start above)
+cd java-tests
+mvn test                                             # against http://localhost:8000
+mvn test -DbaseUrl=https://your-app.vercel.app       # against a deployed instance
+
+mvn test
+allure generate target/allure-results --clean -o target/allure-report && allure open target/allure-report
+```
+
+See [`java-tests/README.md`](java-tests/README.md) for the full breakdown.
+
 ### CI wiring (`.github/workflows/`)
 
 | Workflow | Trigger | What runs |
@@ -276,6 +330,7 @@ See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 | `pw-scheduled.yml` | weekly cron | `tests/e2e/test_e2e.py` + `tests/e2e/test_users_e2e.py` against the live deployment |
 | `pw-regression.yml` | manual dispatch | full `-m regression` suite across all layers against a chosen target URL |
 | `pw-ts.yml` | every PR + push to `main` touching `e2e/`, `api/`, `static/`; daily cron | full `e2e/tests/*.spec.ts` suite, HTML/JSON report uploaded as an artifact |
+| `java-api-tests.yml` | every PR + push to `main` touching `java-tests/`, `api/`, `shared/` | starts the app locally, runs the full `java-tests/` JUnit suite, Allure report uploaded as an artifact |
 
 ---
 
@@ -312,6 +367,7 @@ See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 │   └── e2e/                      # Playwright browser + deployed-instance API tests
 │       └── pages/                # page objects for the browser E2E specs
 ├── e2e/                          # Playwright TypeScript E2E tests (incl. contract.spec.ts)
+├── java-tests/                   # JUnit 5 + REST Assured black-box API tests
 ├── Dockerfile                    # Monolith container
 ├── docker-compose.yml            # Monolith mode (app + Postgres)
 ├── docker-compose.microservices.yml  # Microservice mode (5 services + Postgres + Redis)

@@ -1,0 +1,145 @@
+name: Java API Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'java-tests/**'
+      - 'api/**'
+      - 'shared/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'java-tests/**'
+      - 'api/**'
+      - 'shared/**'
+
+jobs:
+  java-api-tests:
+    name: API Tests (JUnit 5 + REST Assured)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: java-tests/pom.xml
+
+      - name: Set up Python (to run the app under test)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install app dependencies
+        run: pip install -r requirements.txt
+
+      - name: Start app
+        run: |
+          uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:8000/api/version && break
+            sleep 1
+          done
+
+      - name: Run Java API tests
+        id: mvn
+        working-directory: java-tests
+        continue-on-error: true
+        run: mvn -B test
+
+      - name: Write job summary
+        if: always()
+        working-directory: java-tests
+        run: |
+          python3 - <<'EOF'
+          import glob
+          import os
+          import xml.etree.ElementTree as ET
+
+          files = sorted(glob.glob("target/surefire-reports/TEST-*.xml"))
+          if not files:
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+                  f.write("## ❌ Java API Test Report\n\nTest run crashed before producing a report — check the logs.\n")
+              raise SystemExit(0)
+
+          total = passed = failed = errors = skipped = 0
+          duration = 0.0
+          rows = []
+          failures = []
+
+          for path in files:
+              root = ET.parse(path).getroot()
+              for tc in root.findall("testcase"):
+                  total += 1
+                  name = tc.get("name")
+                  classname = tc.get("classname", "").split(".")[-1]
+                  dur = float(tc.get("time", "0") or 0)
+                  duration += dur
+                  failure = tc.find("failure")
+                  error = tc.find("error")
+                  skip = tc.find("skipped")
+                  if failure is not None:
+                      failed += 1
+                      badge = "❌ failed"
+                      failures.append((f"{classname}.{name}", (failure.get("message") or failure.text or "")[:1500]))
+                  elif error is not None:
+                      errors += 1
+                      badge = "\U0001f4a5 error"
+                      failures.append((f"{classname}.{name}", (error.get("message") or error.text or "")[:1500]))
+                  elif skip is not None:
+                      skipped += 1
+                      badge = "⏭ skipped"
+                  else:
+                      passed += 1
+                      badge = "✅ passed"
+                  rows.append((f"{classname}.{name}", badge, dur))
+
+          icon = "✅" if failed == 0 and errors == 0 else "❌"
+          lines = [
+              f"## {icon} Java API Test Report",
+              "| Result | Count |",
+              "|--------|-------|",
+              f"| ✅ Passed | {passed} |",
+              f"| ❌ Failed | {failed} |",
+              f"| \U0001f4a5 Error  | {errors} |",
+              f"| **Total** | **{total}** |",
+              f"| ⏱ Duration | {duration:.2f}s |",
+              "",
+              "### Test Results",
+              "| Test | Result | Duration |",
+              "|------|--------|----------|",
+          ]
+          for name, badge, dur in rows:
+              lines.append(f"| `{name}` | {badge} | {dur:.3f}s |")
+          lines.append("")
+          for name, msg in failures:
+              lines.append(f"<details><summary>❌ <code>{name}</code> — failure detail</summary>\n\n```\n{msg}\n```\n</details>")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines))
+          EOF
+
+      - name: Generate Allure report
+        if: always()
+        working-directory: java-tests
+        run: |
+          npm install -g allure-commandline --no-progress
+          allure generate target/allure-results --clean -o target/allure-report || true
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-java-${{ github.run_id }}
+          path: java-tests/target/allure-report/
+          retention-days: 14
+
+      - name: Propagate exit code
+        if: always()
+        run: exit ${{ steps.mvn.outcome == 'success' && '0' || '1' }}
