@@ -1330,7 +1330,8 @@ async function renderProjects() {
     el.innerHTML = `
       <div class="fade-in">
         ${ownerCard}
-        ${renderShowcaseSection([archDiagram, demoBanner, techStackBanner, sysArchBanner])}
+        ${demoBanner}
+        ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1350,7 +1351,8 @@ async function renderProjects() {
   el.innerHTML = `
     <div class="fade-in">
       ${ownerCard}
-      ${renderShowcaseSection([archDiagram, demoBanner, techStackBanner, sysArchBanner])}
+      ${demoBanner}
+      ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
