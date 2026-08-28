@@ -486,3 +486,10 @@ Set `DATABASE_URL` (Neon Postgres), `JWT_SECRET_KEY`, and `ANTHROPIC_API_KEY` in
 ### Self-hosted (microservices)
 Use `docker-compose.microservices.yml` with a Postgres 16 instance and Redis 7.
 The gateway container is the only one that needs to be publicly exposed.
+
+---
+
+## License
+
+Copyright (c) 2026 Rabin Avidan. All rights reserved. This repository is public for
+portfolio and evaluation purposes only — see [`LICENSE`](LICENSE) for details.
