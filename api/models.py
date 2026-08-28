@@ -148,3 +148,23 @@ class ContactMessage(Base):
     phone = Column(String(30), nullable=False)
     description = Column(String(500), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LogEntry(Base):
+    """One row per HTTP request/response, unhandled server exception, or
+    reported browser-side error — the "log center" admins use to see what's
+    happening across the running app without shelling into Vercel's own
+    function logs. Self-pruned (see _record_log) so it can't grow unbounded
+    on a long-lived Postgres deployment."""
+    __tablename__ = "log_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    level = Column(String(10), nullable=False, index=True)    # info | warning | error
+    source = Column(String(10), nullable=False, index=True)   # server | client
+    message = Column(String(500), nullable=False)
+    method = Column(String(10), nullable=True)
+    path = Column(String(255), nullable=True)
+    status_code = Column(Integer, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    extra = Column(Text, nullable=True)

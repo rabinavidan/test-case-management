@@ -13,6 +13,7 @@ import json
 import time
 import logging
 import asyncio
+import traceback
 
 # ─── Structured logging setup ────────────────────────────────────────────────
 logging.basicConfig(
@@ -161,14 +162,65 @@ async def overflow_error_handler(request: Request, exc: OverflowError):
     )
 
 
+# ─── Log Center — persists request/response and error activity so it's
+# visible from the app itself (GET /api/logs), not just Vercel's function
+# console. Uses its own short-lived session (middleware has no `Depends`),
+# and never lets a logging failure break the actual request. ──────────────
+LOG_RETENTION_MAX_ROWS = 5000
+
+
+def _record_log(**fields):
+    try:
+        # Respect a test's `get_db` dependency override (a separate throwaway
+        # DB) instead of always hitting the real production engine — the
+        # same session factory every other endpoint effectively uses.
+        db_gen = app.dependency_overrides.get(get_db, get_db)()
+        db = next(db_gen)
+        try:
+            db.add(models.LogEntry(**fields))
+            db.commit()
+            total = db.query(models.LogEntry).count()
+            if total > LOG_RETENTION_MAX_ROWS:
+                stale_ids = [
+                    row.id for row in db.query(models.LogEntry.id)
+                    .order_by(models.LogEntry.created_at.asc())
+                    .limit(total - LOG_RETENTION_MAX_ROWS)
+                ]
+                db.query(models.LogEntry).filter(models.LogEntry.id.in_(stale_ids)).delete(synchronize_session=False)
+                db.commit()
+        finally:
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
+    except Exception:
+        logger.exception("Failed to persist log entry")
+
+
 # ─── Request/Response logging middleware ──────────────────────────────────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.perf_counter()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        duration_ms = round((time.perf_counter() - start) * 1000, 1)
+        logger.exception(f'{request.method} {request.url.path} 500 {duration_ms}ms')
+        _record_log(
+            level="error", source="server", message=f"{type(exc).__name__}: {exc}"[:500],
+            method=request.method, path=request.url.path, status_code=500,
+            duration_ms=int(duration_ms), extra=traceback.format_exc()[-2000:],
+        )
+        raise
     duration_ms = round((time.perf_counter() - start) * 1000, 1)
     if not request.url.path.startswith("/static"):
         logger.info(f'{request.method} {request.url.path} {response.status_code} {duration_ms}ms')
+        level = "error" if response.status_code >= 500 else "warning" if response.status_code >= 400 else "info"
+        _record_log(
+            level=level, source="server", message=f"{request.method} {request.url.path}"[:500],
+            method=request.method, path=request.url.path, status_code=response.status_code,
+            duration_ms=int(duration_ms),
+        )
     return response
 
 
@@ -340,6 +392,35 @@ def submit_contact(body: schemas.ContactCreate, db: Session = Depends(get_db)):
     db.refresh(msg)
     _send_contact_email(msg)
     return {"detail": "Message sent"}
+
+
+@app.get("/api/logs", response_model=List[schemas.LogEntryResponse])
+def list_logs(
+    level: Optional[str] = None,
+    source: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = Query(200, le=500),
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_admin),
+):
+    q = db.query(models.LogEntry)
+    if level:
+        q = q.filter(models.LogEntry.level == level)
+    if source:
+        q = q.filter(models.LogEntry.source == source)
+    if search:
+        q = q.filter(models.LogEntry.message.ilike(f"%{search}%"))
+    return q.order_by(models.LogEntry.created_at.desc()).limit(limit).all()
+
+
+@app.post("/api/logs/client", status_code=201)
+def submit_client_log(body: schemas.ClientLogCreate, db: Session = Depends(get_db)):
+    """Public — an error in a logged-out visitor's browser is still worth capturing."""
+    _record_log(
+        level="error", source="client", message=body.message,
+        path=body.url, extra=body.stack,
+    )
+    return {"detail": "logged"}
 
 
 @app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=201)
