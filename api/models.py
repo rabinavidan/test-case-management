@@ -134,3 +134,17 @@ class TestResult(Base):
 
     run = relationship("TestRun", back_populates="results")
     test_case = relationship("TestCase", back_populates="results")
+
+
+class ContactMessage(Base):
+    """A "Contact Us" submission from the public landing page — stored
+    regardless of whether the notification email actually sends, so a
+    misconfigured/unset email backend never silently loses a message."""
+    __tablename__ = "contact_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String(100), nullable=False)
+    email = Column(String(255), nullable=False)
+    phone = Column(String(30), nullable=False)
+    description = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
