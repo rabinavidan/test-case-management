@@ -3821,9 +3821,13 @@ async function renderEnvironments() {
   try {
     envs = await GET("/api/environments");
   } catch (e) {
-    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
+    console.error("Failed to load environments", e);
+    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message || "Failed to load environments")}</div>`;
     return;
   }
+  // GET() returns null (not a thrown error) on a 401 — it redirects to the
+  // sign-in modal itself, so just stop here instead of crashing on .map.
+  if (!envs) return;
 
   setBreadcrumb([
     { label: "Projects", href: "projects" },
