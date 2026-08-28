@@ -7,6 +7,15 @@ real-time WebSocket collaboration, and AI-powered test generation, failure triag
 Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright — see
 [Test Architecture](#test-architecture) below.
 
+<p align="center">
+  <img src="docs/screenshots/pipeline-overview.png" width="49%" alt="End-to-end test management pipeline overview" />
+  <img src="docs/screenshots/environments.png" width="49%" alt="Environments dashboard — staging, regression, preprod, prod" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/architecture.png" width="49%" alt="Live microservice architecture diagram" />
+  <img src="docs/screenshots/test-report.png" width="49%" alt="Allure-style test report with per-suite pass/fail breakdown" />
+</p>
+
 ---
 
 ## Features
