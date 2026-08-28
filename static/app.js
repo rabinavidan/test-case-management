@@ -80,6 +80,7 @@ function showModal(type, data) {
     editTestCase: buildEditTestCaseModal,
     run:          buildRunModal,
     result:       buildResultModal,
+    contact:      buildContactModal,
   };
   if (builders[type]) builders[type](title, body, data);
 }
@@ -302,6 +303,38 @@ function resultBtnCls(s) {
   return s === "pass" ? "border-emerald-500 bg-emerald-50 text-emerald-700"
        : s === "fail" ? "border-red-500 bg-red-50 text-red-700"
        :                "border-amber-500 bg-amber-50 text-amber-700";
+}
+
+// Contact Us modal
+function buildContactModal(title, body) {
+  title.textContent = "Contact Us";
+  body.innerHTML = `
+    ${field("Topic *", `<input id="f-topic" data-testid="f-topic" class="${inputCls}" placeholder="What's this about?" autofocus />`)}
+    ${field("Email *", `<input id="f-email" data-testid="f-email" type="email" class="${inputCls}" placeholder="you@example.com" />`)}
+    ${field("Phone *", `<input id="f-phone" data-testid="f-phone" type="tel" class="${inputCls}" placeholder="+1 555 123 4567" />`)}
+    <div class="mb-1">
+      <label class="block text-sm font-medium text-slate-700 mb-1">Message *</label>
+      <textarea id="f-description" data-testid="f-description" class="${textareaCls}" rows="4" maxlength="500"
+        placeholder="How can we help?" oninput="document.getElementById('f-desc-count').textContent = 500 - this.value.length"></textarea>
+      <p class="text-xs text-slate-400 mt-1 text-right"><span id="f-desc-count">500</span> characters left</p>
+    </div>
+    <div class="flex justify-end gap-2 mt-2">
+      <button data-testid="modal-cancel-btn" onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
+      <button data-testid="modal-submit-btn" onclick="submitContact()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Send</button>
+    </div>`;
+}
+
+async function submitContact() {
+  const topic = document.getElementById("f-topic").value.trim();
+  const email = document.getElementById("f-email").value.trim();
+  const phone = document.getElementById("f-phone").value.trim();
+  const description = document.getElementById("f-description").value.trim();
+  if (!topic || !email || !phone || !description) { toast("Please fill in all fields", "error"); return; }
+  try {
+    await POST("/api/contact", { topic, email, phone, description });
+    hideModal();
+    toast("Message sent — we'll get back to you soon");
+  } catch (e) { toast(e.message, "error"); }
 }
 
 function selectResultStatus(s) {

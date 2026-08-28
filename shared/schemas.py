@@ -33,7 +33,7 @@ and a resolved `created_by_username` that the runs service alone can't
 produce (that data lives in the projects/auth services in microservices
 mode). Those stay defined per-stack rather than forced into one shape.
 """
-from pydantic import BaseModel, PlainSerializer, WithJsonSchema
+from pydantic import BaseModel, Field, PlainSerializer, WithJsonSchema
 from typing import Annotated, Optional, List
 from datetime import datetime, timezone
 
@@ -192,6 +192,15 @@ class EnvironmentResponse(BaseModel):
 class TestResultUpdate(BaseModel):
     status: str  # pass, fail, skip
     notes: Optional[str] = None
+
+
+# ─── Contact Us — public, unauthenticated (monolith only) ──────────────────
+
+class ContactCreate(BaseModel):
+    topic: str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., min_length=3, max_length=255)
+    phone: str = Field(..., min_length=1, max_length=30)
+    description: str = Field(..., min_length=1, max_length=500)
 
 
 # ─── Stats / analytics ──────────────────────────────────────────────────────

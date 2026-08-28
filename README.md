@@ -39,6 +39,7 @@ Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright —
 | **Structured Logging** | Middleware logging every HTTP request with status and latency_ms; microservice mode also threads a correlation `request_id` across every service | `api/main.py` · `services/common/request_id.py` |
 | **Paginated API** | Envelope `{items, total, page, page_size, total_pages}` | `GET /api/projects` |
 | **Environments** | Four-stage deployment pipeline (staging → regression → preprod → prod), each pinned to its own Kubernetes node — see [`k8s/`](k8s/) for the kustomize manifests and the in-app dashboard for live (simulated) node/pod health. Runs can be tagged with the environment they executed against. *(monolith only)* | `GET /api/environments` · `k8s/overlays/*` |
+| **Contact Us** | Public form (footer, no login required) — topic/email/phone/message, saved to the DB and emailed to the site owner via Resend or SMTP (configurable, see `.env.example`) | `POST /api/contact` |
 
 ---
 
@@ -144,6 +145,7 @@ POST   /api/auth/login
 GET    /api/auth/me
 
 GET    /api/environments                        # Staging/regression/preprod/prod health (monolith only)
+POST   /api/contact                             # Contact Us form (public) — saves + emails the site owner
 
 GET    /api/projects?page=1&page_size=50&search=
 POST   /api/projects

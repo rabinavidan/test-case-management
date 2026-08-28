@@ -36,6 +36,7 @@ from shared.schemas import (
     FlakyTestCase,
     FlakyTestsResponse,
     EnvironmentResponse,
+    ContactCreate,
 )
 from pydantic import BaseModel
 
@@ -50,6 +51,7 @@ __all__ = [
     "TriageResultItem", "TriageResponse",
     "FlakyTestCase", "FlakyTestsResponse",
     "EnvironmentResponse",
+    "ContactCreate",
 ]
 
 

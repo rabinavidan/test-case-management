@@ -115,7 +115,10 @@
   <footer class="border-t border-slate-200 bg-white py-3 mt-auto">
     <div class="max-w-screen-xl mx-auto px-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-400">
       <span>TestFlow</span>
-      <span>&copy; 2026 Rabin Avidan. All rights reserved.</span>
+      <span class="flex items-center gap-3">
+        <button onclick="showModal('contact')" data-testid="contact-us-btn" class="text-blue-600 hover:text-blue-700 font-medium transition-colors">Contact Us</button>
+        <span>&copy; 2026 Rabin Avidan. All rights reserved.</span>
+      </span>
       <span id="app-version">v2.0.0</span>
     </div>
   </footer>
@@ -139,6 +142,6 @@
   <div id="toast-inner" data-testid="toast-inner" class="px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-xs"></div>
 </div>
 
-<script src="/static/app.js?v=42"></script>
+<script src="/static/app.js?v=43"></script>
 </body>
 </html>
