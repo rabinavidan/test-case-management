@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: testflow-config
+data:
+  # Kubernetes Service DNS names — one Service per microservice (see
+  # *-service.yaml), so these resolve the same way in every namespace.
+  AUTH_URL: http://auth:8001
+  PROJECTS_URL: http://projects:8002
+  RUNS_URL: http://runs:8003
+  AI_URL: http://ai:8004
+  PROJECTS_SERVICE_URL: http://projects:8002
+  RUNS_SERVICE_URL: http://runs:8003
+  REDIS_URL: redis://redis:6379

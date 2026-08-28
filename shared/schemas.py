@@ -164,6 +164,29 @@ class TestCaseResponse(BaseModel):
 
 class TestRunCreate(BaseModel):
     name: str
+    environment_key: Optional[str] = None
+
+
+# ─── Environments — staging/regression/preprod/prod, each pinned to its own
+# Kubernetes node (see k8s/). Monolith-only for now: the microservices split
+# has no environments table or endpoint yet. ───────────────────────────────
+
+class EnvironmentResponse(BaseModel):
+    id: int
+    key: str
+    name: str
+    tier: int
+    namespace: str
+    node_name: str
+    region: str
+    status: str
+    pods_ready: int
+    pods_desired: int
+    cpu_pct: float
+    mem_pct: float
+    uptime_seconds: int
+
+    model_config = {"from_attributes": True}
 
 
 class TestResultUpdate(BaseModel):

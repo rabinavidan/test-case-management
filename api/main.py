@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Set
 from datetime import datetime, timedelta
 import os
 import random
+import hashlib
 import pathlib
 import json
 import time
@@ -53,6 +54,7 @@ def _run_migrations():
                 "ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'executor'",
                 "ALTER TABLE test_runs ADD COLUMN created_by_id INTEGER REFERENCES users(id)",
                 "ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE",
+                "ALTER TABLE test_runs ADD COLUMN environment_id INTEGER REFERENCES environments(id)",
             ]:
                 try:
                     conn.execute(text(stmt))
@@ -96,6 +98,35 @@ def _seed_admin():
         pass
 
 _seed_admin()
+
+# Seed the fixed 4-environment pipeline (staging -> regression -> preprod ->
+# prod) at module load time, matching k8s/overlays/*. Idempotent: only
+# inserts rows whose key is missing, never overwrites an existing row (an
+# operator may have hand-edited node_name/namespace to match a real cluster).
+_ENVIRONMENT_SEED = [
+    {"key": "staging",    "name": "Staging",    "tier": 1, "namespace": "testflow-staging",    "node_name": "node-staging-1",    "region": "us-east-1"},
+    {"key": "regression", "name": "Regression", "tier": 2, "namespace": "testflow-regression", "node_name": "node-regression-1", "region": "us-east-1"},
+    {"key": "preprod",    "name": "Preprod",    "tier": 3, "namespace": "testflow-preprod",    "node_name": "node-preprod-1",    "region": "us-west-2"},
+    {"key": "prod",       "name": "Prod",       "tier": 4, "namespace": "testflow-prod",       "node_name": "node-prod-1",       "region": "us-west-2"},
+]
+
+
+def _seed_environments():
+    try:
+        from .database import SessionLocal
+        db = SessionLocal()
+        try:
+            existing_keys = {e.key for e in _with_db_retry(lambda: db.query(models.Environment).all())}
+            for env in _ENVIRONMENT_SEED:
+                if env["key"] not in existing_keys:
+                    db.add(models.Environment(**env))
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+_seed_environments()
 
 app = FastAPI(
     title="TestFlow API",
@@ -182,6 +213,50 @@ def get_version():
 def setup_status(db: Session = Depends(get_db)):
     """Returns whether the system needs initial admin setup."""
     return {"setup_needed": db.query(models.User).count() == 0}
+
+
+# ─── Environments ─────────────────────────────────────────────────────────────
+# This demo has no live cluster behind it (it runs on Vercel), so pod/node
+# health below is synthetic telemetry standing in for a kubectl/metrics-server
+# poll — deterministic within a 5-minute window so numbers don't jitter on
+# every refresh, and closer to "healthy" for prod/preprod than for
+# staging/regression, mirroring the stability gradient a real pipeline has.
+# Swap `_simulate_environment_health` for a real Kubernetes client call
+# (`kubernetes.client.CoreV1Api`) to point this at an actual cluster; the
+# node/namespace layout it reports already matches k8s/overlays/<key>/.
+_ENVIRONMENT_DESIRED_PODS = {"staging": 2, "regression": 2, "preprod": 3, "prod": 4}
+
+
+def _simulate_environment_health(key: str) -> dict:
+    bucket = int(time.time() // 300)
+    seed = int(hashlib.sha256(f"{key}:{bucket}".encode()).hexdigest(), 16)
+    rnd = random.Random(seed)
+    desired = _ENVIRONMENT_DESIRED_PODS.get(key, 2)
+    healthy_bias = 0.97 if key in ("prod", "preprod") else 0.9
+    ready = desired if rnd.random() < healthy_bias else max(0, desired - rnd.randint(1, 2))
+    status = "healthy" if ready == desired else ("degraded" if ready > 0 else "down")
+    load_bias = 15 if key == "prod" else 0
+    return {
+        "status": status,
+        "pods_ready": ready,
+        "pods_desired": desired,
+        "cpu_pct": round(rnd.uniform(15, 45) + load_bias, 1),
+        "mem_pct": round(rnd.uniform(20, 55) + load_bias, 1),
+        "uptime_seconds": rnd.randint(3600, 30 * 24 * 3600),
+    }
+
+
+@app.get("/api/environments", response_model=List[schemas.EnvironmentResponse])
+def list_environments(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+    envs = db.query(models.Environment).order_by(models.Environment.tier).all()
+    return [
+        schemas.EnvironmentResponse(
+            id=e.id, key=e.key, name=e.name, tier=e.tier,
+            namespace=e.namespace, node_name=e.node_name, region=e.region,
+            **_simulate_environment_health(e.key),
+        )
+        for e in envs
+    ]
 
 
 @app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=201)
@@ -441,7 +516,19 @@ def create_run(suite_id: int, payload: schemas.TestRunCreate, db: Session = Depe
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
 
-    run = models.TestRun(suite_id=suite_id, name=payload.name, created_by_id=current_user.id)
+    environment_id = None
+    if payload.environment_key:
+        environment = db.query(models.Environment).filter(
+            models.Environment.key == payload.environment_key
+        ).first()
+        if not environment:
+            raise HTTPException(status_code=400, detail="Unknown environment")
+        environment_id = environment.id
+
+    run = models.TestRun(
+        suite_id=suite_id, name=payload.name, created_by_id=current_user.id,
+        environment_id=environment_id,
+    )
     db.add(run)
     db.flush()
 

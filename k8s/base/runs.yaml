@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runs
+  labels: { app: runs }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: runs }
+  template:
+    metadata:
+      labels: { app: runs }
+    spec:
+      containers:
+        - name: runs
+          image: testflow/runs
+          ports:
+            - containerPort: 8003
+          envFrom:
+            - configMapRef: { name: testflow-config }
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: testflow-secrets, key: DATABASE_URL } }
+            - name: JWT_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: testflow-secrets, key: JWT_SECRET_KEY } }
+          readinessProbe:
+            httpGet: { path: /docs, port: 8003 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: runs
+spec:
+  selector:
+    app: runs
+  ports:
+    - port: 8003
+      targetPort: 8003

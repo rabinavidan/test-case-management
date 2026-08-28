@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - secret.yaml
+  - db.yaml
+  - redis.yaml
+  - auth.yaml
+  - projects.yaml
+  - runs.yaml
+  - ai.yaml
+  - gateway.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: testflow
+
+images:
+  - name: testflow/gateway
+    newTag: latest
+  - name: testflow/auth
+    newTag: latest
+  - name: testflow/projects
+    newTag: latest
+  - name: testflow/runs
+    newTag: latest
+  - name: testflow/ai
+    newTag: latest

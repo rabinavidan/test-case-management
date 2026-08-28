@@ -7,7 +7,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.database import Base, get_db
-from api.main import app
+from api.main import app, _ENVIRONMENT_SEED
+from api import models
 
 DATABASE_URL = "sqlite:///./test.db"
 
@@ -26,6 +27,12 @@ def override_get_db():
 @pytest.fixture(autouse=True)
 def setup_db():
     Base.metadata.create_all(bind=engine)
+    # Mirrors the app's own startup seeding (api.main._seed_environments),
+    # against this test's own engine rather than the app's real one.
+    db = TestingSessionLocal()
+    db.add_all(models.Environment(**env) for env in _ENVIRONMENT_SEED)
+    db.commit()
+    db.close()
     yield
     Base.metadata.drop_all(bind=engine)
 

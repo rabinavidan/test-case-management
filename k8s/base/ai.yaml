@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai
+  labels: { app: ai }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ai }
+  template:
+    metadata:
+      labels: { app: ai }
+    spec:
+      containers:
+        - name: ai
+          image: testflow/ai
+          ports:
+            - containerPort: 8004
+          envFrom:
+            - configMapRef: { name: testflow-config }
+          env:
+            - name: JWT_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: testflow-secrets, key: JWT_SECRET_KEY } }
+            - name: ANTHROPIC_API_KEY
+              valueFrom: { secretKeyRef: { name: testflow-secrets, key: ANTHROPIC_API_KEY } }
+          readinessProbe:
+            httpGet: { path: /docs, port: 8004 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai
+spec:
+  selector:
+    app: ai
+  ports:
+    - port: 8004
+      targetPort: 8004
