@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: testflow-regression
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - ingress.yaml
+
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: node-regression-1
+
+replicas:
+  - name: gateway
+    count: 1
+  - name: auth
+    count: 1
+  - name: projects
+    count: 1
+  - name: runs
+    count: 1
+  - name: ai
+    count: 1
+
+configMapGenerator:
+  - name: testflow-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=regression
+
+secretGenerator:
+  - name: testflow-secrets
+    behavior: merge
+    literals:
+      - JWT_SECRET_KEY=REPLACE_ME_regression_jwt_secret
+
+images:
+  - name: testflow/gateway
+    newTag: regression
+  - name: testflow/auth
+    newTag: regression
+  - name: testflow/projects
+    newTag: regression
+  - name: testflow/runs
+    newTag: regression
+  - name: testflow/ai
+    newTag: regression

@@ -1,0 +1,57 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: testflow-staging
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - ingress.yaml
+
+# Every service in this environment is scheduled onto its own dedicated node —
+# see the in-app Environments dashboard (GET /api/environments), which reports
+# this same node_name for the "Staging" card.
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: node-staging-1
+
+replicas:
+  - name: gateway
+    count: 1
+  - name: auth
+    count: 1
+  - name: projects
+    count: 1
+  - name: runs
+    count: 1
+  - name: ai
+    count: 1
+
+configMapGenerator:
+  - name: testflow-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=staging
+
+secretGenerator:
+  - name: testflow-secrets
+    behavior: merge
+    literals:
+      - JWT_SECRET_KEY=REPLACE_ME_staging_jwt_secret
+
+images:
+  - name: testflow/gateway
+    newTag: staging
+  - name: testflow/auth
+    newTag: staging
+  - name: testflow/projects
+    newTag: staging
+  - name: testflow/runs
+    newTag: staging
+  - name: testflow/ai
+    newTag: staging

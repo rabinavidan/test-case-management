@@ -29,6 +29,7 @@ Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright —
 | **Microservice Architecture** | 5 services · Docker Compose · Redis events | `services/` + `docker-compose.microservices.yml` |
 | **Structured Logging** | Middleware logging every HTTP request with status and latency_ms; microservice mode also threads a correlation `request_id` across every service | `api/main.py` · `services/common/request_id.py` |
 | **Paginated API** | Envelope `{items, total, page, page_size, total_pages}` | `GET /api/projects` |
+| **Environments** | Four-stage deployment pipeline (staging → regression → preprod → prod), each pinned to its own Kubernetes node — see [`k8s/`](k8s/) for the kustomize manifests and the in-app dashboard for live (simulated) node/pod health. Runs can be tagged with the environment they executed against. *(monolith only)* | `GET /api/environments` · `k8s/overlays/*` |
 
 ---
 
@@ -125,12 +126,15 @@ docker compose up --build
 
 ## API reference (key endpoints)
 
-All endpoints are identical regardless of deployment mode (monolith or microservices).
+All endpoints are identical regardless of deployment mode (monolith or microservices),
+except `/api/environments`, which is monolith-only for now.
 
 ```
 POST   /api/auth/register
 POST   /api/auth/login
 GET    /api/auth/me
+
+GET    /api/environments                        # Staging/regression/preprod/prod health (monolith only)
 
 GET    /api/projects?page=1&page_size=50&search=
 POST   /api/projects
@@ -146,7 +150,7 @@ POST   /api/suites/{id}/testcases
 POST   /api/suites/{id}/testcases/generate      # AI generation (→ AI service)
 POST   /api/suites/{id}/testcases/generate/save # Bulk save AI results
 
-POST   /api/suites/{id}/runs
+POST   /api/suites/{id}/runs                    # Body: {name, environment_key?} — tags the run with its environment
 GET    /api/suites/{id}/runs
 GET    /api/runs/{id}
 PUT    /api/runs/{id}/results/{testcase_id}

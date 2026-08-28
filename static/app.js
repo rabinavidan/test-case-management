@@ -248,6 +248,12 @@ function buildRunModal(title, body, { suiteId }) {
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
   body.innerHTML = `
     ${field("Run Name *", `<input id="f-name" class="${inputCls}" value="Run ${dateStr} ${timeStr}" autofocus />`)}
+    ${field("Environment", `<select id="f-environment" class="${inputCls}">
+      <option value="staging" selected>Staging</option>
+      <option value="regression">Regression</option>
+      <option value="preprod">Preprod</option>
+      <option value="prod">Prod</option>
+    </select>`)}
     <p class="text-sm text-slate-500 mb-4">Creates a new test run for all <strong>active</strong> test cases in this suite.</p>
     <div class="flex justify-end gap-2">
       <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
@@ -257,9 +263,10 @@ function buildRunModal(title, body, { suiteId }) {
 
 async function submitRun(suiteId) {
   const name = document.getElementById("f-name").value.trim();
+  const environment_key = document.getElementById("f-environment").value;
   if (!name) { toast("Name is required", "error"); return; }
   try {
-    const run = await POST(`/api/suites/${suiteId}/runs`, { name });
+    const run = await POST(`/api/suites/${suiteId}/runs`, { name, environment_key });
     hideModal();
     toast("Test run started");
     navigate(`run/${run.id}`);
@@ -352,6 +359,8 @@ async function router() {
     await renderRun(parseInt(parts[1]));
   } else if (parts[0] === "users" && isAdmin()) {
     await renderUsers();
+  } else if (parts[0] === "environments") {
+    await renderEnvironments();
   } else {
     await renderProjects();
   }
@@ -1939,6 +1948,7 @@ function runCard(r, suiteName) {
           <div class="flex items-center gap-2 flex-wrap mb-0.5">
             <span class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate">${escHtml(r.name)}</span>
             ${status}
+            ${envBadge(r.environment_key)}
           </div>
           <span class="inline-block text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">${escHtml(suiteName)}</span>
         </div>
@@ -2449,6 +2459,7 @@ async function renderRun(runId) {
             ${run.completed_at
               ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Completed</span>`
               : `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">In Progress</span>`}
+            ${envBadge(run.environment_key)}
           </div>
           <p class="text-sm text-slate-500">Started ${formatDate(run.created_at)}${run.created_by_username ? ` by <span class="font-medium text-slate-700">${escHtml(run.created_by_username)}</span>` : ""}</p>
         </div>
@@ -3349,6 +3360,14 @@ function renderUserBadge(user) {
     : "bg-amber-100 text-amber-700 border-amber-200";
   el.innerHTML = `
     <div class="flex items-center gap-2">
+      <button onclick="navigate('environments')" title="Environments" data-testid="environments-btn"
+        class="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors text-xs font-medium">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+        </svg>
+        <span class="hidden sm:inline">Environments</span>
+      </button>
       ${user.role === "admin" ? `
       <button onclick="navigate('users')" title="User Management" data-testid="users-btn"
         class="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors text-xs font-medium">
@@ -3768,6 +3787,96 @@ async function showTriageModal(runId) {
   }
 }
 
+
+// ─── Environments ───────────────────────────────────────────────────────────
+function envBadge(key) {
+  if (!key) return "";
+  const cls = key === "prod" ? "bg-rose-100 text-rose-700"
+            : key === "preprod" ? "bg-orange-100 text-orange-700"
+            : key === "regression" ? "bg-cyan-100 text-cyan-700"
+            :                        "bg-slate-100 text-slate-600";
+  return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${escHtml(key)}</span>`;
+}
+
+function envStatusCls(status) {
+  return status === "healthy" ? "bg-emerald-100 text-emerald-700"
+       : status === "degraded" ? "bg-amber-100 text-amber-700"
+       :                         "bg-red-100 text-red-700";
+}
+
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  return days ? `${days}d ${hours}h` : `${hours}h`;
+}
+
+async function renderEnvironments() {
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  const el = document.getElementById("view-environments");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  document.getElementById("nav-new-btn").classList.add("hidden");
+
+  let envs;
+  try {
+    envs = await GET("/api/environments");
+  } catch (e) {
+    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
+    return;
+  }
+
+  setBreadcrumb([
+    { label: "Projects", href: "projects" },
+    { label: "Environments", href: "environments" },
+  ]);
+
+  el.innerHTML = `
+    <div class="fade-in space-y-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Environments</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Deployment pipeline · each environment runs on its own Kubernetes node (see <code class="bg-slate-100 px-1 py-0.5 rounded text-xs">k8s/overlays/</code>)</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        ${envs.map(envCard).join("")}
+      </div>
+      <p class="text-xs text-slate-400">Pod/CPU/memory figures are simulated telemetry for this demo (no live cluster behind it) — refreshes every 5 minutes.</p>
+    </div>`;
+}
+
+function envCard(e) {
+  return `
+    <div data-testid="env-card-${e.key}" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-semibold text-slate-800">${escHtml(e.name)}</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${envStatusCls(e.status)}">${escHtml(e.status)}</span>
+      </div>
+      <div class="space-y-1 text-xs text-slate-500 mb-3">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <span class="font-mono">${escHtml(e.node_name)}</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 1.1 3.6 2 8 2s8-.9 8-2V7M4 7c0 1.1 3.6 2 8 2s8-.9 8-2M4 7c0-1.1 3.6-2 8-2s8 .9 8 2"/></svg>
+          <span class="font-mono">${escHtml(e.namespace)}</span>
+        </div>
+        <div>${escHtml(e.region)} · uptime ${formatUptime(e.uptime_seconds)}</div>
+      </div>
+      <div class="flex items-center justify-between text-xs mb-1">
+        <span class="text-slate-500">Pods</span>
+        <span class="font-semibold ${e.pods_ready === e.pods_desired ? "text-emerald-600" : "text-amber-600"}">${e.pods_ready}/${e.pods_desired}</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <div class="flex justify-between text-slate-400 mb-0.5"><span>CPU</span><span>${e.cpu_pct}%</span></div>
+          <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500" style="width:${e.cpu_pct}%"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-slate-400 mb-0.5"><span>Mem</span><span>${e.mem_pct}%</span></div>
+          <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-violet-500" style="width:${e.mem_pct}%"></div></div>
+        </div>
+      </div>
+    </div>`;
+}
 
 // ─── Analytics Dashboard ──────────────────────────────────────────────────────
 let _analyticsChart = null;

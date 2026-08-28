@@ -37,6 +37,24 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Environment(Base):
+    """A deployment target test runs execute against — staging, regression,
+    preprod, prod — each pinned to its own Kubernetes node (see k8s/
+    overlays/<key>/, which sets nodeSelector to node_name's label)."""
+    __tablename__ = "environments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(20), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    tier = Column(Integer, nullable=False)  # pipeline position: 1=staging .. 4=prod
+    namespace = Column(String(100), nullable=False)
+    node_name = Column(String(100), nullable=False)
+    region = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    runs = relationship("TestRun", back_populates="environment")
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -88,10 +106,20 @@ class TestRun(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    environment_id = Column(Integer, ForeignKey("environments.id"), nullable=True)
 
     suite = relationship("TestSuite", back_populates="runs")
     results = relationship("TestResult", back_populates="run", cascade="all, delete-orphan")
     created_by = relationship("User")
+    environment = relationship("Environment", back_populates="runs")
+
+    @property
+    def environment_key(self):
+        return self.environment.key if self.environment else None
+
+    @property
+    def environment_name(self):
+        return self.environment.name if self.environment else None
 
 
 class TestResult(Base):

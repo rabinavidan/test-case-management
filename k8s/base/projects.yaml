@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projects
+  labels: { app: projects }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: projects }
+  template:
+    metadata:
+      labels: { app: projects }
+    spec:
+      containers:
+        - name: projects
+          image: testflow/projects
+          ports:
+            - containerPort: 8002
+          envFrom:
+            - configMapRef: { name: testflow-config }
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: testflow-secrets, key: DATABASE_URL } }
+            - name: JWT_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: testflow-secrets, key: JWT_SECRET_KEY } }
+          readinessProbe:
+            httpGet: { path: /docs, port: 8002 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: projects
+spec:
+  selector:
+    app: projects
+  ports:
+    - port: 8002
+      targetPort: 8002

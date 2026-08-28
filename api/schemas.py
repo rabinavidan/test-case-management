@@ -35,6 +35,7 @@ from shared.schemas import (
     TriageResponse,
     FlakyTestCase,
     FlakyTestsResponse,
+    EnvironmentResponse,
 )
 from pydantic import BaseModel
 
@@ -48,6 +49,7 @@ __all__ = [
     "AIGenerateRequest", "AIGeneratedTestCase", "AIGenerateResponse",
     "TriageResultItem", "TriageResponse",
     "FlakyTestCase", "FlakyTestsResponse",
+    "EnvironmentResponse",
 ]
 
 
@@ -70,6 +72,8 @@ class TestRunResponse(BaseModel):
     created_at: UTCDatetime
     completed_at: Optional[UTCDatetime]
     created_by_username: Optional[str] = None
+    environment_key: Optional[str] = None
+    environment_name: Optional[str] = None
     results: List[TestResultResponse] = []
 
     model_config = {"from_attributes": True}

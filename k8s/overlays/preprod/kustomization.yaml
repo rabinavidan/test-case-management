@@ -1,0 +1,56 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: testflow-preprod
+
+resources:
+  - ../../base
+  - namespace.yaml
+  - ingress.yaml
+
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: node-preprod-1
+
+replicas:
+  - name: gateway
+    count: 2
+  - name: auth
+    count: 1
+  - name: projects
+    count: 2
+  - name: runs
+    count: 2
+  - name: ai
+    count: 1
+
+configMapGenerator:
+  - name: testflow-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=preprod
+
+secretGenerator:
+  - name: testflow-secrets
+    behavior: merge
+    literals:
+      - JWT_SECRET_KEY=REPLACE_ME_preprod_jwt_secret
+
+# Preprod tracks the same release candidate that's about to be promoted to
+# prod — a fixed tag bumped by CI right before a prod rollout, not `:latest`.
+images:
+  - name: testflow/gateway
+    newTag: v2.0.66-rc1
+  - name: testflow/auth
+    newTag: v2.0.66-rc1
+  - name: testflow/projects
+    newTag: v2.0.66-rc1
+  - name: testflow/runs
+    newTag: v2.0.66-rc1
+  - name: testflow/ai
+    newTag: v2.0.66-rc1
