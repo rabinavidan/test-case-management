@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Set
 from datetime import datetime, timedelta
@@ -1274,11 +1274,24 @@ static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    def _serve_index() -> HTMLResponse:
+        """`FileResponse` derives its ETag/Last-Modified from filesystem stat
+        info, not file content — on Vercel's build, index.html's mtime is
+        frozen to a fixed date across every deployment, so a browser that
+        already cached this page gets a false "304 Not Modified" on every
+        later deploy and is stuck on stale markup (e.g. missing a new
+        `<div id="view-...">` a newer app.js expects) until a hard refresh.
+        `HTMLResponse` skips that conditional-request machinery entirely, so
+        every request gets the real current file.
+        """
+        with open(os.path.join(static_dir, "index.html"), "r", encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
+
     @app.get("/", include_in_schema=False)
     async def serve_root():
-        return FileResponse(os.path.join(static_dir, "index.html"))
+        return _serve_index()
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
-        index = os.path.join(static_dir, "index.html")
-        return FileResponse(index)
+        return _serve_index()
