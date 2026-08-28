@@ -40,6 +40,7 @@ Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright —
 | **Paginated API** | Envelope `{items, total, page, page_size, total_pages}` | `GET /api/projects` |
 | **Environments** | Four-stage deployment pipeline (staging → regression → preprod → prod), each pinned to its own Kubernetes node — see [`k8s/`](k8s/) for the kustomize manifests and the in-app dashboard for live (simulated) node/pod health. Runs can be tagged with the environment they executed against. *(monolith only)* | `GET /api/environments` · `k8s/overlays/*` |
 | **Contact Us** | Public form (footer, no login required) — topic/email/phone/message, saved to the DB and emailed to the site owner via Resend or SMTP (configurable, see `.env.example`) | `POST /api/contact` |
+| **Log Center** | Admin-only dashboard over every request/response, unhandled server exception, and reported browser-side error — filter by level/source, free-text search. A global `window.onerror`/`unhandledrejection` hook reports client errors automatically. Self-pruned at 5,000 rows. | `GET /api/logs` · `POST /api/logs/client` |
 
 ---
 
@@ -146,6 +147,9 @@ GET    /api/auth/me
 
 GET    /api/environments                        # Staging/regression/preprod/prod health (monolith only)
 POST   /api/contact                             # Contact Us form (public) — saves + emails the site owner
+
+GET    /api/logs                                # Log Center (admin only) — filter by level/source, search
+POST   /api/logs/client                         # Reports a browser-side error (public, no auth)
 
 GET    /api/projects?page=1&page_size=50&search=
 POST   /api/projects

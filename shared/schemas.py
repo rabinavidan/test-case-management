@@ -203,6 +203,31 @@ class ContactCreate(BaseModel):
     description: str = Field(..., min_length=1, max_length=500)
 
 
+# ─── Log Center — admin-only viewer over server/client activity (monolith
+# only). Client error reports (POST /api/logs/client) are public, since a
+# logged-out visitor's browser can hit an error too. ────────────────────────
+
+class LogEntryResponse(BaseModel):
+    id: int
+    created_at: UTCDatetime
+    level: str
+    source: str
+    message: str
+    method: Optional[str] = None
+    path: Optional[str] = None
+    status_code: Optional[int] = None
+    duration_ms: Optional[int] = None
+    extra: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class ClientLogCreate(BaseModel):
+    message: str = Field(..., min_length=1, max_length=500)
+    stack: Optional[str] = Field(None, max_length=2000)
+    url: Optional[str] = Field(None, max_length=500)
+
+
 # ─── Stats / analytics ──────────────────────────────────────────────────────
 
 class ProjectStats(BaseModel):

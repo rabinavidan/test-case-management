@@ -394,6 +394,8 @@ async function router() {
     await renderUsers();
   } else if (parts[0] === "environments") {
     await renderEnvironments();
+  } else if (parts[0] === "logs" && isAdmin()) {
+    await renderLogs();
   } else {
     await renderProjects();
   }
@@ -3409,6 +3411,14 @@ function renderUserBadge(user) {
             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
         <span class="hidden sm:inline">Users</span>
+      </button>
+      <button onclick="navigate('logs')" title="Log Center" data-testid="logs-btn"
+        class="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors text-xs font-medium">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <span class="hidden sm:inline">Logs</span>
       </button>` : ""}
       <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
         ${escHtml(user.username[0].toUpperCase())}
@@ -3529,6 +3539,19 @@ async function submitAuth(e, mode) {
     btn.textContent = mode === "setup" ? "Create Admin Account" : "Sign in";
   }
 }
+
+// ─── Client-side error reporting (feeds the Log Center) ───────────────────────
+function reportClientError(message, stack) {
+  try {
+    fetch("/api/logs/client", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: String(message).slice(0, 500), stack: stack ? String(stack).slice(0, 2000) : null, url: location.href }),
+    }).catch(() => {});
+  } catch {}
+}
+window.addEventListener("error", (e) => reportClientError(e.message, e.error && e.error.stack));
+window.addEventListener("unhandledrejection", (e) => reportClientError(`Unhandled rejection: ${e.reason}`, e.reason && e.reason.stack));
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 window.addEventListener("hashchange", () => router());
@@ -3913,6 +3936,113 @@ function envCard(e) {
         </div>
       </div>
     </div>`;
+}
+
+// ─── Log Center ──────────────────────────────────────────────────────────────
+const logFilters = { level: "", source: "", search: "" };
+
+function logLevelCls(level) {
+  return level === "error" ? "bg-red-100 text-red-700"
+       : level === "warning" ? "bg-amber-100 text-amber-700"
+       :                       "bg-slate-100 text-slate-600";
+}
+
+async function renderLogs() {
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  const el = document.getElementById("view-logs");
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  document.getElementById("nav-new-btn").classList.add("hidden");
+
+  setBreadcrumb([
+    { label: "Projects", href: "projects" },
+    { label: "Log Center", href: "logs" },
+  ]);
+
+  await loadLogs();
+}
+
+async function loadLogs() {
+  const el = document.getElementById("view-logs");
+  const params = new URLSearchParams({ limit: "200" });
+  if (logFilters.level) params.set("level", logFilters.level);
+  if (logFilters.source) params.set("source", logFilters.source);
+  if (logFilters.search) params.set("search", logFilters.search);
+
+  let entries;
+  try {
+    entries = await GET(`/api/logs?${params.toString()}`);
+  } catch (e) {
+    el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
+    return;
+  }
+  if (!entries) return;
+
+  const errorCount = entries.filter(x => x.level === "error").length;
+  const warningCount = entries.filter(x => x.level === "warning").length;
+
+  el.innerHTML = `
+    <div class="fade-in space-y-4">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Log Center</h1>
+          <p class="text-sm text-slate-500 mt-0.5">${entries.length} shown (max 200) · <span class="text-red-600 font-medium">${errorCount} error</span> · <span class="text-amber-600 font-medium">${warningCount} warning</span></p>
+        </div>
+        <button onclick="loadLogs()" class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.13-5.36M20 15a9 9 0 01-14.13 5.36"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-slate-200 p-3">
+        <select id="log-f-level" onchange="logFilters.level=this.value; loadLogs()" class="${inputCls} w-auto text-sm">
+          <option value="">All levels</option>
+          <option value="error" ${logFilters.level === "error" ? "selected" : ""}>Error</option>
+          <option value="warning" ${logFilters.level === "warning" ? "selected" : ""}>Warning</option>
+          <option value="info" ${logFilters.level === "info" ? "selected" : ""}>Info</option>
+        </select>
+        <select id="log-f-source" onchange="logFilters.source=this.value; loadLogs()" class="${inputCls} w-auto text-sm">
+          <option value="">All sources</option>
+          <option value="server" ${logFilters.source === "server" ? "selected" : ""}>Server</option>
+          <option value="client" ${logFilters.source === "client" ? "selected" : ""}>Client (browser)</option>
+        </select>
+        <input id="log-f-search" value="${escHtml(logFilters.search)}" placeholder="Search message…"
+          onkeydown="if(event.key==='Enter'){logFilters.search=this.value; loadLogs();}"
+          class="${inputCls} flex-1 min-w-[160px] text-sm" />
+        <button onclick="logFilters.search=document.getElementById('log-f-search').value; loadLogs()"
+          class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">Search</button>
+      </div>
+      ${!entries.length ? `
+        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-400 text-sm">No log entries match these filters.</div>` : `
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-xs text-slate-400 uppercase tracking-wide">
+                <th class="px-4 py-2 font-medium">Time</th>
+                <th class="px-4 py-2 font-medium">Level</th>
+                <th class="px-4 py-2 font-medium">Source</th>
+                <th class="px-4 py-2 font-medium">Message</th>
+                <th class="px-4 py-2 font-medium">Status</th>
+                <th class="px-4 py-2 font-medium">Duration</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${entries.map(logRowHtml).join("")}
+            </tbody>
+          </table>
+        </div>`}
+    </div>`;
+}
+
+function logRowHtml(e) {
+  return `
+    <tr data-testid="log-row-${e.id}" class="hover:bg-slate-50">
+      <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">${formatDate(e.created_at)}</td>
+      <td class="px-4 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${logLevelCls(e.level)}">${escHtml(e.level)}</span></td>
+      <td class="px-4 py-2 text-xs text-slate-500">${escHtml(e.source)}</td>
+      <td class="px-4 py-2 text-slate-700 max-w-md truncate" title="${escHtml(e.extra || "")}">${escHtml(e.message)}</td>
+      <td class="px-4 py-2 text-xs text-slate-500">${e.status_code ?? "—"}</td>
+      <td class="px-4 py-2 text-xs text-slate-500">${e.duration_ms != null ? e.duration_ms + "ms" : "—"}</td>
+    </tr>`;
 }
 
 // ─── Analytics Dashboard ──────────────────────────────────────────────────────
