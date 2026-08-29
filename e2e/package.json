@@ -20,6 +20,6 @@
     "allure-commandline": "^2.32.0",
     "allure-playwright": "^3.0.0",
     "fast-check": "^4.9.0",
-    "typescript": "^5.0.0"
+    "typescript": "^7.0.2"
   }
 }
