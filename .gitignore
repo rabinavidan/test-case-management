@@ -11,6 +11,10 @@ build/
 .idea/
 allure-results/
 allure-report/
+.coverage
+coverage.json
+coverage.xml
+htmlcov/
 
 # Claude Code guidance files — kept locally, not pushed to PRs/main
 /*CLAUDE*.md
