@@ -10,7 +10,6 @@ import os
 import re
 
 import httpx as httpx_module
-import pytest
 from fastapi.testclient import TestClient
 
 from conftest import import_service_app, reset_db, mint_token

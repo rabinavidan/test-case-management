@@ -13,7 +13,7 @@ Run with:
   pytest tests/test_users_e2e.py --base-url=https://your-app.vercel.app -v
 """
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 from tests.e2e.pages import ProjectsPage
 from tests.e2e.pages.users_page import UsersPage
 from tests.e2e.logger import PWLogger

@@ -1,5 +1,6 @@
-import logging, os, random
-from datetime import datetime, timedelta
+import logging
+import os
+from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware

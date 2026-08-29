@@ -6,7 +6,9 @@ The routing table itself lives in routes.py as declarative data (see that
 module's docstring for why) — this file just resolves a matched service
 name to its actual URL and proxies the request.
 """
-import os, asyncio, logging
+import os
+import asyncio
+import logging
 from typing import Optional
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response
 from fastapi.middleware.cors import CORSMiddleware

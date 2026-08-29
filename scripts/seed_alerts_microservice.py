@@ -4,7 +4,8 @@ Usage:
     POSTGRES_URL=<your-neon-url> python scripts/seed_alerts_microservice.py
 Or run from the project root after setting the env var in your shell.
 """
-import os, sys
+import os
+import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from api.database import SessionLocal

@@ -108,7 +108,7 @@ class BasePage:
         self.page.wait_for_load_state("networkidle")
 
         if self.page.get_by_test_id("logout-btn").is_visible():
-            self.log.info(f"Already logged in, skipping login")
+            self.log.info("Already logged in, skipping login")
             return
 
         # Setup mode: app shows registration form automatically (no users in DB).

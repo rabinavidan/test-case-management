@@ -4,3 +4,12 @@ from .project_page import ProjectPage
 from .suite_page import SuitePage
 from .new_project_modal import NewProjectModal
 from .users_page import UsersPage
+
+__all__ = [
+    "BasePage",
+    "ProjectsPage",
+    "ProjectPage",
+    "SuitePage",
+    "NewProjectModal",
+    "UsersPage",
+]

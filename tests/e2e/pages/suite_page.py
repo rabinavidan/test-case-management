@@ -103,7 +103,7 @@ class SuitePage(BasePage):
 
     # ── Run view: record result ───────────────────────────────────────────────
     def record_result(self, tc_title: str, status: str, notes: str = ""):
-        self.view.locator(f"button", has_text="Record").first.click()
+        self.view.locator("button", has_text="Record").first.click()
         expect(self.modal_title).to_have_text("Record Result")
         self.page.locator(f"#rs-{status}").click()
         if notes:
