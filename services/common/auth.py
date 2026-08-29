@@ -15,9 +15,11 @@ from pydantic import BaseModel
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from .jwt import decode_token
+from .jwt import decode_token, validate_jwt_secret
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "testflow-dev-secret-change-in-production").encode()
+_jwt_secret = os.getenv("JWT_SECRET_KEY", "testflow-dev-secret-change-in-production")
+validate_jwt_secret(_jwt_secret, is_production=os.getenv("VERCEL_ENV") == "production")
+SECRET_KEY = _jwt_secret.encode()
 bearer = HTTPBearer(auto_error=False)
 
 

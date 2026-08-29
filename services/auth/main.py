@@ -1,8 +1,12 @@
 import logging
 import os
 import pathlib
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -44,6 +48,17 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(RequestIDMiddleware, logger=logger)
 
+# Rate limiting on auth endpoints — brute-force/credential-stuffing protection.
+# Disabled under the test suite (tests/conftest.py sets this) — see api/main.py
+# for why.
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=os.getenv("TESTFLOW_DISABLE_RATE_LIMIT") != "1",
+)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 
 @app.get("/health")
 def health():
@@ -62,7 +77,8 @@ def setup_status(db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=201)
-def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, body: schemas.UserRegister, db: Session = Depends(get_db)):
     if db.query(models.User).count() > 0:
         raise HTTPException(403, "Registration is closed. Contact your admin.")
     if len(body.password) < 6:
@@ -76,7 +92,8 @@ def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
-def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: schemas.UserLogin, db: Session = Depends(get_db)):
     from .auth import verify_password
     user = db.query(models.User).filter(models.User.username == body.username).first()
     if not user or not verify_password(body.password, user.hashed_password):

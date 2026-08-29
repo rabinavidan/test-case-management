@@ -10,7 +10,16 @@ Layer-specific fixtures live in each layer's own conftest.py:
   tests/e2e/      — Playwright browser fixtures live inline per test module
 """
 import logging
+import os
 import pathlib
+
+# Set before any test module imports api.main / services.auth.main, so the
+# rate limiter those modules construct at import time picks this up. Without
+# it, tests/contract's Schemathesis fuzzing of /api/auth/register and
+# /api/auth/login (many requests per operation, single test) and the
+# hundreds of register/login calls across tests/api and tests/services would
+# trip the same production brute-force limit.
+os.environ.setdefault("TESTFLOW_DISABLE_RATE_LIMIT", "1")
 
 _pw_log = logging.getLogger("pw.hook")
 

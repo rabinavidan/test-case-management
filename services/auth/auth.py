@@ -7,9 +7,11 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from .database import get_db
 from . import models
-from services.common.jwt import encode_token, decode_token
+from services.common.jwt import encode_token, decode_token, validate_jwt_secret
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "testflow-dev-secret-change-in-production").encode()
+_jwt_secret = os.getenv("JWT_SECRET_KEY", "testflow-dev-secret-change-in-production")
+validate_jwt_secret(_jwt_secret, is_production=os.getenv("VERCEL_ENV") == "production")
+SECRET_KEY = _jwt_secret.encode()
 TOKEN_TTL = 60 * 60 * 24 * 7
 
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")

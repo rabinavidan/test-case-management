@@ -15,7 +15,26 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from . import models
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "testflow-dev-secret-change-in-production").encode()
+INSECURE_JWT_SECRETS = {"testflow-dev-secret-change-in-production", "change-me-in-production"}
+
+
+def validate_jwt_secret(secret: str, is_production: bool) -> None:
+    """Refuse to start a production deployment with an unset/placeholder secret —
+    every token would be forgeable by anyone who reads this file on GitHub.
+    A no-op everywhere else (local dev, Docker Compose, tests) so the app still
+    runs without configuring a secret up front.
+    """
+    if is_production and secret in INSECURE_JWT_SECRETS:
+        raise RuntimeError(
+            "JWT_SECRET_KEY is unset or using an insecure default value in a production "
+            "deployment. Set a real secret in the Vercel project's Environment Variables "
+            "before deploying."
+        )
+
+
+_jwt_secret = os.getenv("JWT_SECRET_KEY", "testflow-dev-secret-change-in-production")
+validate_jwt_secret(_jwt_secret, is_production=os.getenv("VERCEL_ENV") == "production")
+SECRET_KEY = _jwt_secret.encode()
 ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 7 days
 
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
