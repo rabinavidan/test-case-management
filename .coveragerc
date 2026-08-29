@@ -1,0 +1,9 @@
+[run]
+source =
+    api
+    services
+    shared
+
+[report]
+precision = 1
+skip_empty = true

@@ -208,6 +208,11 @@ Four independent, feature-equivalent automation stacks drive the same app — sa
 225 pytest tests, 40+ Playwright TS specs, 35 REST Assured tests, and a JUnit 5/Playwright Java E2E suite —
 see the full breakdown below.
 
+**Coverage:** ~89% line coverage of `api/`, `services/`, and `shared/` from the pytest suite alone (unit + API +
+contract + services), measured with `pytest-cov` and enforced at an 85% floor in CI (`.github/workflows/test.yml`)
+— a PR that drops coverage below that fails the build. This doesn't count the additional exercise from the
+Playwright/REST Assured E2E suites, which run against a live deployment rather than in-process.
+
 ### Test types at a glance
 
 | Type | What it checks | Where |
@@ -220,6 +225,7 @@ see the full breakdown below.
 | **Java API** | Black-box HTTP tests against a running instance — no in-process shortcuts, same public `/api/*` surface as every other stack | `java-tests/` (JUnit 5 + REST Assured) |
 | **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
 | **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) · `allure-junit5` (Java) |
+| **Coverage** | Line coverage of `api/`, `services/`, `shared/` — ~89%, gated at an 85% floor | `pytest-cov` (`.coveragerc`), reported in the CI job summary and as a `coverage.json` artifact |
 
 225 pytest tests total (7 unit + 126 API + 33 contract operations + 59 services), plus 40+ Playwright E2E specs,
 35 JUnit 5/REST Assured API tests, and a JUnit 5/Playwright-Java E2E suite — four independent automation stacks

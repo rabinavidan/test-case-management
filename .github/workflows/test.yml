@@ -51,10 +51,19 @@ jobs:
           set +e
           python -m pytest tests/unit tests/api tests/contract tests/services -v \
             --json-report --json-report-file=report.json \
-            --alluredir=allure-results
+            --alluredir=allure-results \
+            --cov --cov-report=term-missing --cov-report=json:coverage.json --cov-fail-under=85
           exit_code=$?
           set -e
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.run_id }}
+          path: coverage.json
+          retention-days: 14
 
       - name: Write job summary
         if: always()
@@ -84,6 +93,19 @@ jobs:
             f"| **Total** | **{total}** |",
             f"| ⏱ Duration | {duration:.2f}s |",
             "",
+          ]
+          cov_path = pathlib.Path("coverage.json")
+          if cov_path.exists():
+            cov = json.loads(cov_path.read_text())["totals"]
+            pct = cov["percent_covered"]
+            cov_icon = "✅" if pct >= 85 else "❌"
+            lines += [
+              f"### {cov_icon} Coverage — {pct:.1f}% (threshold: 85%)",
+              f"{cov['covered_lines']} / {cov['num_statements']} statements covered "
+              f"across `api/`, `services/`, `shared/`.",
+              "",
+            ]
+          lines += [
             "### Test Results",
             "| Test | Result | Duration |",
             "|------|--------|----------|",
