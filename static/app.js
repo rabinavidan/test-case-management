@@ -427,7 +427,7 @@ async function loadSidebar() {
   const newProjBtn = document.getElementById("sidebar-new-project-btn");
   if (newProjBtn) newProjBtn.style.display = isAdmin() ? "" : "none";
   try {
-    const _pr = await GET("/api/projects");
+    const _pr = await GET("/api/projects?page_size=100");
     state.projects = _pr?.items ?? _pr ?? [];
     if (!state.projects.length) {
       ul.innerHTML = `<li class="px-4 py-3 text-sm text-slate-400 italic">No projects yet</li>`;
@@ -1449,14 +1449,13 @@ async function renderProjects() {
               <th class="w-16 px-3 py-3"></th>
             </tr>
           </thead>
-          <tbody id="proj-table-body">
-            ${state.projects.map(p => projectRow(p)).join("")}
-          </tbody>
+          <tbody id="proj-table-body"></tbody>
         </table>
         <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-400 text-sm">No projects match your filter.</div>
       </div>
+      <div id="proj-pagination" class="flex items-center justify-between flex-wrap gap-3 mt-3"></div>
     </div>`;
-  loadProjectStats(state.projects);
+  filterProjectTable();
 }
 
 async function loadProjectStats(projects) {
@@ -1531,7 +1530,15 @@ function projectRow(p) {
     </tr>`;
 }
 
-function filterProjectTable() {
+const PROJECTS_PAGE_SIZE = 5;
+let projectsPage = 1;
+
+function setProjectsPage(page) {
+  projectsPage = page;
+  filterProjectTable(false);
+}
+
+function filterProjectTable(resetPage = true) {
   const q = (document.getElementById("proj-search")?.value || "").toLowerCase();
   const sort = document.getElementById("proj-sort")?.value || "newest";
   let rows = [...state.projects];
@@ -1545,9 +1552,15 @@ function filterProjectTable() {
   else if (sort === "za") rows.sort((a,b) => b.name.localeCompare(a.name));
   else rows.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
+  if (resetPage) projectsPage = 1;
+  const totalPages = Math.max(1, Math.ceil(rows.length / PROJECTS_PAGE_SIZE));
+  projectsPage = Math.min(Math.max(1, projectsPage), totalPages);
+  const pageRows = rows.slice((projectsPage - 1) * PROJECTS_PAGE_SIZE, projectsPage * PROJECTS_PAGE_SIZE);
+
   const tbody = document.getElementById("proj-table-body");
   const empty = document.getElementById("proj-empty-filter");
   const countLabel = document.getElementById("proj-count-label");
+  const pagination = document.getElementById("proj-pagination");
   if (!tbody) return;
 
   if (!rows.length) {
@@ -1555,8 +1568,8 @@ function filterProjectTable() {
     empty.classList.remove("hidden");
   } else {
     empty.classList.add("hidden");
-    tbody.innerHTML = rows.map(p => projectRow(p)).join("");
-    loadProjectStats(rows);
+    tbody.innerHTML = pageRows.map(p => projectRow(p)).join("");
+    loadProjectStats(pageRows);
     // Re-apply selection state
     _selectedProjects.forEach(id => {
       const cb = document.getElementById(`pcheck-${id}`);
@@ -1566,6 +1579,19 @@ function filterProjectTable() {
     });
   }
   countLabel.textContent = `${rows.length} of ${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}`;
+
+  if (pagination) {
+    const rangeStart = rows.length === 0 ? 0 : (projectsPage - 1) * PROJECTS_PAGE_SIZE + 1;
+    const rangeEnd = Math.min(projectsPage * PROJECTS_PAGE_SIZE, rows.length);
+    pagination.innerHTML = !rows.length ? "" : `
+      <p class="text-xs text-slate-400">Showing ${rangeStart}–${rangeEnd} of ${rows.length} · Page ${projectsPage} of ${totalPages}</p>
+      <div class="flex items-center gap-2">
+        <button data-testid="proj-prev-btn" onclick="setProjectsPage(${projectsPage - 1})" ${projectsPage <= 1 ? "disabled" : ""}
+          class="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Previous</button>
+        <button data-testid="proj-next-btn" onclick="setProjectsPage(${projectsPage + 1})" ${projectsPage >= totalPages ? "disabled" : ""}
+          class="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Next</button>
+      </div>`;
+  }
 }
 
 function toggleSelectAllProjects(checked) {
@@ -3947,12 +3973,24 @@ function envCard(e) {
 }
 
 // ─── Log Center ──────────────────────────────────────────────────────────────
-const logFilters = { level: "", source: "", search: "" };
+const LOG_PAGE_SIZE = 25;
+const logFilters = { level: "", source: "", search: "", page: 1 };
 
 function logLevelCls(level) {
   return level === "error" ? "bg-red-100 text-red-700"
        : level === "warning" ? "bg-amber-100 text-amber-700"
        :                       "bg-slate-100 text-slate-600";
+}
+
+function setLogFilter(field, value) {
+  logFilters[field] = value;
+  logFilters.page = 1;
+  loadLogs();
+}
+
+function setLogPage(page) {
+  logFilters.page = page;
+  loadLogs();
 }
 
 async function renderLogs() {
@@ -3967,24 +4005,31 @@ async function renderLogs() {
     { label: "Log Center", href: "logs" },
   ]);
 
+  logFilters.page = 1;
   await loadLogs();
 }
 
 async function loadLogs() {
   const el = document.getElementById("view-logs");
-  const params = new URLSearchParams({ limit: "200" });
+  const params = new URLSearchParams({ page: String(logFilters.page), page_size: String(LOG_PAGE_SIZE) });
   if (logFilters.level) params.set("level", logFilters.level);
   if (logFilters.source) params.set("source", logFilters.source);
   if (logFilters.search) params.set("search", logFilters.search);
 
-  let entries;
+  let resp;
   try {
-    entries = await GET(`/api/logs?${params.toString()}`);
+    resp = await GET(`/api/logs?${params.toString()}`);
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
     return;
   }
-  if (!entries) return;
+  if (!resp) return;
+  const entries = resp.items ?? resp ?? [];
+  const total = resp.total ?? entries.length;
+  const page = resp.page ?? 1;
+  const totalPages = resp.total_pages ?? 1;
+  const rangeStart = total === 0 ? 0 : (page - 1) * LOG_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * LOG_PAGE_SIZE, total);
 
   const errorCount = entries.filter(x => x.level === "error").length;
   const warningCount = entries.filter(x => x.level === "warning").length;
@@ -3994,7 +4039,7 @@ async function loadLogs() {
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 class="text-2xl font-bold text-slate-800">Log Center</h1>
-          <p class="text-sm text-slate-500 mt-0.5">${entries.length} shown (max 200) · <span class="text-red-600 font-medium">${errorCount} error</span> · <span class="text-amber-600 font-medium">${warningCount} warning</span></p>
+          <p class="text-sm text-slate-500 mt-0.5">Showing ${rangeStart}–${rangeEnd} of ${total} · <span class="text-red-600 font-medium">${errorCount} error</span> · <span class="text-amber-600 font-medium">${warningCount} warning</span></p>
         </div>
         <button onclick="loadLogs()" class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.13-5.36M20 15a9 9 0 01-14.13 5.36"/></svg>
@@ -4002,21 +4047,21 @@ async function loadLogs() {
         </button>
       </div>
       <div class="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-slate-200 p-3">
-        <select id="log-f-level" onchange="logFilters.level=this.value; loadLogs()" class="${inputCls} w-auto text-sm">
+        <select id="log-f-level" onchange="setLogFilter('level', this.value)" class="${inputCls} w-auto text-sm">
           <option value="">All levels</option>
           <option value="error" ${logFilters.level === "error" ? "selected" : ""}>Error</option>
           <option value="warning" ${logFilters.level === "warning" ? "selected" : ""}>Warning</option>
           <option value="info" ${logFilters.level === "info" ? "selected" : ""}>Info</option>
         </select>
-        <select id="log-f-source" onchange="logFilters.source=this.value; loadLogs()" class="${inputCls} w-auto text-sm">
+        <select id="log-f-source" onchange="setLogFilter('source', this.value)" class="${inputCls} w-auto text-sm">
           <option value="">All sources</option>
           <option value="server" ${logFilters.source === "server" ? "selected" : ""}>Server</option>
           <option value="client" ${logFilters.source === "client" ? "selected" : ""}>Client (browser)</option>
         </select>
         <input id="log-f-search" value="${escHtml(logFilters.search)}" placeholder="Search message…"
-          onkeydown="if(event.key==='Enter'){logFilters.search=this.value; loadLogs();}"
+          onkeydown="if(event.key==='Enter'){setLogFilter('search', this.value);}"
           class="${inputCls} flex-1 min-w-[160px] text-sm" />
-        <button onclick="logFilters.search=document.getElementById('log-f-search').value; loadLogs()"
+        <button onclick="setLogFilter('search', document.getElementById('log-f-search').value)"
           class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">Search</button>
       </div>
       ${!entries.length ? `
@@ -4037,6 +4082,15 @@ async function loadLogs() {
               ${entries.map(logRowHtml).join("")}
             </tbody>
           </table>
+        </div>
+        <div class="flex items-center justify-between flex-wrap gap-3" data-testid="log-pagination">
+          <p class="text-xs text-slate-400">Page ${page} of ${totalPages}</p>
+          <div class="flex items-center gap-2">
+            <button data-testid="log-prev-btn" onclick="setLogPage(${page - 1})" ${page <= 1 ? "disabled" : ""}
+              class="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Previous</button>
+            <button data-testid="log-next-btn" onclick="setLogPage(${page + 1})" ${page >= totalPages ? "disabled" : ""}
+              class="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Next</button>
+          </div>
         </div>`}
     </div>`;
 }

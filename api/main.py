@@ -411,12 +411,13 @@ def submit_contact(body: schemas.ContactCreate, db: Session = Depends(get_db)):
     return {"detail": "Message sent"}
 
 
-@app.get("/api/logs", response_model=List[schemas.LogEntryResponse])
+@app.get("/api/logs", response_model=schemas.PaginatedLogs)
 def list_logs(
     level: Optional[str] = None,
     source: Optional[str] = None,
     search: Optional[str] = None,
-    limit: int = Query(200, le=500),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_admin),
 ):
@@ -427,7 +428,16 @@ def list_logs(
         q = q.filter(models.LogEntry.source == source)
     if search:
         q = q.filter(models.LogEntry.message.ilike(f"%{search}%"))
-    return q.order_by(models.LogEntry.created_at.desc()).limit(limit).all()
+    total = q.count()
+    items = q.order_by(models.LogEntry.created_at.desc()) \
+             .offset((page - 1) * page_size).limit(page_size).all()
+    return schemas.PaginatedLogs(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=max(1, (total + page_size - 1) // page_size),
+    )
 
 
 @app.post("/api/logs/client", status_code=201)
