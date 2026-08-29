@@ -61,6 +61,12 @@ jobs:
       - name: Start app (local runs only)
         if: steps.url.outputs.local == 'true'
         working-directory: .
+        env:
+          # Many specs authenticate independently in one run — enough to
+          # trip the 5/minute auth rate limit meant for real brute-force
+          # traffic, not a legitimate test suite. Only relevant here since
+          # the real deployment (BASE_URL set) is never rate-limit-disabled.
+          TESTFLOW_DISABLE_RATE_LIMIT: "1"
         run: |
           pip install -r requirements.txt
           uvicorn api.main:app --host 0.0.0.0 --port 8000 &
