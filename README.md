@@ -501,6 +501,12 @@ The gateway container is the only one that needs to be publicly exposed.
 
 ---
 
+## Contributing & Security
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup, the test/lint/coverage
+gates a PR needs to pass, and repo conventions. See [`SECURITY.md`](SECURITY.md)
+to report a vulnerability, and [`CHANGELOG.md`](CHANGELOG.md) for notable changes.
+
 ## License
 
 Copyright (c) 2026 Rabin Avidan. All rights reserved. This repository is public for

@@ -1,0 +1,67 @@
+version: 2
+
+updates:
+  # Monolith + test tooling (requirements.txt, requirements-test.txt)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Microservices — each has its own requirements.txt for its Docker image
+  - package-ecosystem: "pip"
+    directory: "/services/auth"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "pip"
+    directory: "/services/projects"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "pip"
+    directory: "/services/runs"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "pip"
+    directory: "/services/ai"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "pip"
+    directory: "/services/gateway"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  # Playwright/TypeScript E2E suite
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Java suites — REST Assured (API) and Playwright Java (E2E)
+  - package-ecosystem: "maven"
+    directory: "/java-tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "maven"
+    directory: "/java-e2e"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
+  # GitHub Actions workflow dependencies (actions/checkout, etc.)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
