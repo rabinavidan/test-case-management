@@ -16,6 +16,22 @@ import time
 
 from fastapi import HTTPException
 
+INSECURE_JWT_SECRETS = {"testflow-dev-secret-change-in-production", "change-me-in-production"}
+
+
+def validate_jwt_secret(secret: str, is_production: bool) -> None:
+    """Refuse to start a production deployment with an unset/placeholder secret —
+    every token would be forgeable by anyone who reads this file on GitHub.
+    A no-op everywhere else (local dev, Docker Compose, tests) so the app still
+    runs without configuring a secret up front.
+    """
+    if is_production and secret in INSECURE_JWT_SECRETS:
+        raise RuntimeError(
+            "JWT_SECRET_KEY is unset or using an insecure default value in a production "
+            "deployment. Set a real secret in the deployment's environment variables "
+            "before deploying."
+        )
+
 
 def _b64e(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()

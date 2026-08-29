@@ -40,6 +40,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Start app
+        env:
+          # The Java suite hits this server via real HTTP as true black-box
+          # tests, calling /api/auth/login repeatedly across many test
+          # classes in one run — enough to trip the 5/minute auth rate limit
+          # meant for real brute-force traffic, not a legitimate test suite.
+          TESTFLOW_DISABLE_RATE_LIMIT: "1"
         run: |
           uvicorn api.main:app --host 0.0.0.0 --port 8000 &
           for i in $(seq 1 20); do

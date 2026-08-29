@@ -2,6 +2,10 @@ from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from typing import List, Optional, Dict, Set
@@ -140,6 +144,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting on auth endpoints — brute-force/credential-stuffing protection.
+# In-memory storage is per-process, which is fine for a single-instance
+# deployment; a multi-instance deployment would need a shared backend
+# (e.g. Redis) for the limit to apply across processes. Disabled under the
+# test suite (tests/conftest.py sets this) since Schemathesis's fuzzing and
+# the sheer number of register/login calls across the suite would otherwise
+# trip the same limit real brute-force traffic is meant to hit.
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=os.getenv("TESTFLOW_DISABLE_RATE_LIMIT") != "1",
+)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
 @app.exception_handler(OverflowError)
@@ -422,7 +441,8 @@ def submit_client_log(body: schemas.ClientLogCreate, db: Session = Depends(get_d
 
 
 @app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=201)
-def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, body: schemas.UserRegister, db: Session = Depends(get_db)):
     """Bootstrap endpoint — only works when no users exist (creates the admin account)."""
     if db.query(models.User).count() > 0:
         raise HTTPException(status_code=403, detail="Registration is closed. Contact your admin.")
@@ -528,7 +548,8 @@ def debug_seed(db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
-def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == body.username).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")

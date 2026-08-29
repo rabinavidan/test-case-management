@@ -166,3 +166,45 @@ def test_token_for_deleted_user_rejected(auth_client):
 
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 401
+
+
+def test_login_rate_limited_after_repeated_attempts(client, monkeypatch):
+    """The rate limiter is disabled for the rest of the suite (tests/conftest.py) —
+    temporarily re-enable it here to prove the /api/auth/login wiring itself works.
+    """
+    import api.main as main_module
+
+    client.post("/api/auth/register", json={
+        "username": "ratelimited", "email": "ratelimited@example.com", "password": "secret",
+    })
+    monkeypatch.setattr(main_module.limiter, "enabled", True)
+    main_module.limiter.reset()
+
+    responses = [
+        client.post("/api/auth/login", json={"username": "ratelimited", "password": "wrong"})
+        for _ in range(6)
+    ]
+    main_module.limiter.reset()
+
+    assert [r.status_code for r in responses[:5]] == [401] * 5
+    assert responses[5].status_code == 429
+
+
+def test_register_rate_limited_after_repeated_attempts(client, monkeypatch):
+    import api.main as main_module
+
+    monkeypatch.setattr(main_module.limiter, "enabled", True)
+    main_module.limiter.reset()
+
+    responses = [
+        client.post("/api/auth/register", json={
+            "username": f"floodregister{i}", "email": f"flood{i}@example.com", "password": "secret",
+        })
+        for i in range(6)
+    ]
+    main_module.limiter.reset()
+
+    # First succeeds (201), the rest are blocked by "Registration is closed" (403)
+    # once an admin exists — either way, none of the first 5 should be rate limited.
+    assert all(r.status_code in (201, 403) for r in responses[:5])
+    assert responses[5].status_code == 429
