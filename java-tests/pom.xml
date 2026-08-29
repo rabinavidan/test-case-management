@@ -21,7 +21,7 @@
 
     <junit.version>5.10.2</junit.version>
     <restassured.version>5.4.0</restassured.version>
-    <assertj.version>3.25.3</assertj.version>
+    <assertj.version>3.27.7</assertj.version>
     <allure.version>2.25.0</allure.version>
     <aspectj.version>1.9.21</aspectj.version>
   </properties>
