@@ -2639,6 +2639,14 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatDateTime(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+}
+
 // ─── Alerts Microservice architecture diagram ────────────────────────────────
 function alertsArchDiagram() {
   // Coloured component box
@@ -4036,7 +4044,7 @@ async function loadLogs() {
 function logRowHtml(e) {
   return `
     <tr data-testid="log-row-${e.id}" class="hover:bg-slate-50">
-      <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">${formatDate(e.created_at)}</td>
+      <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">${formatDateTime(e.created_at)}</td>
       <td class="px-4 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${logLevelCls(e.level)}">${escHtml(e.level)}</span></td>
       <td class="px-4 py-2 text-xs text-slate-500">${escHtml(e.source)}</td>
       <td class="px-4 py-2 text-slate-700 max-w-md truncate" title="${escHtml(e.extra || "")}">${escHtml(e.message)}</td>
