@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_list_logs_requires_admin(client, executor_client):

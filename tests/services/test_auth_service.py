@@ -128,6 +128,7 @@ def test_executor_cannot_manage_users(client):
     exec_res = client.post("/api/users", json={
         "username": "exec1", "email": "exec1@example.com", "password": "execpass1",
     }, headers=admin_headers)
+    assert exec_res.status_code == 201
     exec_login = client.post("/api/auth/login", json={"username": "exec1", "password": "execpass1"})
     exec_headers = {"Authorization": f"Bearer {exec_login.json()['access_token']}"}
 

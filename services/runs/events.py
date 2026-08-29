@@ -16,7 +16,9 @@ without the redis container) behaves exactly as before this existed - it
 just won't fan out to replicas it can't reach any other way either.
 """
 import asyncio
-import os, json, logging
+import os
+import json
+import logging
 from typing import Awaitable, Callable
 
 import redis

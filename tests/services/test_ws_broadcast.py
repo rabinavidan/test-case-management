@@ -9,7 +9,6 @@ import asyncio
 import json
 import sys
 
-import pytest
 
 from conftest import import_service_app
 from services.runs import events

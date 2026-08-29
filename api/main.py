@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Query, Request
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from typing import List, Optional, Dict, Set
 from datetime import datetime, timedelta
 import os
@@ -12,8 +13,11 @@ import pathlib
 import json
 import time
 import logging
-import asyncio
 import traceback
+
+from .database import engine, get_db, Base
+from . import models, schemas
+from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
 
 # ─── Structured logging setup ────────────────────────────────────────────────
 logging.basicConfig(
@@ -23,12 +27,6 @@ logging.basicConfig(
 logger = logging.getLogger("testflow")
 
 VERSION = pathlib.Path(__file__).parent.parent.joinpath("VERSION").read_text().strip()
-
-from sqlalchemy.exc import OperationalError
-
-from .database import engine, get_db, Base
-from . import models, schemas
-from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
 
 
 def _with_db_retry(func, attempts=3, base_delay=0.5):
@@ -286,10 +284,10 @@ def _simulate_environment_health(key: str) -> dict:
     desired = _ENVIRONMENT_DESIRED_PODS.get(key, 2)
     healthy_bias = 0.97 if key in ("prod", "preprod") else 0.9
     ready = desired if rnd.random() < healthy_bias else max(0, desired - rnd.randint(1, 2))
-    status = "healthy" if ready == desired else ("degraded" if ready > 0 else "down")
+    health_status = "healthy" if ready == desired else ("degraded" if ready > 0 else "down")
     load_bias = 15 if key == "prod" else 0
     return {
-        "status": status,
+        "status": health_status,
         "pods_ready": ready,
         "pods_desired": desired,
         "cpu_pct": round(rnd.uniform(15, 45) + load_bias, 1),
@@ -1177,7 +1175,7 @@ def _seed_demo_runs(db, project_id):
         db.flush()
         executed = datetime.utcnow() - timedelta(minutes=random.randint(5, 60))
         for tc in cases:
-            status = random.choices(
+            result_status = random.choices(
                 ["pass", "pass", "pass", "fail", "skip"],
                 weights=[60, 10, 10, 15, 5],
                 k=1,
@@ -1185,7 +1183,7 @@ def _seed_demo_runs(db, project_id):
             result = models.TestResult(
                 run_id=run.id,
                 testcase_id=tc.id,
-                status=status,
+                status=result_status,
                 executed_at=executed,
             )
             db.add(result)
@@ -1211,9 +1209,9 @@ def seed_demo_alerts_microservice(db: Session = Depends(get_db), _: models.User 
         )
         db.add(suite)
         db.flush()
-        for title, status, priority in cases:
+        for title, case_status, priority in cases:
             db.add(models.TestCase(suite_id=suite.id, title=title,
-                                   status=status, priority=priority))
+                                   status=case_status, priority=priority))
 
     db.flush()
     _seed_demo_runs(db, project.id)
@@ -1320,9 +1318,9 @@ def seed_demo_testflow(db: Session = Depends(get_db), _: models.User = Depends(g
         )
         db.add(suite)
         db.flush()
-        for title, status, priority in cases:
+        for title, case_status, priority in cases:
             db.add(models.TestCase(suite_id=suite.id, title=title,
-                                   status=status, priority=priority))
+                                   status=case_status, priority=priority))
 
     db.flush()
     _seed_demo_runs(db, project.id)
@@ -1420,9 +1418,9 @@ def seed_demo_playwright(db: Session = Depends(get_db), _: models.User = Depends
         )
         db.add(suite)
         db.flush()
-        for title, status, priority in cases:
+        for title, case_status, priority in cases:
             db.add(models.TestCase(suite_id=suite.id, title=title,
-                                   status=status, priority=priority))
+                                   status=case_status, priority=priority))
 
     db.flush()
     _seed_demo_runs(db, project.id)

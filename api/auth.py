@@ -1,5 +1,4 @@
 """Minimal JWT (HS256) + bcrypt auth — no cryptography/cffi dependency."""
-from datetime import datetime, timedelta
 from typing import Optional
 import os
 import base64

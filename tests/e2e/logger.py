@@ -13,7 +13,6 @@ Usage:
 """
 import logging
 import sys
-from datetime import datetime
 
 
 # ── Setup root logger once ────────────────────────────────────────────────────
