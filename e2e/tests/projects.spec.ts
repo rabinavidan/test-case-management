@@ -102,6 +102,49 @@ test.describe('Projects', () => {
     });
   });
 
+  test('paginates the projects list at 5 rows per page', async ({ page, request, authToken }) => {
+    const base = uniqueName('Page');
+    const names = Array.from({ length: 6 }, (_, i) => `${base}_${i + 1}`);
+
+    await test.step('Create 6 projects via API (sequentially, so ordering is deterministic)', async () => {
+      for (const name of names) {
+        const res = await request.post('/api/projects', {
+          data: { name, description: 'Pagination test' },
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        expect(res.ok()).toBeTruthy();
+        const body = await res.json();
+        createdProjectIds.push(body.id);
+      }
+    });
+
+    const projectsPage = new ProjectsPage(page);
+    // Scoped to table rows, not page.getByText — the sidebar independently
+    // lists every project (unpaginated, by design), so an unscoped text
+    // search would always find a "hidden" row there too.
+    const rowFor = (name: string) => projectsPage.getProjectCards().filter({ hasText: name });
+
+    await test.step('Navigate to projects list', async () => {
+      await projectsPage.goto();
+    });
+
+    await test.step('Page 1 shows at most 5 rows, and the oldest of the 6 is not on it', async () => {
+      await expect(rowFor(names[5])).toBeVisible({ timeout: 10000 });
+      await expect(projectsPage.getProjectCards()).toHaveCount(5);
+      await expect(rowFor(names[0])).not.toBeVisible();
+    });
+
+    await test.step('Next reveals the oldest of the 6', async () => {
+      await page.getByTestId('proj-next-btn').click();
+      await expect(rowFor(names[0])).toBeVisible({ timeout: 5000 });
+    });
+
+    await test.step('Previous returns to the first page', async () => {
+      await page.getByTestId('proj-prev-btn').click();
+      await expect(rowFor(names[5])).toBeVisible({ timeout: 5000 });
+    });
+  });
+
   test('shows project stats after creation', async ({ page, request, authToken }) => {
     const projectName = uniqueName('Stats Project');
     let projectId: number;

@@ -39,6 +39,7 @@ from shared.schemas import (
     ContactCreate,
     LogEntryResponse,
     ClientLogCreate,
+    PaginatedLogs,
 )
 from pydantic import BaseModel
 
@@ -56,6 +57,7 @@ __all__ = [
     "ContactCreate",
     "LogEntryResponse",
     "ClientLogCreate",
+    "PaginatedLogs",
 ]
 
 

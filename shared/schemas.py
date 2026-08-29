@@ -228,6 +228,14 @@ class ClientLogCreate(BaseModel):
     url: Optional[str] = Field(None, max_length=500)
 
 
+class PaginatedLogs(BaseModel):
+    items: List[LogEntryResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 # ─── Stats / analytics ──────────────────────────────────────────────────────
 
 class ProjectStats(BaseModel):
