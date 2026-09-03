@@ -17,6 +17,15 @@ coverage.json
 coverage.xml
 htmlcov/
 
+# Terraform (terraform/) — local provider cache/plugins and any real
+# tfvars/plan output; .terraform.lock.hcl IS committed (pins provider versions).
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.auto.tfvars
+terraform.tfvars
+
 # Claude Code guidance files — kept locally, not pushed to PRs/main
 /*CLAUDE*.md
 .claude/**/*.md
