@@ -156,6 +156,34 @@ jobs:
         if: always()
         run: exit ${{ steps.pytest.outputs.exit_code }}
 
+  infra-tests:
+    name: Infra (k8s manifests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install kubectl
+        run: |
+          curl -sSL -o kubectl "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Run k8s overlay tests (kustomize render + GCP wiring checks)
+        run: python -m pytest tests/infra -v
+
   e2e-tests:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest

@@ -39,19 +39,38 @@ kubectl kustomize k8s/overlays/staging      # render, sanity-check before applyi
 kubectl apply -k k8s/overlays/staging       # apply to a real cluster
 ```
 
+## GKE Autopilot + Cloud SQL + Memorystore (Milestone 2)
+
+Every overlay opts into `components/gcp-cloudsql-memorystore/` (a kustomize
+[Component](https://kubectl.docs.kubernetes.io/guides/config_management/components/)),
+which — on top of `base/` — points every image at Artifact Registry, swaps
+the in-cluster `db`/`redis` for Cloud SQL (via a Cloud SQL Auth Proxy
+sidecar on `auth`/`projects`/`runs`, authenticated through Workload Identity
+— no static service-account key) and Memorystore. See
+`deploy/gcp/gke_images.py` for building/pushing the 5 service images, and
+`deploy/gcp/README.md` for the full GKE walkthrough. `tests/infra/` renders
+all four overlays with the real `kubectl kustomize` binary in CI and checks
+this wiring.
+
 ## What's illustrative here
 
 This app itself runs on Vercel (see root `vercel.json`), not on a live
 Kubernetes cluster — these manifests are a self-contained reference
 deployment for the stack in `docker-compose.microservices.yml`, aimed at a
-real target cluster (a `node-staging-1`-labeled node pool, etc.), not
-something this repo's CI applies anywhere. Two things you'd replace before
-using them for real:
+real target cluster (a `node-staging-1`-labeled node pool, a real GKE
+Autopilot cluster, etc.), not something this repo's CI applies anywhere.
+Things you'd replace before using them for real:
 
 - **Secrets** (`base/secret.yaml`, merged per-overlay via `secretGenerator`)
   are committed placeholders. Point a secret manager (Sealed Secrets,
-  External Secrets Operator, Vault) at each namespace instead.
+  External Secrets Operator, Vault, or GCP Secret Manager per
+  `deploy/gcp/secrets.py`) at each namespace instead.
 - **Image tags** (`staging`/`regression` rolling, `preprod`/`prod` pinned
   release tags) assume a CI pipeline that builds and pushes
   `testflow/{gateway,auth,projects,runs,ai}` and bumps the overlay's
   `images:` tag on promotion — that pipeline isn't part of this repo.
+- **GCP placeholders** (`PROJECT_ID`, `REGION`, `CLOUDSQL_INSTANCE`,
+  `MEMORYSTORE_HOST`, `WORKLOAD_IDENTITY_GSA`) in the images list and in
+  `components/gcp-cloudsql-memorystore/` are literal strings, not real
+  values — `kubectl kustomize` renders them as-is; substitute your real
+  project's values before `kubectl apply -k`.

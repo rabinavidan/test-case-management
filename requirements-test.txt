@@ -11,3 +11,5 @@ schemathesis==3.39.16
 # Only used by tests/services/ (the microservices layer's runs service imports
 # it at module load, whether or not a Redis is actually reachable in CI).
 redis==5.2.1
+# Only used by tests/infra/ to parse `kubectl kustomize` output.
+PyYAML==6.0.1
