@@ -1,0 +1,79 @@
+# Milestone 2 (GKE Autopilot) — swaps the in-cluster db/redis (base/db.yaml,
+# base/redis.yaml) for Cloud SQL (via the Cloud SQL Auth Proxy sidecar,
+# Workload Identity-authenticated) and Memorystore, and repoints every image
+# at Artifact Registry. Opt in from an overlay with:
+#
+#   components:
+#     - ../../components/gcp-cloudsql-memorystore
+#
+# Placeholders to replace before use — see k8s/README.md:
+#   PROJECT_ID, REGION, CLOUDSQL_INSTANCE, MEMORYSTORE_HOST,
+#   WORKLOAD_IDENTITY_GSA
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  # In-cluster Postgres/Redis are replaced by Cloud SQL + Memorystore below.
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: db
+      $patch: delete
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: db
+      $patch: delete
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis
+      $patch: delete
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: redis
+      $patch: delete
+
+  # Cloud SQL Auth Proxy sidecar + its Workload Identity-bound service account,
+  # on every deployment that talks to Postgres (auth, projects, runs).
+  - target:
+      kind: Deployment
+      name: "auth|projects|runs"
+    patch: |-
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: cloudsql-proxy
+      - op: add
+        path: /spec/template/spec/containers/-
+        value:
+          name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.0
+          args:
+            - --structured-logs
+            - --auto-iam-authn
+            - "PROJECT_ID:REGION:CLOUDSQL_INSTANCE"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { cpu: 100m, memory: 128Mi }
+
+resources:
+  - service-account.yaml
+
+# Memorystore Redis, replacing the in-cluster redis: Service DNS name.
+configMapGenerator:
+  - name: testflow-config
+    behavior: merge
+    literals:
+      - REDIS_URL=redis://MEMORYSTORE_HOST:6379
+
+# Artifact Registry image names are set per-overlay (each overlay's own
+# `images:` already pins a per-environment tag — see its `newName` +
+# `newTag` pair) rather than here, so a single images transformer sets both
+# in one pass instead of two that could apply out of order.

@@ -8,6 +8,12 @@ resources:
   - namespace.yaml
   - ingress.yaml
 
+# GKE Autopilot + Cloud SQL + Memorystore wiring (Milestone 2) — see
+# k8s/components/gcp-cloudsql-memorystore/kustomization.yaml for what this
+# swaps in place of the in-cluster db/redis from base/.
+components:
+  - ../../components/gcp-cloudsql-memorystore
+
 # Every service in this environment is scheduled onto its own dedicated node —
 # see the in-app Environments dashboard (GET /api/environments), which reports
 # this same node_name for the "Staging" card.
@@ -46,12 +52,17 @@ secretGenerator:
 
 images:
   - name: testflow/gateway
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/gateway
     newTag: staging
   - name: testflow/auth
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/auth
     newTag: staging
   - name: testflow/projects
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/projects
     newTag: staging
   - name: testflow/runs
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/runs
     newTag: staging
   - name: testflow/ai
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/ai
     newTag: staging

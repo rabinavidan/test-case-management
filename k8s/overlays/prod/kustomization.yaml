@@ -8,6 +8,12 @@ resources:
   - namespace.yaml
   - ingress.yaml
 
+# GKE Autopilot + Cloud SQL + Memorystore wiring (Milestone 2) — see
+# k8s/components/gcp-cloudsql-memorystore/kustomization.yaml for what this
+# swaps in place of the in-cluster db/redis from base/.
+components:
+  - ../../components/gcp-cloudsql-memorystore
+
 patches:
   - target:
       kind: Deployment
@@ -44,12 +50,17 @@ secretGenerator:
 # Prod pins the exact version that passed preprod — never `:latest`.
 images:
   - name: testflow/gateway
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/gateway
     newTag: v2.0.66
   - name: testflow/auth
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/auth
     newTag: v2.0.66
   - name: testflow/projects
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/projects
     newTag: v2.0.66
   - name: testflow/runs
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/runs
     newTag: v2.0.66
   - name: testflow/ai
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/ai
     newTag: v2.0.66
