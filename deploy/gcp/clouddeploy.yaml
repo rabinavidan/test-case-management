@@ -1,0 +1,61 @@
+# Milestone 3 (GCP DevOps plan) — Cloud Deploy delivery pipeline: promotes a
+# release built by cloudbuild.yaml through the same four environments as
+# k8s/overlays/ (staging -> regression -> preprod -> prod), gated by a
+# manual approval before prod.
+#
+# Apply with: gcloud deploy apply --file=deploy/gcp/clouddeploy.yaml --region=REGION
+# Requires each target's GKE cluster (see k8s/README.md) to already exist.
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: testflow-pipeline
+description: TestFlow microservices — staging -> regression -> preprod -> prod
+serialPipeline:
+  stages:
+    - targetId: staging
+      profiles: ["staging"]
+    - targetId: regression
+      profiles: ["regression"]
+    - targetId: preprod
+      profiles: ["preprod"]
+    - targetId: prod
+      profiles: ["prod"]
+      strategy:
+        standard:
+          verify: false
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: staging
+description: testflow-staging namespace on the GKE Autopilot cluster
+gke:
+  cluster: projects/PROJECT_ID/locations/REGION/clusters/testflow-gke
+requireApproval: false
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: regression
+description: testflow-regression namespace on the GKE Autopilot cluster
+gke:
+  cluster: projects/PROJECT_ID/locations/REGION/clusters/testflow-gke
+requireApproval: false
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: preprod
+description: testflow-preprod namespace on the GKE Autopilot cluster
+gke:
+  cluster: projects/PROJECT_ID/locations/REGION/clusters/testflow-gke
+requireApproval: false
+---
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: prod
+description: testflow-prod namespace on the GKE Autopilot cluster — gated
+gke:
+  cluster: projects/PROJECT_ID/locations/REGION/clusters/testflow-gke
+requireApproval: true

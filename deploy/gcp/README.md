@@ -1,4 +1,4 @@
-# GCP DevOps Milestones 1-2 — Cloud Run, then GKE Autopilot
+# GCP DevOps Milestones 1-3 — Cloud Run, GKE Autopilot, then CI/CD
 
 Ships the monolith (`Dockerfile` at repo root) to a live Cloud Run URL,
 backed by Cloud SQL (PostgreSQL 16) and Secret Manager. Tracks
@@ -132,4 +132,58 @@ kubectl logs -n testflow-staging deploy/auth -c cloud-sql-proxy   # confirm the 
 # Graceful degradation: temporarily point Memorystore's firewall rule away from
 # the cluster (or scale the instance down) and confirm the gateway still serves
 # (runs pub/sub degrades, the rest of the app doesn't) — see runs/events.py.
+```
+
+---
+
+## Milestone 3 — CI/CD the GCP way
+
+Automates build -> test -> push -> promote with `cloudbuild.yaml` (repo
+root) and Cloud Deploy (`deploy/gcp/clouddeploy.yaml` +
+`deploy/gcp/skaffold.yaml`), promoting one release through the same four
+environments as `k8s/overlays/`, with a manual approval gate before prod.
+`tests/unit/test_gcp_cicd_config.py` parses and structurally validates all
+three config files (coverage gate present, correct stage order, approval
+only on prod, a profile/artifact per service) — it doesn't call any GCP
+API, so it runs in this repo's own GitHub Actions CI on every PR that
+touches these files.
+
+### One-time setup
+
+```bash
+# Cloud Build trigger — fires cloudbuild.yaml on push to main and on PR
+gcloud builds triggers create github \
+  --repo-name=test-case-management --repo-owner=rabinavidan \
+  --branch-pattern="^main$" --build-config=cloudbuild.yaml \
+  --name=testflow-main
+gcloud builds triggers create github \
+  --repo-name=test-case-management --repo-owner=rabinavidan \
+  --pull-request-pattern=".*" --build-config=cloudbuild.yaml \
+  --name=testflow-pr
+
+# Cloud Deploy pipeline + its 4 targets (needs the GKE cluster from Milestone 2)
+gcloud deploy apply --file=deploy/gcp/clouddeploy.yaml --region=REGION
+```
+
+Substitute `PROJECT_ID`/`REGION` in `deploy/gcp/clouddeploy.yaml` first (same placeholders as Milestone 2).
+
+### Trigger a run and promote
+
+```bash
+# A push to main (or `gcloud builds submit --config=cloudbuild.yaml`) runs
+# lint -> test (85% coverage gate) -> build -> push for all 5 images.
+
+# Kick off a release, deploying to the first target (staging) automatically:
+gcloud deploy releases create testflow-$(git rev-parse --short HEAD) \
+  --delivery-pipeline=testflow-pipeline --region=REGION \
+  --source=deploy/gcp \
+  --images=testflow/gateway=REGION-docker.pkg.dev/PROJECT_ID/testflow/gateway:$(git rev-parse --short HEAD),testflow/auth=...,testflow/projects=...,testflow/runs=...,testflow/ai=...
+
+# Promote through regression -> preprod once each stage looks good:
+gcloud deploy releases promote --delivery-pipeline=testflow-pipeline --region=REGION
+
+# prod requires approval (clouddeploy.yaml's requireApproval: true) —
+# approve explicitly:
+gcloud deploy rollouts approve ROLLOUT_ID \
+  --delivery-pipeline=testflow-pipeline --release=RELEASE_ID --region=REGION
 ```

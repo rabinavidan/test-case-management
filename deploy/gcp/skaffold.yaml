@@ -1,0 +1,36 @@
+# Milestone 3 (GCP DevOps plan) — Skaffold config Cloud Deploy uses to render
+# + deploy each stage of clouddeploy.yaml's pipeline. One profile per
+# environment, each pointing at the matching k8s/overlays/<env> (the same
+# overlays Milestone 2 wired to Artifact Registry + Cloud SQL + Memorystore).
+#
+# Images are built by cloudbuild.yaml, not by Skaffold itself — `gcloud
+# deploy releases create` passes their $SHORT_SHA-tagged digests in via
+# --images, matched here by artifact name.
+apiVersion: skaffold/v4beta7
+kind: Config
+metadata:
+  name: testflow
+build:
+  artifacts:
+    - image: testflow/gateway
+    - image: testflow/auth
+    - image: testflow/projects
+    - image: testflow/runs
+    - image: testflow/ai
+profiles:
+  - name: staging
+    deploy:
+      kustomize:
+        paths: ["../../k8s/overlays/staging"]
+  - name: regression
+    deploy:
+      kustomize:
+        paths: ["../../k8s/overlays/regression"]
+  - name: preprod
+    deploy:
+      kustomize:
+        paths: ["../../k8s/overlays/preprod"]
+  - name: prod
+    deploy:
+      kustomize:
+        paths: ["../../k8s/overlays/prod"]

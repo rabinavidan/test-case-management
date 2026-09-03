@@ -1,0 +1,74 @@
+# Milestone 3 (GCP DevOps plan) — Cloud Build config: install -> lint -> test
+# (with the same 85% coverage floor as .github/workflows/test.yml) -> build +
+# push all 5 microservice images -> hand off to Cloud Deploy for staging.
+#
+# Wire this up with a Cloud Build trigger on the GitHub repo (push to main
+# and on PR) — see deploy/gcp/README.md. Not run by this repo's own CI
+# (GitHub Actions already covers lint/test on every PR); this file is what a
+# Cloud Build trigger in a real GCP project would execute instead/in
+# addition, so the coverage gate holds on the GCP delivery path too.
+substitutions:
+  _REGION: us-central1
+
+steps:
+  - id: install
+    name: python:3.11-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        pip install --no-cache-dir -r requirements.txt -r requirements-test.txt
+
+  - id: lint
+    name: python:3.11-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        pip install --no-cache-dir ruff && ruff check .
+    waitFor: ["install"]
+
+  - id: test
+    name: python:3.11-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        pip install --no-cache-dir -r requirements.txt -r requirements-test.txt
+        python -m pytest tests/unit tests/api tests/contract tests/services \
+          --cov --cov-report=term-missing --cov-fail-under=85
+    waitFor: ["install"]
+
+  # Build + push every service image, tagged with the commit SHA so Cloud
+  # Deploy (clouddeploy.yaml/skaffold.yaml) promotes an exact, traceable
+  # artifact through staging -> regression -> preprod -> prod.
+  - id: build-gateway
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/gateway:$SHORT_SHA", "services/gateway"]
+    waitFor: ["lint", "test"]
+  - id: build-auth
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/auth:$SHORT_SHA", "services/auth"]
+    waitFor: ["lint", "test"]
+  - id: build-projects
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/projects:$SHORT_SHA", "services/projects"]
+    waitFor: ["lint", "test"]
+  - id: build-runs
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/runs:$SHORT_SHA", "services/runs"]
+    waitFor: ["lint", "test"]
+  - id: build-ai
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/ai:$SHORT_SHA", "services/ai"]
+    waitFor: ["lint", "test"]
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/gateway:$SHORT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/auth:$SHORT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/projects:$SHORT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/runs:$SHORT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/testflow/ai:$SHORT_SHA"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
