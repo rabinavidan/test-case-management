@@ -11,6 +11,7 @@ build/
 .idea/
 allure-results/
 allure-report/
+test-results/
 .coverage
 coverage.json
 coverage.xml

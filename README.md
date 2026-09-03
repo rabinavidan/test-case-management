@@ -246,6 +246,7 @@ tests — see [below](#java--rest-assured-suite).
 | Page Object Model | `e2e/pages/*.page.ts` | `tests/e2e/pages/*_page.py` | `java-e2e/.../pages/*.java` |
 | Auth strategy | fixture-based token injection (`fixtures/auth.fixture.ts`) + a dedicated UI modal spec (`login.spec.ts`) | page-object login flow (`test_login_e2e.py`) | token injection (`BaseTest.signInAs`) + a dedicated UI modal spec (`LoginTest`) |
 | Structured step logging | `logger.ts` (`log.step/action/assert`) | `logger.py` (`PWLogger`) | — |
+| Failure diagnostics | screenshot + video + trace, only-on-failure (`playwright.config.ts`) | screenshot + video + trace, only-on-failure (`pytest.ini` `addopts`) | screenshot + video + trace, only-on-failure (`FailureArtifactsExtension`, [details](java-e2e/README.md#failure-diagnostics-screenshot--video--trace)) |
 | CI workflow | `.github/workflows/pw-ts.yml` — every PR / push to `main` touching `e2e/`, `api/`, `static/` | `.github/workflows/test.yml`, `pw-scheduled.yml`, `pw-regression.yml` | `.github/workflows/java-e2e-tests.yml` — every PR / push to `main` touching `java-e2e/`, `api/`, `static/` |
 
 The TypeScript and Python stacks get equal billing below — same depth of detail, same structure — since each

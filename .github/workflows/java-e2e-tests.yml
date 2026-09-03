@@ -139,6 +139,18 @@ jobs:
               f.write("\n".join(lines))
           EOF
 
+      - name: Upload failure screenshots/videos/traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-e2e-failure-artifacts-${{ github.run_id }}
+          path: |
+            java-e2e/target/test-results/*.png
+            java-e2e/target/test-results/*.webm
+            java-e2e/target/test-results/*-trace.zip
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Generate Allure report
         if: always()
         working-directory: java-e2e
