@@ -1,7 +1,8 @@
 # GCP DevOps Milestones 1-3 — Cloud Run, GKE Autopilot, then CI/CD
 
 > Milestone 4 (Terraform — provisioning everything below as code) lives in
-> [`terraform/`](../../terraform/README.md), not here.
+> [`terraform/`](../../terraform/README.md), not here. Milestone 5
+> (observability & hardening) is below.
 
 Ships the monolith (`Dockerfile` at repo root) to a live Cloud Run URL,
 backed by Cloud SQL (PostgreSQL 16) and Secret Manager. Tracks
@@ -190,3 +191,71 @@ gcloud deploy releases promote --delivery-pipeline=testflow-pipeline --region=RE
 gcloud deploy rollouts approve ROLLOUT_ID \
   --delivery-pipeline=testflow-pipeline --release=RELEASE_ID --region=REGION
 ```
+
+---
+
+## Milestone 5 — Observability & hardening (stretch)
+
+### Structured logging (Cloud Logging)
+
+Every service (the monolith's `api/main.py` and, as of this milestone, all
+5 microservices via `services/common/logging_config.py`) logs one JSON
+line per request (`time`, `level`, `service`, `msg` — `msg` carries the
+`request_id` from `services/common/request_id.py`, e.g.
+`GET /docs 200 5.0ms request_id=...`). Cloud Logging auto-detects the JSON
+payload; no `google-cloud-logging` client or log router config is needed
+for Cloud Run or GKE — both already ship stdout/stderr to Cloud Logging.
+Verify after deploying:
+
+```bash
+gcloud logging read 'resource.type="cloud_run_revision" jsonPayload.service!=""' --limit=5 --format=json
+```
+
+### Monitoring dashboard, alerting, uptime check, budget
+
+All four are Terraform-managed — see `terraform/modules/monitoring/`:
+
+- **Dashboard** (`dashboard.json`): request latency (Cloud Run), 5xx error
+  rate, GKE pod restart count, and the uptime check's pass rate.
+- **Alerting**: `cloud_run_5xx_spike` (Cloud Run `request_count` filtered
+  to `response_code_class="5xx"`) and `gke_pod_crash_loop` (GKE
+  `container/restart_count`), both emailing `var.notification_email`.
+- **Uptime check**: HTTPS `GET /api/version` against `var.gateway_host`
+  every 60s.
+- **Budget**: only created when `var.billing_account_id` is set (empty by
+  default — most personal/practice GCP setups don't have org-level billing
+  access); three thresholds (50%/90%/100%) email the same address.
+
+```bash
+export TF_VAR_notification_email="you@example.com"
+export TF_VAR_gateway_host="$(kubectl get ingress -n testflow-staging -o jsonpath='{.items[0].spec.rules[0].host}')"
+# optional: export TF_VAR_billing_account_id="billingAccounts/XXXXXX-XXXXXX-XXXXXX"
+cd terraform && terraform apply
+```
+
+### Resource requests/limits
+
+Already set on every `k8s/base/*.yaml` Deployment (`resources.requests`/
+`resources.limits` — CPU and memory, e.g. `gateway`: `50m`/`250m` CPU,
+`64Mi`/`256Mi` memory), and unchanged by this milestone. Confirm with:
+
+```bash
+kubectl describe pod -n testflow-staging -l app=gateway | grep -A2 Limits
+```
+
+### Rollback
+
+Cloud Deploy keeps every prior release; roll a target back to the release
+before the current one with:
+
+```bash
+gcloud deploy targets rollback prod \
+  --delivery-pipeline=testflow-pipeline --region=REGION
+# or roll back to a specific (non-immediately-prior) release:
+gcloud deploy targets rollback prod \
+  --delivery-pipeline=testflow-pipeline --region=REGION --release=RELEASE_ID
+```
+
+This creates a new rollout on `prod` deploying that earlier release's
+already-built images — no rebuild, and (per `clouddeploy.yaml`) it goes
+through the same `requireApproval: true` gate as a forward promotion.

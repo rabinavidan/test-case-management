@@ -1,6 +1,5 @@
 import os
 import json
-import logging
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,9 +7,10 @@ from .schemas import AIGenerateRequest, AIGenerateResponse, AIGeneratedTestCase
 from .auth import require_admin, UserClaims
 from services.common.health import health_response
 from services.common.http import get_with_retry
+from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware
 
-logger = logging.getLogger("ai")
+logger = configure_json_logging("ai")
 PROJECTS_SERVICE_URL = os.getenv("PROJECTS_SERVICE_URL", "http://projects:8002")
 
 app = FastAPI(title="AI Service", version="1.0.0")

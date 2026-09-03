@@ -1,4 +1,3 @@
-import logging
 import os
 from datetime import datetime
 from typing import List, Optional
@@ -12,9 +11,10 @@ from . import models, schemas
 from .auth import get_current_user, require_admin, UserClaims
 from services.common.health import health_response
 from services.common.http import get_with_retry, request_id_headers, DEFAULT_TIMEOUT
+from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware
 
-logger = logging.getLogger("projects")
+logger = configure_json_logging("projects")
 
 Base.metadata.create_all(bind=engine)
 

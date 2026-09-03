@@ -2,7 +2,6 @@ import os
 import json
 import asyncio
 import random
-import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import List, Dict, Set
@@ -16,12 +15,13 @@ from .auth import get_current_user, UserClaims
 from .events import publish_run_completed, publish_ws_broadcast, listen_for_ws_broadcasts
 from services.common.health import health_response
 from services.common.http import get_with_retry
+from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware
 
 Base.metadata.create_all(bind=engine)
 
 PROJECTS_SERVICE_URL = os.getenv("PROJECTS_SERVICE_URL", "http://projects:8002")
-logger = logging.getLogger("runs")
+logger = configure_json_logging("runs")
 
 
 @asynccontextmanager

@@ -38,3 +38,25 @@ variable "memorystore_memory_size_gb" {
   type        = number
   default     = 1
 }
+
+variable "notification_email" {
+  description = "Email address Milestone 5's alert policies and budget guard notify."
+  type        = string
+}
+
+variable "gateway_host" {
+  description = "Hostname Milestone 5's uptime check hits (the GKE Ingress host for k8s/base/gateway.yaml, or the Cloud Run URL's host)."
+  type        = string
+}
+
+variable "billing_account_id" {
+  description = "Billing account (billingAccounts/XXXXXX-XXXXXX-XXXXXX) for the budget guard. Leave empty (default) to skip it — most personal/practice GCP setups don't have org-level billing access."
+  type        = string
+  default     = ""
+}
+
+variable "budget_amount_usd" {
+  description = "Monthly budget amount in USD."
+  type        = number
+  default     = 50
+}

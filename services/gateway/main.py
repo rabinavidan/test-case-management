@@ -8,7 +8,6 @@ name to its actual URL and proxies the request.
 """
 import os
 import asyncio
-import logging
 from typing import Optional
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +17,7 @@ import httpx
 import websockets
 
 from services.gateway.routes import resolve_service
+from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware, current_request_id, REQUEST_ID_HEADER
 
 AUTH_URL     = os.getenv("AUTH_URL",     "http://auth:8001")
@@ -25,7 +25,7 @@ PROJECTS_URL = os.getenv("PROJECTS_URL", "http://projects:8002")
 RUNS_URL     = os.getenv("RUNS_URL",     "http://runs:8003")
 AI_URL       = os.getenv("AI_URL",       "http://ai:8004")
 
-logger = logging.getLogger("gateway")
+logger = configure_json_logging("gateway")
 
 app = FastAPI(title="API Gateway", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
