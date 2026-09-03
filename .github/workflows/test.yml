@@ -189,3 +189,12 @@ jobs:
         run: python -m pytest tests/e2e/test_e2e.py --base-url=${{ secrets.VERCEL_PRODUCTION_URL }} -v
         # E2E failures are non-blocking — remove 'continue-on-error' to make them blocking
         continue-on-error: true
+
+      - name: Upload failure screenshots/videos/traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-artifacts-${{ github.run_id }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore

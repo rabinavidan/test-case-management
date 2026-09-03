@@ -74,3 +74,17 @@ by the other three stacks:
 mvn test
 allure generate target/allure-results --clean -o target/allure-report && allure open target/allure-report
 ```
+
+## Failure diagnostics (screenshot / video / trace)
+
+Playwright-for-Java + JUnit 5 has no built-in equivalent of the JS test runner's
+`screenshot`/`video`/`trace` config, so `BaseTest` records video and a trace for every test and
+`FailureArtifactsExtension` (a JUnit 5 `AfterTestExecutionCallback`, registered on `BaseTest` via
+`@ExtendWith`) keeps them — plus a full-page screenshot — only for tests that fail, discarding
+them otherwise. This mirrors the "only-on-failure" / "retain-on-failure" policy already used by
+[`e2e/playwright.config.ts`](../e2e/playwright.config.ts).
+
+Artifacts land in `target/test-results/<ClassName>-<methodName>.{png,webm,-trace.zip}`. Open a
+trace with `mvn -q exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.classpathScope=test -Dexec.args="show-trace target/test-results/<name>-trace.zip"`.
+CI (`java-e2e-tests.yml`) uploads them as the `java-e2e-failure-artifacts-<run id>` build artifact
+on every run.
