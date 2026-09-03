@@ -1,0 +1,56 @@
+# Reference Cloud Run (Knative) service spec for the TestFlow monolith
+# (Dockerfile at repo root). Not applied by CI — see README.md in this
+# directory for how this fits with deploy/gcp/cloud_run.py's `gcloud run
+# deploy` command, which is the actual deploy path for Milestone 1.
+#
+# Placeholders to replace before use:
+#   PROJECT_ID           - your GCP project id
+#   REGION               - e.g. us-central1
+#   CLOUDSQL_CONNECTION   - PROJECT_ID:REGION:INSTANCE_NAME (Milestone 1 Cloud SQL step)
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: testflow-api
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # Cloud SQL Auth Proxy sidecar, wired via a Unix socket at
+        # /cloudsql/<CLOUDSQL_CONNECTION> — see api/database.py's DATABASE_URL handling.
+        run.googleapis.com/cloudsql-instances: "PROJECT_ID:REGION:CLOUDSQL_CONNECTION"
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "3"
+    spec:
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT_ID/testflow/testflow-api:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://testflow:changeme@/testflow?host=/cloudsql/PROJECT_ID:REGION:CLOUDSQL_CONNECTION"
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret-key
+                  key: latest
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: anthropic-api-key
+                  key: latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 6
+  traffic:
+    - percent: 100
+      latestRevision: true
