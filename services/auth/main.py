@@ -1,4 +1,3 @@
-import logging
 import os
 import pathlib
 from fastapi import FastAPI, Depends, HTTPException, Request
@@ -14,9 +13,10 @@ from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import hash_password, create_access_token, get_current_user, require_admin
 from services.common.health import health_response
+from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware
 
-logger = logging.getLogger("auth")
+logger = configure_json_logging("auth")
 
 Base.metadata.create_all(bind=engine)
 

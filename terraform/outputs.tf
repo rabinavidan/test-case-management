@@ -21,3 +21,12 @@ output "workload_identity_service_account" {
 output "secret_ids" {
   value = module.secret_manager.secret_ids
 }
+
+output "monitoring_dashboard_id" {
+  value = module.monitoring.dashboard_id
+}
+
+output "budget_created" {
+  description = "true only if billing_account_id was set — see modules/monitoring/variables.tf."
+  value       = module.monitoring.budget_created
+}

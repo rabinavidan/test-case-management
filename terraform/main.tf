@@ -15,6 +15,8 @@ module "project_services" {
     "redis.googleapis.com",
     "clouddeploy.googleapis.com",
     "iam.googleapis.com",
+    "monitoring.googleapis.com",
+    "billingbudgets.googleapis.com",
   ]
 }
 
@@ -67,4 +69,15 @@ module "workload_identity" {
   namespaces = var.environments
 
   depends_on = [module.project_services, module.gke_autopilot]
+}
+
+module "monitoring" {
+  source             = "./modules/monitoring"
+  project_id         = var.project_id
+  notification_email = var.notification_email
+  gateway_host       = var.gateway_host
+  billing_account_id = var.billing_account_id
+  budget_amount_usd  = var.budget_amount_usd
+
+  depends_on = [module.project_services]
 }
