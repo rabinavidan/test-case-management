@@ -157,7 +157,7 @@ jobs:
         run: exit ${{ steps.pytest.outputs.exit_code }}
 
   infra-tests:
-    name: Infra (k8s manifests)
+    name: Infra (k8s + terraform)
     runs-on: ubuntu-latest
 
     steps:
@@ -176,12 +176,17 @@ jobs:
           sudo mv kubectl /usr/local/bin/kubectl
           kubectl version --client
 
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
-      - name: Run k8s overlay tests (kustomize render + GCP wiring checks)
+      - name: Run infra tests (kustomize render + GCP wiring, terraform fmt/init/validate)
         run: python -m pytest tests/infra -v
 
   e2e-tests:

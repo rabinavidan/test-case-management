@@ -1,5 +1,8 @@
 # GCP DevOps Milestones 1-3 — Cloud Run, GKE Autopilot, then CI/CD
 
+> Milestone 4 (Terraform — provisioning everything below as code) lives in
+> [`terraform/`](../../terraform/README.md), not here.
+
 Ships the monolith (`Dockerfile` at repo root) to a live Cloud Run URL,
 backed by Cloud SQL (PostgreSQL 16) and Secret Manager. Tracks
 [Milestone 1 of the GCP DevOps practice plan](../../docs) (issue #175).
