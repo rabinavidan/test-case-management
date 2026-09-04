@@ -87,3 +87,14 @@ Code), so a free-tier model is a fair fit; needs a `GEMINI_API_KEY`
 repository secret (free tier: https://aistudio.google.com/apikey) to
 actually call the model — without one it still detects and logs gaps, but
 posts nothing.
+
+## Dependabot Auto-Triage
+
+`.github/workflows/dependabot-auto-merge.yml` classifies every Dependabot
+PR (`.github/dependabot.yml` covers pip x5, npm, maven x2, and
+github-actions) by `dependabot/fetch-metadata`'s semver update-type: patch
+and minor bumps are auto-approved and queued for auto-merge once required
+CI checks pass; major bumps get a comment explaining why they're left for
+a human, never merged automatically. Requires "Allow auto-merge" enabled
+in repo Settings -> General for the queued merges to actually land —
+without it, PRs are still approved/commented but wait for a manual merge.
