@@ -1,0 +1,52 @@
+# Agent Workflow Milestone 4 (issue #188) — Dependabot auto-triage.
+#
+# Classifies every Dependabot PR by dependabot/fetch-metadata's semver
+# update-type: patch/minor bumps are auto-approved and queued for
+# auto-merge once required CI checks pass (the real safety net — semver
+# alone isn't trusted blindly); major bumps get a comment explaining why
+# they're left for human review, never merged automatically.
+#
+# Requires "Allow auto-merge" enabled in repo Settings -> General for
+# `gh pr merge --auto` to actually queue the merge — without it, this
+# workflow still approves and comments, but the PR waits for a manual
+# merge once checks pass instead of merging itself.
+name: Dependabot Auto-Triage
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-approve and queue auto-merge for patch/minor bumps
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr review "$PR_URL" --approve -b "Auto-approved: ${{ steps.metadata.outputs.update-type }} bump of ${{ steps.metadata.outputs.dependency-names }} (dependabot-auto-merge.yml)."
+          gh pr merge "$PR_URL" --auto --merge
+
+      - name: Comment on major bumps for human review
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body "⚠️ Major version bump (${{ steps.metadata.outputs.dependency-names }}) — not auto-merged. Needs a human look at the changelog for breaking changes before merging (dependabot-auto-merge.yml)."
