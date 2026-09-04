@@ -1,0 +1,57 @@
+# Agent Workflow Milestone 1 (issue #185) — PR Steward.
+#
+# Drives every PR toward green automatically: on open/update, on a review,
+# or when someone comments "@claude" on a PR, runs Claude Code against the
+# PR with .claude/skills/steward/SKILL.md's repo-specific conventions.
+#
+# Requires an ANTHROPIC_API_KEY repository secret (Settings -> Secrets and
+# variables -> Actions) to actually run — not committed here. Until that
+# secret is set, this workflow's jobs will fail at the "Run Claude Code"
+# step with an auth error; every other check in test.yml is unaffected.
+name: Claude PR Steward
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: claude-pr-steward-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  steward:
+    # issue_comment fires for both issues and PRs — only act on PR comments,
+    # and only when they mention @claude (avoid running on every comment).
+    if: >
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      checks: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the PR Steward for this repository. Read
+            .claude/skills/steward/SKILL.md first — it has this repo's
+            required checks, merge convention, known flake, and what
+            counts as a small vs. large fix. Then look at the current PR
+            (or the PR this comment is on): if CI is red, diagnose and fix
+            it; if there's an unresolved review comment you can address,
+            address it. Push a fix rather than only describing one.
