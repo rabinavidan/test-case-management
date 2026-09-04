@@ -29,6 +29,11 @@ jobs:
   api-tests:
     name: Unit, API, Contract & Services Tests (pytest)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # scripts/flake_report.py files/updates a tracking issue on push to
+      # main when pytest-rerunfailures catches a flaky test.
+      issues: write
 
     steps:
       - uses: actions/checkout@v5
@@ -50,6 +55,7 @@ jobs:
         run: |
           set +e
           python -m pytest tests/unit tests/api tests/contract tests/services -v \
+            --reruns 1 --reruns-delay 2 \
             --json-report --json-report-file=report.json \
             --alluredir=allure-results \
             --cov --cov-report=term-missing --cov-report=json:coverage.json --cov-fail-under=85
@@ -80,6 +86,7 @@ jobs:
           passed = s.get("passed", 0)
           failed = s.get("failed", 0)
           error  = s.get("error", 0)
+          rerun  = s.get("rerun", 0)  # pytest-rerunfailures: failed once, passed on retry — a flake signal, not a build failure
           total  = s.get("total", 0)
           duration = r.get("duration", 0)
           icon   = "✅" if failed == 0 and error == 0 else "❌"
@@ -90,10 +97,16 @@ jobs:
             f"| ✅ Passed | {passed} |",
             f"| ❌ Failed | {failed} |",
             f"| 💥 Error  | {error}  |",
+            f"| 🔁 Flaky (passed on rerun) | {rerun} |",
             f"| **Total** | **{total}** |",
             f"| ⏱ Duration | {duration:.2f}s |",
             "",
           ]
+          if rerun:
+            flaky_names = [t["nodeid"] for t in r.get("tests", []) if t["outcome"] == "rerun"]
+            lines += ["### 🔁 Flaky tests this run", ""]
+            lines += [f"- `{name}`" for name in flaky_names]
+            lines += ["", "See issue tracking these (auto-filed on push to main) — investigate, don't just rerun.", ""]
           cov_path = pathlib.Path("coverage.json")
           if cov_path.exists():
             cov = json.loads(cov_path.read_text())["totals"]
@@ -118,6 +131,8 @@ jobs:
               badge = "✅ passed"
             elif outcome == "failed":
               badge = "❌ failed"
+            elif outcome == "rerun":
+              badge = "🔁 flaky"
             else:
               badge = "💥 error"
             lines.append(f"| `{name}` | {badge} | {dur:.3f}s |")
@@ -130,6 +145,16 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("\n".join(lines))
           EOF
+
+      - name: Report flaky tests
+        if: always()
+        env:
+          # Only attempt to file/update the tracking issue on push to main —
+          # every run still prints detected flakes to the log either way.
+          GITHUB_TOKEN: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && secrets.GITHUB_TOKEN || '' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python scripts/flake_report.py report.json
 
       - name: Set up Java (for Allure report generation)
         if: always()
