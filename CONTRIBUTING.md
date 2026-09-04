@@ -65,3 +65,13 @@ failing test does (see `.coveragerc`).
   existing dependency already covers.**
 - Draft PRs are the default while CI is still running; mark ready for
   review once every check is green.
+
+## Claude PR Steward
+
+`.github/workflows/claude-pr-steward.yml` runs Claude Code against every
+PR (on open/update, on a review, or when someone comments `@claude`) to
+drive it toward green automatically — its repo-specific conventions live
+in `.claude/skills/steward/SKILL.md`. It needs an `ANTHROPIC_API_KEY`
+repository secret (Settings -> Secrets and variables -> Actions) to run;
+without one, its job fails at the "Run Claude Code" step and every other
+required check is unaffected.

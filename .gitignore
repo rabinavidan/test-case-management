@@ -26,6 +26,10 @@ htmlcov/
 *.auto.tfvars
 terraform.tfvars
 
-# Claude Code guidance files — kept locally, not pushed to PRs/main
+# Claude Code guidance files — kept locally, not pushed to PRs/main.
+# Exception: .claude/skills/**/*.md — shared skill files (e.g. steward/
+# SKILL.md) that a CI-triggered Claude Code session needs to read, so
+# those *are* committed.
 /*CLAUDE*.md
 .claude/**/*.md
+!.claude/skills/**/*.md
