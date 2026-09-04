@@ -37,6 +37,10 @@ jobs:
       issues: write
       checks: read
       actions: read
+      # claude-code-action exchanges this for a short-lived GitHub token via
+      # OIDC — without it, the action fails before ever reaching the
+      # ANTHROPIC_API_KEY check, regardless of whether that secret is set.
+      id-token: write
 
     steps:
       - uses: actions/checkout@v5

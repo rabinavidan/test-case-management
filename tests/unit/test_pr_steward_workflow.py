@@ -35,8 +35,10 @@ def test_steward_job_grants_only_the_permissions_it_needs():
     permissions = config["jobs"]["steward"]["permissions"]
     assert permissions["contents"] == "write"
     assert permissions["pull-requests"] == "write"
-    # No admin/org-wide scopes.
-    assert set(permissions) <= {"contents", "pull-requests", "issues", "checks", "actions"}
+    # No admin/org-wide scopes. id-token is what claude-code-action needs
+    # for its OIDC token exchange — required for the action to run at all.
+    assert permissions["id-token"] == "write"
+    assert set(permissions) <= {"contents", "pull-requests", "issues", "checks", "actions", "id-token"}
 
 
 def test_steward_job_skips_issue_comments_that_do_not_mention_claude():
