@@ -75,3 +75,15 @@ in `.claude/skills/steward/SKILL.md`. It needs an `ANTHROPIC_API_KEY`
 repository secret (Settings -> Secrets and variables -> Actions) to run;
 without one, its job fails at the "Run Claude Code" step and every other
 required check is unaffected.
+
+## AI Test-Coverage-Gap Agent
+
+`.github/workflows/coverage-gap-agent.yml` (`scripts/coverage_gap_agent.py`)
+diffs every PR's changed `api/`/`services/` files against `tests/`; a
+changed source file with no matching-layer test file touched in the same
+PR gets Gemini-drafted test-case suggestions as a PR comment. Deliberately
+Gemini, not Anthropic — this is a plain text-generation call (not Claude
+Code), so a free-tier model is a fair fit; needs a `GEMINI_API_KEY`
+repository secret (free tier: https://aistudio.google.com/apikey) to
+actually call the model — without one it still detects and logs gaps, but
+posts nothing.

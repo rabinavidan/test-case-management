@@ -1,0 +1,49 @@
+# Agent Workflow Milestone 3 (issue #187) — AI test-coverage-gap agent.
+#
+# On every PR, diffs changed api/ and services/ files against tests/; for
+# any changed source file with no matching-layer test file touched in the
+# same PR, asks Gemini to draft concrete test-case suggestions and posts
+# them as a single PR comment (updated in place on later pushes, not
+# reposted).
+#
+# Requires a GEMINI_API_KEY repository secret (free tier available at
+# https://aistudio.google.com/apikey — Settings -> Secrets and variables ->
+# Actions) to actually call the model. Without it, this workflow still
+# detects and logs gaps but posts nothing — see scripts/coverage_gap_agent.py.
+name: AI Test-Coverage-Gap Agent
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  coverage-gap:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install httpx==0.25.2
+
+      - name: Detect coverage gaps and comment
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python scripts/coverage_gap_agent.py \
+            "${{ github.event.pull_request.number }}" \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}"
