@@ -3652,6 +3652,10 @@ function connectRunWebSocket(runId) {
         if (msg.run_completed) {
           toast(`Run completed by ${msg.updated_by}`, "info");
         }
+      } else if (msg.type === "results_populated") {
+        // Run was created with results still pending (services/worker
+        // populates them asynchronously) - refetch now that they exist.
+        renderRun(runId);
       }
     } catch { /* ignore malformed */ }
   };

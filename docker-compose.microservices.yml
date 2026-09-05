@@ -74,6 +74,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ─── Worker (no port — consumes services/runs' runs.populate queue) ───────
+  worker:
+    build:
+      context: services/worker
+    environment:
+      DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ─── AI Service (port 8004) ───────────────────────────────────────────────
   ai:
     build:
