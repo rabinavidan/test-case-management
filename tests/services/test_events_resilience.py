@@ -14,3 +14,8 @@ def test_publish_run_completed_does_not_raise_when_redis_unreachable():
 def test_get_client_returns_none_when_redis_unreachable():
     events._client = None
     assert events._get_client() is None
+
+
+def test_enqueue_run_population_returns_false_when_redis_unreachable():
+    events._client = None
+    assert events.enqueue_run_population(run_id=1, testcase_ids=[1, 2]) is False

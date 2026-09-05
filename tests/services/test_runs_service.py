@@ -3,6 +3,7 @@ dependency on the projects service: a mocked happy path, and a real
 connection-refused failure returning a clean 503 instead of a crash.
 """
 import os
+import sys
 import pytest
 import httpx as httpx_module
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from conftest import import_service_app, reset_db, mint_token
 os.environ.setdefault("PROJECTS_SERVICE_URL", "http://127.0.0.1:1")  # connection-refused
 
 app, db_mod = import_service_app("runs")
+runs_main = sys.modules["services.runs.main"]
 
 ADMIN = {"Authorization": f"Bearer {mint_token(1, 'admin')}"}
 
@@ -68,6 +70,29 @@ def test_create_run_success_with_active_testcases(client, monkeypatch):
     results = fetched.json()["results"]
     assert len(results) == 2  # one pending result per active testcase
     assert all(r["status"] == "pending" for r in results)
+
+
+def test_create_run_enqueues_population_when_redis_reachable(client, monkeypatch):
+    """With Redis reachable (simulated here), create_run must not populate
+    results itself - it queues services/worker to do it and returns
+    immediately with results still empty. The no-Redis case is covered by
+    test_create_run_success_with_active_testcases above, which relies on
+    Redis genuinely being unreachable in this test environment."""
+    fake_testcases = [{"id": 1}, {"id": 2}]
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, fake_testcases),
+    )
+    queued = []
+    monkeypatch.setattr(
+        runs_main, "enqueue_run_population",
+        lambda run_id, testcase_ids: queued.append((run_id, testcase_ids)) or True,
+    )
+
+    created = client.post("/api/suites/5/runs", json={"name": "My Run"}, headers=ADMIN)
+    assert created.status_code == 201
+    assert created.json()["results"] == []
+    assert queued == [(created.json()["id"], [1, 2])]
 
 
 def test_create_run_404_when_projects_service_says_suite_missing(client, monkeypatch):

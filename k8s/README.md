@@ -9,6 +9,7 @@ reports on: `staging → regression → preprod → prod`.
 ```
 k8s/
 ├── base/            # Deployments/Services for gateway, auth, projects, runs, ai, db, redis
+│                    # + worker (Deployment only, no Service — no HTTP port)
 └── overlays/
     ├── staging/
     ├── regression/

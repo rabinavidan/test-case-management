@@ -12,7 +12,10 @@ from sqlalchemy.orm import Session
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, UserClaims
-from .events import publish_run_completed, publish_ws_broadcast, listen_for_ws_broadcasts
+from .events import (
+    publish_run_completed, publish_ws_broadcast, listen_for_ws_broadcasts, enqueue_run_population,
+)
+from .population import populate_pending_results
 from services.common.health import health_response
 from services.common.http import get_with_retry
 from services.common.logging_config import configure_json_logging
@@ -167,7 +170,10 @@ def internal_seed_runs(body: dict, db: Session = Depends(get_db)):
 @app.post("/api/suites/{suite_id}/runs", response_model=schemas.TestRunResponse, status_code=201)
 def create_run(suite_id: int, payload: schemas.TestRunCreate,
                db: Session = Depends(get_db), current: UserClaims = Depends(get_current_user)):
-    # Fetch active test cases from projects service
+    # Fetch active test cases from projects service. This stays a synchronous
+    # call - it's what tells us whether the suite even exists (404) - only
+    # the (potentially large) bulk-insert of one pending TestResult per test
+    # case is moved off this request path, below.
     try:
         resp = get_with_retry(f"{PROJECTS_SERVICE_URL}/internal/suites/{suite_id}/active-testcases")
         if resp.status_code == 404:
@@ -180,11 +186,19 @@ def create_run(suite_id: int, payload: schemas.TestRunCreate,
 
     run = models.TestRun(suite_id=suite_id, name=payload.name, created_by_id=current.id)
     db.add(run)
-    db.flush()
-    for tc in test_cases:
-        db.add(models.TestResult(run_id=run.id, testcase_id=tc["id"], status="pending"))
     db.commit()
     db.refresh(run)
+
+    testcase_ids = [tc["id"] for tc in test_cases]
+    if not enqueue_run_population(run.id, testcase_ids):
+        # Redis unreachable - populate inline so a single-replica / no-Redis
+        # setup (this repo's own tests, or `docker compose` without the
+        # redis container) behaves exactly as it did before services/worker
+        # existed. Otherwise services/worker populates asynchronously and
+        # notifies connected clients via the "results_populated" WebSocket
+        # broadcast (see services/worker/main.py).
+        populate_pending_results(db, run.id, testcase_ids)
+        db.refresh(run)
     return run
 
 
