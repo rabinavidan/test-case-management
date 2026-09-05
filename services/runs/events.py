@@ -30,6 +30,8 @@ logger = logging.getLogger("runs.events")
 
 CHANNEL_RUN_COMPLETED = "runs.completed"
 CHANNEL_WS_BROADCAST = "runs.ws_broadcast"
+STREAM_RUN_POPULATE = "runs.populate"
+CONSUMER_GROUP_POPULATE = "run-populators"
 RECONNECT_DELAY_SECONDS = 5
 
 
@@ -79,6 +81,28 @@ def publish_ws_broadcast(run_id: int, payload: dict) -> bool:
         return True
     except Exception as e:
         logger.warning(f"Failed to publish ws broadcast: {e}")
+        return False
+
+
+def enqueue_run_population(run_id: int, testcase_ids: list[int]) -> bool:
+    """Queue services/worker to create the pending TestResult rows for a
+    freshly created run, off create_run's request path (see
+    services/runs/main.py). Returns True once queued, False if Redis is
+    unreachable - the caller populates inline in that case, the same
+    graceful-degradation pattern as publish_ws_broadcast above: a
+    single-replica / no-Redis setup (this repo's own tests, or `docker
+    compose` without the redis container) behaves exactly as it did before
+    the worker tier existed."""
+    client = _get_client()
+    if not client:
+        return False
+    payload = json.dumps({"run_id": run_id, "testcase_ids": testcase_ids})
+    try:
+        client.xadd(STREAM_RUN_POPULATE, {"data": payload})
+        logger.info(f"Queued run population run_id={run_id} testcases={len(testcase_ids)}")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to enqueue run population: {e}")
         return False
 
 

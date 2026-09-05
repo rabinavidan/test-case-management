@@ -1,0 +1,29 @@
+# Consumes services/runs' `runs.populate` queue (see services/worker/main.py)
+# - no HTTP port, so no Service/Ingress entry and no httpGet probe (there's
+# nothing to GET). Liveness is left to the container's own process exit
+# code: a crashed consumer loop exits non-zero and gets restarted like any
+# other container.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels: { app: worker }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: worker }
+  template:
+    metadata:
+      labels: { app: worker }
+    spec:
+      containers:
+        - name: worker
+          image: testflow/worker
+          envFrom:
+            - configMapRef: { name: testflow-config }
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: testflow-secrets, key: DATABASE_URL } }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 256Mi }

@@ -34,6 +34,8 @@ replicas:
     count: 2
   - name: ai
     count: 1
+  - name: worker
+    count: 2
 
 configMapGenerator:
   - name: testflow-config
@@ -64,4 +66,7 @@ images:
     newTag: v2.0.66-rc1
   - name: testflow/ai
     newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/ai
+    newTag: v2.0.66-rc1
+  - name: testflow/worker
+    newName: REGION-docker.pkg.dev/PROJECT_ID/testflow/worker
     newTag: v2.0.66-rc1

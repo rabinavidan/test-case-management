@@ -11,6 +11,7 @@ resources:
   - runs.yaml
   - ai.yaml
   - gateway.yaml
+  - worker.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: testflow
@@ -25,4 +26,6 @@ images:
   - name: testflow/runs
     newTag: latest
   - name: testflow/ai
+    newTag: latest
+  - name: testflow/worker
     newTag: latest

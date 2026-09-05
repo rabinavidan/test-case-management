@@ -9,6 +9,7 @@
 | **projects** | 8002 | Projects, test suites, test cases, analytics, demo seed |
 | **runs** | 8003 | Test runs, results recording, WebSocket live collab |
 | **ai** | 8004 | AI test case generation via Claude Haiku |
+| **worker** | — | Consumes the `runs.populate` queue: creates a new run's pending TestResult rows off runs' request path |
 
 ## Infrastructure
 
@@ -76,6 +77,7 @@ gateway.
 
 - **Sync (HTTP):** Gateway → services; runs ↔ projects for test case lookup
 - **Async (Redis Pub/Sub):** runs service publishes `runs.completed` events on channel `runs.completed`, and fans out WebSocket broadcasts across replicas on channel `runs.ws_broadcast` (see "WebSocket fan-out across replicas" below)
+- **Async (Redis Stream, work queue):** `create_run` enqueues onto the `runs.populate` stream instead of inserting each pending `TestResult` row inline; **worker** drains it (consumer group `run-populators`) and publishes a `results_populated` WebSocket broadcast on completion so a connected client refetches the run. If Redis is unreachable, `create_run` populates inline instead — the same graceful-degradation shape as the pub/sub channels above. See `runs/events.py` (`enqueue_run_population`), `runs/population.py`, and `worker/main.py`.
 
 Direct service-to-service calls (not through the gateway — runs → projects,
 projects → runs, ai → projects) go through [`common/http.py`](common/http.py)'s

@@ -42,7 +42,7 @@ def test_overlay_builds_cleanly(overlay):
 def test_overlay_uses_artifact_registry_images(overlay):
     docs = _render(overlay)
     deployments = {d["metadata"]["name"]: d for d in docs if d["kind"] == "Deployment"}
-    for service in ["gateway", "auth", "projects", "runs", "ai"]:
+    for service in ["gateway", "auth", "projects", "runs", "ai", "worker"]:
         image = deployments[service]["spec"]["template"]["spec"]["containers"][0]["image"]
         assert "-docker.pkg.dev/" in image, f"{service} in {overlay} not pointed at Artifact Registry: {image}"
 
@@ -62,7 +62,7 @@ def test_overlay_injects_cloud_sql_proxy_sidecar_on_db_backed_services(overlay):
     docs = _render(overlay)
     deployments = {d["metadata"]["name"]: d for d in docs if d["kind"] == "Deployment"}
 
-    for service in ["auth", "projects", "runs"]:
+    for service in ["auth", "projects", "runs", "worker"]:
         containers = deployments[service]["spec"]["template"]["spec"]["containers"]
         sidecar_names = {c["name"] for c in containers}
         assert "cloud-sql-proxy" in sidecar_names, f"{service} in {overlay} missing cloud-sql-proxy sidecar"

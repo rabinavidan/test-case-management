@@ -40,10 +40,10 @@ patches:
       $patch: delete
 
   # Cloud SQL Auth Proxy sidecar + its Workload Identity-bound service account,
-  # on every deployment that talks to Postgres (auth, projects, runs).
+  # on every deployment that talks to Postgres (auth, projects, runs, worker).
   - target:
       kind: Deployment
-      name: "auth|projects|runs"
+      name: "auth|projects|runs|worker"
     patch: |-
       - op: add
         path: /spec/template/spec/serviceAccountName
