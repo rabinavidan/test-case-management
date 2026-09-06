@@ -20,26 +20,33 @@ Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright —
 
 Beyond LLM-powered product features, this repo is a working example of **agentic AI running in production
 CI/CD** — three independent AI agents, deliberately split across two model providers by cost/capability
-trade-off, each with its own failure-handling and test coverage:
+trade-off, each with its own failure-handling and test coverage — plus a fourth, authoring-time agent set that
+writes and self-heals the test suite itself:
 
 | Agent | What it does | Model | Where |
 |-------|-------------|-------|-------|
 | **PR Steward** | Runs autonomously on every PR event (open, review, `@claude` comment) — diagnoses CI failures, pushes fixes, resolves review threads, following repo-specific conventions defined in its own skill file | Claude (Anthropic) | [`.github/workflows/claude-pr-steward.yml`](.github/workflows/claude-pr-steward.yml) · [`.claude/skills/steward/SKILL.md`](.claude/skills/steward/SKILL.md) |
 | **Coverage-Gap Agent** | Diffs a PR's changed source files against its test files; for any gap, prompts an LLM for concrete, specific test-case suggestions and posts them as a PR comment | Gemini (free tier) | [`scripts/coverage_gap_agent.py`](scripts/coverage_gap_agent.py) |
 | **Flaky-Test Detector** | Parses CI rerun results to distinguish "needed a retry" from a real failure, and maintains a single tracking GitHub issue across runs | Deterministic (no LLM) | [`scripts/flake_report.py`](scripts/flake_report.py) |
+| **Playwright Test Agents** | Planner/generator/healer trio: explores the running app in a real browser, drafts a numbered test plan, generates Playwright specs from it, and debugs/fixes failing ones — an authoring aid, not a CI job | Claude (Sonnet, via Claude Code) | [`.claude/agents/playwright-test-*.md`](.claude/agents) · [`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents) |
 | **AI Test Generation** | Generates test cases from a plain-English feature description | Claude Haiku | `POST /api/suites/{id}/testcases/generate` |
 | **AI Failure Triage** | Summarizes a run's failed/skipped results into a root-cause hypothesis | Claude Haiku | `POST /api/runs/{id}/triage` |
 
 **Why this matters more than "calls an LLM API":**
 - **Model choice is a deliberate trade-off, not a default** — Claude Haiku for in-product, low-latency, user-facing
   calls; Gemini's free tier for a CI-only agent where cost dominates and the task is plain text generation, not
-  agentic tool use. That reasoning is documented in code, not just picked once and forgotten.
+  agentic tool use; Claude Sonnet where a real browser and multi-step tool use are the job. That reasoning is
+  documented in code, not just picked once and forgotten.
 - **Every AI integration degrades gracefully** — no API key configured means the feature (or agent) skips
   cleanly instead of crashing the app or failing CI for unrelated reasons.
 - **Agents are tested like code, not treated as magic** — LLM calls are mocked in the test suite; prompts,
   response parsing, and the surrounding control flow all have dedicated unit tests.
 - **The Steward agent is a real software engineering agent** — it doesn't just chat, it reads CI logs, writes
   and pushes commits, and resolves GitHub review threads inside guardrails defined in its own skill file.
+- **Authoring-time agents are scoped separately from CI-time ones** — the Playwright Test Agents run
+  interactively inside a developer's Claude Code session (via a dedicated `playwright-test` MCP server, root
+  [`.mcp.json`](.mcp.json)), never unattended in a workflow; everything they produce is an ordinary `*.spec.ts`
+  file that still goes through human review and the existing `pw-ts.yml` pipeline like any other change.
 
 ---
 
