@@ -1,11 +1,18 @@
 # TestFlow — Test Case Management
 
+**Live demo:** [test-case-management-rabinavidans-projects.vercel.app](https://test-case-management-rabinavidans-projects.vercel.app/) · **Repo:** [rabinavidan/test-case-management](https://github.com/rabinavidan/test-case-management)
+
 A full-stack test case management platform built with FastAPI microservices, Vanilla JS, PostgreSQL, and Redis.
 Designed to demonstrate cutting-edge engineering practices — microservice decomposition, event-driven async,
 real-time WebSocket collaboration, and AI-powered test generation, failure triage, and flaky-test detection
 (via Anthropic's Claude Haiku). Backed by **four independent, feature-equivalent test automation stacks** —
 Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright — see
 [Test Architecture](#test-architecture) below.
+
+> **Note for reviewers:** two of the four test suites are written in Java — [`java-tests/`](java-tests/README.md)
+> (JUnit 5 + REST Assured, black-box API tests) and [`java-e2e/`](java-e2e/README.md) (JUnit 5 + Playwright Java,
+> browser E2E). Both run standalone with Maven (`mvn test`) and are feature-equivalent to the Python and
+> TypeScript suites — see [Test Architecture](#test-architecture).
 
 <p align="center">
   <img src="docs/screenshots/pipeline-overview.png" width="49%" alt="End-to-end test management pipeline overview" />
