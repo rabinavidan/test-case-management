@@ -60,6 +60,25 @@ After `apply`, wire the outputs into the earlier milestones' placeholders:
 | `memorystore_host` | `MEMORYSTORE_HOST` in the same component |
 | `workload_identity_service_account` | `WORKLOAD_IDENTITY_GSA` in `service-account.yaml` |
 | `secret_ids` | confirms `jwt-secret-key`/`anthropic-api-key` exist before running `deploy/gcp/secrets.py` |
+| `alerts_topic` | already wired into both alert policies as a Pub/Sub notification channel — nothing to copy |
+| `github_token_secret_id` | populate this secret's value with a GitHub token that has `issues:write` on `var.github_repository`, the same population pattern as `deploy/gcp/secrets.py` |
+
+## Agent Workflow Milestone 5 — alert-to-issue Cloud Function
+
+`modules/monitoring/alert_to_issue.tf` deploys `scripts/alert_to_issue/`
+(Cloud Functions 2nd gen, Python 3.11) behind a Pub/Sub notification
+channel: a Cloud Monitoring incident opening files a GitHub issue, and the
+same incident closing comments + closes it, deduped by incident ID. Needs:
+
+```bash
+export TF_VAR_github_repository="owner/repo"   # defaults to this repo
+# after apply, populate the token:
+echo -n "ghp_..." | gcloud secrets versions add alert-to-issue-github-token --data-file=-
+```
+
+Uses the `hashicorp/archive` provider to zip the function's source at
+`apply` time — `terraform init` picks it up automatically alongside
+`google`.
 
 ## What's illustrative here
 
