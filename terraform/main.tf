@@ -17,6 +17,10 @@ module "project_services" {
     "iam.googleapis.com",
     "monitoring.googleapis.com",
     "billingbudgets.googleapis.com",
+    "pubsub.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "eventarc.googleapis.com",
+    "storage.googleapis.com",
   ]
 }
 
@@ -74,10 +78,12 @@ module "workload_identity" {
 module "monitoring" {
   source             = "./modules/monitoring"
   project_id         = var.project_id
+  region             = var.region
   notification_email = var.notification_email
   gateway_host       = var.gateway_host
   billing_account_id = var.billing_account_id
   budget_amount_usd  = var.budget_amount_usd
+  github_repository  = var.github_repository
 
   depends_on = [module.project_services]
 }

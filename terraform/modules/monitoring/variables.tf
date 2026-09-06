@@ -36,3 +36,13 @@ variable "budget_amount_usd" {
   type        = number
   default     = 50
 }
+
+variable "region" {
+  description = "Region for the alert-to-issue Cloud Function and its source bucket."
+  type        = string
+}
+
+variable "github_repository" {
+  description = "owner/repo the alert-to-issue Cloud Function opens GitHub issues in (e.g. \"rabinavidan/test-case-management\")."
+  type        = string
+}

@@ -60,3 +60,9 @@ variable "budget_amount_usd" {
   type        = number
   default     = 50
 }
+
+variable "github_repository" {
+  description = "owner/repo the alert-to-issue Cloud Function (Agent Workflow Milestone 5) opens GitHub issues in."
+  type        = string
+  default     = "rabinavidan/test-case-management"
+}

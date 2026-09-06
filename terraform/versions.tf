@@ -6,6 +6,11 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    # Zips scripts/alert_to_issue/ for the Cloud Function source (Milestone 5).
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 
   # GCS remote state (Milestone 4). Bucket/prefix are supplied at `terraform

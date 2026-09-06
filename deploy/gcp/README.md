@@ -219,7 +219,10 @@ All four are Terraform-managed — see `terraform/modules/monitoring/`:
   rate, GKE pod restart count, and the uptime check's pass rate.
 - **Alerting**: `cloud_run_5xx_spike` (Cloud Run `request_count` filtered
   to `response_code_class="5xx"`) and `gke_pod_crash_loop` (GKE
-  `container/restart_count`), both emailing `var.notification_email`.
+  `container/restart_count`), notifying both `var.notification_email` and
+  a Pub/Sub channel that triggers the alert-to-issue Cloud Function (Agent
+  Workflow Milestone 5 — opens/closes a GitHub issue per incident; see
+  `terraform/README.md`'s own section for setup).
 - **Uptime check**: HTTPS `GET /api/version` against `var.gateway_host`
   every 60s.
 - **Budget**: only created when `var.billing_account_id` is set (empty by

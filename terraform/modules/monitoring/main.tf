@@ -37,7 +37,10 @@ resource "google_monitoring_alert_policy" "cloud_run_5xx_spike" {
     }
   }
 
-  notification_channels = [google_monitoring_notification_channel.email.id]
+  notification_channels = [
+    google_monitoring_notification_channel.email.id,
+    google_monitoring_notification_channel.pubsub.id,
+  ]
 }
 
 # Pod crash-loop on the GKE microservices deployment (Milestone 2).
@@ -60,7 +63,10 @@ resource "google_monitoring_alert_policy" "gke_pod_crash_loop" {
     }
   }
 
-  notification_channels = [google_monitoring_notification_channel.email.id]
+  notification_channels = [
+    google_monitoring_notification_channel.email.id,
+    google_monitoring_notification_channel.pubsub.id,
+  ]
 }
 
 resource "google_monitoring_uptime_check_config" "gateway" {
