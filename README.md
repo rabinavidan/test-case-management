@@ -52,6 +52,17 @@ trade-off, each with its own failure-handling and test coverage:
   <img src="docs/screenshots/test-report.png" width="49%" alt="Allure-style test report with per-suite pass/fail breakdown" />
 </p>
 
+**App in action:**
+
+<p align="center">
+  <img src="docs/screenshots/projects.png" width="49%" alt="Projects dashboard with per-project pass rate and progress bars" />
+  <img src="docs/screenshots/project-suites.png" width="49%" alt="Project view — suites sidebar and live architecture diagram" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/analytics.png" width="49%" alt="Analytics dashboard — pass-rate trend chart and run history table" />
+  <img src="docs/screenshots/run-results.png" width="49%" alt="Test run detail — pass/fail/skip counts and per-case results" />
+</p>
+
 ---
 
 ## Features
