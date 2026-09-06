@@ -383,6 +383,12 @@ npm run allure:report                         # generate + open the Allure repor
 
 See [`e2e/README.md`](e2e/README.md) for the full breakdown.
 
+**Authoring aid, not a CI stack.** [Playwright's official agents](https://playwright.dev/docs/test-agents)
+(planner/generator/healer) are wired up as Claude Code subagents (`.claude/agents/`, root `.mcp.json`) to explore
+the running app and draft/self-heal specs for this suite — see
+[`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents). Everything they produce is an ordinary
+`*.spec.ts` file reviewed and run through `pw-ts.yml` like any other change; they don't run unattended in CI.
+
 ### Java · REST Assured suite
 
 The Java side (`java-tests/`) is a fourth, independent stack — black-box HTTP tests against a

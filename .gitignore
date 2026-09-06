@@ -27,9 +27,13 @@ htmlcov/
 terraform.tfvars
 
 # Claude Code guidance files — kept locally, not pushed to PRs/main.
-# Exception: .claude/skills/**/*.md — shared skill files (e.g. steward/
-# SKILL.md) that a CI-triggered Claude Code session needs to read, so
-# those *are* committed.
+# Exceptions: .claude/skills/**/*.md — shared skill files (e.g. steward/
+# SKILL.md) that a CI-triggered Claude Code session needs to read; and
+# .claude/agents/**/*.md — the Playwright test-planner/generator/healer
+# agent definitions (e2e/README.md#playwright-agents), shared so any
+# contributor's Claude Code session gets the same agents. Both are
+# committed on purpose.
 /*CLAUDE*.md
 .claude/**/*.md
 !.claude/skills/**/*.md
+!.claude/agents/**/*.md
