@@ -1,6 +1,8 @@
 """services/gateway — the declarative routing table (services/gateway/routes.py)
 and the HTTP proxy's error handling when a downstream service is unreachable.
 """
+import threading
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -166,6 +168,115 @@ def test_routing_table_matches_real_service_routes(service):
             f"add/fix its entry in services/gateway/routes.py (and make sure any more "
             f"specific overlapping route is listed above it)."
         )
+
+
+# ─── WebSocket bridge ──────────────────────────────────────────────────────
+#
+# ws_bridge (services/gateway/main.py) opens a second, real WebSocket client
+# (the `websockets` package, not httpx) to services/runs and pumps messages
+# both directions concurrently. There's no real runs service in this test
+# environment, so `websockets.connect` is faked the same way _http.request
+# is faked above for the HTTP proxy tests.
+
+class _FakeUpstreamWS:
+    """Stands in for the real `websockets` connection ws_bridge opens to
+    services/runs. `outgoing` is drained one message at a time by
+    ws_bridge's `async for msg in upstream_ws` loop, then the loop ends —
+    same as a real connection with nothing left to say. `sent` records
+    whatever ws_bridge relays from the client via `.send()`; `_sent_event`
+    (a plain `threading.Event`, not an asyncio one) lets a test on the main
+    thread wait for that relay to happen inside the portal's own background
+    thread, without touching the asyncio loop running there directly."""
+
+    def __init__(self, outgoing=()):
+        self.sent = []
+        self._outgoing = list(outgoing)
+        self._sent_event = threading.Event()
+
+    async def send(self, data):
+        self.sent.append(data)
+        self._sent_event.set()
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if not self._outgoing:
+            raise StopAsyncIteration
+        return self._outgoing.pop(0)
+
+
+class _FakeConnect:
+    """Stands in for `websockets.connect(url)`'s async-context-manager form
+    (`async with websockets.connect(url) as upstream_ws:`)."""
+
+    def __init__(self, upstream_ws):
+        self._upstream_ws = upstream_ws
+
+    async def __aenter__(self):
+        return self._upstream_ws
+
+    async def __aexit__(self, *exc_info):
+        return False
+
+
+def test_ws_bridge_relays_upstream_messages_to_the_client(client, monkeypatch):
+    from services.gateway import main as gateway_main
+
+    fake_upstream = _FakeUpstreamWS(outgoing=["result_updated"])
+    monkeypatch.setattr(gateway_main.websockets, "connect", lambda url: _FakeConnect(fake_upstream))
+
+    with client.websocket_connect("/ws/runs/1") as ws:
+        assert ws.receive_text() == "result_updated"
+
+
+def test_ws_bridge_relays_client_messages_to_upstream(client, monkeypatch):
+    from services.gateway import main as gateway_main
+
+    fake_upstream = _FakeUpstreamWS()
+    monkeypatch.setattr(gateway_main.websockets, "connect", lambda url: _FakeConnect(fake_upstream))
+
+    with client.websocket_connect("/ws/runs/1") as ws:
+        ws.send_text("ping")
+        # ws_bridge relays this in a background thread (the TestClient portal);
+        # wait for it rather than assuming it's already happened by the time
+        # send_text() returns.
+        assert fake_upstream._sent_event.wait(timeout=2), (
+            "ws_bridge never relayed the client's message to the upstream connection"
+        )
+
+    assert fake_upstream.sent == ["ping"]
+
+
+def test_ws_bridge_connects_to_the_run_specific_upstream_url(client, monkeypatch):
+    from services.gateway import main as gateway_main
+
+    captured_urls = []
+
+    def _fake_connect(url):
+        captured_urls.append(url)
+        return _FakeConnect(_FakeUpstreamWS())
+
+    monkeypatch.setattr(gateway_main.websockets, "connect", _fake_connect)
+
+    with client.websocket_connect("/ws/runs/42"):
+        pass
+
+    assert captured_urls == [f"{gateway_main.RUNS_URL.replace('http://', 'ws://')}/ws/runs/42"]
+
+
+def test_ws_bridge_closes_the_client_connection_when_upstream_is_unreachable(client, monkeypatch):
+    from services.gateway import main as gateway_main
+    from starlette.websockets import WebSocketDisconnect
+
+    def _refuse_connection(url):
+        raise ConnectionRefusedError("no runs service listening")
+
+    monkeypatch.setattr(gateway_main.websockets, "connect", _refuse_connection)
+
+    with client.websocket_connect("/ws/runs/1") as ws:
+        with pytest.raises(WebSocketDisconnect):
+            ws.receive_text()
 
 
 def test_routing_table_has_no_stale_entries():
