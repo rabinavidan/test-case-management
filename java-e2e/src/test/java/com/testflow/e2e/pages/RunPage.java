@@ -21,12 +21,13 @@ public class RunPage extends BasePage {
         this.modalOverlay = page.locator("#modal-overlay");
     }
 
-    public void goTo(int runId) {
+    public RunPage goTo(int runId) {
         navigate("/#run/" + runId);
         waitForNetworkIdle();
+        return this;
     }
 
-    public void markResult(String testCaseTitle, String status, String notes) {
+    public RunPage markResult(String testCaseTitle, String status, String notes) {
         Locator row = resultRows.filter(new Locator.FilterOptions().setHasText(testCaseTitle));
         Locator recordBtn = row.locator("button", new Locator.LocatorOptions().setHasText("Record"))
                 .or(row.locator("button", new Locator.LocatorOptions().setHasText("Update")));
@@ -52,6 +53,7 @@ public class RunPage extends BasePage {
                     .setState(WaitForSelectorState.HIDDEN).setTimeout(TIMEOUT_SHORT));
         }
         waitForNetworkIdle();
+        return this;
     }
 
     public RunSummary getSummary() {

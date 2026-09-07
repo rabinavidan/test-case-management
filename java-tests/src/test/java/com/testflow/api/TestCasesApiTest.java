@@ -2,6 +2,8 @@ package com.testflow.api;
 
 import com.testflow.api.support.AuthSupport;
 import com.testflow.api.support.BaseApiTest;
+import com.testflow.api.support.Fixtures;
+import com.testflow.api.support.TestCasePayload;
 import com.testflow.api.support.TestData;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -9,9 +11,6 @@ import io.restassured.response.Response;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
-import java.util.HashMap;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,25 +29,13 @@ class TestCasesApiTest extends BaseApiTest {
 
     @BeforeEach
     void createFreshSuite() {
-        int projectId = given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("name", TestData.uniqueName("tc-project")))
-                .post("/api/projects")
-                .then().statusCode(201)
-                .extract().jsonPath().getInt("id");
-
-        suiteId = given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("name", TestData.uniqueName("tc-suite")))
-                .post("/api/projects/" + projectId + "/suites")
-                .then().statusCode(201)
-                .extract().jsonPath().getInt("id");
+        suiteId = Fixtures.freshSuite(adminToken, "tc-project", "tc-suite").suiteId();
     }
 
     private int createTestCase(String title) {
         return given()
                 .header("Authorization", authHeader(adminToken))
-                .body(Map.of("title", title))
+                .body(TestCasePayload.testCase().title(title).toMap())
                 .post("/api/suites/" + suiteId + "/testcases")
                 .then().statusCode(201)
                 .extract().jsonPath().getInt("id");
@@ -58,7 +45,7 @@ class TestCasesApiTest extends BaseApiTest {
     void newTestCaseDefaultsToDraftStatusAndMediumPriority() {
         Response created = given()
                 .header("Authorization", authHeader(adminToken))
-                .body(Map.of("title", TestData.uniqueName("case")))
+                .body(TestCasePayload.testCase().uniqueTitle("case").toMap())
                 .post("/api/suites/" + suiteId + "/testcases");
 
         created.then().statusCode(201);
@@ -86,7 +73,7 @@ class TestCasesApiTest extends BaseApiTest {
 
         Response updated = given()
                 .header("Authorization", authHeader(adminToken))
-                .body(Map.of("status", "active", "priority", "high"))
+                .body(TestCasePayload.testCase().status("active").priority("high").toMap())
                 .put("/api/testcases/" + tcId);
 
         updated.then().statusCode(200);
@@ -101,13 +88,9 @@ class TestCasesApiTest extends BaseApiTest {
         // `null` (distinct from omitting the field) must be ignored, not applied.
         int tcId = createTestCase(TestData.uniqueName("case"));
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("status", "active");
-        payload.put("title", null);
-
         Response updated = given()
                 .header("Authorization", authHeader(adminToken))
-                .body(payload)
+                .body(TestCasePayload.testCase().status("active").title(null).toMap())
                 .put("/api/testcases/" + tcId);
 
         updated.then().statusCode(200);
@@ -135,7 +118,7 @@ class TestCasesApiTest extends BaseApiTest {
     void creatingATestCaseUnderAMissingSuiteReturns404() {
         given()
                 .header("Authorization", authHeader(adminToken))
-                .body(Map.of("title", TestData.uniqueName("case")))
+                .body(TestCasePayload.testCase().uniqueTitle("case").toMap())
                 .post("/api/suites/999999999/testcases")
                 .then().statusCode(404);
     }
@@ -147,7 +130,7 @@ class TestCasesApiTest extends BaseApiTest {
 
         given()
                 .header("Authorization", authHeader(executorToken))
-                .body(Map.of("status", "active"))
+                .body(TestCasePayload.testCase().status("active").toMap())
                 .put("/api/testcases/" + tcId)
                 .then().statusCode(403);
     }

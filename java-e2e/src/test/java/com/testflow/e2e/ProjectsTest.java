@@ -1,6 +1,5 @@
 package com.testflow.e2e;
 
-import com.testflow.e2e.pages.ProjectsPage;
 import com.testflow.e2e.support.ApiClient;
 import com.testflow.e2e.support.BaseTest;
 import com.testflow.e2e.support.TestData;
@@ -35,12 +34,12 @@ class ProjectsTest extends BaseTest {
     @Test
     void canCreateAProject() {
         String projectName = TestData.uniqueName("Project");
-        ProjectsPage projectsPage = new ProjectsPage(page);
 
-        projectsPage.goTo();
-        projectsPage.clickNewProject();
-        projectsPage.fillProjectForm(projectName, "Created by the Java E2E suite");
-        projectsPage.submitProjectForm();
+        pages.projects()
+                .goTo()
+                .clickNewProject()
+                .fillProjectForm(projectName, "Created by the Java E2E suite")
+                .submitProjectForm();
 
         assertThat(page.getByText(projectName).first()).isVisible();
 
@@ -53,9 +52,7 @@ class ProjectsTest extends BaseTest {
         int projectId = ApiClient.createProject(projectName, "To be deleted");
         createdProjectIds.add(projectId);
 
-        ProjectsPage projectsPage = new ProjectsPage(page);
-        projectsPage.goTo();
-        projectsPage.deleteProject(projectName);
+        pages.projects().goTo().deleteProject(projectName);
 
         assertThat(page.getByText(projectName).first()).isHidden();
         createdProjectIds.remove(Integer.valueOf(projectId));

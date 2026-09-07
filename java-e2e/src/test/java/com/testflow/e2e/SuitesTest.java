@@ -1,6 +1,5 @@
 package com.testflow.e2e;
 
-import com.testflow.e2e.pages.ProjectPage;
 import com.testflow.e2e.support.ApiClient;
 import com.testflow.e2e.support.BaseTest;
 import com.testflow.e2e.support.TestData;
@@ -32,12 +31,12 @@ class SuitesTest extends BaseTest {
     @Test
     void canCreateATestSuiteInsideAProject() {
         String suiteName = TestData.uniqueName("My-Suite");
-        ProjectPage projectPage = new ProjectPage(page);
 
-        projectPage.goTo(projectId);
-        projectPage.clickNewSuite();
-        projectPage.fillSuiteForm(suiteName, "A test suite for e2e");
-        projectPage.submitSuiteForm();
+        pages.project()
+                .goTo(projectId)
+                .clickNewSuite()
+                .fillSuiteForm(suiteName, "A test suite for e2e")
+                .submitSuiteForm();
 
         assertThat(page.getByText(suiteName).first()).isVisible();
     }

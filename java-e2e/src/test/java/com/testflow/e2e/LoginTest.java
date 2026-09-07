@@ -18,23 +18,18 @@ class LoginTest extends BaseTest {
 
     @Test
     void rendersAllExpectedElementsWhenOpened() {
-        LoginPage loginPage = new LoginPage(page);
-        loginPage.open();
-        loginPage.expectModalLoaded();
+        LoginPage loginPage = pages.login().open().expectModalLoaded();
         assertThat(loginPage.contactAdminTextVisible()).isTrue();
     }
 
     @Test
     void validCredentialsSignTheUserIn() {
-        LoginPage loginPage = new LoginPage(page);
-        loginPage.login(USERNAME, PASSWORD);
-        loginPage.expectLoggedIn();
+        pages.login().login(USERNAME, PASSWORD).expectLoggedIn();
     }
 
     @Test
     void invalidCredentialsShowAnErrorAndLeaveTheUserLoggedOut() {
-        LoginPage loginPage = new LoginPage(page);
-        loginPage.login(USERNAME, "not-the-real-password");
+        LoginPage loginPage = pages.login().login(USERNAME, "not-the-real-password");
 
         assertThat(loginPage.loginErrorText()).contains("Invalid username or password");
         assertThat(page.getByTestId("signin-btn").isVisible()).isTrue();

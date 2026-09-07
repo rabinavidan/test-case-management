@@ -19,27 +19,31 @@ public class ProjectPage extends BasePage {
         this.submitBtn = page.getByTestId("modal-submit-btn");
     }
 
-    public void goTo(int projectId) {
+    public ProjectPage goTo(int projectId) {
         navigate("/#project/" + projectId);
         waitForNetworkIdle();
+        return this;
     }
 
-    public void clickNewSuite() {
+    public ProjectPage clickNewSuite() {
         newSuiteBtn.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_MEDIUM));
         newSuiteBtn.click();
+        return this;
     }
 
-    public void fillSuiteForm(String name, String description) {
+    public ProjectPage fillSuiteForm(String name, String description) {
         nameInput.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_MEDIUM));
         nameInput.fill(name);
         if (description != null) {
             descInput.fill(description);
         }
+        return this;
     }
 
-    public void submitSuiteForm() {
+    public ProjectPage submitSuiteForm() {
         submitBtn.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_SHORT));
         submitBtn.click();
         waitForNetworkIdle();
+        return this;
     }
 }
