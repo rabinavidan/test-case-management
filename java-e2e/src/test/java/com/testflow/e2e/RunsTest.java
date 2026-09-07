@@ -1,7 +1,6 @@
 package com.testflow.e2e;
 
 import com.testflow.e2e.pages.RunPage;
-import com.testflow.e2e.pages.SuitePage;
 import com.testflow.e2e.support.ApiClient;
 import com.testflow.e2e.support.BaseTest;
 import com.testflow.e2e.support.TestData;
@@ -36,9 +35,7 @@ class RunsTest extends BaseTest {
 
     @Test
     void canStartATestRunFromASuite() {
-        SuitePage suitePage = new SuitePage(page);
-        suitePage.goTo(suiteId);
-        int runId = suitePage.startRun(TestData.uniqueName("Run"));
+        int runId = pages.suite().goTo(suiteId).startRun(TestData.uniqueName("Run"));
 
         assertThat(runId).isGreaterThan(0);
         assertThat(page.url()).contains("run/" + runId);
@@ -46,16 +43,14 @@ class RunsTest extends BaseTest {
 
     @Test
     void canMarkTestCasesPassAndFailAndSeeTheSummaryUpdate() {
-        SuitePage suitePage = new SuitePage(page);
-        suitePage.goTo(suiteId);
-        int runId = suitePage.startRun(TestData.uniqueName("Run"));
+        int runId = pages.suite().goTo(suiteId).startRun(TestData.uniqueName("Run"));
 
-        RunPage runPage = new RunPage(page);
-        runPage.goTo(runId);
-        runPage.markResult("TC-Alpha", "pass", "All good");
-        runPage.markResult("TC-Beta", "fail", "Broke on submit");
+        RunPage.RunSummary summary = pages.run()
+                .goTo(runId)
+                .markResult("TC-Alpha", "pass", "All good")
+                .markResult("TC-Beta", "fail", "Broke on submit")
+                .getSummary();
 
-        RunPage.RunSummary summary = runPage.getSummary();
         assertThat(summary.pass()).isGreaterThanOrEqualTo(1);
         assertThat(summary.fail()).isGreaterThanOrEqualTo(1);
         assertThat(summary.pending()).isEqualTo(0);

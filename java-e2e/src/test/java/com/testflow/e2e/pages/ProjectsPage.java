@@ -19,34 +19,39 @@ public class ProjectsPage extends BasePage {
         this.submitBtn = page.getByTestId("modal-submit-btn");
     }
 
-    public void goTo() {
+    public ProjectsPage goTo() {
         navigate("/");
         waitForNetworkIdle();
+        return this;
     }
 
-    public void clickNewProject() {
+    public ProjectsPage clickNewProject() {
         newProjectBtn.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_MEDIUM));
         newProjectBtn.click();
+        return this;
     }
 
-    public void fillProjectForm(String name, String description) {
+    public ProjectsPage fillProjectForm(String name, String description) {
         nameInput.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_MEDIUM));
         nameInput.fill(name);
         if (description != null) {
             descInput.fill(description);
         }
+        return this;
     }
 
-    public void submitProjectForm() {
+    public ProjectsPage submitProjectForm() {
         submitBtn.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_SHORT));
         submitBtn.click();
         waitForNetworkIdle();
+        return this;
     }
 
-    public void deleteProject(String name) {
+    public ProjectsPage deleteProject(String name) {
         Locator row = page.locator("[data-testid^=\"project-row-\"]").filter(new Locator.FilterOptions().setHasText(name));
         page.onDialog(dialog -> dialog.accept());
         row.locator("[data-testid^=\"delete-project-\"]").click(new Locator.ClickOptions().setForce(true));
         waitForNetworkIdle();
+        return this;
     }
 }

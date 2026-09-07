@@ -1,6 +1,5 @@
 package com.testflow.e2e;
 
-import com.testflow.e2e.pages.SuitePage;
 import com.testflow.e2e.support.ApiClient;
 import com.testflow.e2e.support.BaseTest;
 import com.testflow.e2e.support.TestData;
@@ -34,12 +33,12 @@ class TestCasesTest extends BaseTest {
     @Test
     void canCreateATestCase() {
         String title = TestData.uniqueName("Full-Test-Case");
-        SuitePage suitePage = new SuitePage(page);
 
-        suitePage.goTo(suiteId);
-        suitePage.clickNewTestCase();
-        suitePage.fillTestCaseForm(title, "Created by the Java E2E suite");
-        suitePage.submitTestCaseForm();
+        pages.suite()
+                .goTo(suiteId)
+                .clickNewTestCase()
+                .fillTestCaseForm(title, "Created by the Java E2E suite")
+                .submitTestCaseForm();
 
         assertThat(page.getByText(title).first()).isVisible();
     }

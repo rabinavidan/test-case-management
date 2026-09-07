@@ -37,6 +37,7 @@ public abstract class BaseTest {
 
     protected BrowserContext context;
     protected Page page;
+    protected Pages pages;
 
     @BeforeAll
     static void launchBrowser() {
@@ -73,6 +74,7 @@ public abstract class BaseTest {
                 .setSnapshots(true)
                 .setSources(true));
         page = context.newPage();
+        pages = new Pages(page);
     }
 
     // Context/page lifecycle (including closing, which flushes the recorded video) is owned by

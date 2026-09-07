@@ -2,6 +2,7 @@ package com.testflow.api;
 
 import com.testflow.api.support.AuthSupport;
 import com.testflow.api.support.BaseApiTest;
+import com.testflow.api.support.Fixtures;
 import com.testflow.api.support.TestData;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -29,12 +30,7 @@ class SuitesApiTest extends BaseApiTest {
 
     @BeforeEach
     void createFreshProject() {
-        projectId = given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("name", TestData.uniqueName("suites-project")))
-                .post("/api/projects")
-                .then().statusCode(201)
-                .extract().jsonPath().getInt("id");
+        projectId = Fixtures.freshProject(adminToken, "suites-project");
     }
 
     @Test

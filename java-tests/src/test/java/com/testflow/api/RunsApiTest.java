@@ -2,6 +2,7 @@ package com.testflow.api;
 
 import com.testflow.api.support.AuthSupport;
 import com.testflow.api.support.BaseApiTest;
+import com.testflow.api.support.Fixtures;
 import com.testflow.api.support.TestData;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -31,41 +32,9 @@ class RunsApiTest extends BaseApiTest {
 
     @BeforeEach
     void createSuiteWithOneActiveTestCase() {
-        int projectId = given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("name", TestData.uniqueName("runs-project")))
-                .post("/api/projects")
-                .then().statusCode(201)
-                .extract().jsonPath().getInt("id");
-
-        suiteId = given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("name", TestData.uniqueName("runs-suite")))
-                .post("/api/projects/" + projectId + "/suites")
-                .then().statusCode(201)
-                .extract().jsonPath().getInt("id");
-
-        int draftTestCaseId = given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("title", "draft case — excluded from runs"))
-                .post("/api/suites/" + suiteId + "/testcases")
-                .then().statusCode(201)
-                .extract().jsonPath().getInt("id");
-
-        activeTestCaseId = given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("title", "active case — included in runs"))
-                .post("/api/suites/" + suiteId + "/testcases")
-                .then().statusCode(201)
-                .extract().jsonPath().getInt("id");
-
-        given()
-                .header("Authorization", authHeader(adminToken))
-                .body(Map.of("status", "active"))
-                .put("/api/testcases/" + activeTestCaseId)
-                .then().statusCode(200);
-        // draftTestCaseId stays in "draft" status on purpose — a run must not pick it up.
-        assertThat(draftTestCaseId).isNotEqualTo(activeTestCaseId);
+        Fixtures.ActiveCaseSuite fixture = Fixtures.suiteWithOneActiveTestCase(adminToken);
+        suiteId = fixture.suiteId();
+        activeTestCaseId = fixture.activeTestCaseId();
     }
 
     @Test

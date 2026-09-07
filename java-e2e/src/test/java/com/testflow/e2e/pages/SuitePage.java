@@ -27,28 +27,32 @@ public class SuitePage extends BasePage {
         this.modalBody = page.getByTestId("modal-body");
     }
 
-    public void goTo(int suiteId) {
+    public SuitePage goTo(int suiteId) {
         navigate("/#suite/" + suiteId);
         waitForNetworkIdle();
+        return this;
     }
 
-    public void clickNewTestCase() {
+    public SuitePage clickNewTestCase() {
         newTestCaseBtn.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_MEDIUM));
         newTestCaseBtn.click();
+        return this;
     }
 
-    public void fillTestCaseForm(String title, String description) {
+    public SuitePage fillTestCaseForm(String title, String description) {
         titleInput.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_MEDIUM));
         titleInput.fill(title);
         if (description != null) {
             descInput.fill(description);
         }
+        return this;
     }
 
-    public void submitTestCaseForm() {
+    public SuitePage submitTestCaseForm() {
         submitBtn.waitFor(new Locator.WaitForOptions().setTimeout(TIMEOUT_SHORT));
         submitBtn.click();
         waitForNetworkIdle();
+        return this;
     }
 
     /** Starts a run with the given name and returns its id, parsed from the resulting URL. */

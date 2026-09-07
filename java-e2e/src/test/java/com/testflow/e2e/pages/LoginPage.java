@@ -31,27 +31,30 @@ public class LoginPage extends BasePage {
     }
 
     /** Loads the app as a guest and opens the sign-in modal. */
-    public void open() {
+    public LoginPage open() {
         navigate("/");
         waitForNetworkIdle();
         page.getByTestId("signin-btn").click();
         submitBtn.waitFor();
+        return this;
     }
 
     /** Opens the sign-in modal and submits credentials (does not assume success). */
-    public void login(String username, String password) {
+    public LoginPage login(String username, String password) {
         open();
         usernameInput.fill(username);
         passwordInput.fill(password);
         submitBtn.click();
+        return this;
     }
 
-    public void expectModalLoaded() {
+    public LoginPage expectModalLoaded() {
         heading.waitFor();
         signInHeading.waitFor();
         usernameInput.waitFor();
         passwordInput.waitFor();
         submitBtn.waitFor();
+        return this;
     }
 
     public boolean contactAdminTextVisible() {
@@ -63,7 +66,8 @@ public class LoginPage extends BasePage {
         return authError.textContent();
     }
 
-    public void expectLoggedIn() {
+    public LoginPage expectLoggedIn() {
         assertThat(page.getByTestId("logout-btn")).isVisible();
+        return this;
     }
 }
