@@ -2,6 +2,7 @@ import { test, expect } from '../fixtures/auth.fixture';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectPage } from '../pages/project.page';
+import { SuitePage } from '../pages/suite.page';
 
 function getAuthToken(): string {
   const authStatePath = path.join(__dirname, '..', 'auth-state.json');
@@ -11,6 +12,11 @@ function getAuthToken(): string {
 
 function uniqueName(base: string): string {
   return `${base}_${Date.now()}`;
+}
+
+// Mirrors the filename sanitization in api/main.py's export_suite_csv.
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 test.describe('Test Suites', () => {
@@ -125,6 +131,57 @@ test.describe('Test Suites', () => {
 
     await test.step('Verify suite is gone', async () => {
       await expect(page.getByText(suiteName).first()).not.toBeVisible({ timeout: 5000 });
+    });
+  });
+
+  test('can export suite test cases to CSV including latest run status', async ({ page, request }) => {
+    const suiteName = uniqueName('Export Suite');
+    let suiteId: number;
+
+    await test.step('Create suite, test case, and a run with a pass result via API', async () => {
+      const suiteRes = await request.post(`/api/projects/${projectId}/suites`, {
+        data: { name: suiteName },
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const suite = await suiteRes.json();
+      suiteId = suite.id || suite.data?.id;
+
+      const tcRes = await request.post(`/api/suites/${suiteId}/testcases`, {
+        data: { title: 'Export TC', status: 'active' },
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const tc = await tcRes.json();
+
+      const runRes = await request.post(`/api/suites/${suiteId}/runs`, {
+        data: { name: 'Export Run' },
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const run = await runRes.json();
+
+      await request.put(`/api/runs/${run.id}/results/${tc.id}`, {
+        data: { status: 'pass' },
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+    });
+
+    const suitePage = new SuitePage(page);
+
+    await test.step('Navigate to suite page', async () => {
+      await suitePage.goto(suiteId);
+    });
+
+    await test.step('Click Export CSV and verify the downloaded file', async () => {
+      const downloadPromise = page.waitForEvent('download');
+      await page.getByTestId('export-csv-btn').click();
+      const download = await downloadPromise;
+
+      expect(download.suggestedFilename()).toBe(`${sanitizeFilename(suiteName)}_export.csv`);
+
+      const filePath = await download.path();
+      const content = fs.readFileSync(filePath!, 'utf-8');
+      expect(content).toContain('Export TC');
+      expect(content).toContain('Export Run');
+      expect(content).toContain('pass');
     });
   });
 });

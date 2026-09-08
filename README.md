@@ -87,6 +87,7 @@ writes and self-heals the test suite itself:
 | **AI Test Generation** | Anthropic Claude Haiku (`claude-haiku-4-5-20251001`) | `POST /api/suites/{id}/testcases/generate` |
 | **AI Failure Triage** | Claude Haiku summarizes a run's failed/skipped results into a plain-English root-cause guess | `POST /api/runs/{id}/triage` |
 | **Flaky Test Detection** | Flags test cases whose pass/fail results flip-flop across runs (no AI needed — deterministic pattern matching) | `GET /api/suites/{id}/flaky-tests` |
+| **CSV Export** | One row per test case with its most recent run status across the suite; UTF-8 BOM for non-ASCII titles and a formula-injection guard for values opened in Excel/Sheets | `GET /api/suites/{id}/export/csv` |
 | **Real-time Collaboration** | WebSocket + Redis Pub/Sub | `WS /ws/runs/{run_id}` |
 | **Analytics Dashboard** | Chart.js 4 (pass-rate trend line, suite coverage bars) | `GET /api/projects/{id}/analytics` |
 | **Microservice Architecture** | 5 services · Docker Compose · Redis events | `services/` + `docker-compose.microservices.yml` |

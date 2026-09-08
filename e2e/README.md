@@ -118,6 +118,7 @@ Query params: `?page=1&page_size=50&search=keyword`.
 | Analytics endpoint (`GET /api/projects/{id}/analytics`) | `api.spec.ts` full CRUD flow |
 | Paginated project list | `api.spec.ts`, `projects.spec.ts` |
 | Sidebar pass-rate progress bar | `sidebar-progress-bar.spec.ts` |
+| Suite CSV export (`GET /api/suites/{id}/export/csv`) | `suites.spec.ts` |
 
 ## Claude Code – Playwright MCP
 
