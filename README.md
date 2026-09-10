@@ -5,14 +5,16 @@
 A full-stack test case management platform built with FastAPI microservices, Vanilla JS, PostgreSQL, and Redis.
 Designed to demonstrate cutting-edge engineering practices — microservice decomposition, event-driven async,
 real-time WebSocket collaboration, and AI-powered test generation, failure triage, and flaky-test detection
-(via Anthropic's Claude Haiku). Backed by **four independent, feature-equivalent test automation stacks** —
-Python/pytest, TypeScript/Playwright, Java/REST Assured, and Java/Playwright — see
+(via Anthropic's Claude Haiku). Backed by **five independent, feature-equivalent test automation stacks** —
+Python/pytest, TypeScript/Playwright, Java/REST Assured, Java/Playwright, and Cucumber/Gherkin BDD — see
 [Test Architecture](#test-architecture) below.
 
-> **Note for reviewers:** two of the four test suites are written in Java — [`java-tests/`](java-tests/README.md)
+> **Note for reviewers:** two of the five test suites are written in Java — [`java-tests/`](java-tests/README.md)
 > (JUnit 5 + REST Assured, black-box API tests) and [`java-e2e/`](java-e2e/README.md) (JUnit 5 + Playwright Java,
 > browser E2E). Both run standalone with Maven (`mvn test`) and are feature-equivalent to the Python and
-> TypeScript suites — see [Test Architecture](#test-architecture).
+> TypeScript suites. A fifth, [`e2e-bdd/`](e2e-bdd/README.md) (Cucumber.js + Playwright), covers the same core
+> flows as Gherkin feature files, with a companion Azure DevOps pipeline ([`azure-pipelines.yml`](azure-pipelines.yml))
+> alongside the GitHub Actions workflows — see [Test Architecture](#test-architecture).
 
 ---
 
@@ -233,7 +235,7 @@ WS     /ws/runs/{run_id}                        # Real-time result updates
 
 ## Test Architecture
 
-Four independent, feature-equivalent automation stacks drive the same app — same core flows, same public
+Five independent, feature-equivalent automation stacks drive the same app — same core flows, same public
 `/api/*` surface — each targeting a different hiring context on purpose (see the breakdown below):
 
 ```
@@ -259,8 +261,8 @@ Four independent, feature-equivalent automation stacks drive the same app — sa
                                      Allure report (every run, every stack)
 ```
 
-225 pytest tests, 40+ Playwright TS specs, 35 REST Assured tests, and a JUnit 5/Playwright Java E2E suite —
-see the full breakdown below.
+225 pytest tests, 40+ Playwright TS specs, 35 REST Assured tests, a JUnit 5/Playwright Java E2E suite, and a
+Cucumber/Gherkin BDD suite — see the full breakdown below.
 
 **Coverage:** ~89% line coverage of `api/`, `services/`, and `shared/` from the pytest suite alone (unit + API +
 contract + services), measured with `pytest-cov` and enforced at an 85% floor in CI (`.github/workflows/test.yml`)
@@ -277,13 +279,15 @@ Playwright/REST Assured E2E suites, which run against a live deployment rather t
 | **Microservices** | Each of the 5 `services/` (auth, projects, runs, ai, gateway) tested in isolation — auth, CRUD, inter-service HTTP calls, graceful degradation when a downstream service or Redis is unreachable | `tests/services/` (pytest) |
 | **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `tests/e2e/` (pytest + Playwright) · `e2e/tests/*.spec.ts` (Playwright + TypeScript) · `java-e2e/` (JUnit 5 + Playwright Java) |
 | **Java API** | Black-box HTTP tests against a running instance — no in-process shortcuts, same public `/api/*` surface as every other stack | `java-tests/` (JUnit 5 + REST Assured) |
+| **BDD / Gherkin** | Stakeholder-readable Given/When/Then feature files over the same core flows (sign-in, project lifecycle), driven by Cucumber.js + Playwright | [`e2e-bdd/`](e2e-bdd/README.md) (Cucumber.js + Playwright + TypeScript) |
 | **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
 | **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) · `allure-junit5` (Java) |
 | **Coverage** | Line coverage of `api/`, `services/`, `shared/` — ~89%, gated at an 85% floor | `pytest-cov` (`.coveragerc`), reported in the CI job summary and as a `coverage.json` artifact |
 
 225 pytest tests total (7 unit + 126 API + 33 contract operations + 59 services), plus 40+ Playwright E2E specs,
-35 JUnit 5/REST Assured API tests, and a JUnit 5/Playwright-Java E2E suite — four independent automation stacks
-(Python, TypeScript, and two in Java) against the same app. See the breakdown below for how each stack is built.
+35 JUnit 5/REST Assured API tests, a JUnit 5/Playwright-Java E2E suite, and a Cucumber/Gherkin BDD suite — five
+independent automation stacks (Python, TypeScript, two in Java, and Cucumber) against the same app. See the
+breakdown below for how each stack is built.
 
 This project deliberately maintains **three independent, feature-equivalent browser-automation stacks** against the
 same app — Playwright + TypeScript, Playwright + pytest (Python), and Playwright + Java (JUnit 5) — rather than
@@ -492,6 +496,51 @@ allure generate target/allure-results --clean -o target/allure-report && allure 
 
 See [`java-e2e/README.md`](java-e2e/README.md) for the full breakdown.
 
+### Cucumber/Gherkin BDD suite
+
+The fifth stack (`e2e-bdd/`) is a behavior-driven layer over the same app — Cucumber.js + Playwright, feature
+files in Gherkin instead of hand-written `test()` blocks. It covers the same sign-in and project-lifecycle
+flows as `e2e/`, expressed as scenarios a non-engineer stakeholder can read and review directly.
+
+```
+e2e-bdd/
+├── features/
+│   ├── login.feature               # Sign-in modal — Scenario Outline for invalid-credentials cases
+│   └── project_management.feature  # Create / delete a project
+├── pages/                          # Small, purpose-built Page Object Model (see e2e-bdd/README.md for why
+│                                    # it doesn't import e2e/pages directly)
+├── step-definitions/                # Given/When/Then bindings + Before/After hooks
+└── scripts/cucumber-json-to-junit.js  # Converts Cucumber's JSON report to JUnit XML
+```
+
+**Engineering practices this demonstrates:**
+
+- **Gherkin as the spec, not an afterthought.** Scenarios read as plain business language (`Given a project
+  named "Legacy Suite" already exists` / `When I delete the project named "Legacy Suite"`), with a
+  `Scenario Outline` + `Examples` table driving the invalid-login cases from data instead of copy-pasted
+  scenarios.
+- **A stack that stays independently runnable.** Every automation stack in this repo owns its own Page
+  Objects rather than sharing code across languages/tools (see `java-e2e/`'s own POM, ported from but not
+  importing `e2e/pages`); `e2e-bdd/` follows the same rule — for a concrete reason, not just convention, see
+  [`e2e-bdd/README.md`](e2e-bdd/README.md#why-a-separate-stack-instead-of-reusing-e2epages).
+- **CI-tool-agnostic reporting.** `cucumber-json-to-junit.js` is a small, dependency-free converter (the
+  cucumber-js team dropped the built-in JUnit formatter years ago) so results render natively in whichever CI
+  system is consuming them — GitHub Actions' `dorny/test-reporter` and Azure Pipelines' `PublishTestResults@2`
+  both read the same JUnit file it produces.
+- **Runs in two CI systems from one suite.** [`bdd-cucumber.yml`](.github/workflows/bdd-cucumber.yml) (GitHub
+  Actions) and [`azure-pipelines.yml`](azure-pipelines.yml) (Azure DevOps) both start the app and run the exact
+  same `npm test` against it — the pipeline definition is the only thing that differs.
+
+```bash
+cd e2e-bdd && npm install
+npx playwright install chromium
+npm test                 # all scenarios
+npm run test:smoke       # @smoke only
+npm run report:junit     # reports/cucumber-report.json -> reports/cucumber-junit.xml
+```
+
+See [`e2e-bdd/README.md`](e2e-bdd/README.md) for the full breakdown.
+
 ### CI wiring (`.github/workflows/`)
 
 | Workflow | Trigger | What runs |
@@ -502,6 +551,11 @@ See [`java-e2e/README.md`](java-e2e/README.md) for the full breakdown.
 | `pw-ts.yml` | every PR + push to `main` touching `e2e/`, `api/`, `static/`; daily cron | full `e2e/tests/*.spec.ts` suite, HTML/JSON report uploaded as an artifact |
 | `java-api-tests.yml` | every PR + push to `main` touching `java-tests/`, `api/`, `shared/` | starts the app locally, runs the full `java-tests/` JUnit suite, Allure report uploaded as an artifact |
 | `java-e2e-tests.yml` | every PR + push to `main` touching `java-e2e/`, `api/`, `static/` | starts the app locally, installs Playwright's Chromium, runs the full `java-e2e/` JUnit suite, Allure report uploaded as an artifact |
+| `bdd-cucumber.yml` | every PR + push to `main` touching `e2e-bdd/`, `api/`, `static/` | starts the app locally, runs the full `e2e-bdd/` Cucumber suite, JSON + JUnit reports uploaded as an artifact |
+
+**Also included:** [`azure-pipelines.yml`](azure-pipelines.yml) — an Azure DevOps YAML pipeline running the
+pytest and Cucumber suites, alongside the GitHub Actions workflows above (which remain this repo's actual CI,
+since it's hosted on GitHub). See the comment at the top of that file for why it's here.
 
 ---
 
