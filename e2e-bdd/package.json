@@ -1,0 +1,18 @@
+{
+  "name": "testflow-e2e-bdd",
+  "version": "1.0.0",
+  "description": "Cucumber/Gherkin BDD suite for TestFlow — reuses the Page Object Model from ../e2e/pages",
+  "scripts": {
+    "test": "cucumber-js",
+    "test:smoke": "cucumber-js --tags @smoke",
+    "test:regression": "cucumber-js --tags @regression",
+    "report:junit": "node scripts/cucumber-json-to-junit.js reports/cucumber-report.json reports/cucumber-junit.xml"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.2.0",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}

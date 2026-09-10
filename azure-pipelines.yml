@@ -1,0 +1,124 @@
+# Azure Pipelines YAML for TestFlow.
+#
+# This repo is hosted and built on GitHub (see .github/workflows/), which remains the
+# source of truth for CI status on this project. This pipeline is included alongside it
+# to demonstrate Azure DevOps YAML pipeline authoring — multi-stage/multi-job structure,
+# native JUnit test-result publishing, and pip/npm caching — against the same app and
+# the same two test stacks (pytest, Cucumber/Gherkin) the GitHub workflows already cover.
+# Wiring it to a live Azure DevOps project only requires importing this repo there and
+# pointing a pipeline at this file; no other change is needed.
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20.x'
+  TESTFLOW_DISABLE_RATE_LIMIT: '1'
+
+stages:
+  - stage: Test
+    displayName: 'Test'
+    jobs:
+      - job: PythonApiAndUnitTests
+        displayName: 'Python — pytest (unit / api / contract / services)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(PYTHON_VERSION)'
+            displayName: 'Use Python $(PYTHON_VERSION)'
+
+          - task: Cache@2
+            inputs:
+              key: 'pip | "$(Agent.OS)" | requirements.txt | requirements-test.txt'
+              path: $(Pipeline.Workspace)/.pip-cache
+            displayName: 'Cache pip packages'
+
+          - script: |
+              pip install --cache-dir $(Pipeline.Workspace)/.pip-cache -r requirements.txt -r requirements-test.txt
+            displayName: 'Install dependencies'
+
+          - script: |
+              pytest --junitxml=$(Build.ArtifactStagingDirectory)/pytest-junit.xml --cov=api --cov=services --cov=shared --cov-report=xml:$(Build.ArtifactStagingDirectory)/coverage.xml
+            displayName: 'Run pytest suite'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/pytest-junit.xml'
+              testRunTitle: 'pytest — unit/api/contract/services'
+
+          - task: PublishCodeCoverageResults@2
+            condition: always()
+            inputs:
+              summaryFileLocation: '$(Build.ArtifactStagingDirectory)/coverage.xml'
+
+      - job: CucumberBddTests
+        displayName: 'Cucumber/Gherkin BDD (e2e-bdd/)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(PYTHON_VERSION)'
+            displayName: 'Use Python $(PYTHON_VERSION) (to run the app under test)'
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+            displayName: 'Use Node.js $(NODE_VERSION)'
+
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | e2e-bdd/package-lock.json'
+              path: $(Pipeline.Workspace)/.npm-cache
+            displayName: 'Cache npm packages'
+
+          - script: pip install -r requirements.txt
+            displayName: 'Install Python dependencies (for the app under test)'
+
+          - script: |
+              nohup uvicorn api.main:app --host 0.0.0.0 --port 8000 > $(Build.ArtifactStagingDirectory)/uvicorn.log 2>&1 &
+              sleep 3
+            displayName: 'Start the app'
+
+          - script: |
+              npm ci --cache $(Pipeline.Workspace)/.npm-cache
+              npx playwright install --with-deps chromium
+            workingDirectory: e2e-bdd
+            displayName: 'Install BDD suite dependencies + Chromium'
+
+          - script: npm test
+            workingDirectory: e2e-bdd
+            displayName: 'Run Cucumber scenarios'
+            env:
+              BASE_URL: 'http://localhost:8000'
+              CI: 'true'
+
+          - script: npm run report:junit
+            workingDirectory: e2e-bdd
+            condition: always()
+            displayName: 'Convert Cucumber JSON report to JUnit'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'e2e-bdd/reports/cucumber-junit.xml'
+              testRunTitle: 'Cucumber/Gherkin BDD'
+
+          - task: PublishBuildArtifacts@1
+            condition: always()
+            inputs:
+              PathtoPublish: 'e2e-bdd/reports'
+              ArtifactName: 'cucumber-bdd-reports'

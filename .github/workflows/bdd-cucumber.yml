@@ -1,0 +1,81 @@
+name: Cucumber BDD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'e2e-bdd/**'
+      - 'api/**'
+      - 'static/**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  bdd:
+    name: BDD Tests (Cucumber/Gherkin)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e-bdd
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: e2e-bdd/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser (Chromium only — this suite doesn't cross-browser test)
+        run: npx playwright install --with-deps chromium
+
+      - name: Start app
+        working-directory: .
+        env:
+          # See e2e/pw-ts.yml for why: many scenarios authenticate independently
+          # in one run, enough to trip the 5/minute auth rate limit.
+          TESTFLOW_DISABLE_RATE_LIMIT: "1"
+        run: |
+          pip install -r requirements.txt
+          uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+          sleep 3
+
+      - name: Run Cucumber scenarios
+        id: bdd
+        run: npm test; echo "exit_code=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
+        env:
+          BASE_URL: http://localhost:8000
+          CI: true
+
+      - name: Convert report to JUnit
+        if: always()
+        run: npm run report:junit
+
+      - name: Publish test results summary
+        if: always()
+        uses: dorny/test-reporter@v1
+        continue-on-error: true
+        with:
+          name: Cucumber BDD results
+          path: e2e-bdd/reports/cucumber-junit.xml
+          reporter: java-junit
+
+      - name: Propagate exit code
+        if: always()
+        run: exit ${{ steps.bdd.outputs.exit_code }}
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cucumber-bdd-report-${{ github.run_id }}
+          path: |
+            e2e-bdd/reports/cucumber-report.json
+            e2e-bdd/reports/cucumber-junit.xml
+          retention-days: 7
