@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -18,6 +18,9 @@ import json
 import time
 import logging
 import traceback
+import csv
+import io
+import re
 
 from .database import engine, get_db, Base
 from . import models, schemas
@@ -646,6 +649,67 @@ def delete_suite(suite_id: int, db: Session = Depends(get_db), _: models.User = 
         raise HTTPException(status_code=404, detail="Suite not found")
     db.delete(suite)
     db.commit()
+
+
+def _csv_safe(value) -> str:
+    """Neutralize CSV/formula injection: a value starting with =, +, -, or @
+    can execute as a formula when the file is opened in Excel/Sheets — prefix
+    it with a quote so spreadsheet apps render it as literal text instead."""
+    s = "" if value is None else str(value)
+    if s and s[0] in ("=", "+", "-", "@"):
+        return "'" + s
+    return s
+
+
+@app.get("/api/suites/{suite_id}/export/csv")
+def export_suite_csv(suite_id: int, db: Session = Depends(get_db)):
+    """One row per test case, with its most recent run result (across every
+    run of this suite) — the "current status" view of the suite, not tied to
+    any single run."""
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
+
+    test_cases = db.query(models.TestCase).filter(
+        models.TestCase.suite_id == suite_id
+    ).order_by(models.TestCase.created_at.desc()).all()
+
+    buffer = io.StringIO()
+    buffer.write("﻿")  # UTF-8 BOM so Excel renders non-ASCII (e.g. Hebrew) text correctly
+    writer = csv.writer(buffer)
+    writer.writerow([
+        "Test Case ID", "Title", "Priority", "Case Status", "Description",
+        "Latest Run Name", "Latest Run Status", "Latest Run Date", "Environment", "Notes",
+    ])
+
+    for tc in test_cases:
+        latest_result = (
+            db.query(models.TestResult)
+            .join(models.TestRun, models.TestResult.run_id == models.TestRun.id)
+            .filter(models.TestResult.testcase_id == tc.id, models.TestRun.suite_id == suite_id)
+            .order_by(models.TestRun.created_at.desc())
+            .first()
+        )
+        run = latest_result.run if latest_result else None
+        writer.writerow([
+            tc.id,
+            _csv_safe(tc.title),
+            tc.priority,
+            tc.status,
+            _csv_safe(tc.description or ""),
+            _csv_safe(run.name) if run else "",
+            latest_result.status if latest_result else "no runs yet",
+            latest_result.executed_at.isoformat() if latest_result and latest_result.executed_at else "",
+            run.environment_name if run and run.environment_name else "",
+            _csv_safe(latest_result.notes or "") if latest_result else "",
+        ])
+
+    filename = re.sub(r"[^A-Za-z0-9._-]+", "_", suite.name).strip("_") or "suite"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}_export.csv"'},
+    )
 
 
 # ─── Test Cases ───────────────────────────────────────────────────────────────

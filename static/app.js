@@ -2167,6 +2167,11 @@ async function renderSuite(suiteId) {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             Flaky Tests
           </button>
+          <a href="/api/suites/${suiteId}/export/csv" download data-testid="export-csv-btn"
+            class="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2-9a4 4 0 010 8H7a4 4 0 01-.99-7.88A5.5 5.5 0 0117 8a4 4 0 010 8"/></svg>
+            Export CSV
+          </a>
           ${isAdmin() ? `<button onclick="showModal('testcase', {suiteId: ${suiteId}})"
             class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>

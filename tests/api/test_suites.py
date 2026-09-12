@@ -1,3 +1,6 @@
+import csv
+import io
+
 import pytest
 
 
@@ -6,6 +9,10 @@ def project(auth_client):
     client, headers = auth_client
     r = client.post("/api/projects", json={"name": "Test Project"}, headers=headers)
     return r.json(), headers, client
+
+
+def _parse_csv_rows(response_text):
+    return list(csv.reader(io.StringIO(response_text.lstrip("﻿"))))
 
 
 def test_list_suites_empty(auth_client, project):
@@ -102,3 +109,65 @@ def test_executor_cannot_delete_suite(executor_client, project):
     s = client.post(f"/api/projects/{proj['id']}/suites", json={"name": "Suite"}, headers=admin_headers).json()
     r = exec_client.delete(f"/api/suites/{s['id']}", headers=exec_headers)
     assert r.status_code == 403
+
+
+def test_export_suite_csv_not_found(auth_client):
+    client, headers = auth_client
+    r = client.get("/api/suites/999/export/csv", headers=headers)
+    assert r.status_code == 404
+
+
+def test_export_suite_csv_is_public(client, project):
+    proj, headers, _ = project
+    s = client.post(f"/api/projects/{proj['id']}/suites", json={"name": "Suite"}, headers=headers).json()
+    r = client.get(f"/api/suites/{s['id']}/export/csv")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    assert "attachment" in r.headers["content-disposition"]
+
+
+def test_export_suite_csv_headers_and_no_runs(auth_client, project):
+    proj, headers, client = project
+    s = client.post(f"/api/projects/{proj['id']}/suites", json={"name": "Suite"}, headers=headers).json()
+    client.post(f"/api/suites/{s['id']}/testcases", json={"title": "TC1", "status": "active"}, headers=headers)
+
+    r = client.get(f"/api/suites/{s['id']}/export/csv", headers=headers)
+    rows = _parse_csv_rows(r.text)
+    assert rows[0] == [
+        "Test Case ID", "Title", "Priority", "Case Status", "Description",
+        "Latest Run Name", "Latest Run Status", "Latest Run Date", "Environment", "Notes",
+    ]
+    assert rows[1][1] == "TC1"
+    assert rows[1][6] == "no runs yet"
+
+
+def test_export_suite_csv_reflects_latest_run_status(auth_client, project):
+    proj, headers, client = project
+    s = client.post(f"/api/projects/{proj['id']}/suites", json={"name": "Suite"}, headers=headers).json()
+    tc = client.post(f"/api/suites/{s['id']}/testcases", json={"title": "TC1", "status": "active"}, headers=headers).json()
+
+    run1 = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run 1"}, headers=headers).json()
+    client.put(f"/api/runs/{run1['id']}/results/{tc['id']}", json={"status": "fail", "notes": "boom"}, headers=headers)
+
+    run2 = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run 2"}, headers=headers).json()
+    client.put(f"/api/runs/{run2['id']}/results/{tc['id']}", json={"status": "pass"}, headers=headers)
+
+    r = client.get(f"/api/suites/{s['id']}/export/csv", headers=headers)
+    rows = _parse_csv_rows(r.text)
+    row = next(row for row in rows[1:] if row[0] == str(tc["id"]))
+    assert row[5] == "Run 2"
+    assert row[6] == "pass"
+
+
+def test_export_suite_csv_neutralizes_formula_injection(auth_client, project):
+    proj, headers, client = project
+    s = client.post(f"/api/projects/{proj['id']}/suites", json={"name": "Suite"}, headers=headers).json()
+    client.post(
+        f"/api/suites/{s['id']}/testcases",
+        json={"title": "=SUM(A1:A9)", "status": "active"},
+        headers=headers,
+    )
+
+    r = client.get(f"/api/suites/{s['id']}/export/csv", headers=headers)
+    rows = _parse_csv_rows(r.text)
+    assert rows[1][1] == "'=SUM(A1:A9)"
