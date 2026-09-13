@@ -88,6 +88,17 @@ repository secret (free tier: https://aistudio.google.com/apikey) to
 actually call the model — without one it still detects and logs gaps, but
 posts nothing.
 
+## AI Eval Harness
+
+`evals/` measures the AI Test Generation prompt's output quality and
+run-to-run consistency against a local [Ollama](https://ollama.com) model
+(no API key, no per-call cost) — see [`evals/README.md`](evals/README.md)
+for methodology. Its own unit tests (`tests/unit/test_evals_*.py`,
+`tests/unit/test_ai_prompts.py`) mock every Ollama call and run in the same
+`pytest` invocation as everything else above; running the harness itself
+against a real model is a separate, manual step, not part of `Before
+opening a PR` yet.
+
 ## Dependabot Auto-Triage
 
 `.github/workflows/dependabot-auto-merge.yml` classifies every Dependabot
