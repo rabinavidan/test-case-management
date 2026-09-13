@@ -9,6 +9,43 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-13 — Case-study writeup tying the eval-harness + agent work together (Milestone 4 of 4, final)
+
+Closing milestone of the 4-PR plan; Milestone 3 (#212) merged clean, including the pydantic/httpx bump holding
+up fine in CI. This session was docs-only — no code changes — writing the interview/portfolio artifact the
+whole plan was ultimately for.
+
+**What got written**: `docs/interview-prep/agentic-ai-test-engineering.md`, following the existing
+`docs/interview-prep/qa-automation-lead-nishapro.md`'s structure (requirement mapping table, honest gaps,
+talking points, questions to ask them) rather than inventing a new format. Content-wise it's a synthesis, not
+new material — pulling the real findings already documented in `evals/README.md` and `agents/README.md`
+(the schema_score mean-0.5/stdev-0.5 consistency example, the ChatPromptTemplate brace-escaping bug, the
+temperature/instruction fix for structured-output reliability, the httpx/pydantic dependency conflicts) into
+one narrative aimed specifically at the gap that started this whole plan: evaluation-harness design for
+non-deterministic systems, prompt engineering for test generation, and agent-framework familiarity.
+
+**Deliberately included an "honest gaps" section**, matching the nishapro doc's own convention of not
+overselling — the eval-harness CI job is informational only (no calibrated regression gate yet), only
+LangChain was actually built (not AutoGen or CrewAI, despite all three being named in the original postings),
+and the Test Plan Reviewer is CLI-only, not wired into the API. The instinct to skip these and just list
+strengths would undercut exactly the "hands-on, not hand-wavy" credibility the whole 4-PR plan was built to
+establish.
+
+**Cross-linked from the root README**: added one line after the AI Engineering section's bullet list pointing
+to the new doc, rather than leaving it discoverable only by browsing `docs/`.
+
+**Process note**: this was the one milestone with no pytest/ruff gate to run (docs-only diff, confirmed via
+`git status` before writing anything), so "tested locally" here meant checking every file path and link
+referenced in the new doc actually exists (`api/ai_prompts.py`, `evals/harness.py`,
+`evals/targets/__init__.py`, `agents/test_plan_reviewer.py`, `.github/workflows/eval-harness.yml`, etc.) rather
+than running a test suite.
+
+With this PR, the 4-milestone plan from the original CV-gap conversation is complete: eval harness foundation
+→ real CI wiring + a second target → a LangChain agent → this writeup, each merged sequentially with green CI
+before the next one started, per the user's explicit process rules.
+
+---
+
 ## 2026-09-13 — Add a LangChain agent: Test Plan Reviewer (Milestone 3 of 4)
 
 Continuation of the 4-milestone plan; Milestone 2 (PR #211) merged clean, including the new eval-harness.yml

@@ -60,6 +60,10 @@ writes and self-heals the test suite itself:
   [`.mcp.json`](.mcp.json)), never unattended in a workflow; everything they produce is an ordinary `*.spec.ts`
   file that still goes through human review and the existing `pw-ts.yml` pipeline like any other change.
 
+See [`docs/interview-prep/agentic-ai-test-engineering.md`](docs/interview-prep/agentic-ai-test-engineering.md)
+for the deeper case study behind the Eval Harness and Test Plan Reviewer — what they're for, the real failures
+and dependency conflicts hit building them, and the honest gaps not to oversell.
+
 ---
 
 <p align="center">
