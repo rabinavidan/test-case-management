@@ -1,0 +1,53 @@
+{
+  "cases": [
+    {
+      "id": "login-timeout-cluster",
+      "run_name": "Nightly regression - Auth",
+      "problem_results": [
+        {
+          "title": "Login with valid credentials",
+          "status": "fail",
+          "steps": "1. Enter credentials\n2. Submit",
+          "expected_result": "User is logged in",
+          "notes": "Timed out waiting for dashboard redirect"
+        },
+        {
+          "title": "Session persists after refresh",
+          "status": "fail",
+          "steps": "1. Log in\n2. Refresh the page",
+          "expected_result": "Still logged in",
+          "notes": "Redirected back to the login page"
+        },
+        {
+          "title": "Logout clears session",
+          "status": "skip",
+          "steps": "1. Log in\n2. Click logout",
+          "expected_result": "Session is cleared",
+          "notes": "Skipped: blocked by the login failure above"
+        }
+      ],
+      "required_keywords": ["timeout", "session", "login"]
+    },
+    {
+      "id": "csv-export-failures",
+      "run_name": "Reporting suite",
+      "problem_results": [
+        {
+          "title": "Export suite with zero test cases",
+          "status": "fail",
+          "steps": "1. Create an empty suite\n2. Export CSV",
+          "expected_result": "A CSV with only the header row",
+          "notes": "Server returned a 500 Internal Server Error"
+        },
+        {
+          "title": "Exported CSV includes latest run status column",
+          "status": "fail",
+          "steps": "1. Run a suite\n2. Export its CSV",
+          "expected_result": "A status column reflecting each case's latest run",
+          "notes": "Status column is missing from the downloaded file"
+        }
+      ],
+      "required_keywords": ["export", "csv", "error"]
+    }
+  ]
+}

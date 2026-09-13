@@ -1,0 +1,108 @@
+# Milestone 2 of the AI eval-harness work (see evals/README.md) — runs the
+# harness for real, against a real (small, CPU-friendly) local Ollama
+# model, instead of only the mocked unit tests that already run in
+# test.yml. Only triggers when the prompts under test or the harness
+# itself change, since it downloads a model and runs several LLM calls per
+# case — not something every unrelated PR should pay for.
+#
+# Deliberately informational, not a blocking gate: evals/cli.py's --gate
+# flag exists and is exercised by tests/unit/test_evals_cli.py, but a tiny
+# CPU model's output quality varies enough between runs (see the job
+# summary this workflow writes) that failing the build on it would be
+# noise, not signal. The hard gate here is a natural next step once
+# per-model baselines exist — see evals/README.md's Future work.
+name: AI Eval Harness
+
+on:
+  pull_request:
+    paths:
+      - "api/ai_prompts.py"
+      - "evals/**"
+      - ".github/workflows/eval-harness.yml"
+  workflow_dispatch: {}
+
+jobs:
+  eval-harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt httpx==0.25.2
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama server
+        run: |
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -s http://127.0.0.1:11434/api/version && break
+            sleep 1
+          done
+
+      - name: Pull eval model
+        # A small model (~400MB) so this job stays fast on a CPU runner;
+        # see evals/README.md for why the resulting scores are noisier
+        # than a larger model's would be.
+        run: ollama pull qwen2.5:0.5b
+
+      - name: Run AI Test Generation eval
+        id: eval_test_generation
+        continue-on-error: true
+        run: |
+          mkdir -p evals/reports
+          python -m evals.cli --target test_generation --model qwen2.5:0.5b --runs 5 \
+            --output evals/reports/test_generation.json --gate
+
+      - name: Run AI Failure Triage eval
+        id: eval_triage
+        continue-on-error: true
+        run: |
+          mkdir -p evals/reports
+          python -m evals.cli --target triage --model qwen2.5:0.5b --runs 5 \
+            --output evals/reports/triage.json --gate
+
+      - name: Write job summary
+        if: always()
+        run: |
+          python - <<'EOF'
+          import json, os, pathlib
+
+          lines = ["## 🧪 AI Eval Harness — qwen2.5:0.5b (informational, non-blocking)", ""]
+          for target, gate_passed in [
+              ("test_generation", "${{ steps.eval_test_generation.outcome }}" == "success"),
+              ("triage", "${{ steps.eval_triage.outcome }}" == "success"),
+          ]:
+              report_path = pathlib.Path(f"evals/reports/{target}.json")
+              icon = "✅" if gate_passed else "⚠️"
+              lines.append(f"### {icon} {target} — gate {'passed' if gate_passed else 'did not pass (informational only)'}")
+              if not report_path.exists():
+                  lines.append("_No report produced — the eval run itself failed before writing one._\n")
+                  continue
+              report = json.loads(report_path.read_text())
+              lines += ["", "| Case | Runs | Mean scores | Consistency (stdev) | Error rate |",
+                        "|------|------|-------------|----------------------|------------|"]
+              for case in report["cases"]:
+                  means = ", ".join(f"{k}={v:.2f}" for k, v in case["mean_scores"].items())
+                  stdev = ", ".join(f"{k}={v:.2f}" for k, v in case["consistency_stdev"].items())
+                  lines.append(f"| `{case['case_id']}` | {case['runs']} | {means} | {stdev} | {case['error_rate']:.0%} |")
+              lines.append("")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines))
+          EOF
+
+      - name: Upload eval reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-harness-reports-${{ github.run_id }}
+          path: evals/reports/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -2,6 +2,8 @@
 with a stub, so these never require a real Ollama server or network access."""
 import json
 
+import pytest
+
 import evals.cli as cli_module
 
 
@@ -56,3 +58,31 @@ def test_main_gate_fails_on_errors(monkeypatch, capsys):
 
     assert exit_code == 1
     assert "EVAL GATE FAILED" in capsys.readouterr().err
+
+
+class _TriageStubClient:
+    def __init__(self, host=None, model=None):
+        self.host = host
+        self.model = model
+
+    def generate(self, system_prompt, user_prompt, temperature=0.7):
+        return (
+            "These failures share a timeout during login and an export error in the reporting suite. "
+            "The session appears to expire before the redirect completes. Check the auth service's "
+            "session config and the CSV export handler for empty suites."
+        )
+
+
+def test_main_runs_triage_target(monkeypatch, capsys):
+    monkeypatch.setattr(cli_module, "OllamaClient", _TriageStubClient)
+    exit_code = cli_module.main(["--target", "triage", "--runs", "1", "--gate"])
+
+    assert exit_code == 0
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["target"] == "triage"
+    assert len(printed["cases"]) == 2
+
+
+def test_main_rejects_unknown_target():
+    with pytest.raises(SystemExit):
+        cli_module.main(["--target", "not-a-real-target"])

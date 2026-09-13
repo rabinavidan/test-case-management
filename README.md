@@ -33,7 +33,7 @@ writes and self-heals the test suite itself:
 | **Playwright Test Agents** | Planner/generator/healer trio: explores the running app in a real browser, drafts a numbered test plan, generates Playwright specs from it, and debugs/fixes failing ones — an authoring aid, not a CI job | Claude (Sonnet, via Claude Code) | [`.claude/agents/playwright-test-*.md`](.claude/agents) · [`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents) |
 | **AI Test Generation** | Generates test cases from a plain-English feature description | Claude Haiku | `POST /api/suites/{id}/testcases/generate` |
 | **AI Failure Triage** | Summarizes a run's failed/skipped results into a root-cause hypothesis | Claude Haiku | `POST /api/runs/{id}/triage` |
-| **Eval Harness** | Runs the AI Test Generation prompt N times per case against a local model, scoring output quality *and* run-to-run consistency — not just a single response | Ollama (local, no API key) | [`evals/`](evals/README.md) |
+| **Eval Harness** | Runs the AI Test Generation and AI Failure Triage prompts N times per case against a local model, scoring output quality *and* run-to-run consistency; wired into CI (informational) against a real model | Ollama (local, no API key) | [`evals/`](evals/README.md) · [`.github/workflows/eval-harness.yml`](.github/workflows/eval-harness.yml) |
 
 **Why this matters more than "calls an LLM API":**
 - **Model choice is a deliberate trade-off, not a default** — Claude Haiku for in-product, low-latency, user-facing

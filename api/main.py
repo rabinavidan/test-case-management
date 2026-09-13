@@ -27,7 +27,10 @@ from . import models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
 from .ai_prompts import (
     TESTCASE_GENERATION_SYSTEM_PROMPT,
+    TRIAGE_SYSTEM_PROMPT,
     build_testcase_generation_user_prompt,
+    build_triage_user_prompt,
+    format_triage_problem_line,
     parse_testcase_generation_response,
 )
 
@@ -899,30 +902,24 @@ async def triage_run(run_id: int, db: Session = Depends(get_db), _: models.User 
             status=result.status,
             notes=result.notes,
         ))
-        lines.append(
-            f"- [{result.status.upper()}] {title}\n"
-            f"  Steps: {tc.steps if tc and tc.steps else 'not recorded'}\n"
-            f"  Expected result: {tc.expected_result if tc and tc.expected_result else 'not recorded'}\n"
-            f"  Executor notes: {result.notes or 'none'}"
-        )
+        lines.append(format_triage_problem_line(
+            title=title,
+            status=result.status,
+            steps=tc.steps if tc else None,
+            expected_result=tc.expected_result if tc else None,
+            notes=result.notes,
+        ))
 
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
-        system_prompt = (
-            "You are a senior QA engineer triaging a failed test run. Given the failed/skipped "
-            "test cases below — each with its steps, expected result, and any notes the executor "
-            "left — write a concise plain-English summary (3-5 sentences) of the likely root "
-            "cause(s) tying these failures together, and suggest what to check first. Synthesize "
-            "a diagnosis; do not just repeat the list back."
-        )
-        user_prompt = f"Run: {run.name}\n\nFailed/skipped results:\n" + "\n".join(lines)
+        user_prompt = build_triage_user_prompt(run.name, lines)
 
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=512,
-            system=system_prompt,
+            system=TRIAGE_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
         summary = message.content[0].text.strip()
