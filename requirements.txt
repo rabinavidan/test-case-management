@@ -1,7 +1,12 @@
 fastapi==0.104.1
 uvicorn==0.24.0
 sqlalchemy==2.0.23
-pydantic==2.5.0
+# Bumped from 2.5.0: langchain-core (agents/, requirements-test.txt)
+# requires pydantic>=2.7.4. Verified compatible with fastapi==0.104.1 and
+# the full local pytest/contract-test suite (schemathesis included) before
+# bumping — pydantic v2 minor releases are additive, not breaking, for the
+# plain BaseModel usage in api/schemas.py.
+pydantic==2.13.5
 python-multipart==0.0.6
 psycopg2-binary==2.9.9
 passlib==1.7.4

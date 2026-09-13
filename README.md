@@ -34,6 +34,7 @@ writes and self-heals the test suite itself:
 | **AI Test Generation** | Generates test cases from a plain-English feature description | Claude Haiku | `POST /api/suites/{id}/testcases/generate` |
 | **AI Failure Triage** | Summarizes a run's failed/skipped results into a root-cause hypothesis | Claude Haiku | `POST /api/runs/{id}/triage` |
 | **Eval Harness** | Runs the AI Test Generation and AI Failure Triage prompts N times per case against a local model, scoring output quality *and* run-to-run consistency; wired into CI (informational) against a real model | Ollama (local, no API key) | [`evals/`](evals/README.md) · [`.github/workflows/eval-harness.yml`](.github/workflows/eval-harness.yml) |
+| **Test Plan Reviewer** | A genuine two-step agent pipeline built with **LangChain** (`prompt \| llm \| parser`, LCEL) — a critic step finds test-coverage gaps for a feature, a drafter step writes test cases to fill them, in the same schema AI Test Generation uses | Ollama (local, no API key) | [`agents/`](agents/README.md) |
 
 **Why this matters more than "calls an LLM API":**
 - **Model choice is a deliberate trade-off, not a default** — Claude Haiku for in-product, low-latency, user-facing
@@ -47,6 +48,11 @@ writes and self-heals the test suite itself:
 - **Non-determinism is measured, not assumed away** — the eval harness runs the same prompt multiple times per
   case and reports both average quality and run-to-run variance, because a single passing response proves
   nothing about a model that can answer the same prompt differently next time.
+- **A real agent framework where one earns its keep, not everywhere** — every other agent here is a single-shot
+  LLM call, hand-rolled against a plain HTTP client because that's all a single call needs. The Test Plan
+  Reviewer is a genuine multi-step pipeline (its second step's prompt depends on the first step's output), which
+  is exactly the shape LangChain's composable chains are for — used deliberately there, not bolted on for the
+  sake of a framework line.
 - **The Steward agent is a real software engineering agent** — it doesn't just chat, it reads CI logs, writes
   and pushes commits, and resolves GitHub review threads inside guardrails defined in its own skill file.
 - **Authoring-time agents are scoped separately from CI-time ones** — the Playwright Test Agents run
