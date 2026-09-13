@@ -101,6 +101,17 @@ against a real local model in CI when `api/ai_prompts.py` or `evals/**`
 changes — informational only (see the workflow's own comment for why),
 not part of `Before opening a PR`'s required checks.
 
+## Test Plan Reviewer (LangChain agent)
+
+`agents/` is a small critic-then-drafter agent pipeline built with
+LangChain against the same local Ollama model as `evals/` — see
+[`agents/README.md`](agents/README.md) for why LangChain earns its keep
+here specifically (a real multi-step pipeline) when this repo's other
+agents are single-shot calls that don't need a framework. Its unit tests
+(`tests/unit/test_test_plan_reviewer.py`, `tests/unit/test_agents_cli.py`)
+use LangChain's own `FakeListChatModel` and run in the same `pytest`
+invocation as everything else — no real Ollama server required.
+
 ## Dependabot Auto-Triage
 
 `.github/workflows/dependabot-auto-merge.yml` classifies every Dependabot

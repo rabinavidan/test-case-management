@@ -9,6 +9,65 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-13 — Add a LangChain agent: Test Plan Reviewer (Milestone 3 of 4)
+
+Continuation of the 4-milestone plan; Milestone 2 (PR #211) merged clean, including the new eval-harness.yml
+workflow's first live run against a real model. This session's job was the part of the original CV-gap ask
+that Milestones 1-2 didn't touch yet: "familiarity with agent frameworks (LangChain, AutoGen, CrewAI)" — every
+agent in this repo so far (PR Steward, Coverage-Gap Agent, AI Test Generation/Triage) is a single-shot LLM call
+hand-rolled against a plain HTTP client, which never needed a framework. Picked LangChain (of the three named)
+per the earlier framework discussion with the user.
+
+**Design**: rather than force a framework onto an existing single-call feature just to check a box, built
+something that's actually shaped like a multi-step agent: a **Test Plan Reviewer** with a critic step (find
+test-coverage gaps for a feature) feeding a drafter step (write test cases for those gaps) — the drafter's
+prompt genuinely depends on the critic's output, which is the case LangChain's composable `prompt | llm |
+parser` chains (LCEL) are for. Lives in a new top-level `agents/` directory, separate from `evals/`
+(evaluation) and `scripts/` (CI automation), with `agents/test_plan_reviewer.py` (the pipeline) and
+`agents/cli.py` (a `python -m agents.cli` entrypoint mirroring `evals/cli.py`'s conventions).
+
+**Validated against a real model, and caught a real bug doing it**: pulled `langchain-core==1.6.3` and
+`langchain-ollama==1.1.0` (latest stable) and ran the pipeline against the already-installed local
+`qwen2.5:0.5b`. First issue: `ChatPromptTemplate` treats `{...}` as template variables, and the system prompts
+embed literal JSON schemas in braces — had to double every brace (`{{"gaps": [...]}}`) to escape them; the
+error message ("Input to ChatPromptTemplate is missing variables") made the cause obvious once seen. Second,
+more interesting issue: at the default temperature (0.7, matching `evals/`'s default), the model returned
+plain prose instead of JSON despite the system prompt demanding JSON-only, raising
+`OutputParserException`. Lowering temperature to 0.2 and strengthening the instruction ("Respond ONLY with a
+JSON object, no other text") fixed it in practice, though the code still doesn't assume it always will:
+`review_and_fill_gaps` catches any exception from either step and re-raises as `PlanReviewError`, matching this
+repo's "degrade with a clear error, don't crash" contract for AI features.
+
+**Testing**: used LangChain's own `langchain_core.language_models.fake_chat_models.FakeListChatModel` to script
+both steps' responses in unit tests — no real Ollama server needed, and it's the idiomatic way to test a LangChain
+chain rather than mocking HTTP directly. 18 new tests across `tests/unit/test_test_plan_reviewer.py` and
+`tests/unit/test_agents_cli.py`, including the `OutputParserException` failure path exercised directly since
+it's a real observed failure mode, not hypothetical. Renamed the pipeline's exception from `TestPlanReviewError`
+to `PlanReviewError` after noticing pytest tried (harmlessly, but noisily) to collect it as a test class because
+of the leading "Test".
+
+**A real dependency conflict, not a hypothetical one**: added `langchain-core==1.6.3` and
+`langchain-ollama==1.1.0` to `requirements-test.txt` (only place they're needed — the FastAPI app itself doesn't
+import LangChain), and a clean full-suite install immediately broke `tests/contract/test_openapi_contract.py`
+with `TypeError: Client.__init__() got an unexpected keyword argument 'app'`. Root cause: `langchain-ollama`'s
+`ollama` client dependency requires `httpx>=0.27`, and installing it bumped `httpx` past the repo's
+`httpx==0.25.2` pin all the way to 0.28.1, which removed the `Client(app=...)` shortcut `starlette`'s
+`TestClient` relies on. Fixed by pinning `httpx==0.27.2` instead — the newest release that still supports it,
+and still satisfies `ollama`'s `>=0.27`. A second conflict followed: `langchain-core==1.6.3` requires
+`pydantic>=2.7.4`, but `requirements.txt` pinned `pydantic==2.5.0` for the app itself. Since both files install
+into one shared environment, bumped `requirements.txt`'s pin to `pydantic==2.13.5` (what pip actually resolved)
+rather than downgrading `langchain-core` to dodge it, then reran the full suite against the bump before trusting
+it — 543 passed unchanged, confirming the app doesn't depend on anything pydantic 2.5-specific.
+
+**Verification**: ruff clean; full `pytest tests/unit tests/api tests/contract tests/services` gate re-run
+end to end after both dependency fixes — 543 passed, 89.13% coverage (threshold 85%). Updated root `README.md`'s
+AI Engineering table and "why this matters" list (a new bullet on using a framework only where one earns its
+keep), `CONTRIBUTING.md`, and `agents/README.md` documenting both the design reasoning and the two real
+failures (prompt-template brace escaping, the dependency conflicts above) hit along the way — that write-up is
+itself part of the interview/portfolio story this whole plan is for.
+
+---
+
 ## 2026-09-13 — Wire the eval harness into real CI + add AI Failure Triage target (Milestone 2 of 4)
 
 Continuation of the previous session's 4-milestone plan. Milestone 1 (PR #210) merged clean, so this session
