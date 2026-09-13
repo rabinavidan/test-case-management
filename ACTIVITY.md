@@ -9,6 +9,48 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-13 — Wire the eval harness into real CI + add AI Failure Triage target (Milestone 2 of 4)
+
+Continuation of the previous session's 4-milestone plan. Milestone 1 (PR #210) merged clean, so this session
+generalized the harness to a second AI feature and wired it into real CI, per the plan and the user's explicit
+sequencing rule: one PR per milestone, never in parallel, merge before starting the next.
+
+**Generalizing the harness**: `evals/harness.py` was test-generation-specific in M1 — hardcoded metric names,
+hardcoded prompt imports. Refactored it around an `EvalTarget` (name, metrics, error_scores, build_prompt,
+score) so the orchestration (run N times, aggregate mean + consistency, gate against thresholds) is identical
+for any feature; `evals/targets/test_generation.py` and the new `evals/targets/triage.py` hold what's actually
+feature-specific. Extracted `TRIAGE_SYSTEM_PROMPT`, `build_triage_user_prompt`, and
+`format_triage_problem_line` out of `api/main.py`'s `triage_run` into `api/ai_prompts.py`, same reasoning as
+M1's test-generation extraction — the harness evaluates production's real prompt, not a copy.
+
+**New scorers for free text**: AI Failure Triage returns a plain-English summary, not JSON, so schema-based
+scoring doesn't apply. Added `evals/triage_scorers.py`: non-empty, sentence-count-in-range (the prompt asks
+for 3-5 sentences), keyword coverage, and a `verbatim_echo_rate` that catches a model pasting the input's
+`[FAIL]`/`[SKIP]` bullet list back instead of synthesizing a diagnosis — directly checking the one instruction
+the system prompt gives that a naive model is likely to ignore.
+
+**Real-model validation, not just mocks**: installed Ollama locally in the dev sandbox (`curl -fsSL
+https://ollama.com/install.sh | sh` needed `zstd` installed first) and pulled `qwen2.5:0.5b` to actually run
+both targets end-to-end before writing a single CI line. This caught nothing broken, but it did prove the
+design point: `login-flow`'s `schema_score` came back mean 0.5, stdev 0.5 across 2 real runs — one run's JSON
+was schema-valid, the other wasn't. A harness that ran the prompt once would have reported whichever it
+happened to get as "the" answer. That real result is now the running example in `evals/README.md`.
+
+**CI wiring decision**: `.github/workflows/eval-harness.yml` installs Ollama and pulls `qwen2.5:0.5b` (~400MB,
+fast on a CPU runner) to run both targets for real, writing a job summary — but deliberately **informational,
+not a blocking gate**. A 0.5B model's output varies enough run to run that failing the build on it would be
+noise; a real gate wants a calibrated per-model baseline first (tracked as Future work). Scoped to only
+trigger on changes to `api/ai_prompts.py` or `evals/**`, since it downloads a model and makes several LLM
+calls per case — not something every unrelated PR should pay for.
+
+**Verification**: ruff clean; `pytest tests/unit tests/api tests/contract tests/services` at 525 passed,
+89.13% coverage (threshold 85%, no flakes this run). 77 eval-related unit tests (up from 45 in M1) — all
+mocked, none requiring a real Ollama server; the real-model runs above were a manual one-off check, not part
+of the automated suite. Updated `evals/README.md`, root `README.md`'s AI Engineering table, and
+`CONTRIBUTING.md`.
+
+---
+
 ## 2026-09-13 — Add an eval harness for the AI Test Generation feature (Milestone 1 of 4)
 
 Started from a CV-gap conversation, not a bug: the user found postings (NICE, Iguazio, SQLink) asking for
