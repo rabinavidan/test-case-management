@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {
+      "id": "login-flow",
+      "suite_name": "Authentication",
+      "feature_description": "User login with username and password, including invalid credentials and account lockout after repeated failed attempts.",
+      "count": 4,
+      "required_keywords": ["login", "password", "invalid", "lockout"]
+    },
+    {
+      "id": "password-reset",
+      "suite_name": "Authentication",
+      "feature_description": "Self-service password reset via an emailed reset link, including expired links and links that have already been used once.",
+      "count": 3,
+      "required_keywords": ["reset", "email", "link", "expired"]
+    },
+    {
+      "id": "csv-export",
+      "suite_name": "Reporting",
+      "feature_description": "Exporting a test suite's test cases and each one's latest run status to a CSV file, including suites that have zero test cases.",
+      "count": 3,
+      "required_keywords": ["csv", "export", "empty"]
+    }
+  ]
+}

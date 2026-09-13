@@ -9,6 +9,40 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-13 — Add an eval harness for the AI Test Generation feature (Milestone 1 of 4)
+
+Started from a CV-gap conversation, not a bug: the user found postings (NICE, Iguazio, SQLink) asking for
+hands-on design of evaluation harnesses for non-deterministic systems, prompt engineering for test generation,
+and agent-framework fluency (LangChain/AutoGen/CrewAI) — a real gap against this repo's existing agentic-AI
+work. Agreed on a 4-milestone plan, one PR each, sequential (never in parallel), each complete with tests/docs
+updated and CI green before moving to the next: (1) eval harness foundation, (2) wire it into CI + a second
+dataset for AI Failure Triage, (3) an agent built with an actual framework (LangChain, still Ollama-backed —
+the user wants zero API cost throughout), (4) a case-study writeup tying it together.
+
+**What this milestone found**: this repo already had three LLM-powered features (AI Test Generation, AI
+Failure Triage, the Coverage-Gap Agent) but nothing measuring their output quality or consistency — tests only
+covered control flow (missing API key -> 503, bad JSON -> 502), never "is the model's actual output any good,
+and how much does it vary run to run." That's the real gap the CV postings are naming.
+
+**Design decisions**: extracted `api/ai_prompts.py` out of `api/main.py`'s `generate_testcases` endpoint so the
+harness imports the exact production prompt instead of a copy that could drift. Built `evals/` around a plain
+`httpx` client for a local Ollama server (`evals/ollama_client.py`) — no API key, no per-call cost, which is
+what makes running each dataset case 5+ times practical. Scoring (`evals/scorers.py`) is deterministic only for
+this first pass (schema validity, requested-count match, keyword coverage, duplicate-title rate) — no
+LLM-as-judge yet, to avoid adding a second layer of non-determinism on top of the thing being measured.
+`evals/harness.py` runs each case N times and reports both mean quality and the standard deviation across runs,
+since a single passing run proves nothing about a model that can answer differently next time; an errored run
+scores as a full failure rather than being excluded, so the harness can't hide flakiness by averaging it away.
+
+**Verification**: added `tests/unit/test_ai_prompts.py`, `test_evals_scorers.py`, `test_evals_ollama_client.py`
+(via `httpx.MockTransport`, matching `scripts/coverage_gap_agent.py`'s existing test pattern),
+`test_evals_harness.py`, and `test_evals_cli.py` — 45 new tests, all mocked, none requiring a real Ollama
+server. Ran the full gate locally before pushing: `ruff check .` clean, `pytest tests/unit tests/api
+tests/contract tests/services` at 493 passed with 89.15% coverage (threshold 85%). Updated the README's AI
+Engineering table and "why this matters" list, and added a short section to CONTRIBUTING.md.
+
+---
+
 ## 2026-07-13 — Rewrite login page object for modal-based auth; establish test-before-push rule
 
 Started from uncommitted local changes to `tests/pages/login_page.py` and `tests/test_login_e2e.py`,

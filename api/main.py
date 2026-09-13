@@ -25,6 +25,11 @@ import re
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
+from .ai_prompts import (
+    TESTCASE_GENERATION_SYSTEM_PROMPT,
+    build_testcase_generation_user_prompt,
+    parse_testcase_generation_response,
+)
 
 # ─── Structured logging setup ────────────────────────────────────────────────
 logging.basicConfig(
@@ -1007,35 +1012,20 @@ async def generate_testcases(
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
-        system_prompt = (
-            "You are a senior QA engineer. Generate detailed, actionable test cases for the given feature. "
-            "Each test case must be concise, unambiguous, and cover a distinct scenario. "
-            "Respond with a JSON object matching exactly this schema:\n"
-            '{"test_cases": [{"title": str, "description": str, "steps": str, '
-            '"expected_result": str, "priority": "low"|"medium"|"high"|"critical"}]}'
-        )
-
-        user_prompt = (
-            f"Suite: {suite.name}\n"
-            f"Feature description: {payload.feature_description}\n"
-            f"Generate exactly {payload.count} test cases."
+        user_prompt = build_testcase_generation_user_prompt(
+            suite_name=suite.name,
+            feature_description=payload.feature_description,
+            count=payload.count,
         )
 
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=2048,
-            system=system_prompt,
+            system=TESTCASE_GENERATION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
 
-        raw = message.content[0].text.strip()
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        parsed = json.loads(raw)
-        test_cases = parsed.get("test_cases", [])
+        test_cases = parse_testcase_generation_response(message.content[0].text)
 
         logger.info(f"AI generated {len(test_cases)} test cases for suite={suite_id}")
         return schemas.AIGenerateResponse(
