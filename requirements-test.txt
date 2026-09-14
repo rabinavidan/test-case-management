@@ -1,5 +1,11 @@
 pytest==7.4.3
 pytest-cov==7.1.0
+# Parallelizes tests/unit tests/api tests/contract tests/services across
+# worker processes (-n auto in test.yml). Safe because every DB-backed
+# fixture (tests/api/conftest.py, tests/contract/test_openapi_contract.py,
+# tests/services/conftest.py) derives a worker-unique SQLite path/tempdir —
+# see their comments — so parallel workers never race the same file.
+pytest-xdist==3.8.0
 # Bumped from 0.25.2: the `ollama` package (a langchain-ollama dependency,
 # see below) requires httpx>=0.27. Pinned at 0.27.2 rather than latest
 # (0.28+) because httpx 0.28 removed the `Client(app=...)` shortcut

@@ -12,6 +12,10 @@ export default defineConfig({
     ['list', { printSteps: true }],
     ['json', { outputFile: 'test-results/results.json' }],
     ['allure-playwright', { resultsDir: 'allure-results', detail: true, suiteTitle: false }],
+    // blob is what CI's sharded matrix (.github/workflows/pw-ts.yml) merges
+    // back into one HTML/JSON report via `playwright merge-reports` — not
+    // useful for a local, unsharded run, so only enabled under CI.
+    ...(process.env.CI ? [['blob', { outputDir: 'blob-report' }] as const] : []),
   ],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:8000',

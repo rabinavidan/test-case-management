@@ -20,9 +20,22 @@ on:
         default: ''
 
 jobs:
-  e2e:
-    name: E2E Tests (Playwright TypeScript)
+  # Runs the suite as SHARD_TOTAL parallel jobs (Playwright's own sharding —
+  # https://playwright.dev/docs/test-sharding), each on its own runner/app
+  # instance. fail-fast: false so one shard failing doesn't cancel the
+  # others — we want the full failure picture, not just the first shard's.
+  # Each shard uploads a "blob" report (enabled in playwright.config.ts only
+  # under CI) instead of the human-facing HTML report; merge-reports below
+  # combines them back into one HTML/JSON/Allure report, same as if the
+  # whole suite had run on a single machine.
+  e2e-shard:
+    name: E2E Tests (Playwright TypeScript) — shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2]
+        shardTotal: [2]
     defaults:
       run:
         working-directory: e2e
@@ -72,13 +85,76 @@ jobs:
           uvicorn api.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
 
-      - name: Run Playwright tests
+      - name: Run Playwright tests (this shard)
         id: pw
-        run: npx playwright test; echo "exit_code=$?" >> $GITHUB_OUTPUT
+        run: |
+          npx playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
         continue-on-error: true
         env:
           BASE_URL: ${{ steps.url.outputs.target }}
           CI: true
+
+      - name: Upload blob report (this shard)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.shardIndex }}
+          path: e2e/blob-report/
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Upload raw Allure results (this shard)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-pw-ts-${{ matrix.shardIndex }}
+          path: e2e/allure-results/
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Propagate exit code
+        if: always()
+        run: exit ${{ steps.pw.outputs.exit_code }}
+
+  # Combines every shard's blob report into one HTML+JSON report (the same
+  # job-summary script as before now reads the merged JSON) and every
+  # shard's raw Allure results into one Allure report — exactly what a
+  # single unsharded run would have produced.
+  merge-reports:
+    name: Merge Playwright shard reports
+    if: always()
+    needs: [e2e-shard]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download blob reports from every shard
+        uses: actions/download-artifact@v4
+        with:
+          path: e2e/all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      - name: Merge into one HTML + JSON report
+        run: |
+          mkdir -p test-results
+          npx playwright merge-reports --reporter=html ./all-blob-reports
+          npx playwright merge-reports --reporter=json ./all-blob-reports > test-results/results.json
 
       - name: Write job summary
         if: always()
@@ -122,7 +198,7 @@ jobs:
           const dur = (duration / 1000).toFixed(1);
 
           const lines = [
-            `## ${icon} Playwright E2E Report`,
+            `## ${icon} Playwright E2E Report (shards merged)`,
             `| Result | Count |`,
             `|--------|-------|`,
             `| ✅ Passed | ${passed} |`,
@@ -146,6 +222,14 @@ jobs:
           fs.appendFileSync(summaryFile, lines.join('\n'));
           EOF
 
+      - name: Download raw Allure results from every shard
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          path: e2e/allure-results
+          pattern: allure-results-pw-ts-*
+          merge-multiple: true
+
       - name: Set up Java (for Allure report generation)
         if: always()
         uses: actions/setup-java@v4
@@ -153,7 +237,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Generate Allure report
+      - name: Generate Allure report (all shards combined)
         if: always()
         working-directory: e2e
         run: npm run allure:generate
@@ -166,11 +250,7 @@ jobs:
           path: e2e/allure-report/
           retention-days: 14
 
-      - name: Propagate exit code
-        if: always()
-        run: exit ${{ steps.pw.outputs.exit_code }}
-
-      - name: Upload report
+      - name: Upload merged HTML report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -179,3 +259,20 @@ jobs:
             e2e/playwright-report/
             e2e/test-results/results.json
           retention-days: 7
+
+  # A stable-named gate: keeps the "E2E Tests (Playwright TypeScript)" check
+  # — whatever branch protection may reference — reporting exactly once,
+  # regardless of how many shards run internally. Fails iff any shard failed.
+  e2e:
+    name: E2E Tests (Playwright TypeScript)
+    if: always()
+    needs: [e2e-shard, merge-reports]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check shard results
+        run: |
+          if [ "${{ needs.e2e-shard.result }}" != "success" ]; then
+            echo "One or more E2E shards failed — see the shard jobs and the merged report for details."
+            exit 1
+          fi
+          echo "All E2E shards passed."

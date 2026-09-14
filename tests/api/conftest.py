@@ -1,6 +1,9 @@
-"""Fixtures for the API layer: an in-memory-per-test SQLite DB wired into the
-FastAPI app via dependency override, plus authenticated TestClient helpers.
+"""Fixtures for the API layer: a per-worker throwaway SQLite DB (tables
+dropped and recreated before/after every test) wired into the FastAPI app
+via dependency override, plus authenticated TestClient helpers.
 """
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -10,7 +13,13 @@ from api.database import Base, get_db
 from api.main import app, _ENVIRONMENT_SEED
 from api import models
 
-DATABASE_URL = "sqlite:///./test.db"
+# Suffixed with the pytest-xdist worker ID ("gw0", "gw1", ... or "master"
+# outside xdist) so parallel workers — separate OS processes, each with
+# their own copy of this module-level `engine` — never share one SQLite
+# file. Without this, concurrent create_all/drop_all calls from different
+# workers race against the same file on disk.
+_WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
+DATABASE_URL = f"sqlite:///./test_{_WORKER_ID}.db"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
