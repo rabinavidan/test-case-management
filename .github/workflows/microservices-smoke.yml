@@ -1,0 +1,149 @@
+# Boots the microservices deployment (docker-compose.microservices.yml) and
+# runs a real CRUD flow through the gateway — the one thing nothing else in
+# CI does. This exists because that exact gap let every service ship
+# crash-looping on `docker compose up --build` without a single check
+# noticing (see issue #217): tests/services/ exercises each app's code
+# in-process with TestClient, never through a built image or the real
+# gateway proxy, and nothing else here builds these Dockerfiles at all.
+name: Microservices Smoke Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'shared/**'
+      - 'docker-compose.microservices.yml'
+      - 'VERSION'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'shared/**'
+      - 'docker-compose.microservices.yml'
+      - 'VERSION'
+
+jobs:
+  microservices-smoke:
+    name: Boot + CRUD smoke test (Postgres + Redis + 5 services)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build and start the stack
+        run: docker compose -f docker-compose.microservices.yml up -d --build
+
+      - name: Wait for every service to come up healthy
+        if: always()
+        run: |
+          fail=0
+          # gateway has no /health of its own (it's a proxy) — its "/" always
+          # serves the static SPA shell once the process itself is up,
+          # independent of whether the backends it proxies to are ready yet.
+          for pair in "gateway:8000:/" "auth:8001:/health" "projects:8002:/health" "runs:8003:/health" "ai:8004:/health"; do
+            name="$(echo "$pair" | cut -d: -f1)"; port="$(echo "$pair" | cut -d: -f2)"; path="$(echo "$pair" | cut -d: -f3-)"
+            ok=0
+            for i in $(seq 1 30); do
+              if curl -sf "http://localhost:${port}${path}" > /dev/null 2>&1; then
+                ok=1; break
+              fi
+              sleep 2
+            done
+            if [ "$ok" = "1" ]; then
+              echo "$name: healthy"
+            else
+              echo "$name: never became healthy"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Run a real CRUD flow through the gateway
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import sys
+          import time
+          import urllib.request
+          import urllib.error
+          import json
+
+          BASE = "http://localhost:8000"
+
+
+          def call(method, path, body=None, token=None, expect=None):
+              url = f"{BASE}{path}"
+              data = json.dumps(body).encode() if body is not None else None
+              headers = {"Content-Type": "application/json"}
+              if token:
+                  headers["Authorization"] = f"Bearer {token}"
+              req = urllib.request.Request(url, data=data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=10) as resp:
+                      status, payload = resp.status, resp.read()
+              except urllib.error.HTTPError as e:
+                  status, payload = e.code, e.read()
+              parsed = json.loads(payload) if payload else None
+              if expect is not None and status != expect:
+                  print(f"FAIL: {method} {path} -> {status} (expected {expect}): {parsed}")
+                  sys.exit(1)
+              return status, parsed
+
+
+          # This compose file seeds an admin user on startup
+          # (SEED_ADMIN_USERNAME/PASSWORD), so /api/auth/register is always
+          # closed (403) by the time this runs — log in as that seeded
+          # admin instead, the same register-or-login fallback
+          # loadtests/locustfile.py's _bootstrap_admin uses.
+          status, body = call("POST", "/api/auth/login", {"username": "admin", "password": "admin123"})
+          if status != 200:
+              print(f"FAIL: could not log in as the seeded admin user: {status} {body}")
+              sys.exit(1)
+          token = body["access_token"]
+          print("login as seeded admin: ok")
+
+          _, project = call("POST", "/api/projects", {"name": "Smoke Project"}, token=token, expect=201)
+          project_id = project["id"]
+
+          _, suite = call("POST", f"/api/projects/{project_id}/suites", {"name": "Smoke Suite"},
+                           token=token, expect=201)
+          suite_id = suite["id"]
+
+          _, tc = call("POST", f"/api/suites/{suite_id}/testcases",
+                       {"title": "TC", "priority": "medium", "status": "active"}, token=token, expect=201)
+          tc_id = tc["id"]
+
+          _, run = call("POST", f"/api/suites/{suite_id}/runs", {"name": "Smoke Run"}, token=token, expect=201)
+          run_id = run["id"]
+          print("project -> suite -> testcase -> run: ok")
+
+          # create_run enqueues onto Redis for the worker to populate the
+          # pending TestResult row asynchronously — poll instead of assuming
+          # a fixed delay is enough, since that's the real (eventually
+          # consistent) contract here, not a flake to paper over.
+          for attempt in range(15):
+              status, _ = call("PUT", f"/api/runs/{run_id}/results/{tc_id}", {"status": "pass"}, token=token)
+              if status == 200:
+                  break
+              time.sleep(1)
+          else:
+              print(f"FAIL: worker never populated the pending result row for run {run_id} (still 404 after 15s)")
+              sys.exit(1)
+          print("worker-populated result + mark result: ok")
+
+          call("DELETE", f"/api/suites/{suite_id}", token=token, expect=204)
+          call("GET", f"/api/suites/{suite_id}/testcases", token=token, expect=404)
+          call("DELETE", f"/api/projects/{project_id}", token=token, expect=204)
+          print("cascading delete: ok")
+
+          print("\nAll microservices smoke checks passed.")
+          EOF
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.microservices.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.microservices.yml down -v

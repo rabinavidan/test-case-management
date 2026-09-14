@@ -202,3 +202,19 @@ happy path, genuinely unreachable for the graceful-degradation cases), and the
 gateway's routing table. Run with `pytest tests/services -v` from the repo root.
 See [`../README.md#test-architecture`](../README.md#test-architecture) for how this
 fits into the rest of the test suite.
+
+That suite imports each app in-process, though, so it never actually builds these
+Dockerfiles or boots this compose file — a gap that let every service ship
+crash-looping on `docker compose up --build` undetected (see the note on build
+context below and [issue #217](https://github.com/rabinavidan/test-case-management/issues/217)).
+`.github/workflows/microservices-smoke.yml` closes it: it builds and boots the
+real stack and runs a live CRUD flow through the gateway on every PR/push that
+touches `services/`, `shared/`, or the compose file.
+
+**Build context is the repo root, not `services/<name>`.** Every service's
+`main.py` resolves `services.common.*` (and, for auth/projects/runs/ai,
+`shared.schemas`) by their full dotted import path — the same convention
+`tests/services/` already runs these apps under (`from services.auth.main import
+app`, cwd at the repo root) — so each Dockerfile is built with `-f
+services/<name>/Dockerfile` against the whole repo as context, not an isolated
+per-service directory that can't see `services/common/` or `shared/` at all.

@@ -126,6 +126,19 @@ tolerate (confirmed by a real conflict) — so it gets its own virtualenv, local
 `.github/workflows/loadtest-sqlite.yml` (manual/monthly, not part of `Before opening a PR`'s required checks;
 a load test is diagnostic, not a per-commit gate).
 
+## Microservices Smoke Test
+
+`.github/workflows/microservices-smoke.yml` builds and boots
+`docker-compose.microservices.yml` (Postgres + Redis + all 5 services) and
+runs a real CRUD flow through the gateway, on every PR/push touching
+`services/`, `shared/`, or the compose file — not part of `Before opening a
+PR`'s local checklist (needs Docker), but it does run in CI on those PRs.
+It exists because `tests/services/` covers each app in-process only and
+never actually builds or boots these images; see
+[`services/README.md`](services/README.md#testing) and
+[issue #217](https://github.com/rabinavidan/test-case-management/issues/217)
+for the bug that gap let ship.
+
 ## Dependabot Auto-Triage
 
 `.github/workflows/dependabot-auto-merge.yml` classifies every Dependabot

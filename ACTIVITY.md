@@ -9,6 +9,78 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-14 — Fix the microservices Docker Compose stack, which had never actually booted (Scalability Milestone 2a)
+
+Started Scalability Milestone 2 (profiling the Postgres/microservices deployment with Locust, the planned
+follow-up to the SQLite load-test suite below) by starting the Docker daemon and running the documented
+`docker compose -f docker-compose.microservices.yml up --build`. It built cleanly, then every one of the 5
+services — gateway, auth, projects, runs, ai — and the worker crash-looped. The load-test milestone never
+got far enough to send a single request.
+
+**Root cause**: every service's `main.py` is written to be imported by its full dotted path
+(`services.auth.main`, mixing package-relative imports for its own siblings with absolute imports for
+`services.common.*`/`shared.schemas`) — exactly how `tests/services/` already runs these apps successfully
+from the repo root. But `docker-compose.microservices.yml` built each of auth/projects/runs/worker/ai from
+an isolated `services/<name>` context (which doesn't even contain `services/common/` or `shared/` to copy
+in) and ran `uvicorn main:app`, importing `main` as a bare top-level module with no package context —
+`ImportError: attempted relative import with no known parent package`. The gateway's own Dockerfile already
+used the repo root as context but flattened `services/gateway/` into `/app` instead of preserving the path,
+so its fully-qualified `from services.gateway.routes import ...` failed with `ModuleNotFoundError: No module
+named 'services'`. Confirmed by reading every crash log, not assumed from one.
+
+**Filed [issue #217](https://github.com/rabinavidan/test-case-management/issues/217)** documenting this
+before fixing it, matching how issue #214 was handled — this is a real, previously-undiscovered bug in a
+headline feature (the README lists "Microservice Architecture" prominently), not a hypothetical.
+
+**Fix**: rebuilt `docker-compose.microservices.yml` and all 6 Dockerfiles to build from the repo root
+(`context: .`, `-f services/<name>/Dockerfile`) and run via the full dotted module path (`uvicorn
+services.auth.main:app`, `python -m services.worker.main`), copying in exactly what each service's real
+import graph needs (`services/common/`, `shared/` where used, `services/runs/` for the worker, `VERSION` for
+auth's `/api/version`, `static/` relocated to `services/gateway/static/` to match where gateway's own code
+looks for it relative to `__file__`). Rebuilding surfaced a second, independent, previously-undiscovered bug
+one layer deeper: `services/auth/main.py`'s `_seed_admin()` (which runs at import time to seed the admin
+account from `SEED_ADMIN_*` env vars) does `from .database import SessionLocal`, but
+`services/common/db.py`'s `build_db()` deliberately never exposes the `SessionLocal` it builds internally —
+that name has never existed in `services/auth/database.py`. This code path had simply never executed
+successfully before, blocked by the first bug. Fixed by giving `auth/database.py` its own `SessionLocal`
+bound to the same engine, with a comment explaining why it needs one `common/db.py` doesn't provide.
+
+**Validated for real**, not just written and hoped: brought the full stack up fresh (`down -v` then `up -d
+--build`), confirmed all 8 containers stayed up instead of restart-looping, then ran a complete CRUD flow
+through the gateway by hand — login as the seeded admin, create project → suite → test case → run, mark a
+result (which requires the `worker` container to have actually drained the Redis `runs.populate` stream and
+populated the pending `TestResult` row — a genuine async round-trip, not an in-process call), read the run
+summary, and confirm the cascading-delete-then-404 sequence from issue #214 passes cleanly when run
+sequentially (as expected — the race is concurrency-only). Local builds needed a sandbox-only workaround
+(this environment's outbound HTTPS is intercepted by a proxy with a self-signed cert `pip` doesn't trust by
+default inside a container) — added temporarily, confirmed the fix, then stripped it back out before
+committing, since real CI has ordinary internet access and doesn't need it.
+
+**Found the same isolated-build-context bug a second time**, in `deploy/gcp/gke_images.py` — its
+`build_command()` generated `docker build services/<service>` for the GKE image-push path, the identical
+mistake `docker-compose.microservices.yml` had. Fixed the same way (repo root context, `-f
+services/<name>/Dockerfile`, gateway's oddly-named `Dockerfile_gateway` handled via a new
+`dockerfile_path()` helper) and updated `tests/unit/test_gcp_gke_images.py`'s assertions to match — this
+one had unit tests, so the fix couldn't ship without them passing.
+
+**Closed the actual coverage gap**, not just the immediate bug: added
+`.github/workflows/microservices-smoke.yml`, which builds and boots the real compose file and runs a live
+CRUD flow through the gateway (the same one validated by hand above, written as a proper Python script
+with a poll loop for the worker's async result population rather than a fixed sleep) on every PR/push
+touching `services/`, `shared/`, or the compose file — because nothing in CI built or booted this stack
+before, which is exactly how issue #217 shipped unnoticed. Verified the workflow's own logic (readiness
+polling, the CRUD script, the register-vs-seeded-admin-login fallback it needed after discovering the seed
+admin makes `/api/auth/register` always return 403 on this compose file) against the live local stack
+before trusting it in CI.
+
+**Verification**: `ruff check .` clean; full `pytest tests/unit tests/api tests/contract tests/services -n
+auto --cov` — 547 passed, 89.1% coverage (floor is 85%). Updated `README.md` (Test Architecture table + a
+new engineering-practices bullet), `services/README.md` (build-context explanation + the coverage-gap
+note), and `CONTRIBUTING.md`. Scalability Milestone 2b (the actual Postgres/microservices load-test suite
+this was blocking) is next, once this PR merges.
+
+---
+
 ## 2026-09-14 — Add a scalability/load-test suite (SQLite monolith), quantifying issue #214 for real
 
 Follow-up to the parallel-test-execution session, which found and filed issue #214 (a backend race:

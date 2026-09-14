@@ -1,7 +1,14 @@
+# Repo root as context, not a flattened services/gateway/ (see
+# docker-compose.microservices.yml): main.py imports services.gateway.routes
+# and services.common.* by their full dotted path — same convention
+# tests/services/test_gateway.py already runs this app under — and locates
+# its static/ dir relative to its own file, which after this layout lands
+# at services/gateway/static/. See issue #217.
 FROM python:3.12-slim
 WORKDIR /app
-COPY services/gateway/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY services/gateway/ ./
-COPY static/ ./static/
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY services/gateway/requirements.txt services/gateway/requirements.txt
+RUN pip install --no-cache-dir -r services/gateway/requirements.txt
+COPY services/gateway services/gateway
+COPY services/common services/common
+COPY static services/gateway/static
+CMD ["uvicorn", "services.gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]
