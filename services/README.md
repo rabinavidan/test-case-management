@@ -9,7 +9,7 @@
 | **projects** | 8002 | Projects, test suites, test cases, analytics, demo seed |
 | **runs** | 8003 | Test runs, results recording, WebSocket live collab |
 | **ai** | 8004 | AI test case generation via Claude Haiku |
-| **worker** | — | Consumes the `runs.populate` queue: creates a new run's pending TestResult rows off runs' request path |
+| **worker** | — | Consumes the `runs.populate` queue (creates a new run's pending TestResult rows off runs' request path) and the `alerts.triggered` Kafka topic (persists alert events for failed test results) |
 
 ## Infrastructure
 
@@ -17,6 +17,7 @@
 |-----------|---------|
 | **PostgreSQL 16** | Shared DB — one flat namespace, tables prefixed per owning service (`auth_users`, `projects_projects`, `runs_test_runs`, ...) |
 | **Redis 7** | Pub/Sub for async events (`runs.completed`) and cross-replica WebSocket fan-out (`runs.ws_broadcast`) |
+| **Kafka** (single-node, KRaft) | `alerts.triggered` topic: runs publishes an event whenever a test result is recorded as `fail`; worker consumes it into `runs_alerts` |
 
 ## Running
 
@@ -78,6 +79,21 @@ gateway.
 - **Sync (HTTP):** Gateway → services; runs ↔ projects for test case lookup
 - **Async (Redis Pub/Sub):** runs service publishes `runs.completed` events on channel `runs.completed`, and fans out WebSocket broadcasts across replicas on channel `runs.ws_broadcast` (see "WebSocket fan-out across replicas" below)
 - **Async (Redis Stream, work queue):** `create_run` enqueues onto the `runs.populate` stream instead of inserting each pending `TestResult` row inline; **worker** drains it (consumer group `run-populators`) and publishes a `results_populated` WebSocket broadcast on completion so a connected client refetches the run. If Redis is unreachable, `create_run` populates inline instead — the same graceful-degradation shape as the pub/sub channels above. See `runs/events.py` (`enqueue_run_population`), `runs/population.py`, and `worker/main.py`.
+- **Async (Kafka, alerting):** `update_result` publishes an `alert.triggered` event to the `alerts.triggered` topic whenever a result is recorded as `fail`; **worker** consumes it (consumer group `alert-ingesters`) and persists one row per `(run_id, testcase_id)` into `runs_alerts`. A malformed message (bad JSON, missing required fields) is never retried — it goes straight to the `alerts.triggered.dlq` dead-letter topic. A well-formed message that fails to persist for a transient reason (e.g. a DB blip) is retried up to 3 times with a short backoff before it, too, is routed to the dead-letter topic instead of being dropped or retried forever. If Kafka is unreachable, `publish_alert_triggered` no-ops (returns `False`) — the same graceful-degradation shape as the Redis channels above; raising an alert is best-effort and never fails the result-update request itself. See `runs/kafka_events.py` and `worker/kafka_consumer.py`.
+
+```mermaid
+flowchart LR
+    R["runs service<br/>update_result()<br/>status == fail"] -->|publish| T(["Kafka topic<br/>alerts.triggered"])
+    T -->|consume| W["worker service<br/>consume_alerts_forever()<br/>parse_alert_message()"]
+    W -->|well-formed, persists OK| DB[("runs_alerts table")]
+    W -->|malformed JSON /<br/>missing fields| DLQ(["Kafka topic<br/>alerts.triggered.dlq"])
+    W -->|transient failure,<br/>3 retries exhausted| DLQ
+```
+
+Kafka unreachable at either end degrades the same way as Redis above: the
+producer no-ops instead of blocking `update_result`, and the consumer just
+has nothing to read until the broker comes back — no message is lost, none
+is invented.
 
 Direct service-to-service calls (not through the gateway — runs → projects,
 projects → runs, ai → projects) go through [`common/http.py`](common/http.py)'s
@@ -202,6 +218,15 @@ happy path, genuinely unreachable for the graceful-degradation cases), and the
 gateway's routing table. Run with `pytest tests/services -v` from the repo root.
 See [`../README.md#test-architecture`](../README.md#test-architecture) for how this
 fits into the rest of the test suite.
+
+The `alerts.triggered` Kafka producer/consumer (see "Inter-service Communication"
+above) is covered the same way, in its own two files: `tests/services/test_kafka_producer.py`
+(the `runs` producer — publish success, broker-unreachable degradation, send failure)
+and `tests/services/test_kafka_consumer.py` (the `worker` consumer — message parsing,
+idempotent persistence, transient-failure retry, malformed/retries-exhausted dead-letter
+routing). Unlike the Redis tests above, these monkeypatch `KafkaProducer`/`KafkaConsumer`
+rather than relying on "no broker in this test environment": a Kafka client's
+connection-refused path isn't fast enough to lean on that the way Redis's is.
 
 That suite imports each app in-process, though, so it never actually builds these
 Dockerfiles or boots this compose file — a gap that let every service ship

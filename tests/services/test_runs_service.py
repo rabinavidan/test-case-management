@@ -128,6 +128,44 @@ def test_update_result_missing_404(client):
     assert res.status_code == 404
 
 
+def test_update_result_publishes_alert_on_fail(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
+    )
+    run = client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
+
+    alerts = []
+    monkeypatch.setattr(
+        runs_main, "publish_alert_triggered",
+        lambda run_id, suite_id, testcase_id, status, notes:
+            alerts.append((run_id, suite_id, testcase_id, status, notes)) or True,
+    )
+
+    res = client.put(f"/api/runs/{run['id']}/results/10",
+                      json={"status": "fail", "notes": "assertion error"}, headers=ADMIN)
+    assert res.status_code == 200
+    assert alerts == [(run["id"], 5, 10, "fail", "assertion error")]
+
+
+def test_update_result_does_not_publish_alert_on_pass(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
+    )
+    run = client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
+
+    alerts = []
+    monkeypatch.setattr(
+        runs_main, "publish_alert_triggered",
+        lambda run_id, suite_id, testcase_id, status, notes: alerts.append(1) or True,
+    )
+
+    res = client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN)
+    assert res.status_code == 200
+    assert alerts == []
+
+
 def test_internal_last_run_stats_with_no_runs(client):
     res = client.get("/internal/projects/last-run-stats", params={"suite_ids": "1,2,3"})
     assert res.status_code == 200

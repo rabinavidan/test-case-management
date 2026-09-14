@@ -15,6 +15,7 @@ from .auth import get_current_user, UserClaims
 from .events import (
     publish_run_completed, publish_ws_broadcast, listen_for_ws_broadcasts, enqueue_run_population,
 )
+from .kafka_events import publish_alert_triggered
 from .population import populate_pending_results
 from services.common.health import health_response
 from services.common.http import get_with_retry
@@ -238,6 +239,9 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
 
     db.commit()
     db.refresh(result)
+
+    if result.status == "fail":
+        publish_alert_triggered(run_id, run.suite_id, tc_id, result.status, result.notes)
 
     if run_completed:
         counts = {s: sum(1 for r in all_results if r.status == s) for s in ("pass", "fail", "skip")}
