@@ -29,6 +29,8 @@ fields serialized without a UTC offset, violating OpenAPI's declared
 `format: date-time` (RFC 3339 requires one) — fixed in `api/schemas.py`
 (`UTCDatetime`), not worked around here.
 """
+import os
+
 import pytest
 import schemathesis
 from hypothesis import HealthCheck, settings
@@ -40,7 +42,11 @@ from starlette.testclient import TestClient
 from api.database import Base, get_db
 from api.main import app
 
-DATABASE_URL = "sqlite:///./contract_test.db"
+# Suffixed with the pytest-xdist worker ID for the same reason as
+# tests/api/conftest.py's DATABASE_URL — see its comment. Without this,
+# parallel workers race create_all/drop_all against the same file on disk.
+_WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
+DATABASE_URL = f"sqlite:///./contract_test_{_WORKER_ID}.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

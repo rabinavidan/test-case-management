@@ -33,8 +33,11 @@ This repo runs four independent test stacks and a lint/coverage gate in CI
 # Lint — must be clean, this is a required CI check
 ruff check .
 
-# Python test suite (unit + API + contract + services), with coverage
-python -m pytest tests/unit tests/api tests/contract tests/services -v \
+# Python test suite (unit + API + contract + services), with coverage.
+# -n auto parallelizes across your machine's CPU cores (pytest-xdist) —
+# CI does the same; see tests/api/conftest.py's DATABASE_URL comment for
+# why this is safe.
+python -m pytest tests/unit tests/api tests/contract tests/services -v -n auto \
   --cov --cov-report=term-missing --cov-fail-under=85
 
 # Playwright TypeScript E2E (needs the app running separately — see e2e/README.md)

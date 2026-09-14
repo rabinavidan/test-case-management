@@ -4,3 +4,5 @@ test-results/
 auth-state.json
 allure-results/
 allure-report/
+blob-report/
+all-blob-reports/

@@ -9,6 +9,65 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-14 — Parallelize test execution across every stack — and find a real backend race doing it
+
+Follow-up request after the eval-harness/agent-framework plan wrapped: "let me know how to run tests in
+parallel and add more workers in CI/CD," then "it should be designed as real projects that used in hi-tech
+companies" — i.e. don't just flip `-n auto` and call it done; get the correctness story right first, the way
+a team that actually ships this would.
+
+**Found the blocker before writing any parallel config**: `tests/api/conftest.py` and
+`tests/contract/test_openapi_contract.py` both hardcoded a *shared* relative SQLite file path
+(`sqlite:///./test.db`, `sqlite:///./contract_test.db`) as a module-level global. Under `pytest-xdist`,
+separate worker *processes* would concurrently `create_all`/`drop_all` against the same file on disk — a real
+race, not hypothetical. Fixed by suffixing both paths with `PYTEST_XDIST_WORKER` (pytest-xdist's own env var,
+`"gw0"`/`"gw1"`/... or `"master"` outside xdist) before adding `pytest-xdist==3.8.0` to
+`requirements-test.txt` and `-n auto` to `test.yml`. Verified locally: 543 tests, same 89.13% coverage
+(pytest-cov aggregates correctly across xdist workers), `--reruns`/`--json-report`/`--alluredir` all still
+work — wall time dropped from ~125s to ~35s on 4 cores, run three times to rule out newly-introduced
+flakiness. None found.
+
+**Playwright TypeScript (`e2e/`) sharded the way Playwright's own docs recommend**: a `strategy: matrix` of 2
+shards (`--shard=N/2`) each uploading a `blob` reporter (added to `playwright.config.ts`, CI-only via
+`process.env.CI`), a `merge-reports` job combining them into one HTML/JSON report plus one merged Allure
+report, and a stable-named `e2e` gate job (`needs: [e2e-shard, merge-reports]`) so a matrixed job doesn't
+silently change whatever check name branch protection might reference.
+
+**Then things got interesting.** Validating the Java suites (`java-tests/`, black-box REST Assured against a
+live instance) the same rigorous way — A/B test, several runs each — found: 4/4 clean runs with JUnit 5
+parallel classes disabled, 3/4 *failed* with it enabled, always on the same two tests:
+`ProjectsApiTest.deletingAProjectRemovesItAndCascadesToItsSuites` and `SuitesApiTest.deletingASuiteRemovesIt`,
+both getting `200` instead of `404` right after a cascading `DELETE` committed — a concurrent `GET` racing the
+delete's commit and winning. Re-running the full Playwright suite (no sharding at all, just its own default
+multi-worker concurrency) showed the same shape of failure on delete/mutate-then-verify specs, confirming this
+is a pre-existing backend concurrency issue (SQLite + synchronous SQLAlchemy under uvicorn's threadpool,
+most likely) that parallel Java execution exposed rather than caused — but *enabling* Java parallelism was
+what would have shipped a suite failing 75% of the time.
+
+**Decision**: shipped `pytest-xdist` and Playwright sharding (both verified safe — the Python side never hits
+a live server at all, and the Playwright flakiness is pre-existing, not newly introduced by sharding).
+Did **not** enable JUnit 5 parallel classes for `java-tests/` or `java-e2e/` — both ship
+`junit-platform.properties` with `enabled=false` and a comment documenting exactly what was found and why,
+rather than silently omitting the file or leaving no trace of the investigation. Filed
+[issue #214](https://github.com/rabinavidan/test-case-management/issues/214) with the reproduction evidence
+and suspected root cause, so the finding is tracked and actionable instead of buried in a PR description.
+
+**A second, unrelated bug found and fixed along the way**: `java-e2e/support/BaseTest.java` stored its
+`Playwright`/`Browser` instances in `private static` fields on the shared abstract base class — every
+subclass's `@BeforeAll` wrote to the *same* static slot, so under concurrent test classes, one class's
+`@AfterAll` closing "the" browser could pull it out from under another class's still-running tests. Fixed
+with `ThreadLocal<Playwright>`/`ThreadLocal<Browser>` (Playwright's own documented pattern for JUnit 5 +
+parallelism), verified by compiling `java-e2e` and running `LoginTest` end-to-end against a live app — kept
+this fix regardless of Java parallelism staying disabled, since it's correct and forward-compatible for
+whenever it's re-enabled.
+
+**Verification**: `ruff check .` clean; full `pytest tests/unit tests/api tests/contract tests/services -n
+auto` at 543 passed, 89.13% coverage; `java-tests` compiles and passes 35/35 sequentially (4/4 clean A/B
+runs); `java-e2e` compiles and `LoginTest` passes with the `ThreadLocal` fix. Updated the root `README.md`'s
+Test Architecture section and `CONTRIBUTING.md` with the real numbers and the honest state of each stack.
+
+---
+
 ## 2026-09-13 — Case-study writeup tying the eval-harness + agent work together (Milestone 4 of 4, final)
 
 Closing milestone of the 4-PR plan; Milestone 3 (#212) merged clean, including the pydantic/httpx bump holding
