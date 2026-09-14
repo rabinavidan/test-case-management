@@ -205,6 +205,15 @@ gateway's routing table. Run with `pytest tests/services -v` from the repo root.
 See [`../README.md#test-architecture`](../README.md#test-architecture) for how this
 fits into the rest of the test suite.
 
+The `alerts.triggered` Kafka producer/consumer (see "Inter-service Communication"
+above) is covered the same way, in its own two files: `tests/services/test_kafka_producer.py`
+(the `runs` producer — publish success, broker-unreachable degradation, send failure)
+and `tests/services/test_kafka_consumer.py` (the `worker` consumer — message parsing,
+idempotent persistence, transient-failure retry, malformed/retries-exhausted dead-letter
+routing). Unlike the Redis tests above, these monkeypatch `KafkaProducer`/`KafkaConsumer`
+rather than relying on "no broker in this test environment": a Kafka client's
+connection-refused path isn't fast enough to lean on that the way Redis's is.
+
 That suite imports each app in-process, though, so it never actually builds these
 Dockerfiles or boots this compose file — a gap that let every service ship
 crash-looping on `docker compose up --build` undetected (see the note on build
