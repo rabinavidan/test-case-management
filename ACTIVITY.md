@@ -9,6 +9,51 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-14 — Add a scalability/load-test suite (SQLite monolith), quantifying issue #214 for real
+
+Follow-up to the parallel-test-execution session, which found and filed issue #214 (a backend race:
+concurrent GET can return 200 instead of 404 right after a cascading DELETE commits). Discussed the natural
+next step — scalability testing — and agreed on two milestones: this one (SQLite monolith, a direct
+companion to #214) and a second profiling the Postgres/microservices deployment for genuine scalability
+numbers.
+
+**Tool choice**: Locust (Python) — fits the stack best, scenarios are plain readable Python classes, has a
+solid headless CI mode. Hit a real dependency conflict immediately: `locust==2.46.5` requires
+`pytest>=8.3.3,<10` and a newer `gevent`/`greenlet` than this repo's pinned `pytest==7.4.3` (needed for
+`schemathesis`/`pytest-playwright`) and `greenlet==3.0.3` (needed by `playwright==1.46.0`) tolerate —
+confirmed by directly co-installing and watching pip complain, then double-checked that the earlier
+`pip install locust` attempt had actually polluted the shared `/tmp/venv3` test venv (pytest silently became
+9.1.1), which had to be rebuilt clean from the real pinned requirements before trusting it again for anything
+else. Fix: `requirements-loadtest.txt` is its own file, in its own virtualenv, never combined with
+`requirements-test.txt` — verified `requirements.txt` + `requirements-loadtest.txt` *do* coexist fine (only
+the test-pinned file conflicts), so the CI workflow installs those two together to actually run the app.
+
+**Built `loadtests/locustfile.py`** with two kinds of tasks: `full_crud_flow` (project → suite → test case →
+run → mark result → read summary → delete, the everyday path) and `delete_suite_race`, which reproduces
+issue #214 directly — create a suite, delete it, `GET` its test cases and assert `404`, the exact same
+assertion `java-tests/.../SuitesApiTest.deletingASuiteRemovesIt` makes sequentially (where it always passes).
+Reported via `catch_response`/`response.failure(...)` so Locust's own failure-rate column *is* the
+measurement, no separate log-scraping needed.
+
+**Validated for real, not just written and hoped**: started a real local `uvicorn` (SQLite) and ran actual
+Locust load at three concurrency levels. First smoke run at 3 users found a bug in the load test itself
+(created test cases defaulted to `status="draft"`, but `create_run` only pre-populates result rows for
+`"active"` cases, so every mark-result call 404'd) — fixed by creating test cases as `active`. Real findings
+once that was fixed: at 10 concurrent users, `delete_suite_race` failed **8.3% of the time (11/132)** — issue
+#214 reproducing directly and repeatably under load, not hypothetically. At 25 concurrent users, throughput
+*dropped* (75-78 req/s vs 92.5 at 10 users) while median latency roughly tripled (110-132ms vs 38ms) — a
+classic lock-contention signature (SQLite serializes writers at the file level, and every task here is
+write-heavy by design), not a capacity ceiling being approached. Documented in `loadtests/README.md` why the
+0-failure race-check samples at 25 users are too small to read as "the race got better" rather than "requests
+are queueing up outside the race window instead of inside it."
+
+**Verification**: `ruff check loadtests/` clean; confirmed `requirements.txt` + `requirements-loadtest.txt`
+install without conflict in a fresh venv; the CI job-summary script's CSV-parsing logic tested against the
+real stats CSVs from the local runs before trusting it in the workflow. Updated the root `README.md`'s Test
+Architecture table and `CONTRIBUTING.md`.
+
+---
+
 ## 2026-09-14 — Parallelize test execution across every stack — and find a real backend race doing it
 
 Follow-up request after the eval-harness/agent-framework plan wrapped: "let me know how to run tests in
