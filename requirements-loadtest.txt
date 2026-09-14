@@ -1,0 +1,10 @@
+# Deliberately its own file, never installed alongside requirements.txt /
+# requirements-test.txt in the same environment: locust requires
+# pytest>=8.3.3,<10 and a newer gevent/greenlet than this repo's pinned
+# pytest==7.4.3 (needed for schemathesis 3.x / pytest-playwright 0.5.0,
+# see requirements-test.txt's own comments) and greenlet==3.0.3 (needed by
+# playwright==1.46.0) can tolerate. Confirmed by direct conflict when
+# co-installing. loadtests/ doesn't import anything from api/ or tests/
+# anyway — it's a standalone HTTP load generator, so full isolation costs
+# nothing.
+locust==2.46.5

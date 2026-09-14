@@ -1,0 +1,112 @@
+# Scalability/load testing against the SQLite-backed monolith — see
+# loadtests/README.md for methodology and recorded findings, including a
+# live measurement of issue #214's backend race.
+#
+# Deliberately manual/scheduled only, never on push/PR: a load test is
+# meant to stress the app, not gate every commit, and takes minutes to
+# run at meaningful concurrency. requirements.txt + requirements-loadtest.txt
+# install cleanly together (verified) — it's only requirements-test.txt's
+# pytest/greenlet pins that conflict with locust, so this workflow never
+# installs that file.
+name: Scalability Test (SQLite monolith)
+
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: "Concurrent simulated users"
+        required: false
+        default: "25"
+      spawn_rate:
+        description: "Users spawned per second"
+        required: false
+        default: "10"
+      duration:
+        description: "Run duration (Locust time format, e.g. 60s, 5m)"
+        required: false
+        default: "60s"
+  schedule:
+    # Monthly — a load test is exploratory/diagnostic, not a per-commit gate.
+    - cron: "0 5 1 * *"
+
+jobs:
+  loadtest-sqlite:
+    name: Locust vs SQLite monolith
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install app + Locust (never requirements-test.txt — see workflow comment)
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-loadtest.txt
+
+      - name: Start the app (SQLite, rate limiting disabled)
+        env:
+          TESTFLOW_DISABLE_RATE_LIMIT: "1"
+        run: |
+          uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+          for i in $(seq 1 30); do
+            curl -s http://localhost:8000/api/projects && break
+            sleep 1
+          done
+
+      - name: Run Locust (headless)
+        run: |
+          mkdir -p loadtest-report
+          locust -f loadtests/locustfile.py --host http://localhost:8000 \
+            --headless -u "${{ inputs.users || '25' }}" -r "${{ inputs.spawn_rate || '10' }}" \
+            -t "${{ inputs.duration || '60s' }}" \
+            --csv=loadtest-report/report --html=loadtest-report/report.html
+
+      - name: Write job summary
+        if: always()
+        run: |
+          python - <<'EOF'
+          import csv
+          import os
+
+          stats_path = "loadtest-report/report_stats.csv"
+          lines = ["## 🧪 Scalability Test — SQLite monolith", ""]
+
+          if not os.path.exists(stats_path):
+              lines.append("Locust crashed before writing a report — check the logs.")
+          else:
+              with open(stats_path) as f:
+                  rows = list(csv.DictReader(f))
+              lines += [
+                  "| Endpoint | Requests | Failures | Median (ms) | p95 (ms) | req/s |",
+                  "|---|---|---|---|---|---|",
+              ]
+              for row in rows:
+                  lines.append(
+                      f"| `{row['Name']}` | {row['Request Count']} | {row['Failure Count']} | "
+                      f"{row['Median Response Time']} | {row['95%']} | {row['Requests/s']} |"
+                  )
+              race_row = next((r for r in rows if "race check" in r["Name"]), None)
+              if race_row and int(race_row["Request Count"]) > 0:
+                  rate = int(race_row["Failure Count"]) / int(race_row["Request Count"])
+                  lines += [
+                      "",
+                      f"**issue #214 reproduction rate this run: {rate:.1%}** "
+                      f"({race_row['Failure Count']}/{race_row['Request Count']} on the delete-then-verify-404 check).",
+                  ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines))
+          EOF
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-sqlite-report-${{ github.run_id }}
+          path: loadtest-report/
+          retention-days: 30
+          if-no-files-found: ignore

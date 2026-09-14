@@ -298,6 +298,7 @@ Playwright/REST Assured E2E suites, which run against a live deployment rather t
 | **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
 | **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) · `allure-junit5` (Java) |
 | **Coverage** | Line coverage of `api/`, `services/`, `shared/` — ~89%, gated at an 85% floor | `pytest-cov` (`.coveragerc`), reported in the CI job summary and as a `coverage.json` artifact |
+| **Scalability / load** | Throughput and latency under increasing concurrency against a live instance — including a live, quantified measurement of [issue #214](https://github.com/rabinavidan/test-case-management/issues/214)'s backend race, not just pass/fail | [`loadtests/`](loadtests/README.md) (Locust), manual/monthly via `.github/workflows/loadtest-sqlite.yml` |
 
 225 pytest tests total (7 unit + 126 API + 33 contract operations + 59 services), plus 40+ Playwright E2E specs,
 35 JUnit 5/REST Assured API tests, a JUnit 5/Playwright-Java E2E suite, and a Cucumber/Gherkin BDD suite — five
