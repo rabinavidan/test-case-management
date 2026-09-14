@@ -117,14 +117,17 @@ invocation as everything else — no real Ollama server required.
 
 ## Scalability / Load Tests
 
-`loadtests/` runs [Locust](https://locust.io/) scenarios against a live instance — see
-[`loadtests/README.md`](loadtests/README.md) for methodology and recorded findings, including a live,
-quantified measurement of [issue #214](https://github.com/rabinavidan/test-case-management/issues/214)'s
-backend race. Its dependency (`requirements-loadtest.txt`) is **never** installed alongside
-`requirements-test.txt` — `locust` requires a newer `pytest`/`greenlet` than this repo's pinned versions
-tolerate (confirmed by a real conflict) — so it gets its own virtualenv, locally and in
-`.github/workflows/loadtest-sqlite.yml` (manual/monthly, not part of `Before opening a PR`'s required checks;
-a load test is diagnostic, not a per-commit gate).
+`loadtests/` runs [Locust](https://locust.io/) scenarios — the same `locustfile.py` against **both**
+deployments this repo ships — see [`loadtests/README.md`](loadtests/README.md) for methodology and recorded
+findings: a live, quantified measurement of [issue #214](https://github.com/rabinavidan/test-case-management/issues/214)'s
+backend race against the SQLite monolith, a comparison against the Postgres/Redis microservices deployment
+(where that race never reproduced), and a different, microservices-specific race the same run found there
+([issue #219](https://github.com/rabinavidan/test-case-management/issues/219)). Its dependency
+(`requirements-loadtest.txt`) is **never** installed alongside `requirements-test.txt` — `locust` requires a
+newer `pytest`/`greenlet` than this repo's pinned versions tolerate (confirmed by a real conflict) — so it
+gets its own virtualenv, locally and in `.github/workflows/loadtest-sqlite.yml` /
+`.github/workflows/loadtest-microservices.yml` (both manual/monthly, not part of `Before opening a PR`'s
+required checks; a load test is diagnostic, not a per-commit gate).
 
 ## Microservices Smoke Test
 

@@ -1,0 +1,129 @@
+# Scalability/load testing against the Postgres/Redis microservices
+# deployment — see loadtests/README.md for methodology and recorded
+# findings, including the comparison against the SQLite monolith
+# (loadtest-sqlite.yml) and a live measurement of issue #219 (the async
+# worker's TestResult-population lag under load).
+#
+# Deliberately manual/scheduled only, never on push/PR: a load test is
+# meant to stress the app, not gate every commit, and takes minutes to run
+# at meaningful concurrency — same rationale as loadtest-sqlite.yml.
+# requirements-loadtest.txt is never installed alongside requirements-test.txt
+# (see that workflow's own comment); this workflow doesn't install Python
+# app dependencies at all, since the app under test runs inside Docker.
+name: Scalability Test (Postgres/Redis microservices)
+
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: "Concurrent simulated users"
+        required: false
+        default: "25"
+      spawn_rate:
+        description: "Users spawned per second"
+        required: false
+        default: "10"
+      duration:
+        description: "Run duration (Locust time format, e.g. 60s, 5m)"
+        required: false
+        default: "60s"
+  schedule:
+    # Monthly — a load test is exploratory/diagnostic, not a per-commit gate.
+    - cron: "0 6 1 * *"
+
+jobs:
+  loadtest-microservices:
+    name: Locust vs Postgres/Redis microservices
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build and start the microservices stack
+        run: docker compose -f docker-compose.microservices.yml up -d --build
+
+      - name: Wait for the gateway to come up
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/ > /dev/null && break
+            sleep 2
+          done
+
+      - name: Set up Python (for the isolated Locust environment only)
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-loadtest.txt
+
+      - name: Install Locust (never requirements-test.txt — see loadtests/README.md)
+        run: pip install -r requirements-loadtest.txt
+
+      - name: Run Locust (headless)
+        run: |
+          mkdir -p loadtest-report
+          locust -f loadtests/locustfile.py --host http://localhost:8000 \
+            --headless -u "${{ inputs.users || '25' }}" -r "${{ inputs.spawn_rate || '10' }}" \
+            -t "${{ inputs.duration || '60s' }}" \
+            --csv=loadtest-report/report --html=loadtest-report/report.html
+
+      - name: Write job summary
+        if: always()
+        run: |
+          python - <<'EOF'
+          import csv
+          import os
+
+          stats_path = "loadtest-report/report_stats.csv"
+          lines = ["## 🧪 Scalability Test — Postgres/Redis microservices", ""]
+
+          if not os.path.exists(stats_path):
+              lines.append("Locust crashed before writing a report — check the logs.")
+          else:
+              with open(stats_path) as f:
+                  rows = list(csv.DictReader(f))
+              lines += [
+                  "| Endpoint | Requests | Failures | Median (ms) | p95 (ms) | req/s |",
+                  "|---|---|---|---|---|---|",
+              ]
+              for row in rows:
+                  lines.append(
+                      f"| `{row['Name']}` | {row['Request Count']} | {row['Failure Count']} | "
+                      f"{row['Median Response Time']} | {row['95%']} | {row['Requests/s']} |"
+                  )
+              race_row = next((r for r in rows if "race check" in r["Name"]), None)
+              if race_row and int(race_row["Request Count"]) > 0:
+                  rate = int(race_row["Failure Count"]) / int(race_row["Request Count"])
+                  lines += [
+                      "",
+                      f"**issue #214 reproduction rate this run: {rate:.1%}** "
+                      f"({race_row['Failure Count']}/{race_row['Request Count']} on the delete-then-verify-404 check).",
+                  ]
+              mark_result_row = next((r for r in rows if "results" in r["Name"] and "update" in r["Name"]), None)
+              if mark_result_row and int(mark_result_row["Request Count"]) > 0:
+                  rate = int(mark_result_row["Failure Count"]) / int(mark_result_row["Request Count"])
+                  lines += [
+                      "",
+                      f"**issue #219 reproduction rate this run: {rate:.1%}** "
+                      f"({mark_result_row['Failure Count']}/{mark_result_row['Request Count']} on the mark-result check).",
+                  ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines))
+          EOF
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-microservices-report-${{ github.run_id }}
+          path: loadtest-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.microservices.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.microservices.yml down -v

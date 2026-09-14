@@ -17,13 +17,21 @@ Two different things this measures — not just "does it survive load":
    live measurement of how often the race reproduces at a given
    concurrency level — not just "the suite passed" or "it didn't."
 
-Run against the SQLite-backed monolith (needs its own dependency set —
-see loadtests/README.md for why this doesn't share a venv with
-requirements-test.txt):
+Runs unmodified against either deployment this repo ships — the SQLite
+monolith or the Postgres/Redis microservices stack — since both expose the
+identical /api/* surface (see gateway/routes.py). Needs its own dependency
+set either way (see loadtests/README.md for why this doesn't share a venv
+with requirements-test.txt):
 
+    # SQLite monolith
     TESTFLOW_DISABLE_RATE_LIMIT=1 uvicorn api.main:app --port 8000 &
     locust -f loadtests/locustfile.py --host http://localhost:8000
+
+    # Postgres/Redis microservices (after `docker compose -f
+    # docker-compose.microservices.yml up -d --build`)
+    locust -f loadtests/locustfile.py --host http://localhost:8000
 """
+import os
 import random
 import string
 
@@ -33,6 +41,15 @@ from locust import HttpUser, between, events, task
 ADMIN_USERNAME = "loadtest_admin"
 ADMIN_PASSWORD = "LoadTest@12345"
 ADMIN_EMAIL = "loadtest@example.com"
+
+# The microservices deployment (docker-compose.microservices.yml) seeds its
+# own admin from SEED_ADMIN_USERNAME/PASSWORD at container startup — always
+# present, so /api/auth/register is *always* closed there, unlike the
+# monolith's empty-by-default SQLite DB. Falls back to these (env-overridable
+# to match a non-default SEED_ADMIN_* setup) only when this file's own
+# ADMIN_USERNAME was never the one that got registered.
+FALLBACK_ADMIN_USERNAME = os.environ.get("SEED_ADMIN_USERNAME", "admin")
+FALLBACK_ADMIN_PASSWORD = os.environ.get("SEED_ADMIN_PASSWORD", "admin123")
 
 # Set once by _bootstrap_admin (events.test_start fires once for the whole
 # test run, before any simulated user starts), then read-only for every
@@ -45,11 +62,20 @@ def _random_suffix(n: int = 8) -> str:
     return "".join(random.choices(string.ascii_lowercase + string.digits, k=n))
 
 
+def _login(host: str, username: str, password: str) -> "requests.Response":
+    return requests.post(f"{host}/api/auth/login", json={
+        "username": username, "password": password,
+    }, timeout=10)
+
+
 @events.test_start.add_listener
 def _bootstrap_admin(environment, **kwargs):
-    """Registers the shared admin account (or logs in, if a prior run
-    against a persistent DB already created it — /api/auth/register only
-    ever succeeds once) exactly once for the whole test."""
+    """Registers this file's own admin account (succeeds once, on a truly
+    empty DB — the monolith's default), or logs in as it if a prior run
+    against a persistent DB already created it. Against the microservices
+    deployment, registration is always closed by its own pre-seeded admin
+    instead — in that case, log in as that seeded admin rather than one
+    this file ever created itself."""
     global _admin_token
     host = environment.host
 
@@ -59,9 +85,16 @@ def _bootstrap_admin(environment, **kwargs):
     if resp.status_code not in (201, 403):
         raise RuntimeError(f"Unexpected /api/auth/register response: {resp.status_code} {resp.text}")
 
-    resp = requests.post(f"{host}/api/auth/login", json={
-        "username": ADMIN_USERNAME, "password": ADMIN_PASSWORD,
-    }, timeout=10)
+    if resp.status_code == 201:
+        _admin_token = resp.json()["access_token"]
+        return
+
+    resp = _login(host, ADMIN_USERNAME, ADMIN_PASSWORD)
+    if resp.status_code == 200:
+        _admin_token = resp.json()["access_token"]
+        return
+
+    resp = _login(host, FALLBACK_ADMIN_USERNAME, FALLBACK_ADMIN_PASSWORD)
     resp.raise_for_status()
     _admin_token = resp.json()["access_token"]
 
