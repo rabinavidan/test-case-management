@@ -5,6 +5,10 @@ Milestone 2 (GKE Autopilot) — build + push the 5 microservice images
 REGION-docker.pkg.dev/PROJECT_ID/testflow/<service> paths — see
 k8s/components/gcp-cloudsql-memorystore/kustomization.yaml).
 
+Each build runs with the repo root as context (see build_command's own
+docstring and issue #217) rather than an isolated services/<service>
+directory — the same fix docker-compose.microservices.yml needed.
+
 Like deploy/gcp/cloud_run.py, this only builds argv lists / runs them;
 nothing here talks to a real GCP project unless build_and_push_all() is
 called with dry_run=False against an authenticated docker + gcloud.
@@ -21,10 +25,23 @@ def image_uri(project_id: str, region: str, service: str, tag: str) -> str:
     return f"{region}-docker.pkg.dev/{project_id}/testflow/{service}:{tag}"
 
 
+def dockerfile_path(service: str) -> str:
+    """Every service's Dockerfile except gateway's own oddly-named one."""
+    if service not in SERVICES:
+        raise ValueError(f"unknown service {service!r}, expected one of {SERVICES}")
+    filename = "Dockerfile_gateway" if service == "gateway" else "Dockerfile"
+    return f"services/{service}/{filename}"
+
+
 def build_command(project_id: str, region: str, service: str, tag: str) -> list[str]:
-    """docker build argv — context is services/<service>, matching
-    docker-compose.microservices.yml's build.context for this service."""
-    return ["docker", "build", "-t", image_uri(project_id, region, service, tag), f"services/{service}"]
+    """docker build argv — context is the repo root, matching
+    docker-compose.microservices.yml's build.context for this service: each
+    service's main.py resolves services.common.*/shared.schemas/its own
+    package by their full dotted path, which only works when the whole repo
+    (not an isolated services/<service> directory) is the build context —
+    see issue #217."""
+    return ["docker", "build", "-t", image_uri(project_id, region, service, tag),
+            "-f", dockerfile_path(service), "."]
 
 
 def push_command(project_id: str, region: str, service: str, tag: str) -> list[str]:
