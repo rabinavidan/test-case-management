@@ -81,6 +81,20 @@ gateway.
 - **Async (Redis Stream, work queue):** `create_run` enqueues onto the `runs.populate` stream instead of inserting each pending `TestResult` row inline; **worker** drains it (consumer group `run-populators`) and publishes a `results_populated` WebSocket broadcast on completion so a connected client refetches the run. If Redis is unreachable, `create_run` populates inline instead — the same graceful-degradation shape as the pub/sub channels above. See `runs/events.py` (`enqueue_run_population`), `runs/population.py`, and `worker/main.py`.
 - **Async (Kafka, alerting):** `update_result` publishes an `alert.triggered` event to the `alerts.triggered` topic whenever a result is recorded as `fail`; **worker** consumes it (consumer group `alert-ingesters`) and persists one row per `(run_id, testcase_id)` into `runs_alerts`. A malformed message (bad JSON, missing required fields) is never retried — it goes straight to the `alerts.triggered.dlq` dead-letter topic. A well-formed message that fails to persist for a transient reason (e.g. a DB blip) is retried up to 3 times with a short backoff before it, too, is routed to the dead-letter topic instead of being dropped or retried forever. If Kafka is unreachable, `publish_alert_triggered` no-ops (returns `False`) — the same graceful-degradation shape as the Redis channels above; raising an alert is best-effort and never fails the result-update request itself. See `runs/kafka_events.py` and `worker/kafka_consumer.py`.
 
+```mermaid
+flowchart LR
+    R["runs service<br/>update_result()<br/>status == fail"] -->|publish| T(["Kafka topic<br/>alerts.triggered"])
+    T -->|consume| W["worker service<br/>consume_alerts_forever()<br/>parse_alert_message()"]
+    W -->|well-formed, persists OK| DB[("runs_alerts table")]
+    W -->|malformed JSON /<br/>missing fields| DLQ(["Kafka topic<br/>alerts.triggered.dlq"])
+    W -->|transient failure,<br/>3 retries exhausted| DLQ
+```
+
+Kafka unreachable at either end degrades the same way as Redis above: the
+producer no-ops instead of blocking `update_result`, and the consumer just
+has nothing to read until the broker comes back — no message is lost, none
+is invented.
+
 Direct service-to-service calls (not through the gateway — runs → projects,
 projects → runs, ai → projects) go through [`common/http.py`](common/http.py)'s
 `get_with_retry`: a consistent timeout plus a few bounded retries with a short
