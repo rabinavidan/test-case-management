@@ -14,6 +14,7 @@ runs' work asynchronously, not to own a different slice of the data.
 import asyncio
 import json
 import os
+import threading
 
 import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
@@ -22,6 +23,7 @@ from services.common.logging_config import configure_json_logging
 from services.runs.database import engine, Base
 from services.runs.events import STREAM_RUN_POPULATE, CONSUMER_GROUP_POPULATE, publish_ws_broadcast
 from services.runs.population import populate_pending_results
+from services.worker.kafka_consumer import consume_alerts_forever
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 CONSUMER_NAME = os.getenv("HOSTNAME", "worker-1")
@@ -93,4 +95,8 @@ async def consume_forever() -> None:
 
 
 if __name__ == "__main__":
+    # kafka-python has no asyncio client, so the alerts consumer runs its own
+    # blocking loop in a background thread alongside consume_forever's
+    # asyncio loop for the (unrelated) runs.populate Redis stream.
+    threading.Thread(target=consume_alerts_forever, daemon=True).start()
     asyncio.run(consume_forever())

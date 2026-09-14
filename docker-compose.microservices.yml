@@ -24,6 +24,27 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Single-node KRaft broker (no ZooKeeper) — runs' alerts.triggered topic
+  # and worker's consumer of it (see services/runs/kafka_events.py,
+  # services/worker/kafka_consumer.py) degrade gracefully if this is slow to
+  # come up or unreachable, the same way runs/worker already do without
+  # Redis — so runs/worker below depend on it with condition: service_started
+  # rather than service_healthy.
+  kafka:
+    image: apache/kafka:3.7.0
+    hostname: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://kafka:19092,CONTROLLER://kafka:19093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:19093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    restart: unless-stopped
+
   # ─── Auth Service (port 8001) ─────────────────────────────────────────────
   # Builds from the repo root (not services/auth) because main.py imports
   # services.common.* and shared.schemas by their full dotted path — the
@@ -73,15 +94,19 @@ services:
       DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       REDIS_URL: redis://redis:6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       PROJECTS_SERVICE_URL: http://projects:8002
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_started
     restart: unless-stopped
 
-  # ─── Worker (no port — consumes services/runs' runs.populate queue) ───────
+  # ─── Worker (no port — consumes services/runs' runs.populate queue and
+  # alerts.triggered topic) ───────────────────────────────────────────────
   worker:
     build:
       context: .
@@ -89,11 +114,14 @@ services:
     environment:
       DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
       REDIS_URL: redis://redis:6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_started
     restart: unless-stopped
 
   # ─── AI Service (port 8004) ───────────────────────────────────────────────

@@ -25,6 +25,11 @@ schemathesis==3.39.16
 # Only used by tests/services/ (the microservices layer's runs service imports
 # it at module load, whether or not a Redis is actually reachable in CI).
 redis==5.2.1
+# Only used by tests/services/ (services/runs/kafka_events.py and
+# services/worker/kafka_consumer.py import it at module load, whether or not
+# a Kafka broker is actually reachable in CI - see the same reasoning as
+# redis above).
+kafka-python==2.0.2
 # Only used by tests/infra/ to parse `kubectl kustomize` output.
 PyYAML==6.0.1
 # agents/test_plan_reviewer.py (LangChain-based) and its unit tests — the
