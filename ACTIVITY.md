@@ -9,6 +9,54 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-14 — Profile the Postgres/microservices deployment for real (Scalability Milestone 2b)
+
+Follow-up to the Docker-boot-fix session below, once that PR merged: reused `loadtests/locustfile.py`
+against `docker-compose.microservices.yml` — the actual point of Scalability Milestone 2 all along — now
+that the stack could finally stay up.
+
+**First run against the fixed stack found a load-test-script bug, not a production one**: 0 requests sent,
+every simulated user erroring out. `_bootstrap_admin` tried registering/logging in as its own
+`loadtest_admin` account, but this compose file seeds a *different* admin (`admin`/`admin123`, via
+`SEED_ADMIN_USERNAME`/`PASSWORD`) at container startup — so registration was always closed by someone else,
+and `loadtest_admin` itself never existed to log in as. Fixed `_bootstrap_admin` with a third fallback: try
+registering → try logging in as itself → log in as the deployment's pre-seeded admin. Kept the file working
+unmodified against the monolith too (where the DB starts empty and the first branch still succeeds).
+
+**Ran the same three concurrency levels as the monolith session (3, 10, 25 users) for a real comparison, not
+assumed symmetry.** Two findings:
+
+1. **Issue #214's race never reproduced — 0 failures across 906 total `delete_suite_race` samples at every
+   level**, a sharp contrast with SQLite's 8.3% at u=10. Documented carefully as "Postgres's MVCC plausibly
+   makes this interleaving much harder to land inside," not "the application bug is fixed" — the same
+   transaction-handling code runs unchanged in both deployments; only the database underneath differs.
+2. **A new, previously-unmeasured, microservices-specific race, not present in the monolith at all**:
+   `PUT /api/runs/{id}/results/{tc_id}` intermittently 404s under load (0.25% at u=10, 0.08% at u=25, never
+   at u=3). Root cause: the monolith's `create_run` populates every pending result row synchronously in the
+   same request; the microservices `runs` service instead enqueues that work onto a Redis Stream for the
+   `worker` container to drain asynchronously, so a client that immediately tries to record a result can win
+   the race against the worker. Filed as [issue #219](https://github.com/rabinavidan/test-case-management/issues/219)
+   with suggested directions (synchronous-for-the-first-result, a retryable 409/425 instead of a bare 404,
+   or documenting the eventual-consistency window as an explicit API contract) rather than silently worked
+   around in the load-test script.
+
+**Wrote the actual comparison**, not just two separate findings sections: a table (peak throughput, latency
+trend, #214 reproduction, the new #219 finding) plus an explicit statement that this is a real trade-off —
+Postgres's row-level concurrency control plus moving result-population off the request path both help
+throughput and contention, but that same queue-based decoupling is exactly what introduces #219. Framed as
+"which bug you get, not a strict win," matching this repo's general practice of not overclaiming from a
+short run — throughput was still climbing at u=25 against microservices (unlike the monolith, already past
+its peak by then), so the real ceiling wasn't found either.
+
+**Verification**: ran the actual CI workflow's summary-parsing logic against real CSVs from the local runs
+before trusting it in `.github/workflows/loadtest-microservices.yml` (mirrors `loadtest-sqlite.yml`'s
+pattern, including its own issue-specific reproduction-rate callout, now for both #214 and #219). `ruff
+check .` clean. Updated `loadtests/README.md` (new sections, not a rewrite of the existing monolith
+findings), the root `README.md`'s Test Architecture table and a new engineering-practices bullet, and
+`CONTRIBUTING.md`.
+
+---
+
 ## 2026-09-14 — Fix the microservices Docker Compose stack, which had never actually booted (Scalability Milestone 2a)
 
 Started Scalability Milestone 2 (profiling the Postgres/microservices deployment with Locust, the planned
