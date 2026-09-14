@@ -28,8 +28,12 @@ redis==5.2.1
 # Only used by tests/services/ (services/runs/kafka_events.py and
 # services/worker/kafka_consumer.py import it at module load, whether or not
 # a Kafka broker is actually reachable in CI - see the same reasoning as
-# redis above).
-kafka-python==2.0.2
+# redis above). Pinned to 3.0.11, not the 2.0.x line: 2.0.2's vendored `six`
+# raises ModuleNotFoundError: No module named 'kafka.vendor.six.moves' on
+# Python 3.12 (the runs/worker Docker images - see
+# microservices-smoke.yml); 3.0.11 is the actively maintained line and
+# fixes that.
+kafka-python==3.0.11
 # Only used by tests/infra/ to parse `kubectl kustomize` output.
 PyYAML==6.0.1
 # agents/test_plan_reviewer.py (LangChain-based) and its unit tests — the

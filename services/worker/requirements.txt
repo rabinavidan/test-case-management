@@ -1,4 +1,4 @@
 sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 redis==5.2.1
-kafka-python==2.0.2
+kafka-python==3.0.11
