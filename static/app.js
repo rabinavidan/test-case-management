@@ -5,6 +5,7 @@ const state = {
   currentSuite: null,
   currentRun: null,
   user: null,
+  tourStep: null,
 };
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -379,6 +380,11 @@ async function router() {
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
   document.getElementById("nav-new-btn").classList.add("hidden");
 
+  // Navigating away from the projects list (e.g. clicking into a project)
+  // while the Recruiter Tour is active must not leave its floating card
+  // stranded on an unrelated page.
+  if (state.tourStep !== null && hash !== "projects") exitRecruiterTour();
+
   if (!hash || hash === "projects") {
     if (!rawHash && !getToken() && await redirectToFlagshipDemo()) return;
     await renderProjects();
@@ -615,6 +621,86 @@ function viewArchitecture() {
   } else {
     reveal();
   }
+}
+
+// ─── Recruiter Tour ──────────────────────────────────────────────────────────
+// A 5-step, read-only, no-auth guided path through sections already on the
+// projects list page. Never creates or modifies data - purely scrolling and
+// (for step 2) expanding the already-guest-visible architecture panel.
+// Skippable/exitable at any step.
+const RECRUITER_TOUR_STEPS = [
+  { title: "Leadership Profile", desc: "Automation Tech Lead positioning and how I lead engineering delivery.", targetId: "leadership-impact-section" },
+  { title: "System Architecture", desc: "Live microservice architecture, plus the real trade-offs behind it.", targetId: "showcase-toggle-btn", onEnter: () => { const c = document.getElementById("showcase-content"); if (c && c.classList.contains("hidden")) toggleShowcase(); } },
+  { title: "Test Strategy", desc: "A real Test Pyramid with measured counts, and the Shift-Left strategy behind it.", targetId: "test-pyramid-section" },
+  { title: "CI/CD Quality Gates & KPIs", desc: "The quality gates that block a merge, and the KPI dashboard tracking them.", targetId: "kpi-dashboard-section" },
+  { title: "AI Engineering & Source", desc: "Six real AI-assisted workflows, and the GitHub source behind all of it.", targetId: "ai-first-engineering-section" },
+];
+
+function renderTourOverlay() {
+  let el = document.getElementById("recruiter-tour-overlay");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "recruiter-tour-overlay";
+    document.body.appendChild(el);
+  }
+  const i = state.tourStep;
+  const step = RECRUITER_TOUR_STEPS[i];
+  const isLast = i === RECRUITER_TOUR_STEPS.length - 1;
+  el.innerHTML = `
+    <div data-testid="recruiter-tour-card" role="dialog" aria-label="Recruiter Tour"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 w-[calc(100%-2rem)] max-w-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wide" data-testid="tour-step-label">Recruiter Tour — Step ${i + 1} of ${RECRUITER_TOUR_STEPS.length}</span>
+        <button type="button" onclick="exitRecruiterTour()" data-testid="tour-exit-btn" aria-label="Exit tour" class="text-slate-400 hover:text-slate-600 flex-shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <h3 class="text-sm font-bold text-slate-800 mb-1">${step.title}</h3>
+      <p class="text-xs text-slate-500 mb-3">${step.desc}</p>
+      <div class="flex items-center justify-between">
+        <div class="flex gap-1" aria-hidden="true">
+          ${RECRUITER_TOUR_STEPS.map((_, si) => `<span class="w-1.5 h-1.5 rounded-full ${si === i ? "bg-blue-600" : "bg-slate-200"}"></span>`).join("")}
+        </div>
+        <div class="flex gap-2">
+          ${i > 0 ? `<button type="button" onclick="tourPrev()" data-testid="tour-prev-btn" class="text-xs font-semibold text-slate-500 hover:text-slate-700 px-2 py-1.5">Back</button>` : ""}
+          <button type="button" onclick="${isLast ? "exitRecruiterTour()" : "tourNext()"}" data-testid="tour-next-btn" class="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5">${isLast ? "Finish" : "Next"}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function goToTourStep(i) {
+  state.tourStep = i;
+  const step = RECRUITER_TOUR_STEPS[i];
+  if (step.onEnter) step.onEnter();
+  renderTourOverlay();
+  setTimeout(() => {
+    const target = document.querySelector(`[data-testid="${step.targetId}"]`);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    const prevOutline = target.style.outline, prevOffset = target.style.outlineOffset;
+    target.style.outline = "3px solid #3b82f6";
+    target.style.outlineOffset = "4px";
+    setTimeout(() => { target.style.outline = prevOutline; target.style.outlineOffset = prevOffset; }, 1600);
+  }, 100);
+}
+
+function startRecruiterTour() {
+  const go = () => goToTourStep(0);
+  if (window.location.hash.replace("#", "") !== "projects") {
+    window.location.hash = "projects";
+    setTimeout(go, 200);
+  } else {
+    go();
+  }
+}
+
+function tourNext() { if (state.tourStep < RECRUITER_TOUR_STEPS.length - 1) goToTourStep(state.tourStep + 1); }
+function tourPrev() { if (state.tourStep > 0) goToTourStep(state.tourStep - 1); }
+
+function exitRecruiterTour() {
+  document.getElementById("recruiter-tour-overlay")?.remove();
+  state.tourStep = null;
 }
 
 function renderShowcaseSection(sections) {
@@ -1671,17 +1757,65 @@ async function renderProjects() {
     </div>
   ` : "";
 
+  // Architecture decisions & trade-offs — folded into the same showcase
+  // panel "View Architecture" already reveals, so the CTA has one coherent
+  // destination: the live diagram plus the reasoning behind it. Every
+  // point below is sourced directly from services/README.md, k8s/README.md,
+  // or terraform/modules/monitoring/ - not invented.
+  const architectureStorySection = `
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" data-testid="architecture-story-section">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Architecture Decisions &amp; Trade-offs</p>
+      <div class="space-y-3">
+        ${[
+          { icon: '🧩', title: 'Why five services', desc: 'gateway, auth, projects, runs, and ai split along domain boundaries so each is independently deployable and scalable; worker is a sixth process with no HTTP surface, draining async work off the request path.' },
+          { icon: '📋', title: 'Ownership & boundaries', desc: 'One flat PostgreSQL namespace, tables prefixed per owning service (auth_users, projects_projects, runs_test_runs…) — logical separation without the operational cost of a schema-per-service.' },
+          { icon: '🔀', title: 'API Gateway', desc: 'Routes every /api/* request to the right downstream service via a declarative table matched by exact path shape (not string-prefix), serves the static SPA, and proxies the WebSocket connection.' },
+          { icon: '📡', title: 'Redis / WebSocket event flow', desc: 'Pub/Sub fans out WebSocket updates across replicas and publishes run-completion events; a Redis Stream queues TestResult population off the request path. Both degrade to local/inline behavior if Redis is unreachable — nothing depends on it being up.' },
+          { icon: '🗄️', title: 'PostgreSQL schema separation', desc: 'Table-name prefixing was chosen over Postgres schema-qualification specifically because it works identically against SQLite in tests and Postgres in production — no ATTACH-DATABASE workaround needed.' },
+          { icon: '☸️', title: 'Docker & Kubernetes deployment', desc: 'docker-compose.microservices.yml locally; Kustomize base + four environment overlays (staging/regression/preprod/prod) in k8s/, each pinned to a named node — mirroring the same four environments the in-app Environments dashboard reports on.' },
+          { icon: '🚦', title: 'CI/CD quality gates', desc: 'Lint, an 85% coverage floor, contract tests, and a live Docker-Compose boot smoke test all block a merge — see the Quality Gate Status KPI above.' },
+          { icon: '🔎', title: 'Observability & failure diagnostics', desc: 'A correlation ID threads through every request and log line across every service. In the GCP deployment, Terraform provisions a Cloud Monitoring dashboard (latency, error rate, pod health), alerting (5xx spikes, crash-loops, an uptime check, a budget guard), wired through Pub/Sub to a Cloud Function that auto-files and updates a GitHub issue per incident.' },
+          { icon: '⚖️', title: 'Trade-offs, found by testing — not assumed', desc: 'Load-testing the same scenarios against both backends found a real trade: the SQLite monolith’s DELETE+GET race (issue #214) never reproduced under Postgres/microservices, but that same run surfaced a different race the async worker introduces (issue #219) that the monolith can’t have. Trading one concurrency bug for a different one, not a strict win.' },
+        ].map(a => `
+          <div class="flex items-start gap-3">
+            <span class="text-base flex-shrink-0 mt-0.5" aria-hidden="true">${a.icon}</span>
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-slate-700">${a.title}</p>
+              <p class="text-[11px] text-slate-500 leading-relaxed">${a.desc}</p>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  // Recruiter Tour — a 5-step, read-only, no-auth guided path through
+  // sections already on this page (see RECRUITER_TOUR_STEPS / startRecruiterTour
+  // below). Skippable at any point; never creates or modifies data.
+  const recruiterTourBanner = !getToken() ? `
+    <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl px-5 py-3.5" data-testid="recruiter-tour-banner">
+      <div class="flex items-start gap-2.5 text-sm text-blue-900">
+        <span class="text-lg flex-shrink-0" aria-hidden="true">🧭</span>
+        <span><strong class="font-bold">New here?</strong> Take a 5-step guided tour — leadership, architecture, test strategy, quality gates, and AI engineering. Under 3 minutes, no sign-in, nothing is created.</span>
+      </div>
+      <button type="button" onclick="startRecruiterTour()" data-testid="start-tour-btn"
+        class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap">
+        Start Recruiter Tour
+      </button>
+    </div>
+  ` : "";
+
   if (!state.projects.length) {
     el.innerHTML = `
       <div class="fade-in">
         ${ownerCard}
+        ${recruiterTourBanner}
         ${leadershipImpactSection}
         ${deliveryWorkflowSection}
         ${testPyramidSection}
         ${aiFirstEngineeringSection}
         ${kpiDashboardSection}
         ${demoBanner}
-        ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
+        ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1701,13 +1835,14 @@ async function renderProjects() {
   el.innerHTML = `
     <div class="fade-in">
       ${ownerCard}
+      ${recruiterTourBanner}
       ${leadershipImpactSection}
       ${deliveryWorkflowSection}
       ${testPyramidSection}
       ${aiFirstEngineeringSection}
       ${kpiDashboardSection}
       ${demoBanner}
-      ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
+      ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
