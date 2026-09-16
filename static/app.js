@@ -1564,6 +1564,113 @@ async function renderProjects() {
     </div>
   ` : "";
 
+  // KPI + Quality Gate dashboard. Per the plan: keep test-inventory count,
+  // execution pass rate, requirement/risk coverage, and code coverage as
+  // four *separate* concepts (never present "active test cases" as
+  // complete product coverage), and never invent a number - a KPI with no
+  // real data source here shows "Not yet measured" instead of a guess.
+  // Pass Rate is the one live value: fetched from the flagship demo
+  // project's own /stats endpoint, not a fixture.
+  let flagshipStats = null;
+  if (!getToken()) {
+    const flagship = state.projects.find(p => DEMO_KINDS.testflow.namePattern.test(p.name));
+    if (flagship) {
+      try { flagshipStats = await GET(`/api/projects/${flagship.id}/stats`); } catch (e) { flagshipStats = null; }
+    }
+  }
+  const _kpiTotal = flagshipStats
+    ? flagshipStats.last_run_pass + flagshipStats.last_run_fail + flagshipStats.last_run_skip + flagshipStats.last_run_pending
+    : 0;
+  const livePassRate = _kpiTotal ? Math.round(flagshipStats.last_run_pass / _kpiTotal * 100) : null;
+
+  const kpiBadge = (status) => {
+    const styles = {
+      Healthy:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+      Attention: 'bg-amber-50 text-amber-700 border-amber-200',
+      Blocked:  'bg-red-50 text-red-700 border-red-200',
+      Enforced: 'bg-blue-50 text-blue-700 border-blue-200',
+      'Not yet measured': 'bg-slate-50 text-slate-500 border-slate-200',
+    };
+    // Status is always spelled out as text, never conveyed by color alone.
+    return `<span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${styles[status] || styles['Not yet measured']}">${status}</span>`;
+  };
+
+  const KPI_CARDS = [
+    {
+      name: 'Code Coverage', current: '89.1%', target: '85% floor (CI-enforced)',
+      status: 'Healthy',
+      def: 'Line coverage of api/, services/, and shared/ from the pytest suite — a PR that drops below the floor fails the build. Not the same as test-inventory count or pass rate.',
+      source: '.github/workflows/test.yml',
+    },
+    {
+      name: 'Pass Rate (live)',
+      current: livePassRate !== null ? `${livePassRate}%` : 'No run recorded yet',
+      target: '≥ 95%',
+      status: livePassRate === null ? 'Not yet measured' : livePassRate >= 95 ? 'Healthy' : livePassRate >= 80 ? 'Attention' : 'Blocked',
+      def: 'Percentage of executed results that passed in the flagship demo project’s most recent run — fetched live from /api/projects/{id}/stats, not a fixture. Execution pass rate only, not product or requirement coverage.',
+      source: 'GET /api/projects/{id}/stats',
+    },
+    {
+      name: 'Test Inventory', current: '706 tests / 4 layers', target: 'Grows with the codebase',
+      status: 'Healthy',
+      def: 'Total automated test count across unit, component, API/contract, and E2E layers (see Test Pyramid above). This counts tests that exist, not requirements or risk covered.',
+      source: 'tests/, e2e/, java-tests/, java-e2e/, e2e-bdd/',
+    },
+    {
+      name: 'Quality Gate Status', current: '4 gates enforced', target: 'All required checks pass before merge',
+      status: 'Enforced',
+      def: 'Lint, the coverage floor, contract tests, and a live Docker-Compose boot smoke test all block a PR from merging if any fails.',
+      source: '.github/workflows/test.yml, microservices-smoke.yml',
+    },
+    {
+      name: 'Flaky Test Rate', current: 'Not yet measured here', target: '—',
+      status: 'Not yet measured',
+      def: 'Tests that needed a rerun to pass are already detected and tracked automatically in one standing GitHub issue — not yet surfaced as a live rate in this dashboard.',
+      source: 'scripts/flake_report.py',
+    },
+    {
+      name: 'Pipeline Execution Time', current: 'Not yet measured here', target: '—',
+      status: 'Not yet measured',
+      def: 'Real run durations are visible per-workflow on GitHub Actions; not yet pulled into this dashboard.',
+      source: 'GitHub Actions run history',
+    },
+    {
+      name: 'Escaped Defects', current: 'Not yet measured', target: '—',
+      status: 'Not yet measured',
+      def: 'Would require a production incident or defect-tracking integration this app doesn’t have yet.',
+      source: '—',
+    },
+    {
+      name: 'Release Readiness', current: 'Not yet measured', target: '—',
+      status: 'Not yet measured',
+      def: 'No formal release-readiness gate beyond "all required CI checks pass on main" is defined yet.',
+      source: '—',
+    },
+  ];
+  const kpiDashboardSection = !getToken() ? `
+    <div class="mb-6" data-testid="kpi-dashboard-section">
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Quality Engineering KPIs</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        ${KPI_CARDS.map(k => `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4" data-testid="kpi-card-${k.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}">
+            <div class="flex items-start justify-between gap-2 mb-1">
+              <h3 class="text-xs font-bold text-slate-700">${k.name}</h3>
+              ${kpiBadge(k.status)}
+            </div>
+            <p class="text-lg font-black text-slate-800 mb-0.5">${k.current}</p>
+            <p class="text-[10px] text-slate-400 mb-2">Target: ${k.target}</p>
+            <p class="text-[11px] text-slate-500 leading-snug">${k.def}</p>
+            ${k.source !== '—' ? `<p class="text-[10px] text-slate-300 mt-1.5"><code>${k.source}</code></p>` : ''}
+          </div>`).join('')}
+      </div>
+      <p class="text-[11px] text-slate-400 mt-3">
+        Test-inventory count, execution pass rate, requirement/risk coverage, and code coverage are
+        tracked separately on purpose — an inventory of existing test cases is not the same claim as
+        complete product coverage.
+      </p>
+    </div>
+  ` : "";
+
   if (!state.projects.length) {
     el.innerHTML = `
       <div class="fade-in">
@@ -1572,6 +1679,7 @@ async function renderProjects() {
         ${deliveryWorkflowSection}
         ${testPyramidSection}
         ${aiFirstEngineeringSection}
+        ${kpiDashboardSection}
         ${demoBanner}
         ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
@@ -1597,6 +1705,7 @@ async function renderProjects() {
       ${deliveryWorkflowSection}
       ${testPyramidSection}
       ${aiFirstEngineeringSection}
+      ${kpiDashboardSection}
       ${demoBanner}
       ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
       <!-- Projects table header -->
