@@ -20,7 +20,7 @@ function logout() {
   state.user = null;
   document.getElementById("user-badge").innerHTML = `
     <button onclick="showAuthModal('login')" data-testid="signin-btn"
-      class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+      class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
       Sign in
     </button>`;
   loadSidebar();
@@ -598,6 +598,25 @@ function toggleShowcase() {
   try { localStorage.setItem("tf_showcase_expanded", expanding ? "1" : "0"); } catch {}
 }
 
+// The hero's "View Architecture" CTA - a direct, stable action that works
+// without signing in (the live architecture panel it reveals is guest-visible
+// as of renderProjects()'s archDiagram - see its own comment). Navigates to
+// the projects list first if needed, then expands the (possibly-collapsed)
+// showcase panel and scrolls it into view.
+function viewArchitecture() {
+  const reveal = () => {
+    const content = document.getElementById("showcase-content");
+    if (content && content.classList.contains("hidden")) toggleShowcase();
+    document.getElementById("showcase-toggle-btn")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  if (window.location.hash.replace("#", "") !== "projects") {
+    window.location.hash = "projects";
+    setTimeout(reveal, 150);
+  } else {
+    reveal();
+  }
+}
+
 function renderShowcaseSection(sections) {
   const content = sections.filter(Boolean).join("");
   if (!content) return "";
@@ -650,7 +669,10 @@ async function renderProjects() {
 
   await loadSidebar();
 
-  const archDiagram = isAdmin() ? `
+  // Real architecture content, not admin-only tooling - visible to every
+  // visitor (guest included) so "View Architecture" works without signing
+  // in, per the portfolio plan's requirement.
+  const archDiagram = `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 overflow-hidden">
       <div class="flex items-center justify-between mb-4">
         <div>
@@ -819,7 +841,7 @@ async function renderProjects() {
       .arch-http-badge { animation: archBadgePulse 3s ease-in-out infinite; }
       @keyframes archBadgePulse { 0%,100%{opacity:.6} 50%{opacity:1} }
     </style>
-  ` : "";
+  `;
 
   const demoBanner = `
     <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6 overflow-hidden relative">
@@ -1330,9 +1352,9 @@ async function renderProjects() {
       <div class="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
-          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Senior Automation Engineer</p>
-          <h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">AI-Powered Quality<br>Engineering at Scale</h2>
-          <p class="text-xs mb-4" style="color:rgba(100,200,255,.7)">Full-Stack AI-Driven Development · ISTQB · MCSD</p>
+          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Automation Tech Lead | AI-Driven Quality Engineering</p>
+          <h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Leading Automation Architecture &<br>AI-Driven Quality Strategy</h2>
+          <p class="text-xs mb-4" style="color:rgba(100,200,255,.7)">Technical roadmaps · Shift-Left strategy · CI/CD quality gates · measurable engineering KPIs</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
             <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🏢</span><span class="font-semibold text-white/70">ZoomInfo</span></span>
@@ -1353,15 +1375,40 @@ async function renderProjects() {
               </div>
             </div>
           </div>
-          <a href="https://www.linkedin.com/in/rabin-avidan-1aab6653/" target="_blank" rel="noopener noreferrer"
-            class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
-            style="background:linear-gradient(135deg,#0a66c2,#0f8ce8);box-shadow:0 4px 16px rgba(10,102,194,.4)">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-            </svg>
-            Connect on LinkedIn
-          </a>
         </div>
+      </div>
+
+      <!-- Primary hero actions, in order: Explore Live Demo, View Architecture, View GitHub, Connect on LinkedIn -->
+      <div class="relative z-10 flex flex-wrap items-center gap-2 px-6 pb-6" data-testid="hero-cta-row">
+        <button type="button" id="hero-demo-btn" data-testid="hero-explore-demo-btn"
+          onclick="viewOrCreateDemo('testflow', {btnId: 'hero-demo-btn', labelId: 'hero-demo-label'})"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
+          style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 4px 16px rgba(16,185,129,.35)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span id="hero-demo-label">Explore Live Demo</span>
+        </button>
+        <button type="button" data-testid="hero-architecture-btn" onclick="viewArchitecture()"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 border border-white/10"
+          style="background:rgba(255,255,255,.08)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          View Architecture
+        </button>
+        <a href="https://github.com/rabinavidan/test-case-management" target="_blank" rel="noopener noreferrer"
+          data-testid="hero-github-btn"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 border border-white/10"
+          style="background:rgba(255,255,255,.08)">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.744.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.93 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          View GitHub
+        </a>
+        <a href="https://www.linkedin.com/in/rabin-avidan-1aab6653/" target="_blank" rel="noopener noreferrer"
+          data-testid="hero-linkedin-btn"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
+          style="background:linear-gradient(135deg,#0a66c2,#0f8ce8);box-shadow:0 4px 16px rgba(10,102,194,.4)">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+          </svg>
+          Connect on LinkedIn
+        </a>
       </div>
 
       <!-- Skills strip -->
@@ -1392,10 +1439,64 @@ async function renderProjects() {
     </style>
   ` : "";
 
+  // Every claim below is scoped to what this repository itself proves -
+  // its CI workflows, test suites, and architecture docs - not a generic
+  // "team leadership" narrative this solo-maintained project can't back up.
+  const leadershipImpactSection = !getToken() ? `
+    <div class="mb-6" data-testid="leadership-impact-section">
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Leadership Impact</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        ${[
+          { icon: '🧭', title: 'Technical Direction & Governance', desc: 'Defines this repository’s contribution standards, architecture conventions, and CI quality gates — enforced automatically on every pull request, not just documented.' },
+          { icon: '🧪', title: 'Quality Strategy', desc: 'A real Test Pyramid across 5 independent automation stacks (pytest, 3× Playwright, REST Assured), with an 85% coverage floor enforced in CI.' },
+          { icon: '🚦', title: 'CI/CD Governance', desc: '9+ GitHub Actions workflows gate every PR — lint, coverage floor, contract tests, a live Docker-Compose boot smoke test. A failed gate blocks the merge.' },
+          { icon: '🏗️', title: 'Architecture & Delivery', desc: 'Designed the microservices decomposition (5 services + gateway + worker) and used real load-testing to find and fix production concurrency bugs.' },
+          { icon: '🤖', title: 'AI-First Engineering', desc: 'Built and operates an AI PR Steward that reads CI failures and review feedback and drives pull requests to green — the same automation behind this repository’s Kafka integration.' },
+        ].map(c => `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <div class="text-xl mb-2" aria-hidden="true">${c.icon}</div>
+            <h3 class="text-sm font-bold text-slate-800 mb-1">${c.title}</h3>
+            <p class="text-xs text-slate-500 leading-relaxed">${c.desc}</p>
+          </div>`).join('')}
+      </div>
+    </div>
+  ` : "";
+
+  // "How I Lead Engineering Delivery" - the workflow this section describes
+  // is the one this very portfolio rebuild follows: a written plan, broken
+  // into tracked milestones, each shipped as its own reviewable PR gated by
+  // real CI - not an abstract Scrum claim.
+  const deliveryWorkflowSection = !getToken() ? `
+    <div class="mb-6" data-testid="delivery-workflow-section">
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">How I Lead Engineering Delivery</h2>
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 overflow-x-auto">
+        <div class="flex items-stretch gap-2 min-w-max">
+          ${[
+            { step: 'Product Requirements', desc: 'A written plan with acceptance criteria — before any code changes.' },
+            { step: 'Technical Roadmap',     desc: 'Broken into scoped, tracked milestones, planned before implementation.' },
+            { step: 'Epics & Stories',       desc: 'Each milestone decomposes into concrete, testable tasks.' },
+            { step: 'Sprint Delivery',       desc: 'Every milestone ships as its own branch, PR, and CI run.' },
+            { step: 'Quality Gates',         desc: 'Lint, coverage floor, contract tests, and a live boot smoke test must pass.' },
+            { step: 'KPI Review',            desc: 'Each PR reports what changed, what was tested, and what remains open.' },
+          ].map((s, i, arr) => `
+            <div class="flex items-center flex-shrink-0">
+              <div class="w-36 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wide mb-1">${i + 1}. ${s.step}</p>
+                <p class="text-[11px] text-slate-500 leading-snug">${s.desc}</p>
+              </div>
+              ${i < arr.length - 1 ? `<svg class="w-5 h-5 text-slate-300 flex-shrink-0 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>` : ""}
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  ` : "";
+
   if (!state.projects.length) {
     el.innerHTML = `
       <div class="fade-in">
         ${ownerCard}
+        ${leadershipImpactSection}
+        ${deliveryWorkflowSection}
         ${demoBanner}
         ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
@@ -1417,6 +1518,8 @@ async function renderProjects() {
   el.innerHTML = `
     <div class="fade-in">
       ${ownerCard}
+      ${leadershipImpactSection}
+      ${deliveryWorkflowSection}
       ${demoBanner}
       ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner])}
       <!-- Projects table header -->
@@ -1778,8 +1881,10 @@ async function renderProject(projectId) {
         </div>
       </div>
 
-      <!-- Architecture diagram (admin only, Alerts Microservice / TestFlow projects) -->
-      ${isAdmin() ? (project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : "") : ""}
+      <!-- Architecture diagram (Alerts Microservice / TestFlow projects - visible
+           to every visitor, guest included; "View Architecture" must work
+           without signing in) -->
+      ${project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : ""}
 
       <!-- Last run progress bar (non-demo projects only) -->
       ${total && !project.name.startsWith("Alerts Microservice") && !project.name.startsWith("TestFlow") ? `
@@ -2912,10 +3017,10 @@ async function findLatestDemoProject(namePattern) {
 // recently seeded demo project instead: no sign-in prompt, no new data
 // created. A signed-in user keeps the original behavior - seed a fresh demo
 // project and jump to it.
-async function viewOrCreateDemo(kind) {
+async function viewOrCreateDemo(kind, elementIds) {
   const cfg = DEMO_KINDS[kind];
-  const btn = document.getElementById(cfg.btnId);
-  const label = document.getElementById(cfg.labelId);
+  const btn = document.getElementById(elementIds?.btnId || cfg.btnId);
+  const label = document.getElementById(elementIds?.labelId || cfg.labelId);
   if (!btn) return;
   btn.disabled = true;
   btn.classList.add("opacity-60");
