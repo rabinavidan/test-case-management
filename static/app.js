@@ -476,7 +476,7 @@ async function loadSidebar() {
                 const runsActive = state.currentView === `suite-runs-${s.id}`;
                 const casesActive = state.currentView === `suite-cases-${s.id}`;
                 return `<li>
-                  <button onclick="navigate('suite/${s.id}')"
+                  <button onclick="navigate('suite/${s.id}')" title="${escHtml(s.name)}"
                     class="w-full text-left pl-3 pr-4 py-1.5 text-xs transition-colors truncate
                       ${suiteActive ? "text-blue-700 font-semibold" : "text-slate-500 hover:text-blue-700"}">
                     ${escHtml(s.name)}
@@ -507,7 +507,7 @@ async function loadSidebar() {
       }
       return `<li class="group relative">
         <div class="flex items-center ${active ? "bg-blue-50 border-r-2 border-blue-600" : "hover:bg-slate-50"}">
-          <button data-testid="sidebar-project-${p.id}" onclick="navigate('project/${p.id}')"
+          <button data-testid="sidebar-project-${p.id}" onclick="navigate('project/${p.id}')" title="${escHtml(p.name)}"
             class="flex-1 text-left px-4 py-2.5 text-sm transition-colors truncate
               ${active ? "text-blue-700 font-medium" : "text-slate-700 hover:text-blue-700"}">
             ${escHtml(p.name)}
@@ -588,6 +588,10 @@ async function loadSidebarProjectStats(projects) {
 // the fold on every load, so they're collapsed by default behind a single
 // toggle — still one click away, but the task list is what a returning user
 // sees first. State is remembered per-browser via localStorage.
+function prefersReducedMotion() {
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+}
+
 function isShowcaseExpanded() {
   try { return localStorage.getItem("tf_showcase_expanded") === "1"; } catch { return false; }
 }
@@ -613,7 +617,7 @@ function viewArchitecture() {
   const reveal = () => {
     const content = document.getElementById("showcase-content");
     if (content && content.classList.contains("hidden")) toggleShowcase();
-    document.getElementById("showcase-toggle-btn")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("showcase-toggle-btn")?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
   };
   if (window.location.hash.replace("#", "") !== "projects") {
     window.location.hash = "projects";
@@ -636,18 +640,36 @@ const RECRUITER_TOUR_STEPS = [
   { title: "AI Engineering & Source", desc: "Six real AI-assisted workflows, and the GitHub source behind all of it.", targetId: "ai-first-engineering-section" },
 ];
 
+// The element focus should return to once the tour closes - the "Start
+// Tour" button (or whatever else had focus) a keyboard/screen-reader user
+// was on before the dialog opened.
+let tourTriggerEl = null;
+
 function renderTourOverlay() {
   let el = document.getElementById("recruiter-tour-overlay");
   if (!el) {
     el = document.createElement("div");
     el.id = "recruiter-tour-overlay";
     document.body.appendChild(el);
+    // Keyboard behavior expected of a dialog: Escape closes it, and Tab/Shift+Tab
+    // cycle within its own focusable controls rather than escaping to the page
+    // behind it. Attached once to the persistent wrapper (innerHTML re-renders
+    // below only replace its children, not this listener).
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.preventDefault(); exitRecruiterTour(); return; }
+      if (e.key !== "Tab") return;
+      const focusables = el.querySelectorAll("button, a[href]");
+      if (!focusables.length) return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
   }
   const i = state.tourStep;
   const step = RECRUITER_TOUR_STEPS[i];
   const isLast = i === RECRUITER_TOUR_STEPS.length - 1;
   el.innerHTML = `
-    <div data-testid="recruiter-tour-card" role="dialog" aria-label="Recruiter Tour"
+    <div data-testid="recruiter-tour-card" role="dialog" aria-modal="true" aria-label="Recruiter Tour"
       class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 w-[calc(100%-2rem)] max-w-sm">
       <div class="flex items-center justify-between mb-2">
         <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wide" data-testid="tour-step-label">Recruiter Tour — Step ${i + 1} of ${RECRUITER_TOUR_STEPS.length}</span>
@@ -667,6 +689,11 @@ function renderTourOverlay() {
         </div>
       </div>
     </div>`;
+  // Re-rendering innerHTML on every step destroys whatever control the
+  // keyboard user's focus was on, silently dropping focus to <body>. Move it
+  // back onto the dialog's primary action so Tab/Enter keeps working.
+  const primary = el.querySelector('[data-testid="tour-next-btn"]') || el.querySelector('[data-testid="tour-exit-btn"]');
+  primary?.focus();
 }
 
 function goToTourStep(i) {
@@ -677,7 +704,7 @@ function goToTourStep(i) {
   setTimeout(() => {
     const target = document.querySelector(`[data-testid="${step.targetId}"]`);
     if (!target) return;
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
     const prevOutline = target.style.outline, prevOffset = target.style.outlineOffset;
     target.style.outline = "3px solid #3b82f6";
     target.style.outlineOffset = "4px";
@@ -686,6 +713,7 @@ function goToTourStep(i) {
 }
 
 function startRecruiterTour() {
+  tourTriggerEl = document.activeElement;
   const go = () => goToTourStep(0);
   if (window.location.hash.replace("#", "") !== "projects") {
     window.location.hash = "projects";
@@ -701,6 +729,8 @@ function tourPrev() { if (state.tourStep > 0) goToTourStep(state.tourStep - 1); 
 function exitRecruiterTour() {
   document.getElementById("recruiter-tour-overlay")?.remove();
   state.tourStep = null;
+  if (tourTriggerEl && document.body.contains(tourTriggerEl)) tourTriggerEl.focus();
+  tourTriggerEl = null;
 }
 
 function renderShowcaseSection(sections) {
@@ -1764,7 +1794,7 @@ async function renderProjects() {
   // or terraform/modules/monitoring/ - not invented.
   const architectureStorySection = `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" data-testid="architecture-story-section">
-      <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Architecture Decisions &amp; Trade-offs</p>
+      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Architecture Decisions &amp; Trade-offs</h2>
       <div class="space-y-3">
         ${[
           { icon: '🧩', title: 'Why five services', desc: 'gateway, auth, projects, runs, and ai split along domain boundaries so each is independently deployable and scalable; worker is a sixth process with no HTTP surface, draining async work off the request path.' },
@@ -1956,11 +1986,11 @@ function projectRow(p) {
       </td>
       <td class="px-3 py-3">
         <div class="flex items-center gap-3">
-          <span data-testid="project-name-${p.id}" class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-[220px]">${escHtml(p.name)}</span>
+          <span data-testid="project-name-${p.id}" title="${escHtml(p.name)}" class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate max-w-[220px]">${escHtml(p.name)}</span>
         </div>
       </td>
       <td class="px-3 py-3 hidden md:table-cell text-slate-500 text-xs max-w-[260px]">
-        <span class="line-clamp-1">${escHtml(p.description || "—")}</span>
+        <span class="line-clamp-1" title="${escHtml(p.description || "")}">${escHtml(p.description || "—")}</span>
       </td>
       <td class="px-3 py-3 hidden sm:table-cell text-slate-400 text-xs whitespace-nowrap">${formatDate(p.created_at)}</td>
       <td id="pstats-${p.id}" class="px-3 py-3 hidden lg:table-cell">
@@ -2425,8 +2455,8 @@ function suiteCard(s, projectId) {
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <h3 class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate">${escHtml(s.name)}</h3>
-          ${s.description ? `<p class="text-sm text-slate-500 truncate mt-0.5">${escHtml(s.description)}</p>` : ""}
+          <h3 title="${escHtml(s.name)}" class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate">${escHtml(s.name)}</h3>
+          ${s.description ? `<p title="${escHtml(s.description)}" class="text-sm text-slate-500 truncate mt-0.5">${escHtml(s.description)}</p>` : ""}
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
           <span class="text-xs text-slate-400">${formatDate(s.created_at)}</span>
@@ -2455,7 +2485,7 @@ function runCard(r, suiteName) {
       <div class="flex items-start justify-between gap-3 mb-3">
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap mb-0.5">
-            <span class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate">${escHtml(r.name)}</span>
+            <span title="${escHtml(r.name)}" class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate">${escHtml(r.name)}</span>
             ${status}
             ${envBadge(r.environment_key)}
           </div>
@@ -3066,7 +3096,7 @@ function resultRow(r, runId) {
             <span class="font-semibold text-slate-800">${escHtml(tc.title)}</span>
             ${priorityBadge(tc.priority)}
           </div>
-          ${tc.description ? `<p class="text-xs text-slate-500 truncate">${escHtml(tc.description)}</p>` : ""}
+          ${tc.description ? `<p title="${escHtml(tc.description)}" class="text-xs text-slate-500 truncate">${escHtml(tc.description)}</p>` : ""}
           ${r.notes ? `<p class="text-xs text-slate-600 mt-1.5 bg-slate-50 rounded-lg px-2 py-1 italic">"${escHtml(r.notes)}"</p>` : ""}
           ${r.executed_at ? `<p class="text-xs text-slate-400 mt-1">Executed ${formatDate(r.executed_at)}</p>` : ""}
         </div>
@@ -4664,7 +4694,7 @@ async function renderAnalytics(projectId) {
             return `
             <div>
               <div class="flex justify-between text-sm mb-1">
-                <span class="font-medium text-slate-700 truncate max-w-[60%]">${escHtml(s.suite_name)}</span>
+                <span title="${escHtml(s.suite_name)}" class="font-medium text-slate-700 truncate max-w-[60%]">${escHtml(s.suite_name)}</span>
                 <span class="text-slate-500 flex-shrink-0">${s.active}/${s.total} active (${pct}%)</span>
               </div>
               <div class="h-2 bg-slate-100 rounded-full overflow-hidden">

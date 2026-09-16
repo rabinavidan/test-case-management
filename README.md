@@ -88,6 +88,39 @@ and dependency conflicts hit building them, and the honest gaps not to oversell.
 
 ---
 
+## Portfolio & Recruiter Experience
+
+The public, unauthenticated view (visiting the app with no session) is built for a recruiter or hiring
+manager evaluating this repo, not only as a test-management product demo. Everything below is generated
+directly from this repository's own code, tests, and CI — not a static marketing page.
+
+- **Automation Tech Lead positioning** — the hero identifies the owner's role and links directly to the live
+  demo, the architecture panel, GitHub, and LinkedIn, all reachable in one action with no sign-in required.
+- **Leadership Impact** — five cards, each backed by something this repo actually enforces (CI quality
+  gates, the five-stack test pyramid, the microservice decomposition, the AI PR Steward) rather than a
+  generic "led a team of X" claim this solo-maintained project can't back up.
+- **Test Pyramid & Shift-Left** — real, measured test counts per layer (`pytest --collect-only`,
+  `playwright test --list`, `@Test` counts), never invented numbers.
+- **AI-First Quality Engineering** — six concrete AI-assisted workflows, each pointing at the real file or
+  workflow behind it (see [AI Engineering](#ai-engineering--not-just-ai-features) above).
+- **Quality Engineering KPIs** — a typed KPI dashboard with current value, target, status, and definition per
+  metric; a KPI with no real data source honestly reads "Not yet measured" rather than a guess.
+- **Architecture Decisions & Trade-offs** — service boundaries, event flow, deployment, and observability,
+  sourced from [`services/README.md`](services/README.md) and [`k8s/README.md`](k8s/README.md), including a
+  real concurrency trade-off found through load-testing rather than assumed.
+- **Recruiter Tour** — an optional five-step, read-only guided walkthrough of all of the above, under three
+  minutes, no sign-in, and creates nothing. Skippable/exitable at any point, and keyboard-operable — Tab
+  cycles within the dialog, Escape closes it and returns focus to where the tour was started.
+
+Demo buttons never create data for an unauthenticated visitor: they navigate to the existing flagship demo
+project (or a curated welcome state if none exists yet) instead of seeding a new record on every visit.
+
+> Screenshots of this guest-facing view aren't included yet. The gallery above predates this redesign and
+> still reflects the signed-in product views; capturing accurate new screenshots needs a real browser session
+> with the Tailwind CDN reachable, which this repo's own dev/CI environments have.
+
+---
+
 ## Features
 
 ### Core workflow
