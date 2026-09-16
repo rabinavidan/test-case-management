@@ -372,13 +372,15 @@ function navigate(hash) {
 }
 
 async function router() {
-  const hash  = window.location.hash.replace("#", "") || "projects";
+  const rawHash = window.location.hash;
+  const hash  = rawHash.replace("#", "") || "projects";
   const parts = hash.split("/");
 
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
   document.getElementById("nav-new-btn").classList.add("hidden");
 
   if (!hash || hash === "projects") {
+    if (!rawHash && !getToken() && await redirectToFlagshipDemo()) return;
     await renderProjects();
   } else if (parts[0] === "project" && parts[1]) {
     await renderProject(parseInt(parts[1]));
@@ -405,6 +407,26 @@ async function router() {
     _activeRunWs.close();
     _activeRunWs = null;
   }
+}
+
+// On a guest's very first visit (no hash at all - distinct from an explicit
+// click on "Projects", which sets #projects), land them on the flagship
+// TestFlow demo project instead of the raw, unfiltered projects list - see
+// DEMO_KINDS.testflow / findLatestDemoProject below. Returns true if it
+// redirected (router() should stop - navigate() below re-invokes router()
+// for the new hash), false if there's nothing to redirect to (falls through
+// to the normal projects list, which has its own intentional empty state).
+async function redirectToFlagshipDemo() {
+  try {
+    const flagship = await findLatestDemoProject(DEMO_KINDS.testflow.namePattern);
+    if (flagship) {
+      navigate(`project/${flagship.id}`);
+      return true;
+    }
+  } catch (e) {
+    // A failed lookup must never block the app from rendering something.
+  }
+  return false;
 }
 
 // ─── Breadcrumb ──────────────────────────────────────────────────────────────
@@ -1757,7 +1779,7 @@ async function renderProject(projectId) {
       </div>
 
       <!-- Architecture diagram (admin only, Alerts Microservice / TestFlow projects) -->
-      ${isAdmin() && (project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : "")}
+      ${isAdmin() ? (project.name.startsWith("Alerts Microservice") ? alertsArchDiagram() : project.name.startsWith("TestFlow") ? testflowArchDiagram() : "") : ""}
 
       <!-- Last run progress bar (non-demo projects only) -->
       ${total && !project.name.startsWith("Alerts Microservice") && !project.name.startsWith("TestFlow") ? `
@@ -2865,71 +2887,76 @@ function alertsArchDiagram() {
 }
 
 // ─── Demo seed ───────────────────────────────────────────────────────────────
-async function seedAlertsDemo() {
-  const btn = document.getElementById("demo-seed-btn");
-  const label = document.getElementById("demo-seed-label");
+// Demo project name prefixes as templated server-side (api/main.py) - anchored
+// to a following date so "TestFlow {ts}" (DEMO_KINDS.testflow) never matches
+// "TestFlow Repo - ..." (DEMO_KINDS.playwright), which also starts with
+// "TestFlow ".
+const DEMO_KINDS = {
+  alerts:     { btnId: "demo-seed-btn", labelId: "demo-seed-label", endpoint: "/api/demo/alerts-microservice", namePattern: /^Alerts Microservice \d{4}-\d{2}-\d{2}/, defaultLabel: "Run Alerts Microservice Demo" },
+  testflow:   { btnId: "demo-tf-btn",   labelId: "demo-tf-label",   endpoint: "/api/demo/testflow",            namePattern: /^TestFlow \d{4}-\d{2}-\d{2}/,             defaultLabel: "Run TestFlow Demo" },
+  playwright: { btnId: "demo-pw-btn",   labelId: "demo-pw-label",   endpoint: "/api/demo/playwright",          namePattern: /^TestFlow Repo — API & E2E Tests Demo/,   defaultLabel: "Run Playwright Architecture Demo" },
+};
+
+// GET /api/projects has no auth dependency (api/main.py's list_projects) -
+// safe to call as a guest. Finds the most recently created project matching
+// a demo kind's name pattern; results are already ordered newest-first.
+async function findLatestDemoProject(namePattern) {
+  const res = await GET("/api/projects?page_size=100");
+  const items = res?.items ?? [];
+  return items.find(p => namePattern.test(p.name)) || null;
+}
+
+// A guest (no token) can't call the demo-seed endpoints - they require
+// get_current_user and reject a missing/placeholder token with a 401. Rather
+// than surface that as an error, a guest gets a read-only view of the most
+// recently seeded demo project instead: no sign-in prompt, no new data
+// created. A signed-in user keeps the original behavior - seed a fresh demo
+// project and jump to it.
+async function viewOrCreateDemo(kind) {
+  const cfg = DEMO_KINDS[kind];
+  const btn = document.getElementById(cfg.btnId);
+  const label = document.getElementById(cfg.labelId);
   if (!btn) return;
   btn.disabled = true;
-  label.textContent = "Creating demo project…";
   btn.classList.add("opacity-60");
+
+  if (!getToken()) {
+    label.textContent = "Opening demo…";
+    try {
+      const existing = await findLatestDemoProject(cfg.namePattern);
+      if (existing) {
+        navigate(`project/${existing.id}`);
+      } else {
+        toast("No demo project is seeded yet — sign in to create one.", "info");
+      }
+    } catch (e) {
+      toast("Couldn't open the demo right now. Please try again.", "error");
+    } finally {
+      btn.disabled = false;
+      label.textContent = cfg.defaultLabel;
+      btn.classList.remove("opacity-60");
+    }
+    return;
+  }
+
+  label.textContent = "Creating demo project…";
   try {
-    const res = await fetch("/api/demo/alerts-microservice", { method: "POST", headers: { "Authorization": `Bearer ${getToken()}` } });
-    if (!res.ok) throw new Error(await res.text());
-    const project = await res.json();
+    const project = await POST(cfg.endpoint);
     toast(`Demo project "${project.name}" created!`, "success");
     await loadSidebar();
     navigate(`project/${project.id}`);
   } catch (e) {
     toast("Failed to create demo: " + e.message, "error");
+  } finally {
     btn.disabled = false;
-    label.textContent = "Run Alerts Microservice Demo";
+    label.textContent = cfg.defaultLabel;
     btn.classList.remove("opacity-60");
   }
 }
 
-async function seedTestFlowDemo() {
-  const btn = document.getElementById("demo-tf-btn");
-  const label = document.getElementById("demo-tf-label");
-  if (!btn) return;
-  btn.disabled = true;
-  label.textContent = "Creating demo project…";
-  btn.classList.add("opacity-60");
-  try {
-    const res = await fetch("/api/demo/testflow", { method: "POST", headers: { "Authorization": `Bearer ${getToken()}` } });
-    if (!res.ok) throw new Error(await res.text());
-    const project = await res.json();
-    toast(`Demo project "${project.name}" created!`, "success");
-    await loadSidebar();
-    navigate(`project/${project.id}`);
-  } catch (e) {
-    toast("Failed to create demo: " + e.message, "error");
-    btn.disabled = false;
-    label.textContent = "Run TestFlow Demo";
-    btn.classList.remove("opacity-60");
-  }
-}
-
-async function seedPlaywrightDemo() {
-  const btn = document.getElementById("demo-pw-btn");
-  const label = document.getElementById("demo-pw-label");
-  if (!btn) return;
-  btn.disabled = true;
-  label.textContent = "Creating demo project…";
-  btn.classList.add("opacity-60");
-  try {
-    const res = await fetch("/api/demo/playwright", { method: "POST", headers: { "Authorization": `Bearer ${getToken()}` } });
-    if (!res.ok) throw new Error(await res.text());
-    const project = await res.json();
-    toast(`Demo project "${project.name}" created!`, "success");
-    await loadSidebar();
-    navigate(`project/${project.id}`);
-  } catch (e) {
-    toast("Failed to create demo: " + e.message, "error");
-    btn.disabled = false;
-    label.textContent = "Run Playwright Architecture Demo";
-    btn.classList.remove("opacity-60");
-  }
-}
+async function seedAlertsDemo()     { return viewOrCreateDemo("alerts"); }
+async function seedTestFlowDemo()   { return viewOrCreateDemo("testflow"); }
+async function seedPlaywrightDemo() { return viewOrCreateDemo("playwright"); }
 
 // ─── User Journey Demo (animated, client-side simulation) ────────────────────
 const JOURNEY_STEPS = [
