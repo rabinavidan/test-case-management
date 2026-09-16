@@ -2162,6 +2162,14 @@ async function renderProject(projectId) {
       GET(`/api/projects/${projectId}/suites`),
       GET(`/api/projects/${projectId}/stats`),
     ]);
+    // A stats payload missing a field would otherwise render the literal
+    // string "undefined" for that number - default every field so a
+    // partial/malformed response degrades to zero, not visible garbage.
+    stats = {
+      total_suites: 0, total_cases: 0, total_runs: 0,
+      last_run_pass: 0, last_run_fail: 0, last_run_skip: 0, last_run_pending: 0,
+      last_run_name: "", ...stats,
+    };
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
     return;
