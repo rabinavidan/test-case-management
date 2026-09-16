@@ -391,8 +391,7 @@ function navigate(hash) {
 }
 
 async function router() {
-  const rawHash = window.location.hash;
-  const hash  = rawHash.replace("#", "") || "projects";
+  const hash  = window.location.hash.replace("#", "") || "projects";
   const parts = hash.split("/");
 
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
@@ -404,7 +403,6 @@ async function router() {
   if (state.tourStep !== null && hash !== "projects") exitRecruiterTour();
 
   if (!hash || hash === "projects") {
-    if (!rawHash && !getToken() && await redirectToFlagshipDemo()) return;
     await renderProjects();
   } else if (parts[0] === "project" && parts[1]) {
     await renderProject(parseInt(parts[1]));
@@ -431,26 +429,6 @@ async function router() {
     _activeRunWs.close();
     _activeRunWs = null;
   }
-}
-
-// On a guest's very first visit (no hash at all - distinct from an explicit
-// click on "Projects", which sets #projects), land them on the flagship
-// TestFlow demo project instead of the raw, unfiltered projects list - see
-// DEMO_KINDS.testflow / findLatestDemoProject below. Returns true if it
-// redirected (router() should stop - navigate() below re-invokes router()
-// for the new hash), false if there's nothing to redirect to (falls through
-// to the normal projects list, which has its own intentional empty state).
-async function redirectToFlagshipDemo() {
-  try {
-    const flagship = await findLatestDemoProject(DEMO_KINDS.testflow.namePattern);
-    if (flagship) {
-      navigate(`project/${flagship.id}`);
-      return true;
-    }
-  } catch (e) {
-    // A failed lookup must never block the app from rendering something.
-  }
-  return false;
 }
 
 // ─── Breadcrumb ──────────────────────────────────────────────────────────────
