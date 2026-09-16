@@ -29,6 +29,13 @@ function logout() {
 }
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
+// Every render path that awaits a fetch (e.g. renderProject's initial spinner)
+// has no fallback if the request never settles - a hung backend call leaves
+// the spinner up forever with nothing on screen. A hard timeout guarantees
+// every call always eventually resolves or rejects, so callers' existing
+// error states/catch blocks can actually run.
+const API_TIMEOUT_MS = 15000;
+
 async function api(method, path, body) {
   const opts = {
     method,
@@ -37,7 +44,18 @@ async function api(method, path, body) {
   const token = getToken();
   if (token) opts.headers["Authorization"] = `Bearer ${token}`;
   if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(path, opts);
+  const controller = new AbortController();
+  opts.signal = controller.signal;
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(path, opts);
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("The server took too long to respond. Please try again.");
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (res.status === 401) { clearToken(); state.user = null; showAuthModal("login"); return null; }
   if (res.status === 204) return null;
   const data = await res.json();
