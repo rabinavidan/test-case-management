@@ -107,9 +107,15 @@ test.describe('Guest recruiter journey — P0 fixes', () => {
     });
   });
 
-  test("a guest's very first visit lands on the flagship TestFlow demo, not the raw projects list", async ({ page, authedRequest }) => {
+  // Regression test: an earlier version of this app force-redirected a guest's
+  // very first visit straight into a specific project (`#project/{id}`)
+  // without any click. In production this meant a stalled backend call on
+  // that one project's page silently broke the entire landing experience for
+  // every guest, with no way to back out to the normal projects list. The
+  // redirect is gone for good — root always renders the guest projects list.
+  test("a guest's first visit never auto-redirects into a specific project", async ({ page, authedRequest }) => {
     let flagshipId: number;
-    await test.step('Seed the TestFlow demo project via the API', async () => {
+    await test.step('Seed the TestFlow demo project via the API (so one exists to *not* redirect to)', async () => {
       const res = await authedRequest.post('/api/demo/testflow');
       expect(res.ok()).toBeTruthy();
       flagshipId = (await res.json()).id;
@@ -121,8 +127,13 @@ test.describe('Guest recruiter journey — P0 fixes', () => {
       await page.waitForLoadState('networkidle');
     });
 
-    await test.step('Redirected straight to the flagship project', async () => {
-      await expect(page).toHaveURL(new RegExp(`#project/${flagshipId}$`), { timeout: 10000 });
+    await test.step('URL stays on the projects list — never auto-navigates into a project', async () => {
+      await expect(page).not.toHaveURL(new RegExp(`#project/${flagshipId}$`));
+      await expect(page).toHaveURL(/#projects$|\/$/);
+    });
+
+    await test.step('The guest projects list itself is visible, with its own explicit demo CTA', async () => {
+      await expect(page.getByTestId('hero-explore-demo-btn')).toBeVisible();
     });
   });
 
