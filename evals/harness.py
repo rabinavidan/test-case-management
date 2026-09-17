@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from evals.llm_judge import parse_judge_score
 from evals.ollama_client import OllamaClient
 
 DEFAULT_RUNS_PER_CASE = 5
@@ -36,18 +37,28 @@ class EvalTarget:
     error_scores is what a run that raised an exception (unreachable
     Ollama, unparseable response, ...) scores as — a full failure, not an
     exclusion, so a harness run can't hide flakiness by averaging it away.
+
+    build_judge_prompt(case, raw_response) -> (system_prompt, user_prompt),
+    optional. Only used when the harness is given a judge_client (see
+    run_suite/run_case) — see evals/llm_judge.py. A target with no judge
+    prompt builder simply never gets a judge score, same as no judge_client
+    being configured at all.
     """
     name: str
     metrics: tuple
     error_scores: dict
     build_prompt: Callable[[dict], tuple]
     score: Callable[[str, dict], dict]
+    build_judge_prompt: Callable[[dict, str], tuple] | None = None
 
 
 @dataclass
 class RunResult:
     scores: dict
     error: str | None = None
+    # None means "no judge configured for this run" or "the judge call
+    # itself failed" - both degrade the same way, per evals/llm_judge.py.
+    judge_score: float | None = None
 
 
 @dataclass
@@ -76,6 +87,22 @@ class CaseReport:
     def error_rate(self) -> float:
         return sum(1 for r in self.runs if r.error) / len(self.runs) if self.runs else 0.0
 
+    @property
+    def judge_mean(self) -> float | None:
+        """None when no judge score was ever collected for this case (no
+        judge configured, or every judge call failed) - distinct from a
+        real low score, so a report can't confuse "not measured" with
+        "measured and bad"."""
+        scores = [r.judge_score for r in self.runs if r.judge_score is not None]
+        return statistics.mean(scores) if scores else None
+
+    @property
+    def judge_consistency_stdev(self) -> float | None:
+        scores = [r.judge_score for r in self.runs if r.judge_score is not None]
+        if not scores:
+            return None
+        return statistics.pstdev(scores) if len(scores) >= 2 else 0.0
+
 
 @dataclass
 class SuiteReport:
@@ -90,6 +117,8 @@ class SuiteReport:
                     "mean_scores": c.mean_scores,
                     "consistency_stdev": c.consistency_stdev,
                     "error_rate": c.error_rate,
+                    "judge_mean": c.judge_mean,
+                    "judge_consistency_stdev": c.judge_consistency_stdev,
                 }
                 for c in self.cases
             ]
@@ -117,14 +146,37 @@ def load_dataset(path: Path) -> list:
     return json.loads(Path(path).read_text())["cases"]
 
 
-def run_case(case: dict, client: OllamaClient, target: EvalTarget, n_runs: int, temperature: float) -> CaseReport:
+def _judge_run(target: EvalTarget, judge_client: OllamaClient, case: dict, raw: str) -> float | None:
+    """Best-effort: a judge-call failure (unreachable server, unparseable
+    judge response, ...) degrades to "no judge score for this run", the
+    same graceful-skip convention as a missing judge model entirely - it
+    never fails the deterministic run it's riding alongside."""
+    if judge_client is None or target.build_judge_prompt is None:
+        return None
+    try:
+        judge_system, judge_user = target.build_judge_prompt(case, raw)
+        judge_raw = judge_client.generate(judge_system, judge_user, temperature=0.0)
+        return parse_judge_score(judge_raw)
+    except Exception:
+        return None
+
+
+def run_case(
+    case: dict,
+    client: OllamaClient,
+    target: EvalTarget,
+    n_runs: int,
+    temperature: float,
+    judge_client: OllamaClient | None = None,
+) -> CaseReport:
     report = CaseReport(case_id=case["id"], metrics=target.metrics)
     system_prompt, user_prompt = target.build_prompt(case)
     for _ in range(n_runs):
         try:
             raw = client.generate(system_prompt, user_prompt, temperature=temperature)
             scores = target.score(raw, case)
-            report.runs.append(RunResult(scores=scores))
+            judge_score = _judge_run(target, judge_client, case, raw)
+            report.runs.append(RunResult(scores=scores, judge_score=judge_score))
         except Exception as exc:
             # Broad on purpose: a local model's raw text can fail in ways a
             # remote, schema-constrained API rarely does (truncated JSON,
@@ -140,6 +192,7 @@ def run_suite(
     target: EvalTarget,
     n_runs: int = DEFAULT_RUNS_PER_CASE,
     temperature: float = 0.7,
+    judge_client: OllamaClient | None = None,
 ) -> SuiteReport:
     cases = load_dataset(dataset_path)
-    return SuiteReport(cases=[run_case(c, client, target, n_runs, temperature) for c in cases])
+    return SuiteReport(cases=[run_case(c, client, target, n_runs, temperature, judge_client) for c in cases])

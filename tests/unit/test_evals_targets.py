@@ -35,6 +35,13 @@ def test_targets_registry_has_both_features():
     assert TARGETS["triage"].TARGET is TRIAGE_TARGET
 
 
+def test_both_targets_wire_an_llm_judge_prompt_builder():
+    # Both features get the optional LLM-as-judge axis (see evals/llm_judge.py) -
+    # neither target module forgot to opt in.
+    assert TEST_GENERATION_TARGET.build_judge_prompt is not None
+    assert TRIAGE_TARGET.build_judge_prompt is not None
+
+
 # --- test_generation target -------------------------------------------------
 
 def test_test_generation_build_prompt_includes_case_fields():

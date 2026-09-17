@@ -6,6 +6,7 @@ from api.ai_prompts import (
     parse_testcase_generation_response,
 )
 from evals.harness import EvalTarget
+from evals.llm_judge import build_judge_prompt_for_test_generation
 from evals.scorers import aggregate_score
 
 METRICS = ("schema_score", "count_match_score", "keyword_coverage_score", "duplicate_rate")
@@ -42,4 +43,5 @@ TARGET = EvalTarget(
     error_scores=ERROR_SCORES,
     build_prompt=_build_prompt,
     score=_score,
+    build_judge_prompt=build_judge_prompt_for_test_generation,
 )

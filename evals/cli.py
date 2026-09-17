@@ -14,6 +14,13 @@ evals/baselines/ is committed like any other file.
 Once a baseline exists for a (model, target) pair, --gate compares against
 it (plus a noise band) instead of the fixed thresholds below.
 
+Optionally score each run with an LLM judge too, alongside (never instead
+of) the deterministic scorers - see evals/llm_judge.py. Off unless
+--judge-model is given; a judge-call failure degrades to "no judge score
+for this run", it never fails the run it's riding alongside.
+
+    python -m evals.cli --target test_generation --model qwen2.5:0.5b --judge-model qwen2.5:1.5b
+
 Requires a local Ollama server (https://ollama.com) with the target model
 already pulled (`ollama pull llama3.1`). See evals/README.md.
 """
@@ -34,6 +41,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dataset", type=Path, default=None, help="Defaults to the target's own dataset.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Ollama model name (default: %(default)s).")
     parser.add_argument("--host", default=None, help="Ollama server URL (default: http://localhost:11434).")
+    parser.add_argument(
+        "--judge-model", default=None,
+        help="Ollama model to use as an LLM judge, scored alongside the deterministic scorers (default: off). "
+             "See evals/llm_judge.py.",
+    )
+    parser.add_argument("--judge-host", default=None, help="Ollama server URL for the judge model (default: --host).")
     parser.add_argument("--runs", type=int, default=5, help="Runs per case (default: %(default)s).")
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--output", type=Path, default=None, help="Write the JSON report to this path.")
@@ -53,11 +66,22 @@ def main(argv: list[str] | None = None) -> int:
     dataset = args.dataset or Path(target_module.DEFAULT_DATASET)
 
     client = OllamaClient(host=args.host, model=args.model)
-    report = run_suite(dataset, client, target_module.TARGET, n_runs=args.runs, temperature=args.temperature)
+    judge_client = (
+        OllamaClient(host=args.judge_host or args.host, model=args.judge_model)
+        if args.judge_model else None
+    )
+    report = run_suite(
+        dataset, client, target_module.TARGET, n_runs=args.runs, temperature=args.temperature,
+        judge_client=judge_client,
+    )
 
     result = report.to_dict()
     result["target"] = args.target
     result["model"] = args.model
+    # Pinned and recorded here, not just passed on the command line, so the
+    # yardstick a report was judged against is auditable from the report
+    # itself - null when no judge was configured for this run.
+    result["judge_model"] = args.judge_model
 
     output_text = json.dumps(result, indent=2)
     if args.output:

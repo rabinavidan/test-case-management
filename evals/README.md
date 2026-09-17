@@ -40,14 +40,14 @@ could have gotten either result and reported it as "the" answer.
   Each feature's specifics live in `evals/targets/{test_generation,triage}.py`,
   registered in `evals/targets/__init__.py`. Adding a third AI feature means
   adding one target module, not touching the harness.
-- **Deterministic scorers only** (`evals/scorers.py` for test generation,
-  `evals/triage_scorers.py` for triage) — schema validity, keyword coverage,
-  a duplicate-title rate, sentence-count-in-range, and a "did the model just
-  paste the input back" check. No LLM-as-judge in this first pass: a scorer
-  that itself calls a model would add its own non-determinism on top of the
-  thing being measured, and a plain, auditable check is easier to trust when
-  tuning thresholds. (LLM-as-judge is a reasonable next step — see Future
-  work.)
+- **Deterministic scorers as the primary axis** (`evals/scorers.py` for test
+  generation, `evals/triage_scorers.py` for triage) — schema validity,
+  keyword coverage, a duplicate-title rate, sentence-count-in-range, and a
+  "did the model just paste the input back" check. A scorer that itself
+  calls a model adds its own non-determinism on top of the thing being
+  measured, so these stay plain and auditable — nothing here changed to
+  accommodate the optional LLM-as-judge axis (see "Optional LLM-as-judge
+  scoring" below), which runs alongside them, never instead.
 - **Ollama as the model backend** (`evals/ollama_client.py`) — a local
   model with no API key and no per-call cost is what makes running each
   case 5+ times, repeatedly, in CI or locally, practical. A plain `httpx`
@@ -87,6 +87,13 @@ Run against a different dataset or model:
 
 ```bash
 python -m evals.cli --target test_generation --dataset evals/datasets/test_generation.json --model qwen2.5:7b --runs 8
+```
+
+Score each run with an LLM judge too, alongside the deterministic scorers
+(see "Optional LLM-as-judge scoring" below):
+
+```bash
+python -m evals.cli --target test_generation --model qwen2.5:0.5b --judge-model qwen2.5:1.5b --runs 5
 ```
 
 ## Running in CI
@@ -146,6 +153,51 @@ can differ. Re-running the `record_baseline` dispatch once on the real CI
 runner supersedes it with a baseline measured in the same environment
 `--gate` actually runs in.
 
+## Optional LLM-as-judge scoring
+
+`evals/llm_judge.py` adds a second, optional scoring axis for a qualitative
+dimension the deterministic scorers structurally can't reach — schema
+validity, keyword coverage, and a duplicate-title rate can confirm a test
+case is well-*formed*; none of them can judge whether it's actually a
+*good* test case (specific, testable, covering a genuinely distinct
+scenario), and the same gap exists on the triage side between "is this
+free text non-empty and the right length" and "does it actually name a
+plausible root cause." An LLM judge can reach that gap; a deterministic
+check cannot.
+
+- **Off by default, on with `--judge-model`.** No `--judge-model` flag →
+  the judge never runs, `judge_model` is `null` in the report, and every
+  case's `judge_mean`/`judge_consistency_stdev` are `null` too — not 0.0,
+  which would look like a real, bad score. This is the same graceful-skip
+  convention the rest of this repo's AI-feature code already uses for a
+  missing API key.
+- **Alongside, never instead of, the deterministic scorers.** The judge
+  score is never folded into `mean_scores`/`consistency_stdev` and is
+  never gated by `--gate` — it's reported as its own separate `judge_mean`/
+  `judge_consistency_stdev` pair per case, exactly the "report both axes
+  separately" the deterministic scorers were built to keep auditable
+  (see `evals/scorers.py`'s original design note). `--gate`/baseline
+  regression checking are entirely unaffected by whether a judge was
+  configured.
+- **A fixed rubric, per feature.** `JUDGE_RUBRIC_TEST_GENERATION` and
+  `JUDGE_RUBRIC_TRIAGE` are plain-text criteria the judge model is asked to
+  rate against on a 0.0-1.0 scale, returned as `{"score": ..., "reasoning":
+  ...}` JSON. The rubric text is fixed in this module, not built per case,
+  so the yardstick is the same across every case in a run.
+- **Pinned and recorded, not just passed on the command line.** The judge
+  model name is written into `result["judge_model"]` in every report — the
+  same "auditable yardstick" reasoning as `evals/baseline.py` recording
+  `model`/`target` on every baseline. An Ollama tag (e.g. `qwen2.5:1.5b`)
+  is itself an immutable version pin, the same way a baseline's committed
+  model directory name is.
+- **A judge-call failure degrades to "no judge score for this run," never
+  to a failed run.** The judge call happens only after the deterministic
+  score for that run already succeeded, and any exception during the judge
+  call itself (unreachable server, a judge response that isn't valid
+  `{"score": ...}` JSON) is caught in `evals/harness.py` and recorded as
+  `judge_score = None` for that one run — it doesn't touch `error_rate` or
+  fail the case.
+
 ## Layout
 
 | File | Purpose |
@@ -157,7 +209,8 @@ runner supersedes it with a baseline measured in the same environment
 | `evals/targets/test_generation.py`, `evals/targets/triage.py` | Per-feature prompt-building + scoring, wired into an `EvalTarget`. |
 | `evals/baseline.py` | Per-model, per-target baseline recording and noise-band regression checking (see "Baseline regression gating"). |
 | `evals/baselines/` | Committed baseline reports, one JSON file per `(model, target)` pair. |
-| `evals/cli.py` | `python -m evals.cli --target {test_generation,triage}` entrypoint, with a CI-friendly `--gate` exit code and `--record-baseline`. |
+| `evals/llm_judge.py` | Optional LLM-as-judge rubric, prompt-building, and response parsing (see "Optional LLM-as-judge scoring"). |
+| `evals/cli.py` | `python -m evals.cli --target {test_generation,triage}` entrypoint, with a CI-friendly `--gate` exit code, `--record-baseline`, and `--judge-model`. |
 | `evals/datasets/test_generation.json`, `evals/datasets/triage.json` | Golden datasets: inputs + required keywords per case. |
 | `.github/workflows/eval-harness.yml` | Runs both targets against a real local model in CI; gates against a committed baseline where one exists. |
 
@@ -205,9 +258,11 @@ without special-casing.
 
 ## Future work
 
-- An optional LLM-as-judge scorer for qualitative dimensions a deterministic
-  check can't reach (e.g. "is this test case actually testable as written"),
-  clearly separated from the deterministic scores above.
+- Wire `--judge-model` into `eval-harness.yml` so CI reports a judge score
+  alongside the deterministic ones on every run, not just locally — held
+  back for now because it roughly doubles the job's LLM-call count (a
+  judge call per run, on top of the run itself) and CI job duration on an
+  already-slow CPU runner.
 - A larger model in CI (traded off against job duration) if `qwen2.5:0.5b`'s
   variance turns out to be dominated by model size rather than genuine
   prompt sensitivity.

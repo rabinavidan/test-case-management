@@ -164,3 +164,37 @@ def test_main_gate_falls_back_to_fixed_thresholds_without_a_baseline(monkeypatch
     # No --record-baseline call first - this model has no recorded baseline,
     # so --gate must fall back to the existing fixed-threshold check.
     assert cli_module.main(["--runs", "1", "--model", "never-baselined-model", "--gate"]) == 0
+
+
+# --- --judge-model (optional LLM-as-judge) -----------------------------------
+
+class _MainOrJudgeStubClient(_StubClient):
+    """main() constructs OllamaClient twice - once for the model under
+    test, once (only if --judge-model is set) for the judge - both through
+    the same monkeypatched class. Branches on the model name so a single
+    stub can play both roles in one run."""
+
+    def generate(self, system_prompt, user_prompt, temperature=0.7):
+        if self.model == "judge-stub-model":
+            return json.dumps({"score": 0.85, "reasoning": "well-formed and relevant"})
+        return super().generate(system_prompt, user_prompt, temperature)
+
+
+def test_main_without_judge_model_leaves_judge_fields_null(monkeypatch, capsys):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    cli_module.main(["--runs", "1"])
+
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["judge_model"] is None
+    assert all(c["judge_mean"] is None for c in printed["cases"])
+
+
+def test_main_with_judge_model_populates_judge_fields(monkeypatch, capsys):
+    monkeypatch.setattr(cli_module, "OllamaClient", _MainOrJudgeStubClient)
+    exit_code = cli_module.main(["--runs", "2", "--judge-model", "judge-stub-model"])
+
+    assert exit_code == 0
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["judge_model"] == "judge-stub-model"
+    assert all(c["judge_mean"] == 0.85 for c in printed["cases"])
+    assert all(c["judge_consistency_stdev"] == 0.0 for c in printed["cases"])
