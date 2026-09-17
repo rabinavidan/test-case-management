@@ -16,11 +16,14 @@ class _FakeMessage:
 
 
 class _FakeMessages:
+    last_call_kwargs = None
+
     def __init__(self, response_text=None, raise_exc=None):
         self._response_text = response_text
         self._raise_exc = raise_exc
 
     def create(self, **kwargs):
+        _FakeMessages.last_call_kwargs = kwargs
         if self._raise_exc:
             raise self._raise_exc
         return _FakeMessage(self._response_text)
@@ -143,6 +146,48 @@ def test_generate_anthropic_error(auth_client, suite, monkeypatch):
     assert r.status_code == 502
 
 
+def test_generate_ungrounded_by_default_omits_existing_cases_context(auth_client, suite, monkeypatch):
+    """grounded defaults to false, so an existing test case in the suite
+    must not appear in the prompt sent to the model."""
+    s, headers, client = suite
+    client.post(f"/api/suites/{s['id']}/testcases", json={"title": "Login with valid credentials"}, headers=headers)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key")
+    _install_fake_anthropic(monkeypatch, response_text=VALID_RESPONSE)
+
+    r = client.post(f"/api/suites/{s['id']}/testcases/generate",
+                     json={"feature_description": "Login flow", "count": 2}, headers=headers)
+    assert r.status_code == 200
+    assert "already in this suite" not in _FakeMessages.last_call_kwargs["system"]
+
+
+def test_generate_grounded_includes_existing_cases_in_the_prompt(auth_client, suite, monkeypatch):
+    s, headers, client = suite
+    client.post(f"/api/suites/{s['id']}/testcases", json={
+        "title": "Login with valid credentials", "description": "Verify login succeeds",
+    }, headers=headers)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key")
+    _install_fake_anthropic(monkeypatch, response_text=VALID_RESPONSE)
+
+    r = client.post(f"/api/suites/{s['id']}/testcases/generate",
+                     json={"feature_description": "Login with email and password", "count": 2, "grounded": True},
+                     headers=headers)
+    assert r.status_code == 200
+    sent = _FakeMessages.last_call_kwargs
+    assert "already in this suite" in sent["system"]
+    assert "Login with valid credentials" in sent["messages"][0]["content"]
+
+
+def test_generate_grounded_with_no_existing_cases_still_succeeds(auth_client, suite, monkeypatch):
+    s, headers, client = suite
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key")
+    _install_fake_anthropic(monkeypatch, response_text=VALID_RESPONSE)
+
+    r = client.post(f"/api/suites/{s['id']}/testcases/generate",
+                     json={"feature_description": "Login flow", "count": 2, "grounded": True}, headers=headers)
+    assert r.status_code == 200
+    assert "(none yet)" in _FakeMessages.last_call_kwargs["messages"][0]["content"]
+
+
 def test_save_generated_testcases(auth_client, suite):
     s, headers, client = suite
     payload = [
@@ -168,6 +213,29 @@ def test_save_generated_testcases(auth_client, suite):
     listed = client.get(f"/api/suites/{s['id']}/testcases", headers=headers).json()
     assert len(listed) == 2
     assert all(tc["status"] == "draft" for tc in listed)
+
+
+def test_save_generated_testcases_stores_embeddings_for_later_retrieval(auth_client, suite):
+    """Saved AI-generated cases must be embedded immediately, not just
+    lazily on next read - so a grounded generate() call right afterwards
+    sees them as existing context without an extra backfill step."""
+    from api import models
+    from tests.api.conftest import TestingSessionLocal
+
+    s, headers, client = suite
+    payload = [{
+        "title": "Login with valid credentials", "description": "desc",
+        "steps": "steps", "expected_result": "result", "priority": "high",
+    }]
+    client.post(f"/api/suites/{s['id']}/testcases/generate/save", json=payload, headers=headers)
+    saved_id = client.get(f"/api/suites/{s['id']}/testcases", headers=headers).json()[0]["id"]
+
+    db = TestingSessionLocal()
+    try:
+        row = db.query(models.TestCaseEmbedding).filter(models.TestCaseEmbedding.test_case_id == saved_id).first()
+        assert row is not None
+    finally:
+        db.close()
 
 
 def test_save_generated_testcases_suite_not_found(auth_client):

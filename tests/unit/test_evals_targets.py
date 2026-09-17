@@ -13,6 +13,8 @@ from evals.targets import TARGETS
 from evals.targets.test_generation import TARGET as TEST_GENERATION_TARGET
 from evals.targets.test_generation import _build_prompt as build_test_generation_prompt
 from evals.targets.test_generation import _score as score_test_generation
+from evals.targets.test_generation_grounded import TARGET as GROUNDED_TARGET
+from evals.targets.test_generation_ungrounded import TARGET as UNGROUNDED_TARGET
 from evals.targets.triage import TARGET as TRIAGE_TARGET
 from evals.targets.triage import _build_prompt as build_triage_prompt
 from evals.targets.triage import _score as score_triage
@@ -29,10 +31,14 @@ class _ScriptedClient:
         return response
 
 
-def test_targets_registry_has_both_features():
-    assert set(TARGETS) == {"test_generation", "triage"}
+def test_targets_registry_has_every_feature():
+    assert set(TARGETS) == {
+        "test_generation", "triage", "test_generation_ungrounded", "test_generation_grounded",
+    }
     assert TARGETS["test_generation"].TARGET is TEST_GENERATION_TARGET
     assert TARGETS["triage"].TARGET is TRIAGE_TARGET
+    assert TARGETS["test_generation_ungrounded"].TARGET is UNGROUNDED_TARGET
+    assert TARGETS["test_generation_grounded"].TARGET is GROUNDED_TARGET
 
 
 def test_both_targets_wire_an_llm_judge_prompt_builder():
@@ -148,3 +154,58 @@ def test_triage_run_suite_against_real_dataset():
         TARGETS["triage"].DEFAULT_MAX_THRESHOLDS,
         TARGETS["triage"].DEFAULT_MAX_ERROR_RATE,
     ) is True
+
+
+# --- retrieval-grounded vs. ungrounded comparison (course M5) ---------------
+
+_RETRIEVAL_CASE = {
+    "suite_name": "Authentication",
+    "feature_description": "Login flow",
+    "count": 2,
+    "existing_cases": [
+        {"title": "Login with valid credentials succeeds", "description": "d"},
+    ],
+}
+
+
+def test_ungrounded_prompt_omits_existing_cases_context():
+    system_prompt, user_prompt = UNGROUNDED_TARGET.build_prompt(_RETRIEVAL_CASE)
+    assert "already in this suite" not in system_prompt
+    assert "Login with valid credentials succeeds" not in user_prompt
+
+
+def test_grounded_prompt_includes_existing_cases_context():
+    system_prompt, user_prompt = GROUNDED_TARGET.build_prompt(_RETRIEVAL_CASE)
+    assert "already in this suite" in system_prompt
+    assert "Login with valid credentials succeeds" in user_prompt
+
+
+def test_grounded_and_ungrounded_score_the_same_way():
+    raw = json.dumps({"test_cases": [
+        {"title": "Login with valid credentials succeeds", "description": "d", "steps": "s",
+         "expected_result": "r", "priority": "high"},
+        {"title": "Login with invalid password shows an error", "description": "d", "steps": "s",
+         "expected_result": "r", "priority": "high"},
+    ]})
+    ungrounded_scores = UNGROUNDED_TARGET.score(raw, _RETRIEVAL_CASE)
+    grounded_scores = GROUNDED_TARGET.score(raw, _RETRIEVAL_CASE)
+    assert ungrounded_scores == grounded_scores
+    # The first generated title exactly matches the one existing case.
+    assert ungrounded_scores["cross_duplicate_rate"] == 0.5
+
+
+def test_retrieval_targets_run_against_the_real_dataset():
+    good_response = json.dumps({"test_cases": [{
+        "title": "A distinct new scenario", "description": "d", "steps": "s",
+        "expected_result": "r", "priority": "high",
+    }] * 3})
+    client = _ScriptedClient([good_response])
+
+    for target, name in [(UNGROUNDED_TARGET, "test_generation_ungrounded"), (GROUNDED_TARGET, "test_generation_grounded")]:
+        report = run_suite("evals/datasets/test_generation_retrieval.json", client, target, n_runs=1)
+        assert len(report.cases) == 6
+        assert report.overall_pass(
+            TARGETS[name].DEFAULT_MIN_THRESHOLDS,
+            TARGETS[name].DEFAULT_MAX_THRESHOLDS,
+            TARGETS[name].DEFAULT_MAX_ERROR_RATE,
+        ) is True

@@ -97,6 +97,21 @@ class TestCase(Base):
     results = relationship("TestResult", back_populates="test_case", cascade="all, delete-orphan")
 
 
+class TestCaseEmbedding(Base):
+    """One row per test case, holding a JSON-encoded embedding of its title
+    + description — see api/embeddings.py for why this is a plain JSON
+    column (works identically on SQLite and Postgres) rather than a
+    pgvector column, and api/retrieval.py for how it's used to ground AI
+    Test Generation against existing cases in the same suite."""
+    __tablename__ = "test_case_embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    test_case_id = Column(Integer, ForeignKey("test_cases.id"), nullable=False, unique=True, index=True)
+    suite_id = Column(Integer, ForeignKey("test_suites.id"), nullable=False, index=True)
+    embedding_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class TestRun(Base):
     __tablename__ = "test_runs"
 

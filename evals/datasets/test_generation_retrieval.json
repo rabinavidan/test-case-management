@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "id": "login-flow-retrieval",
+      "suite_name": "Authentication",
+      "feature_description": "User login with username and password, including invalid credentials and account lockout after repeated failed attempts.",
+      "count": 3,
+      "existing_cases": [
+        {"title": "Login with valid credentials succeeds", "description": "Enter a valid username and password and submit; the user is logged in."},
+        {"title": "Login with invalid password shows an error", "description": "Enter a valid username with a wrong password; an invalid-credentials error is shown."}
+      ]
+    },
+    {
+      "id": "password-reset-retrieval",
+      "suite_name": "Authentication",
+      "feature_description": "Self-service password reset via an emailed reset link, including expired links and links that have already been used once.",
+      "count": 3,
+      "existing_cases": [
+        {"title": "Password reset link is emailed on request", "description": "Requesting a reset for a known email sends a reset link."},
+        {"title": "Expired reset link is rejected", "description": "Following a reset link after it has expired shows an error, not the reset form."}
+      ]
+    },
+    {
+      "id": "csv-export-retrieval",
+      "suite_name": "Reporting",
+      "feature_description": "Exporting a test suite's test cases and each one's latest run status to a CSV file, including suites that have zero test cases.",
+      "count": 3,
+      "existing_cases": [
+        {"title": "Export a populated suite produces a CSV with one row per test case", "description": "Exporting a suite with test cases downloads a CSV listing each case and its latest status."},
+        {"title": "Export an empty suite produces a header-only CSV", "description": "Exporting a suite with zero test cases downloads a CSV with just the header row."}
+      ]
+    },
+    {
+      "id": "pagination-search-retrieval",
+      "suite_name": "Suites",
+      "feature_description": "Paginated, searchable list of test suites within a project, filterable by name substring.",
+      "count": 3,
+      "existing_cases": [
+        {"title": "Search filters the suite list by name substring", "description": "Typing part of a suite's name narrows the list to matching suites."},
+        {"title": "Pagination shows the next page of suites", "description": "Clicking next advances to the next page of results when more suites exist than fit one page."}
+      ]
+    },
+    {
+      "id": "bulk-delete-retrieval",
+      "suite_name": "Suites",
+      "feature_description": "Bulk-selecting multiple test suites and deleting them in one action, including a partial-failure case where one suite fails to delete.",
+      "count": 3,
+      "existing_cases": [
+        {"title": "Bulk delete removes all selected suites", "description": "Selecting several suites and confirming bulk delete removes every selected suite."},
+        {"title": "Bulk delete reports a partial failure", "description": "If one selected suite fails to delete, the others still succeed and the failure is reported."}
+      ]
+    },
+    {
+      "id": "environment-management-retrieval",
+      "suite_name": "Environments",
+      "feature_description": "Managing the fixed staging/regression/preprod/prod environment pipeline, including assigning a run to an environment.",
+      "count": 3,
+      "existing_cases": [
+        {"title": "A run can be assigned to an environment", "description": "Creating a run lets the user pick one of the four environments."},
+        {"title": "Environments are listed in pipeline order", "description": "The environments list shows staging, regression, preprod, and prod in that order."}
+      ]
+    }
+  ]
+}
