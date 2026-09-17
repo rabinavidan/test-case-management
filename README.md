@@ -67,6 +67,11 @@ Gemini client, and the Test Plan Reviewer's Ollama client keep their own, for no
   interactively inside a developer's Claude Code session (via a dedicated `playwright-test` MCP server, root
   [`.mcp.json`](.mcp.json)), never unattended in a workflow; everything they produce is an ordinary `*.spec.ts`
   file that still goes through human review and the existing `pw-ts.yml` pipeline like any other change.
+- **No cross-agent orchestrator, on purpose** — every agent above is an independent single-shot call; none
+  invokes another, and nothing sequences them automatically. [`docs/agent-governance.md`](docs/agent-governance.md)
+  documents why (the checkpoints an orchestrator would remove are exactly where a human should be looking) and
+  what evidence would change that call, plus [`scripts/agent_telemetry.py`](scripts/agent_telemetry.py)'s unified
+  view over the healer's and AI gateway's separate telemetry logs.
 
 See [`docs/interview-prep/agentic-ai-test-engineering.md`](docs/interview-prep/agentic-ai-test-engineering.md)
 for the deeper case study behind the Eval Harness and Test Plan Reviewer — what they're for, the real failures
