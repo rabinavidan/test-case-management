@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload blob report (this shard)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: blob-report-${{ matrix.shardIndex }}
           path: e2e/blob-report/
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload raw Allure results (this shard)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: allure-results-pw-ts-${{ matrix.shardIndex }}
           path: e2e/allure-results/
@@ -244,7 +244,7 @@ jobs:
 
       - name: Upload Allure report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: allure-report-playwright-ts-${{ github.run_id }}
           path: e2e/allure-report/
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload merged HTML report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
