@@ -1,0 +1,261 @@
+{
+  "cases": [
+    {
+      "case_id": "login-timeout-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.2,
+        "keyword_coverage_score": 0.8,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.26666666666666666,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "csv-export-failures",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.6,
+        "keyword_coverage_score": 0.9333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.13333333333333336,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "permission-denied-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.7333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.24944382578492943,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "environment-mismatch-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.7999999999999999,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.16329931618554522,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "flaky-retry-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.2,
+        "keyword_coverage_score": 0.3333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.21081851067789195,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "pagination-boundary-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.5333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.1632993161855452,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "websocket-disconnect-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.9333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.13333333333333336,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "ai-generation-503-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.7333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.24944382578492943,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "kafka-consumer-lag-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.26666666666666666,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.13333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "concurrent-edit-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.0,
+        "keyword_coverage_score": 0.3333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.0,
+        "keyword_coverage_score": 0.0,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "rate-limit-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.8,
+        "keyword_coverage_score": 0.7999999999999999,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.16329931618554522,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "database-constraint-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 0.8,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.5333333333333333,
+        "verbatim_echo_rate": 0.2
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.4,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.26666666666666666,
+        "verbatim_echo_rate": 0.4
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "large-payload-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.2,
+        "keyword_coverage_score": 0.7333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.13333333333333336,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "verbatim-echo-bait",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.8,
+        "keyword_coverage_score": 0.6666666666666666,
+        "verbatim_echo_rate": 0.1
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4,
+        "keyword_coverage_score": 0.21081851067789195,
+        "verbatim_echo_rate": 0.2
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "single-outlier-cluster",
+      "runs": 5,
+      "mean_scores": {
+        "non_empty_score": 1.0,
+        "sentence_count_score": 0.6,
+        "keyword_coverage_score": 0.5333333333333333,
+        "verbatim_echo_rate": 0.0
+      },
+      "consistency_stdev": {
+        "non_empty_score": 0.0,
+        "sentence_count_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.26666666666666666,
+        "verbatim_echo_rate": 0.0
+      },
+      "error_rate": 0.0
+    }
+  ],
+  "model": "qwen2.5:0.5b",
+  "target": "triage"
+}

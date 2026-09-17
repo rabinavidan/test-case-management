@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+import evals.baseline as baseline_module
 import evals.cli as cli_module
 
 
@@ -109,3 +110,57 @@ def test_main_runs_triage_target(monkeypatch, capsys):
 def test_main_rejects_unknown_target():
     with pytest.raises(SystemExit):
         cli_module.main(["--target", "not-a-real-target"])
+
+
+# --- --record-baseline / baseline-aware --gate -------------------------------
+
+def test_main_record_baseline_writes_a_reviewable_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+
+    exit_code = cli_module.main(["--runs", "1", "--model", "test-model", "--record-baseline"])
+
+    assert exit_code == 0
+    path = baseline_module.baseline_path("test-model", "test_generation")
+    assert path.exists()
+    written = json.loads(path.read_text())
+    assert written["model"] == "test-model"
+    assert len(written["cases"]) == 15
+
+
+def test_main_gate_passes_against_a_matching_baseline(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+    cli_module.main(["--runs", "1", "--model", "test-model", "--record-baseline"])
+
+    # Same stub, same model - a genuine re-run of the same conditions, not a regression.
+    assert cli_module.main(["--runs", "1", "--model", "test-model", "--gate"]) == 0
+
+
+def test_main_gate_fails_on_regression_against_a_recorded_baseline(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+    cli_module.main(["--runs", "1", "--model", "test-model", "--record-baseline"])
+
+    class _RegressedClient(_StubClient):
+        def generate(self, system_prompt, user_prompt, temperature=0.7):
+            # Schema-invalid, keyword-empty response - well below the
+            # healthy baseline just recorded above, not ordinary noise.
+            return json.dumps({"test_cases": [{"title": "t"}]})
+
+    monkeypatch.setattr(cli_module, "OllamaClient", _RegressedClient)
+    exit_code = cli_module.main(["--runs", "1", "--model", "test-model", "--gate"])
+
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "EVAL GATE FAILED" in err
+    assert "regression vs. the recorded baseline" in err
+
+
+def test_main_gate_falls_back_to_fixed_thresholds_without_a_baseline(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+
+    # No --record-baseline call first - this model has no recorded baseline,
+    # so --gate must fall back to the existing fixed-threshold check.
+    assert cli_module.main(["--runs", "1", "--model", "never-baselined-model", "--gate"]) == 0
