@@ -52,7 +52,10 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt httpx==0.25.2
+        # requirements.txt already pins httpx (api/ai_gateway.py's Ollama/Groq
+        # backends need it as of course M6) - no separate pin needed here
+        # anymore, and one would now conflict with it.
+        run: pip install -r requirements.txt
 
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
