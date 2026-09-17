@@ -198,20 +198,74 @@ check cannot.
   `judge_score = None` for that one run — it doesn't touch `error_rate` or
   fail the case.
 
+## Retrieval-grounded generation
+
+Course milestone M5. AI Test Generation (`POST /api/suites/{id}/testcases/generate`)
+can now run "grounded": pass `"grounded": true` in the request body and, before
+calling the model, `api/retrieval.py` embeds the feature description
+(`api/embeddings.py` — a deterministic, dependency-free hashed bag-of-words
+vector; see that module's docstring for why not pgvector/a hosted embeddings
+API at this app's current scale), finds the nearest existing test cases in
+the same suite by cosine similarity, and feeds them to the model as "already
+covered, don't duplicate these" context (`api/ai_prompts.py`'s
+`build_grounded_testcase_generation_user_prompt`). Ungrounded (the default,
+`grounded` omitted or `false`) is unchanged from before this milestone — the
+flag is purely additive.
+
+**Proving the win.** `evals/datasets/test_generation_retrieval.json` holds 6
+cases, each with a `feature_description` plus a pinned `existing_cases` list
+(the "already in the suite" cases a real retrieval call would have found).
+Two targets run the identical dataset through the identical scoring —
+`test_generation_ungrounded` and `test_generation_grounded` — differing only
+in which prompt they build, so their reports are directly comparable. The
+metric that matters is `cross_duplicate_rate` (`evals/scorers.py`): the
+fraction of generated test cases whose title is a near-duplicate (embedding
+cosine similarity ≥ 0.6 — the same embedding production retrieval uses) of
+one of that case's `existing_cases` — distinct from the pre-existing
+`duplicate_rate`, which only catches a title repeating *within* one run, not
+against prior art.
+
+Measured locally against `qwen2.5:0.5b` (5 runs/case, same model and
+methodology as the committed baselines — see "Baseline regression gating"):
+
+| Metric | Ungrounded | Grounded |
+|--------|-----------:|---------:|
+| `cross_duplicate_rate` (lower is better) | 0.433 | 0.417 |
+| `duplicate_rate` (lower is better) | 0.344 | 0.200 |
+| `schema_score` | 0.633 | 0.733 |
+| `count_match_score` | 0.656 | 0.767 |
+
+Grounding moves `cross_duplicate_rate` in the right direction — a real,
+reproducible drop, not an invented number — though a modest one at this
+model size; a 0.5B local model follows the "don't repeat these" instruction
+imperfectly, and the hashed-embedding near-duplicate detector at a 0.6
+threshold is itself a coarse instrument. The schema/count-match improvement
+is a plausible side effect of the extra structure in the grounded prompt,
+not something this milestone specifically targeted. Reproduce with:
+
+```
+python -m evals.cli --target test_generation_ungrounded --model qwen2.5:0.5b --runs 5 --output /tmp/ungrounded.json
+python -m evals.cli --target test_generation_grounded   --model qwen2.5:0.5b --runs 5 --output /tmp/grounded.json
+```
+
+Not wired into `eval-harness.yml` this milestone — see Future work.
+
 ## Layout
 
 | File | Purpose |
 |------|---------|
 | `evals/ollama_client.py` | Thin HTTP client for a local Ollama server. |
 | `evals/harness.py` | Target-agnostic orchestration: runs a dataset N times per case; aggregates mean + consistency; gates on thresholds. |
-| `evals/scorers.py` | Deterministic scorers for AI Test Generation's JSON output. |
+| `evals/scorers.py` | Deterministic scorers for AI Test Generation's JSON output, including `cross_duplicate_rate` (see "Retrieval-grounded generation"). |
 | `evals/triage_scorers.py` | Deterministic scorers for AI Failure Triage's free-text output. |
 | `evals/targets/test_generation.py`, `evals/targets/triage.py` | Per-feature prompt-building + scoring, wired into an `EvalTarget`. |
+| `evals/targets/test_generation_ungrounded.py`, `evals/targets/test_generation_grounded.py` | The retrieval-comparison pair (see "Retrieval-grounded generation"); share prompt/scoring code via `evals/targets/_retrieval_shared.py`. |
 | `evals/baseline.py` | Per-model, per-target baseline recording and noise-band regression checking (see "Baseline regression gating"). |
 | `evals/baselines/` | Committed baseline reports, one JSON file per `(model, target)` pair. |
 | `evals/llm_judge.py` | Optional LLM-as-judge rubric, prompt-building, and response parsing (see "Optional LLM-as-judge scoring"). |
-| `evals/cli.py` | `python -m evals.cli --target {test_generation,triage}` entrypoint, with a CI-friendly `--gate` exit code, `--record-baseline`, and `--judge-model`. |
+| `evals/cli.py` | `python -m evals.cli --target {test_generation,triage,test_generation_ungrounded,test_generation_grounded}` entrypoint, with a CI-friendly `--gate` exit code, `--record-baseline`, and `--judge-model`. |
 | `evals/datasets/test_generation.json`, `evals/datasets/triage.json` | Golden datasets: inputs + required keywords per case. |
+| `evals/datasets/test_generation_retrieval.json` | Golden dataset for the grounded-vs-ungrounded comparison; each case carries a pinned `existing_cases` list. |
 | `.github/workflows/eval-harness.yml` | Runs both targets against a real local model in CI; gates against a committed baseline where one exists. |
 
 Unit tests (`tests/unit/test_evals_*.py`, `tests/unit/test_ai_prompts.py`)
@@ -266,3 +320,12 @@ without special-casing.
 - A larger model in CI (traded off against job duration) if `qwen2.5:0.5b`'s
   variance turns out to be dominated by model size rather than genuine
   prompt sensitivity.
+- Wire `test_generation_ungrounded`/`test_generation_grounded` into
+  `eval-harness.yml` as a third and fourth informational job step, same
+  reason as the judge model above: two more full eval runs per CI trigger
+  is real added job duration for a milestone whose "Done when" only asked
+  for a measurable local result, not a standing CI signal.
+- `api/retrieval.py`'s embedding is a hashed bag-of-words vector, not a
+  learned model (see `api/embeddings.py`'s docstring for the reasoning) —
+  worth revisiting behind the same `get_embedding()` seam if the app's
+  scale or budget ever changes that trade-off.

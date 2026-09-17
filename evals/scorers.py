@@ -5,6 +5,7 @@ check with no model call of its own, so a harness run's score is itself
 deterministic even though the thing it's scoring isn't. (An LLM-as-judge
 scorer is a reasonable extension — see evals/README.md's Future work.)
 """
+from api.embeddings import cosine_similarity, get_embedding
 
 REQUIRED_FIELDS = ("title", "description", "steps", "expected_result", "priority")
 VALID_PRIORITIES = {"low", "medium", "high", "critical"}
@@ -70,6 +71,37 @@ def duplicate_rate(test_cases: list[dict]) -> float:
             dup += 1
         else:
             seen.add(key)
+    return dup / len(test_cases)
+
+
+CROSS_DUPLICATE_SIMILARITY_THRESHOLD = 0.6
+
+
+def cross_duplicate_rate(test_cases: list[dict], existing_titles: list[str]) -> float:
+    """Fraction of generated test cases whose title is a near-duplicate —
+    embedding cosine similarity at or above CROSS_DUPLICATE_SIMILARITY_THRESHOLD
+    — of one of existing_titles. This is the metric evals/README.md's
+    "Retrieval-grounded generation" section uses to measure whether grounding
+    a generation call against a suite's existing cases (see api/retrieval.py)
+    actually reduces how often the model re-covers a scenario that's already
+    there. Reuses api/embeddings.py — the same distance production's
+    retrieval path uses to decide what counts as "already covered" — rather
+    than duplicate_rate's plain exact-match, since a near-duplicate title
+    ("Login succeeds with valid credentials" vs. "Login with valid
+    credentials succeeds") is exactly the case dedup needs to catch. 0.0 when
+    there's nothing to compare against (no existing_titles) or nothing was
+    generated — not "fully duplicated"."""
+    if not test_cases or not existing_titles:
+        return 0.0
+    existing_embeddings = [get_embedding(t) for t in existing_titles]
+    dup = 0
+    for tc in test_cases:
+        title = str(tc.get("title", "") if isinstance(tc, dict) else "")
+        if not title.strip():
+            continue
+        embedding = get_embedding(title)
+        if any(cosine_similarity(embedding, e) >= CROSS_DUPLICATE_SIMILARITY_THRESHOLD for e in existing_embeddings):
+            dup += 1
     return dup / len(test_cases)
 
 

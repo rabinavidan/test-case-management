@@ -27,12 +27,15 @@ from . import models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
 from .ai_prompts import (
     TESTCASE_GENERATION_SYSTEM_PROMPT,
+    TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT,
     TRIAGE_SYSTEM_PROMPT,
     build_testcase_generation_user_prompt,
+    build_grounded_testcase_generation_user_prompt,
     build_triage_user_prompt,
     format_triage_problem_line,
     parse_testcase_generation_response,
 )
+from .retrieval import nearest_test_cases, store_test_case_embedding
 
 # ─── Structured logging setup ────────────────────────────────────────────────
 logging.basicConfig(
@@ -1009,16 +1012,27 @@ async def generate_testcases(
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
-        user_prompt = build_testcase_generation_user_prompt(
-            suite_name=suite.name,
-            feature_description=payload.feature_description,
-            count=payload.count,
-        )
+        if payload.grounded:
+            similar_cases = nearest_test_cases(db, suite_id=suite_id, query_text=payload.feature_description)
+            system_prompt = TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT
+            user_prompt = build_grounded_testcase_generation_user_prompt(
+                suite_name=suite.name,
+                feature_description=payload.feature_description,
+                count=payload.count,
+                similar_cases=[{"title": tc.title, "description": tc.description} for tc in similar_cases],
+            )
+        else:
+            system_prompt = TESTCASE_GENERATION_SYSTEM_PROMPT
+            user_prompt = build_testcase_generation_user_prompt(
+                suite_name=suite.name,
+                feature_description=payload.feature_description,
+                count=payload.count,
+            )
 
         message = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=2048,
-            system=TESTCASE_GENERATION_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
 
@@ -1056,6 +1070,7 @@ async def save_generated_testcases(
     db.commit()
     for obj in created:
         db.refresh(obj)
+        store_test_case_embedding(db, obj)
     logger.info(f"Saved {len(created)} AI-generated test cases to suite={suite_id}")
     return {"saved": len(created)}
 

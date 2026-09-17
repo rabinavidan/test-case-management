@@ -271,6 +271,12 @@ class ProjectAnalytics(BaseModel):
 class AIGenerateRequest(BaseModel):
     feature_description: str
     count: Optional[int] = 5
+    # Retrieval-grounded generation (course milestone M5, monolith-only for
+    # now - see api/retrieval.py): when true, the nearest existing test
+    # cases in the suite are retrieved and given to the model as context so
+    # it avoids duplicating them. Defaults to false so existing callers and
+    # tests are unaffected.
+    grounded: Optional[bool] = False
 
 
 class AIGeneratedTestCase(BaseModel):

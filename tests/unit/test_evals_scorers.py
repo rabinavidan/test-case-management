@@ -1,5 +1,12 @@
 """Unit tests for evals/scorers.py — pure functions, no model calls."""
-from evals.scorers import aggregate_score, count_match_score, duplicate_rate, keyword_coverage_score, schema_score
+from evals.scorers import (
+    aggregate_score,
+    count_match_score,
+    cross_duplicate_rate,
+    duplicate_rate,
+    keyword_coverage_score,
+    schema_score,
+)
 
 VALID_CASE = {
     "title": "Login with valid credentials",
@@ -85,6 +92,38 @@ def test_duplicate_rate_with_duplicates():
 
 def test_duplicate_rate_empty_list():
     assert duplicate_rate([]) == 0.0
+
+
+def test_cross_duplicate_rate_no_existing_titles():
+    assert cross_duplicate_rate([VALID_CASE], []) == 0.0
+
+
+def test_cross_duplicate_rate_no_test_cases():
+    assert cross_duplicate_rate([], ["Login with valid credentials"]) == 0.0
+
+
+def test_cross_duplicate_rate_exact_title_match():
+    assert cross_duplicate_rate([VALID_CASE], ["Login with valid credentials"]) == 1.0
+
+
+def test_cross_duplicate_rate_near_duplicate_title():
+    reworded = {**VALID_CASE, "title": "Successful login with valid credentials"}
+    assert cross_duplicate_rate([reworded], ["Login with valid credentials succeeds"]) == 1.0
+
+
+def test_cross_duplicate_rate_unrelated_title_scores_zero():
+    unrelated = {**VALID_CASE, "title": "Kafka consumer lag delays event delivery"}
+    assert cross_duplicate_rate([unrelated], ["Login with valid credentials"]) == 0.0
+
+
+def test_cross_duplicate_rate_is_fraction_of_generated_cases():
+    other = {**VALID_CASE, "title": "Kafka consumer lag delays event delivery"}
+    assert cross_duplicate_rate([VALID_CASE, other], ["Login with valid credentials"]) == 0.5
+
+
+def test_cross_duplicate_rate_ignores_blank_title():
+    blank = {**VALID_CASE, "title": ""}
+    assert cross_duplicate_rate([blank], ["Login with valid credentials"]) == 0.0
 
 
 def test_aggregate_score_shape():
