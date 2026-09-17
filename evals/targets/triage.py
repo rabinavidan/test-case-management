@@ -2,6 +2,7 @@
 (POST /api/runs/{id}/triage)."""
 from api.ai_prompts import TRIAGE_SYSTEM_PROMPT, build_triage_user_prompt, format_triage_problem_line
 from evals.harness import EvalTarget
+from evals.llm_judge import build_judge_prompt_for_triage
 from evals.triage_scorers import aggregate_score
 
 METRICS = ("non_empty_score", "sentence_count_score", "keyword_coverage_score", "verbatim_echo_rate")
@@ -49,4 +50,5 @@ TARGET = EvalTarget(
     error_scores=ERROR_SCORES,
     build_prompt=_build_prompt,
     score=_score,
+    build_judge_prompt=build_judge_prompt_for_triage,
 )
