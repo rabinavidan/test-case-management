@@ -7,7 +7,7 @@ import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture
 // invented number.
 
 guestTest.describe('Guest recruiter view — KPI dashboard', () => {
-  guestTest('shows all eight KPI cards with the separate-concepts disclaimer', async ({ page }) => {
+  guestTest('shows all ten KPI cards with the separate-concepts disclaimer', async ({ page }) => {
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
 
@@ -16,7 +16,8 @@ guestTest.describe('Guest recruiter view — KPI dashboard', () => {
 
     for (const name of [
       'Code Coverage', 'Pass Rate (live)', 'Test Inventory', 'Quality Gate Status',
-      'Flaky Test Rate', 'Pipeline Execution Time', 'Escaped Defects', 'Release Readiness',
+      'Flaky Test Rate', 'Heal Success Rate', 'False Heal Rate',
+      'Pipeline Execution Time', 'Escaped Defects', 'Release Readiness',
     ]) {
       await guestExpect(section.getByText(name, { exact: true })).toBeVisible();
     }
@@ -42,7 +43,10 @@ guestTest.describe('Guest recruiter view — KPI dashboard', () => {
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
 
-    for (const testId of ['kpi-card-flaky-test-rate', 'kpi-card-pipeline-execution-time', 'kpi-card-escaped-defects', 'kpi-card-release-readiness']) {
+    for (const testId of [
+      'kpi-card-flaky-test-rate', 'kpi-card-heal-success-rate', 'kpi-card-false-heal-rate',
+      'kpi-card-pipeline-execution-time', 'kpi-card-escaped-defects', 'kpi-card-release-readiness',
+    ]) {
       const card = page.getByTestId(testId);
       await guestExpect(card.getByText('Not yet measured').first()).toBeVisible();
     }

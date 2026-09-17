@@ -1741,6 +1741,18 @@ async function renderProjects() {
       source: 'scripts/flake_report.py',
     },
     {
+      name: 'Heal Success Rate', current: 'Not yet measured', target: '—',
+      status: 'Not yet measured',
+      def: 'Of the locator/timing-drift failures the Playwright test-healer agent is allowed to auto-fix, the share it actually healed rather than escalated or skipped. Populates once heal-outcomes/heal_outcomes.jsonl has recorded healing sessions.',
+      source: 'scripts/heal_metrics.py',
+    },
+    {
+      name: 'False Heal Rate', current: 'Not yet measured', target: '0% (any nonzero value is a guardrail violation)',
+      status: 'Not yet measured',
+      def: 'Of the failures the healer classified as a suspected real product defect (behavior change), the share that were NOT escalated — i.e. silently healed or skipped instead. The healer prompt forbids this outcome; this rate is how it would be caught if it happened anyway.',
+      source: 'scripts/heal_metrics.py',
+    },
+    {
       name: 'Pipeline Execution Time', current: 'Not yet measured here', target: '—',
       status: 'Not yet measured',
       def: 'Real run durations are visible per-workflow on GitHub Actions; not yet pulled into this dashboard.',
