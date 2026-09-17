@@ -1,11 +1,13 @@
 """Unit tests for evals/cli.py — the OllamaClient class is monkeypatched
 with a stub, so these never require a real Ollama server or network access."""
+import dataclasses
 import json
 
 import pytest
 
 import evals.baseline as baseline_module
 import evals.cli as cli_module
+from evals.targets import test_generation as test_generation_module
 
 
 class _StubClient:
@@ -164,6 +166,60 @@ def test_main_gate_falls_back_to_fixed_thresholds_without_a_baseline(monkeypatch
     # No --record-baseline call first - this model has no recorded baseline,
     # so --gate must fall back to the existing fixed-threshold check.
     assert cli_module.main(["--runs", "1", "--model", "never-baselined-model", "--gate"]) == 0
+
+
+# --- prompt_delta (course M7: prompt versioning and prompt-eval) ------------
+
+def test_main_record_baseline_records_the_target_prompt_version(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+
+    cli_module.main(["--runs", "1", "--model", "test-model", "--record-baseline"])
+
+    written = json.loads(baseline_module.baseline_path("test-model", "test_generation").read_text())
+    assert written["prompt_id"] == test_generation_module.TARGET.prompt_id
+    assert written["prompt_version"] == test_generation_module.TARGET.prompt_version
+
+
+def test_main_prompt_delta_reports_unchanged_when_prompt_matches_baseline(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+    cli_module.main(["--runs", "1", "--model", "test-model", "--record-baseline"])
+
+    out_path = tmp_path / "out.json"
+    cli_module.main(["--runs", "1", "--model", "test-model", "--output", str(out_path)])
+
+    result = json.loads(out_path.read_text())
+    assert result["prompt_delta"]["prompt_changed"] is False
+
+
+def test_main_prompt_delta_reports_change_and_prints_a_notice(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+    cli_module.main(["--runs", "1", "--model", "test-model", "--record-baseline"])
+
+    # Simulate a real prompt edit: the target's recorded version now differs
+    # from what was baselined above.
+    changed_target = dataclasses.replace(test_generation_module.TARGET, prompt_version="deadbeef")
+    monkeypatch.setattr(test_generation_module, "TARGET", changed_target)
+
+    exit_code = cli_module.main(["--runs", "1", "--model", "test-model"])
+    assert exit_code == 0
+
+    err = capsys.readouterr().err
+    assert "Prompt version changed" in err
+    assert "deadbeef" in err
+
+
+def test_main_prompt_delta_absent_without_a_recorded_baseline(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_module, "OllamaClient", _StubClient)
+    monkeypatch.setattr(baseline_module, "BASELINE_DIR", tmp_path / "baselines")
+
+    out_path = tmp_path / "out.json"
+    cli_module.main(["--runs", "1", "--model", "never-baselined-model", "--output", str(out_path)])
+
+    result = json.loads(out_path.read_text())
+    assert "prompt_delta" not in result
 
 
 # --- --judge-model (optional LLM-as-judge) -----------------------------------

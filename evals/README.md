@@ -153,6 +153,51 @@ can differ. Re-running the `record_baseline` dispatch once on the real CI
 runner supersedes it with a baseline measured in the same environment
 `--gate` actually runs in.
 
+## Prompt versioning and prompt-eval
+
+Course milestone M7. Before this, a prompt was a bare constant in
+`api/ai_prompts.py` with no link to which eval report it produced — editing
+`TESTCASE_GENERATION_SYSTEM_PROMPT` and re-running the eval gave you a new
+number with nothing to compare it against.
+
+- **Versioning**: every eval target that has a primary prompt sets
+  `prompt_id` (a stable, hand-picked name — `"test_generation_system"`,
+  `"triage_system"`, `"test_generation_grounded_system"`) and
+  `prompt_version` on its `EvalTarget` (`evals/targets/*.py`).
+  `evals/prompt_versions.py`'s `prompt_version()` computes the version as an
+  8-character hash of the prompt's *exact current text* — not a manually
+  incremented counter, so it's never wrong and never needs remembering to
+  bump. `test_generation` and `test_generation_ungrounded` share both
+  `prompt_id` and `prompt_version`, correctly: they really are the same
+  prompt (`api/ai_prompts.py`'s plain, no-retrieval variant).
+- **Recorded on every baseline**: `--record-baseline` now writes the
+  target's `prompt_id`/`prompt_version` into the baseline JSON alongside the
+  scores — see "Baseline regression gating" above. A baseline file always
+  says exactly which prompt text produced it.
+- **The delta**: once a baseline exists, every run — not just `--record-baseline`
+  or `--gate` — includes a `prompt_delta` in its report: per-case,
+  per-metric `current_mean - baseline_mean`, plus `prompt_changed` (`true`/
+  `false`/`null` — `null` only for a baseline recorded before this milestone,
+  with no `prompt_version` to compare against). When the prompt actually
+  changed since the baseline, the same delta prints to stderr too, so
+  editing a prompt and re-running the eval shows its effect immediately —
+  this is the "Done when" this milestone was written to satisfy.
+- **Last-known-good, for rollback**: the committed baseline file *is* the
+  last-known-good reference — its `prompt_version` field says exactly which
+  prompt text earned it, and because it's a plain JSON file in git, `git log
+  -p evals/baselines/<model>/<target>.json` (or checking out an older
+  commit) recovers any earlier version's recorded prompt text and scores
+  together. No separate registry needed on top of what the baseline system
+  (M2) already commits.
+
+Reproduce a delta locally:
+
+```
+python -m evals.cli --target test_generation --model qwen2.5:0.5b --runs 5   # baseline unchanged: prompt_changed=false
+# edit TESTCASE_GENERATION_SYSTEM_PROMPT in api/ai_prompts.py, then:
+python -m evals.cli --target test_generation --model qwen2.5:0.5b --runs 5   # prompt_changed=true, per-metric delta printed
+```
+
 ## Optional LLM-as-judge scoring
 
 `evals/llm_judge.py` adds a second, optional scoring axis for a qualitative
@@ -260,8 +305,9 @@ Not wired into `eval-harness.yml` this milestone — see Future work.
 | `evals/triage_scorers.py` | Deterministic scorers for AI Failure Triage's free-text output. |
 | `evals/targets/test_generation.py`, `evals/targets/triage.py` | Per-feature prompt-building + scoring, wired into an `EvalTarget`. |
 | `evals/targets/test_generation_ungrounded.py`, `evals/targets/test_generation_grounded.py` | The retrieval-comparison pair (see "Retrieval-grounded generation"); share prompt/scoring code via `evals/targets/_retrieval_shared.py`. |
-| `evals/baseline.py` | Per-model, per-target baseline recording and noise-band regression checking (see "Baseline regression gating"). |
-| `evals/baselines/` | Committed baseline reports, one JSON file per `(model, target)` pair. |
+| `evals/baseline.py` | Per-model, per-target baseline recording, noise-band regression checking, and prompt-version delta computation (see "Baseline regression gating", "Prompt versioning and prompt-eval"). |
+| `evals/baselines/` | Committed baseline reports, one JSON file per `(model, target)` pair; each records the `prompt_id`/`prompt_version` that produced it. |
+| `evals/prompt_versions.py` | Hashes a prompt's exact text into a short version string (see "Prompt versioning and prompt-eval"). |
 | `evals/llm_judge.py` | Optional LLM-as-judge rubric, prompt-building, and response parsing (see "Optional LLM-as-judge scoring"). |
 | `evals/cli.py` | `python -m evals.cli --target {test_generation,triage,test_generation_ungrounded,test_generation_grounded}` entrypoint, with a CI-friendly `--gate` exit code, `--record-baseline`, and `--judge-model`. |
 | `evals/datasets/test_generation.json`, `evals/datasets/triage.json` | Golden datasets: inputs + required keywords per case. |

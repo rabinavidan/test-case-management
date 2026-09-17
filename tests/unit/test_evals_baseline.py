@@ -12,6 +12,7 @@ from evals.baseline import (
     baseline_path,
     build_baseline,
     check_regressions,
+    compute_prompt_delta,
     load_baseline,
     sanitize_model_name,
     write_baseline,
@@ -78,6 +79,20 @@ def test_build_baseline_includes_model_and_target(tmp_path):
     assert result["cases"][0]["case_id"] == "a"
 
 
+def test_build_baseline_defaults_prompt_fields_to_none(tmp_path):
+    report = _make_report(tmp_path, "1.0")
+    result = build_baseline(report, "m", "toy")
+    assert result["prompt_id"] is None
+    assert result["prompt_version"] is None
+
+
+def test_build_baseline_records_prompt_id_and_version(tmp_path):
+    report = _make_report(tmp_path, "1.0")
+    result = build_baseline(report, "m", "toy", prompt_id="toy_prompt", prompt_version="abc12345")
+    assert result["prompt_id"] == "toy_prompt"
+    assert result["prompt_version"] == "abc12345"
+
+
 def test_write_then_load_baseline_round_trips(tmp_path):
     report = _make_report(tmp_path, "1.0")
     path = write_baseline(report, "qwen2.5:0.5b", "toy")
@@ -86,6 +101,14 @@ def test_write_then_load_baseline_round_trips(tmp_path):
     loaded = load_baseline("qwen2.5:0.5b", "toy")
     assert loaded["model"] == "qwen2.5:0.5b"
     assert loaded["cases"][0]["mean_scores"]["goodness"] == 1.0
+
+
+def test_write_baseline_records_prompt_version(tmp_path):
+    report = _make_report(tmp_path, "1.0")
+    write_baseline(report, "m", "toy", prompt_id="toy_prompt", prompt_version="v1hash")
+    loaded = load_baseline("m", "toy")
+    assert loaded["prompt_id"] == "toy_prompt"
+    assert loaded["prompt_version"] == "v1hash"
 
 
 def test_load_baseline_returns_none_when_not_recorded():
@@ -159,3 +182,62 @@ def test_check_regressions_skips_a_case_missing_from_the_baseline(tmp_path):
     dataset2.write_text(json.dumps({"cases": [{"id": "b"}]}))
     new_case_report = run_suite(dataset2, client, TOY_TARGET, n_runs=1)
     assert check_regressions(new_case_report, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS) == []
+
+
+# --- compute_prompt_delta (course M7) ----------------------------------------
+
+def test_compute_prompt_delta_prompt_changed_true_when_versions_differ(tmp_path):
+    report = _make_report(tmp_path, "1.0")
+    write_baseline(report, "m", "toy", prompt_id="toy_prompt", prompt_version="v1")
+    baseline = load_baseline("m", "toy")
+
+    current = _make_report(tmp_path, "1.0")
+    delta = compute_prompt_delta(current, baseline, "toy_prompt", "v2")
+    assert delta["prompt_changed"] is True
+    assert delta["baseline_prompt_version"] == "v1"
+    assert delta["current_prompt_version"] == "v2"
+
+
+def test_compute_prompt_delta_prompt_changed_false_when_versions_match(tmp_path):
+    report = _make_report(tmp_path, "1.0")
+    write_baseline(report, "m", "toy", prompt_id="toy_prompt", prompt_version="v1")
+    baseline = load_baseline("m", "toy")
+
+    current = _make_report(tmp_path, "1.0")
+    delta = compute_prompt_delta(current, baseline, "toy_prompt", "v1")
+    assert delta["prompt_changed"] is False
+
+
+def test_compute_prompt_delta_prompt_changed_none_when_baseline_predates_versioning(tmp_path):
+    report = _make_report(tmp_path, "1.0")
+    write_baseline(report, "m", "toy")  # no prompt_id/prompt_version - a pre-M7 baseline
+    baseline = load_baseline("m", "toy")
+
+    current = _make_report(tmp_path, "1.0")
+    delta = compute_prompt_delta(current, baseline, "toy_prompt", "v1")
+    assert delta["prompt_changed"] is None
+
+
+def test_compute_prompt_delta_per_case_metric_deltas(tmp_path):
+    report = _make_report(tmp_path, "1.0")  # goodness=1.0, badness=0.0
+    write_baseline(report, "m", "toy", prompt_id="toy_prompt", prompt_version="v1")
+    baseline = load_baseline("m", "toy")
+
+    current = _make_report(tmp_path, "0.7")  # goodness=0.7, badness=0.3
+    delta = compute_prompt_delta(current, baseline, "toy_prompt", "v2")
+    assert delta["per_case_delta"]["a"]["goodness"] == pytest.approx(-0.3)
+    assert delta["per_case_delta"]["a"]["badness"] == pytest.approx(0.3)
+
+
+def test_compute_prompt_delta_skips_a_case_missing_from_the_baseline(tmp_path):
+    report = _make_report(tmp_path, "1.0")
+    write_baseline(report, "m", "toy", prompt_id="toy_prompt", prompt_version="v1")
+    baseline = load_baseline("m", "toy")
+
+    dataset2 = tmp_path / "toy2.json"
+    dataset2.write_text(json.dumps({"cases": [{"id": "b"}]}))
+    client = _ScriptedClient(["1.0"])
+    new_case_report = run_suite(dataset2, client, TOY_TARGET, n_runs=1)
+
+    delta = compute_prompt_delta(new_case_report, baseline, "toy_prompt", "v1")
+    assert delta["per_case_delta"] == {}
