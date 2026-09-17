@@ -5,6 +5,15 @@ Usage:
     python -m evals.cli --target triage --model qwen2.5:0.5b --runs 8 --gate
     python -m evals.cli --dataset evals/datasets/test_generation.json --output evals/reports/latest.json
 
+Record a baseline for the current model (see evals/baseline.py) - a
+one-command, reviewable change: the resulting JSON diff under
+evals/baselines/ is committed like any other file.
+
+    python -m evals.cli --target test_generation --model qwen2.5:0.5b --runs 5 --record-baseline
+
+Once a baseline exists for a (model, target) pair, --gate compares against
+it (plus a noise band) instead of the fixed thresholds below.
+
 Requires a local Ollama server (https://ollama.com) with the target model
 already pulled (`ollama pull llama3.1`). See evals/README.md.
 """
@@ -13,6 +22,7 @@ import json
 import sys
 from pathlib import Path
 
+from evals.baseline import check_regressions, load_baseline, write_baseline
 from evals.harness import run_suite
 from evals.ollama_client import DEFAULT_MODEL, OllamaClient
 from evals.targets import TARGETS
@@ -29,7 +39,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=None, help="Write the JSON report to this path.")
     parser.add_argument(
         "--gate", action="store_true",
-        help="Exit non-zero if any case falls below the target's quality/consistency thresholds (for CI).",
+        help="Exit non-zero if any case falls below the target's quality/consistency thresholds, or (once a "
+             "baseline exists for this model) regresses beyond its noise band (for CI).",
+    )
+    parser.add_argument(
+        "--record-baseline", action="store_true",
+        help="Instead of gating, write this run's report as the new baseline for this (model, target) pair "
+             "under evals/baselines/ - see evals/baseline.py.",
     )
     args = parser.parse_args(argv)
 
@@ -49,14 +65,35 @@ def main(argv: list[str] | None = None) -> int:
         args.output.write_text(output_text)
     print(output_text)
 
-    if args.gate and not report.overall_pass(
-        target_module.DEFAULT_MIN_THRESHOLDS,
-        target_module.DEFAULT_MAX_THRESHOLDS,
-        target_module.DEFAULT_MAX_ERROR_RATE,
-    ):
-        print(f"EVAL GATE FAILED ({args.target}): one or more cases fell below quality/consistency thresholds.",
-              file=sys.stderr)
-        return 1
+    if args.record_baseline:
+        path = write_baseline(report, args.model, args.target)
+        print(f"Baseline recorded to {path}", file=sys.stderr)
+        return 0
+
+    if args.gate:
+        baseline = load_baseline(args.model, args.target)
+        if baseline is not None:
+            regressions = check_regressions(
+                report, baseline, target_module.DEFAULT_MIN_THRESHOLDS, target_module.DEFAULT_MAX_THRESHOLDS,
+            )
+            if regressions:
+                print(f"EVAL GATE FAILED ({args.target}): regression vs. the recorded baseline for {args.model}:",
+                      file=sys.stderr)
+                for finding in regressions:
+                    print(f"  - {finding}", file=sys.stderr)
+                return 1
+            if any(c.error_rate > target_module.DEFAULT_MAX_ERROR_RATE for c in report.cases):
+                print(f"EVAL GATE FAILED ({args.target}): error rate exceeded "
+                      f"{target_module.DEFAULT_MAX_ERROR_RATE:.0%} on one or more cases.", file=sys.stderr)
+                return 1
+        elif not report.overall_pass(
+            target_module.DEFAULT_MIN_THRESHOLDS,
+            target_module.DEFAULT_MAX_THRESHOLDS,
+            target_module.DEFAULT_MAX_ERROR_RATE,
+        ):
+            print(f"EVAL GATE FAILED ({args.target}): one or more cases fell below quality/consistency thresholds.",
+                  file=sys.stderr)
+            return 1
     return 0
 
 

@@ -5,12 +5,22 @@
 # itself change, since it downloads a model and runs several LLM calls per
 # case — not something every unrelated PR should pay for.
 #
-# Deliberately informational, not a blocking gate: evals/cli.py's --gate
-# flag exists and is exercised by tests/unit/test_evals_cli.py, but a tiny
-# CPU model's output quality varies enough between runs (see the job
-# summary this workflow writes) that failing the build on it would be
-# noise, not signal. The hard gate here is a natural next step once
-# per-model baselines exist — see evals/README.md's Future work.
+# --gate now checks against a committed per-model baseline
+# (evals/baselines/<model>/<target>.json, see evals/baseline.py) instead of
+# a fixed absolute threshold, once one exists for the model this job runs.
+# A baseline's own recorded run-to-run consistency (consistency_stdev) sets
+# the noise band, so ordinary model variance doesn't fail the job but a
+# real regression does — this job is no longer purely informational for a
+# model with a recorded baseline (eval-harness itself still isn't a
+# required status check, so it never blocks a merge on its own; a red run
+# here is a real signal to look at, not something that stops anyone).
+#
+# Trigger a run with record_baseline=true (Actions tab → Run workflow) to
+# deliberately refresh the committed baseline instead of gating against it
+# — the one command the plan asks for. It commits straight to whatever ref
+# the dispatch ran on, so the result is a normal, reviewable diff: dispatch
+# from a feature branch to review before merging, or from main if a
+# maintainer means to update it directly.
 name: AI Eval Harness
 
 on:
@@ -19,11 +29,19 @@ on:
       - "api/ai_prompts.py"
       - "evals/**"
       - ".github/workflows/eval-harness.yml"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      record_baseline:
+        description: "Refresh the committed baseline instead of gating against it"
+        type: boolean
+        default: false
 
 jobs:
   eval-harness:
     runs-on: ubuntu-latest
+    # A baseline refresh commits back to the dispatched ref - needs write access.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
@@ -55,19 +73,41 @@ jobs:
 
       - name: Run AI Test Generation eval
         id: eval_test_generation
-        continue-on-error: true
         run: |
           mkdir -p evals/reports
-          python -m evals.cli --target test_generation --model qwen2.5:0.5b --runs 5 \
-            --output evals/reports/test_generation.json --gate
+          if [ "${{ inputs.record_baseline }}" = "true" ]; then
+            python -m evals.cli --target test_generation --model qwen2.5:0.5b --runs 5 \
+              --output evals/reports/test_generation.json --record-baseline
+          else
+            python -m evals.cli --target test_generation --model qwen2.5:0.5b --runs 5 \
+              --output evals/reports/test_generation.json --gate
+          fi
 
       - name: Run AI Failure Triage eval
         id: eval_triage
-        continue-on-error: true
+        if: always()
         run: |
           mkdir -p evals/reports
-          python -m evals.cli --target triage --model qwen2.5:0.5b --runs 5 \
-            --output evals/reports/triage.json --gate
+          if [ "${{ inputs.record_baseline }}" = "true" ]; then
+            python -m evals.cli --target triage --model qwen2.5:0.5b --runs 5 \
+              --output evals/reports/triage.json --record-baseline
+          else
+            python -m evals.cli --target triage --model qwen2.5:0.5b --runs 5 \
+              --output evals/reports/triage.json --gate
+          fi
+
+      - name: Commit refreshed baseline
+        if: ${{ inputs.record_baseline == true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add evals/baselines/
+          if git diff --cached --quiet; then
+            echo "No baseline changes to commit."
+          else
+            git commit -m "Refresh qwen2.5:0.5b eval baseline (workflow_dispatch)"
+            git push
+          fi
 
       - name: Write job summary
         if: always()
@@ -75,14 +115,20 @@ jobs:
           python - <<'EOF'
           import json, os, pathlib
 
-          lines = ["## 🧪 AI Eval Harness — qwen2.5:0.5b (informational, non-blocking)", ""]
-          for target, gate_passed in [
-              ("test_generation", "${{ steps.eval_test_generation.outcome }}" == "success"),
-              ("triage", "${{ steps.eval_triage.outcome }}" == "success"),
+          recording = "${{ inputs.record_baseline }}" == "true"
+          title = "🧪 AI Eval Harness — qwen2.5:0.5b"
+          title += " (baseline refreshed)" if recording else " (gated against the committed baseline where one exists)"
+          lines = [f"## {title}", ""]
+          for target, outcome in [
+              ("test_generation", "${{ steps.eval_test_generation.outcome }}"),
+              ("triage", "${{ steps.eval_triage.outcome }}"),
           ]:
               report_path = pathlib.Path(f"evals/reports/{target}.json")
-              icon = "✅" if gate_passed else "⚠️"
-              lines.append(f"### {icon} {target} — gate {'passed' if gate_passed else 'did not pass (informational only)'}")
+              passed = outcome == "success"
+              icon = "✅" if passed else "❌"
+              verb = "recorded" if recording else "gate passed"
+              status = f"{verb}" if passed else ("recording failed" if recording else "gate failed")
+              lines.append(f"### {icon} {target} — {status}")
               if not report_path.exists():
                   lines.append("_No report produced — the eval run itself failed before writing one._\n")
                   continue

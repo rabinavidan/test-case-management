@@ -97,11 +97,54 @@ the mocked unit tests below — writing a per-case job summary. It only
 triggers on changes to `api/ai_prompts.py` or `evals/**`, since it downloads
 a model and makes several LLM calls per case.
 
-It's **informational, not a blocking gate**: `--gate`'s exit code is
-recorded but doesn't fail the job. A 0.5B CPU model's output varies enough
-run to run (see the "Why this is a harder problem" example above) that
-failing the build on it would be noise, not signal — a hard gate wants a
-calibrated per-model baseline first (see Future work).
+Once a baseline is recorded for the model this job runs (`qwen2.5:0.5b` —
+see "Baseline regression gating" below), `--gate` compares against it and
+this job's exit code is real: a seeded prompt regression fails it, ordinary
+model noise doesn't. `eval-harness.yml` still isn't a *required* status
+check, so a red run here never blocks a merge on its own — it's a genuine
+signal to go look, not a false alarm to ignore.
+
+## Baseline regression gating
+
+`evals/baseline.py` and `--gate`/`--record-baseline` in `evals/cli.py`
+replace a fixed absolute quality threshold with a per-model, per-target
+baseline once one has been recorded:
+
+- **Recording**: `python -m evals.cli --target test_generation --model
+  qwen2.5:0.5b --runs 5 --record-baseline` runs the suite for real and
+  writes `evals/baselines/<sanitized model>/<target>.json` — the exact
+  `SuiteReport.to_dict()` shape (per-case `mean_scores` and
+  `consistency_stdev`) plus the model and target. It's a plain JSON file
+  checked into the repo, so refreshing it is an ordinary, reviewable diff,
+  not an opaque artifact or a database row.
+- **Gating**: once a baseline exists for a `(model, target)` pair, `--gate`
+  compares the current run's mean score, per case and per gated metric,
+  against `baseline_mean ± noise_band`, where `noise_band = max(2 ×
+  baseline_stdev, 0.05)`. The 2× multiplier and 0.05 floor are deliberately
+  generous — the baseline's own recorded variance sets most of the band, but
+  a baseline that happened to record ~0 stdev by chance doesn't become a
+  zero-tolerance gate. Which metrics are gated, and in which direction, is
+  read straight from the target's existing `DEFAULT_MIN_THRESHOLDS` /
+  `DEFAULT_MAX_THRESHOLDS` (see `evals/targets/*.py`) — a min-thresholded
+  metric (e.g. `schema_score`) regresses on a *drop* below the band, a
+  max-thresholded one (e.g. `verbatim_echo_rate`) regresses on a *rise*
+  above it. No baseline recorded yet for a `(model, target)` pair → `--gate`
+  falls back to the original fixed-threshold check.
+- **Refreshing deliberately**: `eval-harness.yml`'s `workflow_dispatch` takes
+  a `record_baseline` boolean input. Triggered with it set, the job runs
+  `--record-baseline` for both targets against the real CI runner (not a
+  developer's own machine, which may have different noise characteristics)
+  and commits the result straight to whatever ref it was dispatched on — one
+  command, and the outcome is a normal commit a human reviews like any
+  other, whether that's on a feature branch before merging or directly on
+  `main` when a maintainer means to update the baseline right away.
+
+The committed `qwen2.5:0.5b` baselines in this repo were recorded from a
+real run against the actual model (not fabricated), but from a sandbox
+machine rather than an actual GitHub Actions runner — noise characteristics
+can differ. Re-running the `record_baseline` dispatch once on the real CI
+runner supersedes it with a baseline measured in the same environment
+`--gate` actually runs in.
 
 ## Layout
 
@@ -112,9 +155,11 @@ calibrated per-model baseline first (see Future work).
 | `evals/scorers.py` | Deterministic scorers for AI Test Generation's JSON output. |
 | `evals/triage_scorers.py` | Deterministic scorers for AI Failure Triage's free-text output. |
 | `evals/targets/test_generation.py`, `evals/targets/triage.py` | Per-feature prompt-building + scoring, wired into an `EvalTarget`. |
-| `evals/cli.py` | `python -m evals.cli --target {test_generation,triage}` entrypoint, with a CI-friendly `--gate` exit code. |
+| `evals/baseline.py` | Per-model, per-target baseline recording and noise-band regression checking (see "Baseline regression gating"). |
+| `evals/baselines/` | Committed baseline reports, one JSON file per `(model, target)` pair. |
+| `evals/cli.py` | `python -m evals.cli --target {test_generation,triage}` entrypoint, with a CI-friendly `--gate` exit code and `--record-baseline`. |
 | `evals/datasets/test_generation.json`, `evals/datasets/triage.json` | Golden datasets: inputs + required keywords per case. |
-| `.github/workflows/eval-harness.yml` | Runs both targets against a real local model in CI (informational). |
+| `.github/workflows/eval-harness.yml` | Runs both targets against a real local model in CI; gates against a committed baseline where one exists. |
 
 Unit tests (`tests/unit/test_evals_*.py`, `tests/unit/test_ai_prompts.py`)
 mock every Ollama HTTP call — none of them require a real Ollama server,
@@ -160,9 +205,6 @@ without special-casing.
 
 ## Future work
 
-- A stored per-model baseline report and a real regression check (fail the
-  build if a push measurably regresses a case relative to its baseline),
-  replacing today's informational-only CI run.
 - An optional LLM-as-judge scorer for qualitative dimensions a deterministic
   check can't reach (e.g. "is this test case actually testable as written"),
   clearly separated from the deterministic scores above.
