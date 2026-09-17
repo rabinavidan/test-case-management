@@ -13,16 +13,25 @@ class _StubClient:
         self.model = model
 
     def generate(self, system_prompt, user_prompt, temperature=0.7):
-        # Covers every required_keyword across every case in
-        # evals/datasets/test_generation.json so this stub scores well
-        # regardless of which dataset case it's answering for.
+        # Covers every required_keyword across every one of the dataset's 15
+        # cases (see evals/README.md's "Golden datasets" section) and
+        # returns 5 copies - the dataset's largest "count" - so this stub
+        # scores well regardless of which dataset case it's answering for.
+        kitchen_sink = (
+            "login password invalid lockout reset email link expired csv export empty "
+            "create rename delete admin priority filter status pass fail percentage zero "
+            "environment staging prod unrecognised pagination search bulk partial failure "
+            "websocket reconnect resync live viewer 403 role "
+            "'api key' 503 'invalid json' 502 kafka event idempotent redelivered "
+            "seed duplicate concurrent contact 'required field' 'invalid email' 'rate-limited'"
+        )
         return json.dumps({"test_cases": [{
             "title": "Login, reset, and export scenario",
-            "description": "login password invalid lockout reset email link expired csv export empty",
+            "description": kitchen_sink,
             "steps": "1. Do the thing\n2. Check the result",
             "expected_result": "Behaves as expected",
             "priority": "high",
-        }] * 4})
+        }] * 5})
 
 
 def test_main_prints_report_and_returns_zero(monkeypatch, capsys):
@@ -31,7 +40,7 @@ def test_main_prints_report_and_returns_zero(monkeypatch, capsys):
 
     assert exit_code == 0
     printed = json.loads(capsys.readouterr().out)
-    assert len(printed["cases"]) == 3
+    assert len(printed["cases"]) == 15
 
 
 def test_main_writes_output_file(monkeypatch, tmp_path):
@@ -40,7 +49,7 @@ def test_main_writes_output_file(monkeypatch, tmp_path):
     cli_module.main(["--runs", "1", "--output", str(out_path)])
 
     written = json.loads(out_path.read_text())
-    assert len(written["cases"]) == 3
+    assert len(written["cases"]) == 15
 
 
 def test_main_gate_passes_on_good_output(monkeypatch):
@@ -66,10 +75,24 @@ class _TriageStubClient:
         self.model = model
 
     def generate(self, system_prompt, user_prompt, temperature=0.7):
+        # Covers every required_keyword across every one of the dataset's 15
+        # cases (see evals/README.md's "Golden datasets" section), 4
+        # sentences (within sentence_count_score's 2-6 range), no literal
+        # [FAIL]/[SKIP] markers (keeps verbatim_echo_rate at 0).
         return (
-            "These failures share a timeout during login and an export error in the reporting suite. "
-            "The session appears to expire before the redirect completes. Check the auth service's "
-            "session config and the CSV export handler for empty suites."
+            "These failures span session timeout and login issues, environment mismatch between "
+            "staging and preprod, and flaky retry timing during E2E runs. "
+            "Export and CSV errors include empty suite handling and pagination search boundaries, "
+            "while permission checks return 403 for viewers without proper role enforcement, and "
+            "repeated contact submissions are not rate limited within the cooldown, returning no 429. "
+            "WebSocket reconnect leaves stale state, Kafka consumer lag delays event delivery, "
+            "concurrent admin edits create a race and conflict with a database constraint violation "
+            "and duplicate suite names without clear validation, and a bulk import of a large payload "
+            "exceeds its timeout. "
+            "The AI generation endpoint needs a valid api key or returns 503, a malformed model "
+            "response causes a failure, an unrelated email provider outage also triggered a "
+            "temporary 503, and a rendering exception with a null pointer explains an unrelated "
+            "verbatim-echo case."
         )
 
 
@@ -80,7 +103,7 @@ def test_main_runs_triage_target(monkeypatch, capsys):
     assert exit_code == 0
     printed = json.loads(capsys.readouterr().out)
     assert printed["target"] == "triage"
-    assert len(printed["cases"]) == 2
+    assert len(printed["cases"]) == 15
 
 
 def test_main_rejects_unknown_target():
