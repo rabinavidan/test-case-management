@@ -1753,6 +1753,18 @@ async function renderProjects() {
       source: 'scripts/heal_metrics.py',
     },
     {
+      name: 'AI Call Latency', current: 'Not yet measured', target: '—',
+      status: 'Not yet measured',
+      def: 'Mean latency across AI Test Generation and AI Failure Triage calls, per provider (Anthropic/Ollama/Groq). Populates once ai-call-logs/ai_calls.jsonl has recorded live calls — see api/ai_gateway.py.',
+      source: 'scripts/ai_call_metrics.py',
+    },
+    {
+      name: 'AI Call Cost', current: 'Not yet measured', target: '—',
+      status: 'Not yet measured',
+      def: 'Deliberately not computed from a hardcoded $/token rate, which would silently go stale as providers reprice — token counts and latency are real per-call facts (see AI Call Latency); a cost figure needs a currently-accurate rate this app does not have configured.',
+      source: 'scripts/ai_call_metrics.py',
+    },
+    {
       name: 'Pipeline Execution Time', current: 'Not yet measured here', target: '—',
       status: 'Not yet measured',
       def: 'Real run durations are visible per-workflow on GitHub Actions; not yet pulled into this dashboard.',

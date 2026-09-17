@@ -116,3 +116,27 @@ def test_triage_anthropic_error(auth_client, run_with_results, monkeypatch):
 
     r = client.post(f"/api/runs/{run['id']}/triage", headers=headers)
     assert r.status_code == 502
+
+
+def test_triage_routes_through_ollama_when_ai_provider_is_set(auth_client, run_with_results, monkeypatch):
+    """Same "config change, not a code rewrite" proof as
+    tests/api/test_ai_generate.py's equivalent test, for the triage
+    endpoint (course M6)."""
+    import httpx
+
+    from api import ai_gateway
+
+    run, headers, client = run_with_results
+    tc_id = run["results"][0]["testcase_id"]
+    client.put(f"/api/runs/{run['id']}/results/{tc_id}", json={"status": "fail", "notes": "Card was accepted"}, headers=headers)
+
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.setenv("AI_MODEL", "qwen2.5:0.5b")
+    monkeypatch.setattr(ai_gateway.httpx, "post", lambda url, json, timeout: httpx.Response(
+        200, json={"message": {"content": "The gateway isn't validating card expiry."}},
+        request=httpx.Request("POST", url),
+    ))
+
+    r = client.post(f"/api/runs/{run['id']}/triage", headers=headers)
+    assert r.status_code == 200
+    assert r.json()["model"] == "qwen2.5:0.5b"
