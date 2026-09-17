@@ -1,0 +1,261 @@
+{
+  "cases": [
+    {
+      "case_id": "login-flow",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.4,
+        "duplicate_rate": 0.6
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4898979485566356,
+        "count_match_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.4898979485566356,
+        "duplicate_rate": 0.4898979485566356
+      },
+      "error_rate": 0.6
+    },
+    {
+      "case_id": "password-reset",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.8,
+        "count_match_score": 0.8,
+        "keyword_coverage_score": 0.8,
+        "duplicate_rate": 0.2
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.4,
+        "duplicate_rate": 0.4
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "csv-export",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.6,
+        "count_match_score": 0.8,
+        "keyword_coverage_score": 0.5333333333333333,
+        "duplicate_rate": 0.2
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4898979485566356,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.26666666666666666,
+        "duplicate_rate": 0.4
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "project-crud",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.2,
+        "count_match_score": 0.2,
+        "keyword_coverage_score": 0.2,
+        "duplicate_rate": 0.8
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.4,
+        "duplicate_rate": 0.4
+      },
+      "error_rate": 0.8
+    },
+    {
+      "case_id": "test-case-priority-filter",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.6,
+        "count_match_score": 0.6,
+        "keyword_coverage_score": 0.6,
+        "duplicate_rate": 0.4
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4898979485566356,
+        "count_match_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.4898979485566356,
+        "duplicate_rate": 0.4898979485566356
+      },
+      "error_rate": 0.4
+    },
+    {
+      "case_id": "run-completion-stats",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.6,
+        "count_match_score": 0.6,
+        "keyword_coverage_score": 0.35,
+        "duplicate_rate": 0.4
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4898979485566356,
+        "count_match_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.37416573867739417,
+        "duplicate_rate": 0.4898979485566356
+      },
+      "error_rate": 0.4
+    },
+    {
+      "case_id": "environment-management",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.5,
+        "count_match_score": 0.8,
+        "keyword_coverage_score": 0.75,
+        "duplicate_rate": 0.26666666666666666
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4472135954999579,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.3872983346207417,
+        "duplicate_rate": 0.38873012632302
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "pagination-and-search",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.2,
+        "count_match_score": 0.2,
+        "keyword_coverage_score": 0.13333333333333333,
+        "duplicate_rate": 0.8
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.26666666666666666,
+        "duplicate_rate": 0.4
+      },
+      "error_rate": 0.8
+    },
+    {
+      "case_id": "bulk-delete-suites",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.8,
+        "count_match_score": 0.8,
+        "keyword_coverage_score": 0.55,
+        "duplicate_rate": 0.2
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.33166247903553997,
+        "duplicate_rate": 0.4
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "websocket-live-updates",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.6,
+        "count_match_score": 0.6,
+        "keyword_coverage_score": 0.55,
+        "duplicate_rate": 0.4
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4898979485566356,
+        "count_match_score": 0.4898979485566356,
+        "keyword_coverage_score": 0.458257569495584,
+        "duplicate_rate": 0.4898979485566356
+      },
+      "error_rate": 0.4
+    },
+    {
+      "case_id": "rbac-admin-vs-viewer",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.8,
+        "count_match_score": 0.8,
+        "keyword_coverage_score": 0.5,
+        "duplicate_rate": 0.2
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.3535533905932738,
+        "duplicate_rate": 0.4
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "ai-test-generation-endpoint",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.8,
+        "count_match_score": 1.0,
+        "keyword_coverage_score": 0.85,
+        "duplicate_rate": 0.05
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.0,
+        "keyword_coverage_score": 0.1224744871391589,
+        "duplicate_rate": 0.1
+      },
+      "error_rate": 0.0
+    },
+    {
+      "case_id": "kafka-event-publish",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.8,
+        "count_match_score": 0.8,
+        "keyword_coverage_score": 0.55,
+        "duplicate_rate": 0.35
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.29154759474226505,
+        "duplicate_rate": 0.43588989435406733
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "demo-seed-idempotency",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.8,
+        "count_match_score": 0.8,
+        "keyword_coverage_score": 0.15,
+        "duplicate_rate": 0.32
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4,
+        "count_match_score": 0.4,
+        "keyword_coverage_score": 0.1224744871391589,
+        "duplicate_rate": 0.34871191548325386
+      },
+      "error_rate": 0.2
+    },
+    {
+      "case_id": "contact-form-submission",
+      "runs": 5,
+      "mean_scores": {
+        "schema_score": 0.4,
+        "count_match_score": 0.36,
+        "keyword_coverage_score": 0.2,
+        "duplicate_rate": 0.6
+      },
+      "consistency_stdev": {
+        "schema_score": 0.4898979485566356,
+        "count_match_score": 0.4454211490264018,
+        "keyword_coverage_score": 0.29154759474226505,
+        "duplicate_rate": 0.4898979485566356
+      },
+      "error_rate": 0.6
+    }
+  ],
+  "model": "qwen2.5:0.5b",
+  "target": "test_generation"
+}
