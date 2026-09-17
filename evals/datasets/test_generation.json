@@ -2,6 +2,7 @@
   "cases": [
     {
       "id": "login-flow",
+      "category": "easy",
       "suite_name": "Authentication",
       "feature_description": "User login with username and password, including invalid credentials and account lockout after repeated failed attempts.",
       "count": 4,
@@ -9,6 +10,7 @@
     },
     {
       "id": "password-reset",
+      "category": "easy",
       "suite_name": "Authentication",
       "feature_description": "Self-service password reset via an emailed reset link, including expired links and links that have already been used once.",
       "count": 3,
@@ -16,10 +18,107 @@
     },
     {
       "id": "csv-export",
+      "category": "easy",
       "suite_name": "Reporting",
       "feature_description": "Exporting a test suite's test cases and each one's latest run status to a CSV file, including suites that have zero test cases.",
       "count": 3,
       "required_keywords": ["csv", "export", "empty"]
+    },
+    {
+      "id": "project-crud",
+      "category": "easy",
+      "suite_name": "Project Management",
+      "feature_description": "Creating, renaming, and deleting a project. Only an admin user may perform these actions; a non-admin (viewer) must be rejected.",
+      "count": 4,
+      "required_keywords": ["create", "rename", "delete", "admin"]
+    },
+    {
+      "id": "test-case-priority-filter",
+      "category": "easy",
+      "suite_name": "Test Case Management",
+      "feature_description": "Filtering a suite's test case list by priority (low, medium, high, critical) and by status, including a filter combination that matches nothing.",
+      "count": 3,
+      "required_keywords": ["priority", "filter", "status"]
+    },
+    {
+      "id": "run-completion-stats",
+      "category": "edge",
+      "suite_name": "Test Runs",
+      "feature_description": "Computing a completed test run's pass/fail/skip percentages, including the edge case of a run with zero recorded results (must not divide by zero).",
+      "count": 3,
+      "required_keywords": ["pass", "fail", "percentage", "zero"]
+    },
+    {
+      "id": "environment-management",
+      "category": "edge",
+      "suite_name": "Environments",
+      "feature_description": "Selecting an execution environment (staging, regression, preprod, prod) when starting a test run, including what happens when an unrecognised environment key is supplied.",
+      "count": 3,
+      "required_keywords": ["environment", "staging", "prod", "unrecognised"]
+    },
+    {
+      "id": "pagination-and-search",
+      "category": "edge",
+      "suite_name": "Project Management",
+      "feature_description": "Paginated project listing with an optional search query parameter, including a search term that matches no project and a page number past the last page.",
+      "count": 3,
+      "required_keywords": ["pagination", "search", "empty"]
+    },
+    {
+      "id": "bulk-delete-suites",
+      "category": "edge",
+      "suite_name": "Test Suite Management",
+      "feature_description": "Bulk-selecting multiple test suites within a project and deleting them in one action, including a partial failure where one selected suite has already been deleted by another admin.",
+      "count": 4,
+      "required_keywords": ["bulk", "delete", "partial", "failure"]
+    },
+    {
+      "id": "websocket-live-updates",
+      "category": "known_hard",
+      "suite_name": "Real-Time Updates",
+      "feature_description": "Live test run status pushed to every connected browser over a WebSocket connection as results are recorded, including a client that disconnects mid-run and must resync its state on reconnect.",
+      "count": 4,
+      "required_keywords": ["websocket", "reconnect", "resync", "live"]
+    },
+    {
+      "id": "rbac-admin-vs-viewer",
+      "category": "known_hard",
+      "suite_name": "Access Control",
+      "feature_description": "Role-based access control across every write action (create, edit, delete) for suites, test cases and runs: an admin may perform all of them, a viewer may perform none and must receive a 403 response for each attempt.",
+      "count": 5,
+      "required_keywords": ["admin", "viewer", "403", "role"]
+    },
+    {
+      "id": "ai-test-generation-endpoint",
+      "category": "known_hard",
+      "suite_name": "AI Features",
+      "feature_description": "The AI test-case generation endpoint that turns a feature description into draft test cases, including the case where no AI API key is configured (must return a clean 503, never a crash) and the case where the model's response is not valid JSON (must return a 502 with a clear error, never leak the raw response).",
+      "count": 4,
+      "required_keywords": ["api key", "503", "invalid json", "502"]
+    },
+    {
+      "id": "kafka-event-publish",
+      "category": "known_hard",
+      "suite_name": "Event Pipeline",
+      "feature_description": "Publishing a run-completion event to a Kafka topic when a test run finishes, and the consumer processing that event idempotently so a redelivered message does not double-count the run's stats.",
+      "count": 4,
+      "required_keywords": ["kafka", "event", "idempotent", "redelivered"]
+    },
+    {
+      "id": "demo-seed-idempotency",
+      "category": "adversarial",
+      "suite_name": "Demo Data",
+      "feature_description": "The guest-facing demo-seed endpoint that creates a flagship demo project on first use: clicking the same demo button repeatedly, refreshing mid-seed, and two guests seeding at nearly the same moment must never result in more than one flagship demo project existing.",
+      "count": 5,
+      "required_keywords": ["seed", "duplicate", "idempotent", "concurrent"]
+    },
+    {
+      "id": "contact-form-submission",
+      "category": "adversarial",
+      "suite_name": "Public Contact Form",
+      "feature_description": "The public contact form: a valid submission with topic, email and description; a submission missing a required field; an invalid email format; and repeated rapid submissions from the same visitor that should be rate-limited rather than all accepted.",
+      "count": 5,
+      "required_keywords": ["contact", "required field", "invalid email", "rate-limited"]
     }
   ]
 }

@@ -62,14 +62,27 @@ def test_test_generation_score_invalid_json_raises():
 
 
 def test_test_generation_run_suite_against_real_dataset():
+    # Covers every required_keyword across every one of the dataset's 15
+    # cases (see evals/README.md's "Golden datasets" section for the
+    # easy/edge/known_hard/adversarial mix) and returns 5 copies - the
+    # dataset's largest "count" - so this stub scores well regardless of
+    # which case it's answering for.
+    kitchen_sink = (
+        "login password invalid lockout reset email link expired csv export empty "
+        "create rename delete admin priority filter status pass fail percentage zero "
+        "environment staging prod unrecognised pagination search bulk partial failure "
+        "websocket reconnect resync live viewer 403 role "
+        "'api key' 503 'invalid json' 502 kafka event idempotent redelivered "
+        "seed duplicate concurrent contact 'required field' 'invalid email' 'rate-limited'"
+    )
     good_response = json.dumps({"test_cases": [{
-        "title": "t", "description": "login password invalid lockout reset email link expired csv export empty",
+        "title": "t", "description": kitchen_sink,
         "steps": "s", "expected_result": "r", "priority": "high",
-    }] * 4})
+    }] * 5})
     client = _ScriptedClient([good_response])
     report = run_suite("evals/datasets/test_generation.json", client, TEST_GENERATION_TARGET, n_runs=1)
 
-    assert len(report.cases) == 3
+    assert len(report.cases) == 15
     assert report.overall_pass(
         TARGETS["test_generation"].DEFAULT_MIN_THRESHOLDS,
         TARGETS["test_generation"].DEFAULT_MAX_THRESHOLDS,
@@ -100,15 +113,29 @@ def test_triage_score_scores_free_text():
 
 
 def test_triage_run_suite_against_real_dataset():
+    # Covers every required_keyword across every one of the dataset's 15
+    # cases (see evals/README.md's "Golden datasets" section), 4 sentences
+    # (within sentence_count_score's 2-6 range), no literal [FAIL]/[SKIP]
+    # markers (keeps verbatim_echo_rate at 0).
     good_summary = (
-        "These failures share a timeout during login and an export error in the reporting suite. "
-        "The session appears to expire before the redirect completes. Check the auth service's "
-        "session config and the CSV export handler for empty suites."
+        "These failures span session timeout and login issues, environment mismatch between "
+        "staging and preprod, and flaky retry timing during E2E runs. "
+        "Export and CSV errors include empty suite handling and pagination search boundaries, "
+        "while permission checks return 403 for viewers without proper role enforcement, and "
+        "repeated contact submissions are not rate limited within the cooldown, returning no 429. "
+        "WebSocket reconnect leaves stale state, Kafka consumer lag delays event delivery, "
+        "concurrent admin edits create a race and conflict with a database constraint violation "
+        "and duplicate suite names without clear validation, and a bulk import of a large payload "
+        "exceeds its timeout. "
+        "The AI generation endpoint needs a valid api key or returns 503, a malformed model "
+        "response causes a failure, an unrelated email provider outage also triggered a "
+        "temporary 503, and a rendering exception with a null pointer explains an unrelated "
+        "verbatim-echo case."
     )
     client = _ScriptedClient([good_summary])
     report = run_suite("evals/datasets/triage.json", client, TRIAGE_TARGET, n_runs=1)
 
-    assert len(report.cases) == 2
+    assert len(report.cases) == 15
     assert report.overall_pass(
         TARGETS["triage"].DEFAULT_MIN_THRESHOLDS,
         TARGETS["triage"].DEFAULT_MAX_THRESHOLDS,

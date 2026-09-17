@@ -121,6 +121,43 @@ mock every Ollama HTTP call — none of them require a real Ollama server,
 matching how the rest of this repo's AI-feature tests never hit a real
 Anthropic/Gemini API either.
 
+## Golden datasets: how a case is chosen and labelled
+
+Both datasets now hold 15 cases each. A golden set of one or two cases (the
+original size) cannot tell a real prompt regression apart from noise — 15+
+gives the mean/stdev the harness computes something real to measure across.
+
+Every case carries a `category` field (metadata only — no scorer reads it,
+it's there so a human picking cases can see the mix at a glance):
+
+- **`easy`** — a single, unambiguous feature with clear required keywords.
+  These exist to catch a gross regression (the harness/prompt/scorer wiring
+  itself breaking), not to stress the model.
+- **`edge`** — a boundary condition inside an otherwise normal feature: a
+  zero-result count, an out-of-range page, an unrecognised input value.
+  Cheap deterministic scorers like `count_match_score` and
+  `keyword_coverage_score` are specifically weak at rewarding a model for
+  *handling* an edge case rather than ignoring it, so these cases matter
+  even though the scorers can't fully judge quality here (a `llm_judge`
+  scorer — see Future work — is the planned way to close that gap).
+- **`known_hard`** — a feature this repo's own code shows really is harder:
+  multi-step flows (WebSocket reconnect + resync), cross-cutting concerns
+  (RBAC across every write action), or another async system in the loop
+  (Kafka producer/consumer, an upstream AI API call). These are the cases
+  most likely to reveal a genuine prompt weakness, not just noise.
+- **`adversarial`** — deliberately shaped to tempt a weak model into the
+  specific failure modes `duplicate_rate` and `keyword_coverage_score`
+  exist to catch: a feature description listing many near-identical
+  sub-scenarios (bait for repeated titles), or one whose required vocabulary
+  isn't stated outright and has to be inferred rather than copied from the
+  prompt.
+
+Each case's `required_keywords` are chosen to be genuinely implied by its
+`feature_description` (test generation) or `problem_results` (triage) — not
+padding. `count` (test generation) is kept to 3-5 so a single scripted test
+double in `tests/unit/test_evals_cli.py` can score every case consistently
+without special-casing.
+
 ## Future work
 
 - A stored per-model baseline report and a real regression check (fail the

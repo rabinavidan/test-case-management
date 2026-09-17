@@ -2,6 +2,7 @@
   "cases": [
     {
       "id": "login-timeout-cluster",
+      "category": "easy",
       "run_name": "Nightly regression - Auth",
       "problem_results": [
         {
@@ -30,6 +31,7 @@
     },
     {
       "id": "csv-export-failures",
+      "category": "easy",
       "run_name": "Reporting suite",
       "problem_results": [
         {
@@ -48,6 +50,292 @@
         }
       ],
       "required_keywords": ["export", "csv", "error"]
+    },
+    {
+      "id": "permission-denied-cluster",
+      "category": "easy",
+      "run_name": "Access control regression",
+      "problem_results": [
+        {
+          "title": "Viewer deletes a suite",
+          "status": "fail",
+          "steps": "1. Log in as a viewer\n2. Attempt to delete a suite",
+          "expected_result": "403 Forbidden, suite untouched",
+          "notes": "Suite was deleted - no permission check ran"
+        },
+        {
+          "title": "Viewer creates a project",
+          "status": "fail",
+          "steps": "1. Log in as a viewer\n2. Attempt to create a project",
+          "expected_result": "403 Forbidden",
+          "notes": "Returned 200 and created the project"
+        }
+      ],
+      "required_keywords": ["permission", "viewer", "403"]
+    },
+    {
+      "id": "environment-mismatch-cluster",
+      "category": "edge",
+      "run_name": "Preprod smoke",
+      "problem_results": [
+        {
+          "title": "Run executes against the preprod database",
+          "status": "fail",
+          "steps": "1. Select preprod environment\n2. Start the run",
+          "expected_result": "Run reads/writes preprod data only",
+          "notes": "Results show staging project names - wrong environment was targeted"
+        },
+        {
+          "title": "Environment badge matches selected environment",
+          "status": "fail",
+          "steps": "1. Select preprod\n2. Observe the environment badge",
+          "expected_result": "Badge reads 'preprod'",
+          "notes": "Badge still reads 'staging' after selection"
+        }
+      ],
+      "required_keywords": ["environment", "preprod", "mismatch"]
+    },
+    {
+      "id": "flaky-retry-cluster",
+      "category": "edge",
+      "run_name": "E2E nightly - retry pass",
+      "problem_results": [
+        {
+          "title": "Suite list loads on the projects page",
+          "status": "fail",
+          "steps": "1. Load the projects page\n2. Expand a project",
+          "expected_result": "Suite list is visible",
+          "notes": "Failed once, passed on the automatic retry - no error on second attempt"
+        },
+        {
+          "title": "Test case modal opens",
+          "status": "fail",
+          "steps": "1. Click New Test Case",
+          "expected_result": "Modal is visible",
+          "notes": "Failed once, passed on retry - modal transition timing"
+        }
+      ],
+      "required_keywords": ["flaky", "retry", "timing"]
+    },
+    {
+      "id": "pagination-boundary-cluster",
+      "category": "edge",
+      "run_name": "Reporting suite",
+      "problem_results": [
+        {
+          "title": "Second page of projects shows the next 20 results",
+          "status": "fail",
+          "steps": "1. Load page 1\n2. Navigate to page 2",
+          "expected_result": "Page 2 shows the next set of projects",
+          "notes": "Page 2 returned an empty list even though more projects exist"
+        },
+        {
+          "title": "Search narrows the project list",
+          "status": "fail",
+          "steps": "1. Search for an existing project name",
+          "expected_result": "Matching project appears",
+          "notes": "Search returned zero results for a project known to exist"
+        }
+      ],
+      "required_keywords": ["pagination", "search", "empty"]
+    },
+    {
+      "id": "websocket-disconnect-cluster",
+      "category": "known_hard",
+      "run_name": "Real-time updates regression",
+      "problem_results": [
+        {
+          "title": "Live run status updates without a manual refresh",
+          "status": "fail",
+          "steps": "1. Start a run in one tab\n2. Watch a second tab",
+          "expected_result": "Second tab updates live as results come in",
+          "notes": "Second tab's WebSocket connection silently dropped - no update received"
+        },
+        {
+          "title": "Client resyncs state after reconnect",
+          "status": "fail",
+          "steps": "1. Disconnect network briefly during a run\n2. Reconnect",
+          "expected_result": "Client catches up to the current run state",
+          "notes": "Client stayed on stale data after reconnecting"
+        },
+        {
+          "title": "Progress bar reflects final run state",
+          "status": "skip",
+          "steps": "1. Let the run finish",
+          "expected_result": "Progress bar shows 100%",
+          "notes": "Skipped: blocked by the stale-state issue above"
+        }
+      ],
+      "required_keywords": ["websocket", "reconnect", "stale"]
+    },
+    {
+      "id": "ai-generation-503-cluster",
+      "category": "known_hard",
+      "run_name": "AI features smoke",
+      "problem_results": [
+        {
+          "title": "Generate test cases with no API key configured",
+          "status": "fail",
+          "steps": "1. Remove the AI API key\n2. Call the generate endpoint",
+          "expected_result": "Clean 503 response, no crash",
+          "notes": "Server returned a 500 with a Python traceback in the response body"
+        },
+        {
+          "title": "Generate test cases with a malformed model response",
+          "status": "fail",
+          "steps": "1. Mock the model to return non-JSON text\n2. Call the generate endpoint",
+          "expected_result": "502 response with a clear error message",
+          "notes": "Endpoint hung until the request timed out"
+        }
+      ],
+      "required_keywords": ["api key", "503", "malformed"]
+    },
+    {
+      "id": "kafka-consumer-lag-cluster",
+      "category": "known_hard",
+      "run_name": "Event pipeline regression",
+      "problem_results": [
+        {
+          "title": "Run stats update shortly after the run completes",
+          "status": "fail",
+          "steps": "1. Complete a run\n2. Check the project stats endpoint",
+          "expected_result": "Stats reflect the completed run within a few seconds",
+          "notes": "Stats were still showing the previous run's numbers after two minutes"
+        },
+        {
+          "title": "Redelivered event does not double-count a run",
+          "status": "fail",
+          "steps": "1. Force the consumer to redeliver a processed message",
+          "expected_result": "Stats are unchanged by the redelivery",
+          "notes": "Pass count was incremented a second time for the same run"
+        }
+      ],
+      "required_keywords": ["kafka", "consumer", "lag"]
+    },
+    {
+      "id": "concurrent-edit-cluster",
+      "category": "known_hard",
+      "run_name": "Multi-admin regression",
+      "problem_results": [
+        {
+          "title": "Two admins rename the same suite at once",
+          "status": "fail",
+          "steps": "1. Admin A and Admin B both open the rename dialog\n2. Both submit different names within a second of each other",
+          "expected_result": "One rename wins cleanly, or a conflict is surfaced",
+          "notes": "Suite ended up with a name matching neither submission"
+        },
+        {
+          "title": "Deleted-by-another-admin suite is handled gracefully",
+          "status": "fail",
+          "steps": "1. Admin A deletes a suite\n2. Admin B (who still has it open) tries to edit it",
+          "expected_result": "Admin B sees a 'no longer exists' message",
+          "notes": "Admin B's edit succeeded and recreated a suite with the old ID reused"
+        }
+      ],
+      "required_keywords": ["concurrent", "conflict", "race"]
+    },
+    {
+      "id": "rate-limit-cluster",
+      "category": "edge",
+      "run_name": "Public contact form regression",
+      "problem_results": [
+        {
+          "title": "Fourth rapid contact-form submission is rejected",
+          "status": "fail",
+          "steps": "1. Submit the contact form three times quickly\n2. Submit a fourth time",
+          "expected_result": "429 Too Many Requests on the fourth attempt",
+          "notes": "All four submissions were accepted - no rate limit was applied"
+        },
+        {
+          "title": "Rate limit resets after the cooldown window",
+          "status": "fail",
+          "steps": "1. Trigger the rate limit\n2. Wait for the cooldown window\n3. Submit again",
+          "expected_result": "Submission succeeds after the cooldown",
+          "notes": "Still returns 429 well after the documented cooldown window has passed"
+        }
+      ],
+      "required_keywords": ["rate limit", "429", "cooldown"]
+    },
+    {
+      "id": "database-constraint-cluster",
+      "category": "known_hard",
+      "run_name": "Test suite management regression",
+      "problem_results": [
+        {
+          "title": "Creating a suite with a duplicate name in the same project",
+          "status": "fail",
+          "steps": "1. Create a suite named 'Smoke Tests'\n2. Create another suite named 'Smoke Tests' in the same project",
+          "expected_result": "A clear validation error naming the conflict",
+          "notes": "Server returned a raw database constraint-violation error"
+        }
+      ],
+      "required_keywords": ["duplicate", "constraint", "validation"]
+    },
+    {
+      "id": "large-payload-cluster",
+      "category": "adversarial",
+      "run_name": "Bulk import regression",
+      "problem_results": [
+        {
+          "title": "Import 500 test cases in one request",
+          "status": "fail",
+          "steps": "1. Submit a bulk-import request with 500 test cases",
+          "expected_result": "All 500 are created, or a clear partial-success report is returned",
+          "notes": "Request timed out after 30 seconds with no cases created"
+        },
+        {
+          "title": "Import request under the size limit completes",
+          "status": "fail",
+          "steps": "1. Submit a bulk-import request with 50 test cases",
+          "expected_result": "All 50 are created quickly",
+          "notes": "Also timed out - the endpoint appears slow regardless of payload size"
+        },
+        {
+          "title": "Progress indicator shows during a long import",
+          "status": "skip",
+          "steps": "1. Start a large import",
+          "expected_result": "A progress indicator is visible",
+          "notes": "Skipped: blocked by the timeout above"
+        }
+      ],
+      "required_keywords": ["import", "timeout", "large"]
+    },
+    {
+      "id": "verbatim-echo-bait",
+      "category": "adversarial",
+      "run_name": "Status marker regression",
+      "problem_results": [
+        {
+          "title": "[FAIL] appears literally in a prior report's notes field",
+          "status": "fail",
+          "steps": "1. Re-run a previously failed test\n2. Copy its old notes forward",
+          "expected_result": "Test passes cleanly this time",
+          "notes": "Notes field still contains the literal text '[FAIL]' copied from the prior run, and the test is failing again with a different root cause this time: a rendering exception, not the original issue"
+        },
+        {
+          "title": "[SKIP] marker in an unrelated test's notes",
+          "status": "fail",
+          "steps": "1. Run the suite",
+          "expected_result": "Test passes",
+          "notes": "Notes mention a neighboring test was marked '[SKIP]' for an unrelated reason; this test itself is failing on a null pointer in the results renderer"
+        }
+      ],
+      "required_keywords": ["rendering", "exception", "null pointer"]
+    },
+    {
+      "id": "single-outlier-cluster",
+      "category": "adversarial",
+      "run_name": "Mixed-signal regression",
+      "problem_results": [
+        {
+          "title": "Password reset email is sent",
+          "status": "fail",
+          "steps": "1. Request a password reset",
+          "expected_result": "Email is sent within a few seconds",
+          "notes": "Email provider returned a temporary 503 - unrelated to the app itself, provider status page confirms an ongoing outage"
+        }
+      ],
+      "required_keywords": ["email provider", "outage", "unrelated"]
     }
   ]
 }
