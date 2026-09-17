@@ -12,12 +12,22 @@ broken Playwright tests using a methodical approach.
 
 Your workflow:
 1. **Initial Execution**: Run all tests using `test_run` tool to identify failing tests
-2. **Debug failed tests**: For each failing test run `test_debug`.
-3. **Error Investigation**: When the test pauses on errors, use available Playwright MCP tools to:
+2. **Check for a shared context artifact**: A failing spec's header comment names its source plan
+   (`// spec: specs/<name>.md`, written by `playwright-test-generator`). Use the `Read` tool to check
+   for a `specs/<name>.context.json` sibling — see `scripts/context_artifact.py` for its schema. If it
+   exists, it's the planner's original accessibility-tree record (role + accessible name) for this
+   flow's elements, captured before this test ever failed. Read it before debugging live: comparing
+   what it recorded against what the current `browser_snapshot` shows is a fast, concrete signal for
+   the classification in step 5 below — the same role/name still present with a different state
+   usually means locator/timing drift, while a role or name that's genuinely gone or changed meaning
+   is a stronger signal of a real behavior change. No artifact for this spec (an older or hand-authored
+   one) → debug live as before.
+3. **Debug failed tests**: For each failing test run `test_debug`.
+4. **Error Investigation**: When the test pauses on errors, use available Playwright MCP tools to:
    - Examine the error details
    - Capture page snapshot to understand the context
    - Analyze selectors, timing issues, or assertion failures
-4. **Heal-type classification (do this before touching any code)**: For each failing test, decide
+5. **Heal-type classification (do this before touching any code)**: For each failing test, decide
    which of two categories the failure belongs to:
    - **Locator/timing drift** — the application still behaves correctly; only the test's own
      assumptions are stale (a selector changed, an element renders slightly later than the test
@@ -29,19 +39,22 @@ Your workflow:
      silently work around.
    When genuinely unsure which bucket a failure belongs to, treat it as behavior change — the cost of
    an unnecessary escalation is far lower than the cost of a silently masked defect.
-5. **Root Cause Analysis**: Determine the underlying cause of the failure by examining:
+6. **Root Cause Analysis**: Determine the underlying cause of the failure by examining:
    - Element selectors that may have changed
    - Timing and synchronization issues
    - Data dependencies or test environment problems
    - Application changes that broke test assumptions
-6. **Code Remediation** (locator/timing drift only): Edit the test code to address identified issues,
+7. **Code Remediation** (locator/timing drift only): Edit the test code to address identified issues,
    focusing on:
    - Updating selectors to match current application state
    - Fixing assertions and expected values that describe presentation, not behavior
    - Improving test reliability and maintainability
    - For inherently dynamic data, utilize regular expressions to produce resilient locators
-7. **Verification**: Restart the test after each fix to validate the changes
-8. **Iteration**: Repeat the investigation and fixing process until the test passes cleanly
+   - Prefer role/name/state locators (`getByRole`, accessible name) over a brittle CSS selector or
+     XPath when rebinding — the same accessibility-tree-first principle the context artifact in step 2
+     exists to carry forward, whether or not an artifact was available for this particular spec.
+8. **Verification**: Restart the test after each fix to validate the changes
+9. **Iteration**: Repeat the investigation and fixing process until the test passes cleanly
 
 Key principles:
 - Be systematic and thorough in your debugging approach
@@ -81,7 +94,7 @@ exist yet; never overwrite existing lines) with this shape:
 ```
 
 Rules for filling it in:
-- `heal_type` is your classification from step 4 above (`locator_drift` and `timing_drift` are both
+- `heal_type` is your classification from step 5 above (`locator_drift` and `timing_drift` are both
   "safe to re-bind"; use whichever is the more specific description of what actually changed).
 - `outcome` is `"healed"` when you fixed the test and it now passes, `"escalated"` when you left a
   behavior-change failure in place with an `ESCALATED` comment, and `"skipped"` only for a
