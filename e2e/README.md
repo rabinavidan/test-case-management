@@ -151,7 +151,7 @@ produce lands as ordinary `*.spec.ts` files here and runs through the existing `
 |-------|--------------|--------|
 | `playwright-test-planner` | Explores the running app in a real (headless) browser and writes a numbered test plan | `specs/*.md` |
 | `playwright-test-generator` | Replays a plan's steps against the live app, recording real interactions, then writes a spec per scenario | `e2e/tests/*.spec.ts` |
-| `playwright-test-healer` | Runs the suite, debugs any failure against the live app, and edits the spec to fix it | edits existing `e2e/tests/*.spec.ts` |
+| `playwright-test-healer` | Runs the suite, debugs any failure against the live app, and edits the spec to fix it — but only for locator/timing drift; a failure that looks like a real product defect is escalated, never silently skipped (see below) | edits existing `e2e/tests/*.spec.ts` |
 
 **Usage** (from a Claude Code session in the repo root, with the app running on `http://localhost:8000`):
 
@@ -165,6 +165,15 @@ produce lands as ordinary `*.spec.ts` files here and runs through the existing `
 `fixtures/auth.fixture.ts` the same way every hand-written spec does, so generated tests inherit the same
 authenticated starting point instead of a blank browser. It's excluded from the real suite via `playwright.config.ts`'s
 `testIgnore` (it has no assertions of its own).
+
+**Self-healing guardrails.** The healer classifies every failure before touching code: locator/timing drift
+(the test's assumptions are stale — safe to auto-fix) vs. behavior change (the app itself looks like it's doing
+something different — a suspected real defect). `test.fixme()` is forbidden for the latter; a behavior-change
+failure is left failing with a labelled `// ESCALATED` comment instead of being silently skipped. Every healing
+session — healed, escalated, or (locator/timing only, last resort) `test.fixme()`'d — is appended as one JSON
+record to `heal-outcomes/heal_outcomes.jsonl`, the audit trail `scripts/heal_metrics.py` reads to compute
+heal-success-rate and false-heal-rate (surfaced on the KPI dashboard once real sessions accumulate). See
+[`.claude/agents/playwright-test-healer.md`](../.claude/agents/playwright-test-healer.md) for the full rule.
 
 Generated specs still need the same review as a hand-written PR — check they use the Page Object Model
 (`pages/*.page.ts`) and `data-testid` locators like the rest of this directory rather than ad hoc selectors, since
