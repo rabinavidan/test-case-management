@@ -13,3 +13,8 @@ passlib==1.7.4
 anthropic>=0.40.0
 websockets>=12.0
 slowapi==0.1.9
+# api/ai_gateway.py's Ollama/Groq backends call their HTTP APIs directly
+# with httpx (no SDK) - a production dependency as of course M6, not just a
+# test one. Pinned to match requirements-test.txt's existing httpx==0.27.2
+# so both install the same version.
+httpx==0.27.2
