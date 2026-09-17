@@ -249,3 +249,64 @@ def test_save_generated_testcases_requires_admin(executor_client, suite):
     exec_client, exec_headers = executor_client
     r = exec_client.post(f"/api/suites/{s['id']}/testcases/generate/save", json=[], headers=exec_headers)
     assert r.status_code == 403
+
+
+# --- AI_PROVIDER / AI_MODEL: switching provider is a config change (course M6) --
+
+def test_generate_routes_through_ollama_when_ai_provider_is_set(auth_client, suite, monkeypatch):
+    """Proves the "Done when: switching a call's provider is a config
+    change, not a code rewrite" criterion: setting AI_PROVIDER=ollama alone
+    - no endpoint code touched - makes generate_testcases call Ollama
+    instead of Anthropic, through the same api/ai_gateway.py interface."""
+    import httpx
+
+    from api import ai_gateway
+
+    s, headers, client = suite
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.setenv("AI_MODEL", "qwen2.5:0.5b")
+
+    def fake_post(url, json, timeout):
+        assert url == "http://localhost:11434/api/chat"
+        return httpx.Response(200, json={"message": {"content": VALID_RESPONSE}},
+                               request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(ai_gateway.httpx, "post", fake_post)
+
+    r = client.post(f"/api/suites/{s['id']}/testcases/generate",
+                     json={"feature_description": "Login flow", "count": 2}, headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["test_cases"]) == 2
+    assert data["model"] == "qwen2.5:0.5b"
+
+
+def test_generate_ollama_provider_needs_no_anthropic_key(auth_client, suite, monkeypatch):
+    """AI_PROVIDER=ollama must not require ANTHROPIC_API_KEY - the whole
+    point of a pluggable provider is that each one's own credentials are
+    independent."""
+    import httpx
+
+    from api import ai_gateway
+
+    s, headers, client = suite
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+
+    monkeypatch.setattr(ai_gateway.httpx, "post", lambda url, json, timeout: httpx.Response(
+        200, json={"message": {"content": VALID_RESPONSE}}, request=httpx.Request("POST", url),
+    ))
+
+    r = client.post(f"/api/suites/{s['id']}/testcases/generate",
+                     json={"feature_description": "Login flow", "count": 2}, headers=headers)
+    assert r.status_code == 200
+
+
+def test_generate_groq_provider_unavailable_without_key(auth_client, suite, monkeypatch):
+    s, headers, client = suite
+    monkeypatch.setenv("AI_PROVIDER", "groq")
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    r = client.post(f"/api/suites/{s['id']}/testcases/generate",
+                     json={"feature_description": "Login flow", "count": 2}, headers=headers)
+    assert r.status_code == 503

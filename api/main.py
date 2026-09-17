@@ -23,7 +23,7 @@ import io
 import re
 
 from .database import engine, get_db, Base
-from . import models, schemas
+from . import ai_gateway, models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
 from .ai_prompts import (
     TESTCASE_GENERATION_SYSTEM_PROMPT,
@@ -887,11 +887,12 @@ async def triage_run(run_id: int, db: Session = Depends(get_db), _: models.User 
             summary="No failed or skipped results in this run — nothing to triage.",
         )
 
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
+    provider = os.getenv("AI_PROVIDER", "anthropic")
+    model = os.getenv("AI_MODEL", "claude-haiku-4-5-20251001")
+    if not ai_gateway.is_configured(provider):
         raise HTTPException(
             status_code=503,
-            detail="AI triage unavailable: ANTHROPIC_API_KEY not configured",
+            detail=f"AI triage unavailable: {provider} not configured",
         )
 
     problem_items = []
@@ -913,24 +914,18 @@ async def triage_run(run_id: int, db: Session = Depends(get_db), _: models.User 
             notes=result.notes,
         ))
 
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
+    user_prompt = build_triage_user_prompt(run.name, lines)
+    result = ai_gateway.complete(
+        TRIAGE_SYSTEM_PROMPT, user_prompt, provider=provider, model=model, max_tokens=512,
+    )
+    ai_gateway.log_ai_call(result, feature="triage")
+    if result.outcome == "error":
+        logger.error(f"AI triage error: {result.error}")
+        raise HTTPException(status_code=502, detail=f"AI triage failed: {result.error}")
 
-        user_prompt = build_triage_user_prompt(run.name, lines)
-
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
-            system=TRIAGE_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        summary = message.content[0].text.strip()
-        logger.info(f"AI triage generated for run={run_id} ({len(problem_results)} problem results)")
-        return schemas.TriageResponse(summary=summary, problem_results=problem_items, model=message.model)
-    except Exception as e:
-        logger.error(f"AI triage error: {e}")
-        raise HTTPException(status_code=502, detail=f"AI triage failed: {str(e)}")
+    summary = result.text.strip()
+    logger.info(f"AI triage generated for run={run_id} ({len(problem_results)} problem results)")
+    return schemas.TriageResponse(summary=summary, problem_results=problem_items, model=result.model)
 
 
 @app.get("/api/suites/{suite_id}/flaky-tests", response_model=schemas.FlakyTestsResponse)
@@ -1001,54 +996,49 @@ async def generate_testcases(
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
 
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
+    provider = os.getenv("AI_PROVIDER", "anthropic")
+    model = os.getenv("AI_MODEL", "claude-haiku-4-5-20251001")
+    if not ai_gateway.is_configured(provider):
         raise HTTPException(
             status_code=503,
-            detail="AI generation unavailable: ANTHROPIC_API_KEY not configured",
+            detail=f"AI generation unavailable: {provider} not configured",
         )
+
+    if payload.grounded:
+        similar_cases = nearest_test_cases(db, suite_id=suite_id, query_text=payload.feature_description)
+        system_prompt = TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT
+        user_prompt = build_grounded_testcase_generation_user_prompt(
+            suite_name=suite.name,
+            feature_description=payload.feature_description,
+            count=payload.count,
+            similar_cases=[{"title": tc.title, "description": tc.description} for tc in similar_cases],
+        )
+    else:
+        system_prompt = TESTCASE_GENERATION_SYSTEM_PROMPT
+        user_prompt = build_testcase_generation_user_prompt(
+            suite_name=suite.name,
+            feature_description=payload.feature_description,
+            count=payload.count,
+        )
+
+    result = ai_gateway.complete(
+        system_prompt, user_prompt, provider=provider, model=model, max_tokens=2048,
+    )
+    ai_gateway.log_ai_call(result, feature="test_generation")
+    if result.outcome == "error":
+        logger.error(f"AI generation error: {result.error}")
+        raise HTTPException(status_code=502, detail=f"AI generation failed: {result.error}")
 
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-
-        if payload.grounded:
-            similar_cases = nearest_test_cases(db, suite_id=suite_id, query_text=payload.feature_description)
-            system_prompt = TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT
-            user_prompt = build_grounded_testcase_generation_user_prompt(
-                suite_name=suite.name,
-                feature_description=payload.feature_description,
-                count=payload.count,
-                similar_cases=[{"title": tc.title, "description": tc.description} for tc in similar_cases],
-            )
-        else:
-            system_prompt = TESTCASE_GENERATION_SYSTEM_PROMPT
-            user_prompt = build_testcase_generation_user_prompt(
-                suite_name=suite.name,
-                feature_description=payload.feature_description,
-                count=payload.count,
-            )
-
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2048,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-
-        test_cases = parse_testcase_generation_response(message.content[0].text)
-
-        logger.info(f"AI generated {len(test_cases)} test cases for suite={suite_id}")
-        return schemas.AIGenerateResponse(
-            test_cases=[schemas.AIGeneratedTestCase(**tc) for tc in test_cases],
-            model=message.model,
-        )
-
+        test_cases = parse_testcase_generation_response(result.text)
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="AI returned invalid JSON; try again")
-    except Exception as e:
-        logger.error(f"AI generation error: {e}")
-        raise HTTPException(status_code=502, detail=f"AI generation failed: {str(e)}")
+
+    logger.info(f"AI generated {len(test_cases)} test cases for suite={suite_id}")
+    return schemas.AIGenerateResponse(
+        test_cases=[schemas.AIGeneratedTestCase(**tc) for tc in test_cases],
+        model=result.model,
+    )
 
 
 @app.post("/api/suites/{suite_id}/testcases/generate/save")
