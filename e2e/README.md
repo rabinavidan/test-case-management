@@ -149,7 +149,7 @@ produce lands as ordinary `*.spec.ts` files here and runs through the existing `
 
 | Agent | What it does | Output |
 |-------|--------------|--------|
-| `playwright-test-planner` | Explores the running app in a real (headless) browser and writes a numbered test plan | `specs/*.md` |
+| `playwright-test-planner` | Explores the running app in a real (headless) browser, writes a numbered test plan, and saves a structured record of the journey and elements it found (see below) | `specs/*.md` + `specs/*.context.json` |
 | `playwright-test-generator` | Replays a plan's steps against the live app, recording real interactions, then writes a spec per scenario | `e2e/tests/*.spec.ts` |
 | `playwright-test-healer` | Runs the suite, debugs any failure against the live app, and edits the spec to fix it — but only for locator/timing drift; a failure that looks like a real product defect is escalated, never silently skipped (see below) | edits existing `e2e/tests/*.spec.ts` |
 
@@ -174,6 +174,19 @@ session — healed, escalated, or (locator/timing only, last resort) `test.fixme
 record to `heal-outcomes/heal_outcomes.jsonl`, the audit trail `scripts/heal_metrics.py` reads to compute
 heal-success-rate and false-heal-rate (surfaced on the KPI dashboard once real sessions accumulate). See
 [`.claude/agents/playwright-test-healer.md`](../.claude/agents/playwright-test-healer.md) for the full rule.
+
+**Shared context artifact.** Course milestone M8. Every planner run used to be wasted effort for the other two
+agents — the generator and healer each re-explored the same flow live rather than reusing what the planner had
+already found. The planner now also saves `specs/<name>.context.json` alongside its `specs/<name>.md` plan: an
+ordered `journey` of the pages/states it visited, and a catalog of `elements` it used, each captured by
+**accessibility role + accessible name** from the browser snapshot rather than a CSS selector or XPath — see
+[`scripts/context_artifact.py`](../scripts/context_artifact.py) for the schema. The generator reads it before
+replaying a plan's steps, using its recorded locators as the first choice instead of re-deriving them; the healer
+reads it (via the failing spec's `// spec: specs/<name>.md` header comment) as a fast reference for what a flow's
+elements looked like when the plan was written, a concrete signal for the locator-drift-vs-behavior-change call in
+its self-healing guardrails above. No artifact for a given spec (an older one, or a hand-authored plan) — both
+agents fall back to live exploration exactly as before; the artifact is a shortcut when available, never a
+requirement.
 
 Generated specs still need the same review as a hand-written PR — check they use the Page Object Model
 (`pages/*.page.ts`) and `data-testid` locators like the rest of this directory rather than ad hoc selectors, since
