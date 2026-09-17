@@ -14,6 +14,14 @@ evals/baselines/ is committed like any other file.
 Once a baseline exists for a (model, target) pair, --gate compares against
 it (plus a noise band) instead of the fixed thresholds below.
 
+Every run's report includes a "prompt_delta" once a baseline exists -
+per-case, per-metric mean-score delta against that baseline, plus whether
+the target's prompt (see each evals/targets/*.py's prompt_id/prompt_version,
+evals/prompt_versions.py) actually changed since it was recorded. A changed
+prompt's delta is also printed to stderr, unconditionally - not just under
+--gate - so a prompt edit's effect on quality is visible on an ordinary run,
+before it becomes a baseline anyone else relies on.
+
 Optionally score each run with an LLM judge too, alongside (never instead
 of) the deterministic scorers - see evals/llm_judge.py. Off unless
 --judge-model is given; a judge-call failure degrades to "no judge score
@@ -29,7 +37,7 @@ import json
 import sys
 from pathlib import Path
 
-from evals.baseline import check_regressions, load_baseline, write_baseline
+from evals.baseline import check_regressions, compute_prompt_delta, load_baseline, write_baseline
 from evals.harness import run_suite
 from evals.ollama_client import DEFAULT_MODEL, OllamaClient
 from evals.targets import TARGETS
@@ -83,6 +91,27 @@ def main(argv: list[str] | None = None) -> int:
     # itself - null when no judge was configured for this run.
     result["judge_model"] = args.judge_model
 
+    # Course milestone M7 (see evals/baseline.py, evals/prompt_versions.py):
+    # loaded once here, before any --record-baseline write below, so the
+    # delta always compares against the *previous* baseline - what changed,
+    # not a diff against the run's own just-written output.
+    baseline = load_baseline(args.model, args.target)
+    prompt_id = target_module.TARGET.prompt_id
+    prompt_version = target_module.TARGET.prompt_version
+    if baseline is not None:
+        delta = compute_prompt_delta(report, baseline, prompt_id, prompt_version)
+        result["prompt_delta"] = delta
+        if delta["prompt_changed"]:
+            print(
+                f"Prompt version changed for {prompt_id} "
+                f"({delta['baseline_prompt_version']} -> {delta['current_prompt_version']}) "
+                f"since the recorded baseline for {args.model}/{args.target}:",
+                file=sys.stderr,
+            )
+            for case_id, deltas in delta["per_case_delta"].items():
+                for metric, d in deltas.items():
+                    print(f"  - {case_id}.{metric}: {d:+.3f}", file=sys.stderr)
+
     output_text = json.dumps(result, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -90,12 +119,11 @@ def main(argv: list[str] | None = None) -> int:
     print(output_text)
 
     if args.record_baseline:
-        path = write_baseline(report, args.model, args.target)
+        path = write_baseline(report, args.model, args.target, prompt_id, prompt_version)
         print(f"Baseline recorded to {path}", file=sys.stderr)
         return 0
 
     if args.gate:
-        baseline = load_baseline(args.model, args.target)
         if baseline is not None:
             regressions = check_regressions(
                 report, baseline, target_module.DEFAULT_MIN_THRESHOLDS, target_module.DEFAULT_MAX_THRESHOLDS,

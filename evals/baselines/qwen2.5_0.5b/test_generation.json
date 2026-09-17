@@ -257,5 +257,7 @@
     }
   ],
   "model": "qwen2.5:0.5b",
-  "target": "test_generation"
+  "target": "test_generation",
+  "prompt_id": "test_generation_system",
+  "prompt_version": "5fae6305"
 }

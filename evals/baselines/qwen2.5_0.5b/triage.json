@@ -257,5 +257,7 @@
     }
   ],
   "model": "qwen2.5:0.5b",
-  "target": "triage"
+  "target": "triage",
+  "prompt_id": "triage_system",
+  "prompt_version": "46916620"
 }

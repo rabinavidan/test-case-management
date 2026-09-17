@@ -7,7 +7,9 @@ a live generate() call isn't grounded, but scores cross_duplicate_rate
 against each case's existing_cases so the two targets' reports are directly
 comparable.
 """
+from api.ai_prompts import TESTCASE_GENERATION_SYSTEM_PROMPT
 from evals.harness import EvalTarget
+from evals.prompt_versions import prompt_version
 from evals.targets._retrieval_shared import build_ungrounded_prompt, score
 
 METRICS = ("schema_score", "count_match_score", "duplicate_rate", "cross_duplicate_rate")
@@ -28,4 +30,8 @@ TARGET = EvalTarget(
     error_scores=ERROR_SCORES,
     build_prompt=build_ungrounded_prompt,
     score=score,
+    # Same prompt identity as the base test_generation target - it really is
+    # the same prompt (api/ai_prompts.py's plain, no-retrieval variant).
+    prompt_id="test_generation_system",
+    prompt_version=prompt_version(TESTCASE_GENERATION_SYSTEM_PROMPT),
 )

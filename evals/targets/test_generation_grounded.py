@@ -9,7 +9,9 @@ api/ai_prompts.py's build_grounded_testcase_generation_user_prompt) instead
 of a live api/retrieval.py lookup - the whole point of a fixed dataset case
 is that its existing_cases are pinned, not queried per run.
 """
+from api.ai_prompts import TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT
 from evals.harness import EvalTarget
+from evals.prompt_versions import prompt_version
 from evals.targets._retrieval_shared import build_grounded_prompt, score
 
 METRICS = ("schema_score", "count_match_score", "duplicate_rate", "cross_duplicate_rate")
@@ -30,4 +32,6 @@ TARGET = EvalTarget(
     error_scores=ERROR_SCORES,
     build_prompt=build_grounded_prompt,
     score=score,
+    prompt_id="test_generation_grounded_system",
+    prompt_version=prompt_version(TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT),
 )

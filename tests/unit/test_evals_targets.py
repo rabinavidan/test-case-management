@@ -41,6 +41,27 @@ def test_targets_registry_has_every_feature():
     assert TARGETS["test_generation_grounded"].TARGET is GROUNDED_TARGET
 
 
+def test_every_target_has_a_prompt_id_and_version():
+    # Course M7: every target opts into prompt versioning (see
+    # evals/prompt_versions.py) - none of them shipped with the None default.
+    for target in [TEST_GENERATION_TARGET, TRIAGE_TARGET, UNGROUNDED_TARGET, GROUNDED_TARGET]:
+        assert target.prompt_id is not None
+        assert target.prompt_version is not None
+        assert len(target.prompt_version) == 8
+
+
+def test_test_generation_and_ungrounded_share_the_same_prompt_identity():
+    # They really are the same prompt (api/ai_prompts.py's plain variant) -
+    # a real prompt change to it must show up identically in both targets.
+    assert TEST_GENERATION_TARGET.prompt_id == UNGROUNDED_TARGET.prompt_id
+    assert TEST_GENERATION_TARGET.prompt_version == UNGROUNDED_TARGET.prompt_version
+
+
+def test_grounded_target_has_a_distinct_prompt_identity_from_ungrounded():
+    assert GROUNDED_TARGET.prompt_id != UNGROUNDED_TARGET.prompt_id
+    assert GROUNDED_TARGET.prompt_version != UNGROUNDED_TARGET.prompt_version
+
+
 def test_both_targets_wire_an_llm_judge_prompt_builder():
     # Both features get the optional LLM-as-judge axis (see evals/llm_judge.py) -
     # neither target module forgot to opt in.

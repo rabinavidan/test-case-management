@@ -7,6 +7,7 @@ from api.ai_prompts import (
 )
 from evals.harness import EvalTarget
 from evals.llm_judge import build_judge_prompt_for_test_generation
+from evals.prompt_versions import prompt_version
 from evals.scorers import aggregate_score
 
 METRICS = ("schema_score", "count_match_score", "keyword_coverage_score", "duplicate_rate")
@@ -44,4 +45,6 @@ TARGET = EvalTarget(
     build_prompt=_build_prompt,
     score=_score,
     build_judge_prompt=build_judge_prompt_for_test_generation,
+    prompt_id="test_generation_system",
+    prompt_version=prompt_version(TESTCASE_GENERATION_SYSTEM_PROMPT),
 )

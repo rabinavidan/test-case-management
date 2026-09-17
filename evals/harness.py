@@ -43,6 +43,12 @@ class EvalTarget:
     run_suite/run_case) — see evals/llm_judge.py. A target with no judge
     prompt builder simply never gets a judge score, same as no judge_client
     being configured at all.
+
+    prompt_id/prompt_version (course milestone M7, see evals/prompt_versions.py)
+    identify the target's primary prompt — prompt_id is a stable, hand-picked
+    name for it (e.g. "triage_system"), prompt_version a hash of its current
+    exact text. Both None for a target that hasn't opted in yet; evals/cli.py
+    only records/compares prompt versions when they're set.
     """
     name: str
     metrics: tuple
@@ -50,6 +56,8 @@ class EvalTarget:
     build_prompt: Callable[[dict], tuple]
     score: Callable[[str, dict], dict]
     build_judge_prompt: Callable[[dict, str], tuple] | None = None
+    prompt_id: str | None = None
+    prompt_version: str | None = None
 
 
 @dataclass
