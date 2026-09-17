@@ -140,7 +140,7 @@ jobs:
 
       - name: Upload Allure report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: allure-report-java-${{ github.run_id }}
           path: java-tests/target/allure-report/
