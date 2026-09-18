@@ -1,0 +1,74 @@
+name: Playwright Mocked E2E (serverless)
+
+# Runs e2e/tests/mocked-serverless-*.spec.ts — every backend call is
+# intercepted via page.route() (e2e/mocks/), so this job never installs
+# Python, never starts FastAPI, and never touches a database. It just
+# serves static/ (e2e/serve-static.py, a ~40-line stand-in for the two
+# routes api/main.py's "Static files" section registers) and points
+# Playwright at it. See e2e/README.md's "Serverless mocked E2E tests"
+# section for how this relates to the real-backend suite in pw-ts.yml
+# and to mock-contract-drift.spec.ts (which runs in pw-ts.yml, not here,
+# since it's the one spec in this pair that needs a real backend).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'e2e/tests/mocked-serverless-*.spec.ts'
+      - 'e2e/mocks/**'
+      - 'e2e/pages/**'
+      - 'e2e/playwright.mocked.config.ts'
+      - 'e2e/serve-static.py'
+      - 'static/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'e2e/tests/mocked-serverless-*.spec.ts'
+      - 'e2e/mocks/**'
+      - 'e2e/pages/**'
+      - 'e2e/playwright.mocked.config.ts'
+      - 'e2e/serve-static.py'
+      - 'static/**'
+  workflow_dispatch:
+
+jobs:
+  mocked-e2e:
+    name: Serverless mocked E2E tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright's chromium browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Serve static/ (no backend, no database)
+        run: python3 serve-static.py 8010 &
+
+      - name: Run serverless mocked E2E tests
+        run: npm run test:mocked
+        env:
+          BASE_URL: http://localhost:8010
+          CI: true
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-mocked
+          path: e2e/playwright-report-mocked/
+          retention-days: 7
+          if-no-files-found: ignore

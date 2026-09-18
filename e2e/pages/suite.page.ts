@@ -85,7 +85,7 @@ export class SuitePage extends BasePage {
   }
 
   getTestCaseRows(): Locator {
-    return this.page.locator('[data-testid="testcase-row"], .testcase-row, tbody tr, .test-case-item').filter({ hasText: /./ });
+    return this.page.locator('[data-testid^="testcase-card-"]').filter({ hasText: /./ });
   }
 
   async clickStartRun(): Promise<void> {
