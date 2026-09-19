@@ -380,28 +380,33 @@ const AI_PIPELINE_DEMO_NODES = [
 // Shared between the "See the pipeline" modal and the always-visible
 // aiLiveDemoSection on the homepage — same node data and animation, two
 // homes (a click-to-open detail view vs. a persistent hero-adjacent demo).
-// Compact square-tile grid: a single "flash" cycles around the tiles in
-// sequence (one lap = AI_PIPELINE_FLASH_LAP_MS), reading as live pipeline
-// activity without claiming to be one - the badge underneath spells that
-// out explicitly.
-const AI_PIPELINE_FLASH_LAP_MS = 3600;
+// Deliberately matches demoBanner's "How TestFlow works" pipeline-step
+// style above (small fixed-width blocks, a pulsing colored icon badge,
+// arrow connectors) rather than inventing a new visual language for the
+// same "compact animated blocks" idea.
+const AI_PIPELINE_NODE_COLORS = [
+  'bg-indigo-500/80', 'bg-violet-500/80', 'bg-purple-500/80',
+  'bg-fuchsia-500/80', 'bg-pink-500/80', 'bg-emerald-500/80',
+];
 
 function renderAiPipelineTimelineInner() {
-  const n = AI_PIPELINE_DEMO_NODES.length;
   return `
     <div class="flex items-center gap-1.5 mb-3">
       <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
       <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
     </div>
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-      ${AI_PIPELINE_DEMO_NODES.map((node, i) => `
-        <div class="rounded-xl p-2.5 flex flex-col gap-1 opacity-0" style="animation:aiDemoIn .35s cubic-bezier(.22,1,.36,1) ${i * 70}ms forwards, aiSquareFlash ${AI_PIPELINE_FLASH_LAP_MS}ms ease-in-out ${Math.round(i * AI_PIPELINE_FLASH_LAP_MS / n)}ms infinite;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)">
-          <div class="flex items-center justify-between gap-1">
-            <span class="text-base leading-none">${node.icon}</span>
-            ${node.model ? `<span class="text-[7px] font-bold uppercase tracking-wider px-1 py-0.5 rounded leading-none text-right" style="background:rgba(99,102,241,.15);color:rgba(165,180,252,.9);border:1px solid rgba(99,102,241,.3)">${node.model}</span>` : ''}
+    <div class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pb-1">
+      ${AI_PIPELINE_DEMO_NODES.map((node, i, arr) => `
+        <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
+          <div class="ai-demo-node opacity-0 flex flex-col gap-2 rounded-xl p-3 w-32 sm:w-36" style="animation:aiDemoIn .4s ease ${i * 150}ms forwards;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)">
+            <div class="${AI_PIPELINE_NODE_COLORS[i % AI_PIPELINE_NODE_COLORS.length]} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg ai-demo-pulse flex-shrink-0" style="animation-delay:${i * 150}ms">${node.icon}</div>
+            <div>
+              <p class="text-white text-xs font-bold leading-tight">${node.title}</p>
+              ${node.model ? `<p class="text-[8px] font-bold uppercase tracking-wider mt-0.5" style="color:rgba(199,210,254,.85)">${node.model}</p>` : ''}
+              <p class="text-[10px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
+            </div>
           </div>
-          <p class="text-[11px] font-bold text-white leading-tight">${node.title}</p>
-          <p class="text-[9px] leading-snug" style="color:rgba(255,255,255,.45)">${node.desc}</p>
+          ${i < arr.length - 1 ? `<div class="self-center text-indigo-300/60 text-lg font-bold opacity-0 flex-shrink-0" style="animation:aiDemoIn .3s ease ${i * 150 + 100}ms forwards">→</div>` : ''}
         </div>
       `).join('')}
     </div>
@@ -415,10 +420,8 @@ function renderAiPipelineTimelineInner() {
 const AI_PIPELINE_DEMO_KEYFRAMES = `
   <style>
     @keyframes aiDemoIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes aiSquareFlash {
-      0%, 82%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); border-color: rgba(255,255,255,.12); }
-      6% { box-shadow: 0 0 16px 2px rgba(99,102,241,.55); border-color: rgba(129,140,248,.9); }
-    }
+    .ai-demo-pulse { animation: aiDemoPulse 2.4s ease-in-out infinite; }
+    @keyframes aiDemoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,.15)} 50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(255,255,255,0)} }
   </style>`;
 
 function buildAiPipelineDemoModal(title, body) {
