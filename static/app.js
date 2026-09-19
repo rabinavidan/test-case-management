@@ -377,47 +377,59 @@ const AI_PIPELINE_DEMO_NODES = [
     desc: 'Every check passes, the Steward resolves review threads, and the PR merges — the same loop that built this repo.' },
 ];
 
+// Shared between the "See the pipeline" modal and the always-visible
+// aiLiveDemoSection on the homepage — same node data and animation, two
+// homes (a click-to-open detail view vs. a persistent hero-adjacent demo).
+function renderAiPipelineTimelineInner() {
+  return `
+    <div class="flex items-center gap-1.5 mb-4">
+      <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+      <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
+    </div>
+    ${AI_PIPELINE_DEMO_NODES.map((n, i) => `
+      ${i > 0 ? `
+        <div class="flex justify-center items-center py-0.5 opacity-0" style="animation:aiDemoIn .3s ease forwards;animation-delay:${i * 260 - 60}ms">
+          <div class="flex flex-col items-center gap-0.5 relative">
+            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+            <div class="ai-demo-pkt" style="width:6px;height:6px;border-radius:50%;background:#6366f1;position:absolute;top:0;animation:aiDemoPacket 2s ease-in-out infinite;animation-delay:${i * 300}ms"></div>
+            <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(99,102,241,.8)"></div>
+            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+          </div>
+        </div>` : ''}
+      <div class="rounded-xl p-3 flex items-start gap-2.5 opacity-0" style="animation:aiDemoIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${i * 260}ms;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)">
+        <span class="text-lg flex-shrink-0">${n.icon}</span>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <p class="text-[12px] font-bold text-white leading-tight">${n.title}</p>
+            ${n.model ? `<span class="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style="background:rgba(99,102,241,.15);color:rgba(165,180,252,.9);border:1px solid rgba(99,102,241,.3)">${n.model}</span>` : ''}
+          </div>
+          <p class="text-[10px] leading-snug mt-0.5" style="color:rgba(255,255,255,.45)">${n.desc}</p>
+        </div>
+      </div>
+    `).join('')}
+    <p class="text-[10px] mt-4 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
+      Every node above is a real file in this repo — see the cards above for the exact path, or
+      <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
+    </p>
+  `;
+}
+
+const AI_PIPELINE_DEMO_KEYFRAMES = `
+  <style>
+    @keyframes aiDemoIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes aiDemoPacket { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
+  </style>`;
+
 function buildAiPipelineDemoModal(title, body) {
   title.textContent = 'AI Agents in This Repo’s CI/CD';
   body.innerHTML = `
     <div class="relative rounded-2xl overflow-hidden -mx-6 -my-5 px-5 py-6" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)" data-testid="ai-pipeline-demo">
       <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
       <div class="relative z-10">
-        <div class="flex items-center gap-1.5 mb-4">
-          <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-          <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
-        </div>
-        ${AI_PIPELINE_DEMO_NODES.map((n, i) => `
-          ${i > 0 ? `
-            <div class="flex justify-center items-center py-0.5 opacity-0" style="animation:aiDemoIn .3s ease forwards;animation-delay:${i * 260 - 60}ms">
-              <div class="flex flex-col items-center gap-0.5 relative">
-                <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
-                <div class="ai-demo-pkt" style="width:6px;height:6px;border-radius:50%;background:#6366f1;position:absolute;top:0;animation:aiDemoPacket 2s ease-in-out infinite;animation-delay:${i * 300}ms"></div>
-                <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(99,102,241,.8)"></div>
-                <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
-              </div>
-            </div>` : ''}
-          <div class="rounded-xl p-3 flex items-start gap-2.5 opacity-0" style="animation:aiDemoIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${i * 260}ms;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)">
-            <span class="text-lg flex-shrink-0">${n.icon}</span>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center justify-between gap-2 flex-wrap">
-                <p class="text-[12px] font-bold text-white leading-tight">${n.title}</p>
-                ${n.model ? `<span class="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style="background:rgba(99,102,241,.15);color:rgba(165,180,252,.9);border:1px solid rgba(99,102,241,.3)">${n.model}</span>` : ''}
-              </div>
-              <p class="text-[10px] leading-snug mt-0.5" style="color:rgba(255,255,255,.45)">${n.desc}</p>
-            </div>
-          </div>
-        `).join('')}
-        <p class="text-[10px] mt-4 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
-          Every node above is a real file in this repo — see the cards above for the exact path, or
-          <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
-        </p>
+        ${renderAiPipelineTimelineInner()}
       </div>
     </div>
-    <style>
-      @keyframes aiDemoIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-      @keyframes aiDemoPacket { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
-    </style>`;
+    ${AI_PIPELINE_DEMO_KEYFRAMES}`;
 }
 
 function selectResultStatus(s) {
@@ -1615,6 +1627,24 @@ async function renderProjects() {
     </style>
   ` : "";
 
+  // Always-visible version of the same static/animated AI-pipeline
+  // walkthrough behind the "See the pipeline" button in
+  // aiFirstEngineeringSection below — placed right under the hero so a
+  // recruiter sees it without hunting for a button. Same node data and
+  // animation (renderAiPipelineTimelineInner), just a different, persistent
+  // home instead of a click-to-open modal.
+  const aiLiveDemoSection = !getToken() ? `
+    <div class="relative rounded-2xl overflow-hidden mb-6 px-5 py-6" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)" data-testid="ai-live-demo-section">
+      <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
+      <div class="relative z-10">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wide mb-1">Live Demo — AI in This Repo’s CI/CD Pipeline</h2>
+        <p class="text-[11px] mb-4" style="color:rgba(255,255,255,.45)">Where AI models actually sit in this pipeline, end to end — the same facts as the AI-First Engineering cards below, told as a sequence.</p>
+        ${renderAiPipelineTimelineInner()}
+      </div>
+    </div>
+    ${AI_PIPELINE_DEMO_KEYFRAMES}
+  ` : "";
+
   // Every claim below is scoped to what this repository itself proves -
   // its CI workflows, test suites, and architecture docs - not a generic
   // "team leadership" narrative this solo-maintained project can't back up.
@@ -1929,6 +1959,7 @@ async function renderProjects() {
     el.innerHTML = `
       <div class="fade-in">
         ${ownerCard}
+        ${aiLiveDemoSection}
         ${recruiterTourBanner}
         ${leadershipImpactSection}
         ${deliveryWorkflowSection}
@@ -1956,6 +1987,7 @@ async function renderProjects() {
   el.innerHTML = `
     <div class="fade-in">
       ${ownerCard}
+      ${aiLiveDemoSection}
       ${recruiterTourBanner}
       ${leadershipImpactSection}
       ${deliveryWorkflowSection}

@@ -14,6 +14,32 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     await page.waitForLoadState('networkidle');
   });
 
+  guestTest('the Live Demo AI-pipeline section renders animated right after the hero banner', async ({ page }) => {
+    const heroCard = page.locator('.owner-banner');
+    const demoSection = page.getByTestId('ai-live-demo-section');
+    await guestExpect(heroCard).toBeVisible();
+    await guestExpect(demoSection).toBeVisible();
+
+    // Placement: the demo section must sit right after the hero banner and
+    // before the rest of the page (not buried further down).
+    const heroFollowedByDemo = await page.evaluate(() => {
+      const hero = document.querySelector('.owner-banner');
+      const demo = document.querySelector('[data-testid="ai-live-demo-section"]');
+      const tourBanner = document.querySelector('[data-testid="recruiter-tour-banner"]');
+      if (!hero || !demo) return false;
+      const heroBeforeDemo = !!(hero.compareDocumentPosition(demo) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const demoBeforeTour = !tourBanner || !!(demo.compareDocumentPosition(tourBanner) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return heroBeforeDemo && demoBeforeTour;
+    });
+    guestExpect(heroFollowedByDemo).toBe(true);
+
+    await guestExpect(demoSection.getByText(/Live Demo/)).toBeVisible();
+    await guestExpect(demoSection.getByText('Static walkthrough — not a live AI call')).toBeVisible();
+    await guestExpect(demoSection.getByText('AI PR Steward')).toBeVisible();
+    await guestExpect(demoSection.getByText('Playwright Healer')).toBeVisible();
+    await guestExpect(demoSection.getByText('CI green → merged')).toBeVisible();
+  });
+
   guestTest('the Test Pyramid section shows all four levels with real counts', async ({ page }) => {
     const section = page.getByTestId('test-pyramid-section');
     await guestExpect(section).toBeVisible();
@@ -81,5 +107,6 @@ authTest.describe('Signed-in view — M3 sections are guest-only', () => {
     await authExpect(page.getByTestId('test-pyramid-section')).toHaveCount(0);
     await authExpect(page.getByTestId('ai-first-engineering-section')).toHaveCount(0);
     await authExpect(page.getByTestId('ai-pipeline-demo-btn')).toHaveCount(0);
+    await authExpect(page.getByTestId('ai-live-demo-section')).toHaveCount(0);
   });
 });
