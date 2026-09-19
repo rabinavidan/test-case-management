@@ -73,6 +73,41 @@ future convenience. No such pattern exists yet (the log is empty in a
 fresh clone of this repo — these are authoring-time agents, not CI jobs,
 so there's no synthetic data to fabricate a signal from either).
 
+## A LangGraph orchestrator for the trio, built to the checkpoints above
+
+`agents/pipeline_orchestrator.py` (a later addition than the reasoning
+above) is an explicit LangGraph orchestrator for exactly the Playwright
+trio this doc identifies as the one place a pipeline shape exists. It does
+not contradict the "no auto-chaining" conclusion above — it was built
+*around* it. Its authoring graph (plan → generate) uses a real LangGraph
+`interrupt()` at both the plan-approval and generation-approval gates: the
+graph execution genuinely pauses and returns control to the caller, who
+must call back with an explicit approve/reject/revise before it continues.
+Nothing in this graph can reach a committed spec without both human
+checkpoints firing — the same two checkpoints the bullets above argue are
+"exactly where a human should be looking," just formalized as graph edges
+instead of three separately-typed `@agent` invocations.
+
+The healer is deliberately its own separate graph, not chained after
+generation in the same run: in the real workflow a spec is committed and
+run many times in CI before any given run fails, so "generate this spec"
+and "heal this failing spec" are not sequential steps of one session — the
+governance question they answer is the same, but the trigger and the
+elapsed time between them are different. Wiring them into one always-linear
+graph would be modeling a workflow that doesn't happen, not simplifying a
+real one.
+
+**What this is not**: a replacement for the real, interactive agents in
+`.claude/agents/playwright-test-{planner,generator,healer}.md`, which
+explore a live page with real Playwright MCP browser tools inside a Claude
+Code session and are what actually authors and fixes the specs in this
+repo. `pipeline_orchestrator.py`'s plan/generate nodes are LLM-only (no
+browser) — a headless illustration of the orchestration shape (a real
+agent-framework graph, a real interrupt-based human-in-the-loop gate, and,
+in the healer graph, a real classify → fix → retry planning loop with the
+same escalate-on-behavior-change guardrail), not a second implementation
+of what the interactive agents do.
+
 ## Unified agent telemetry
 
 Course M6 gave the two agents that emit structured, parseable telemetry —
