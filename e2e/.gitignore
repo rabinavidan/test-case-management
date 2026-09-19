@@ -1,5 +1,6 @@
 node_modules/
 playwright-report/
+playwright-report-mocked/
 test-results/
 auth-state.json
 allure-results/

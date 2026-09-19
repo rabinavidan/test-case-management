@@ -3,8 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   // seed.spec.ts is the Playwright agents' authoring seed (e2e/README.md#playwright-agents),
-  // not a real assertion-bearing test — excluded so it doesn't pad CI's pass/fail counts.
-  testIgnore: '**/seed.spec.ts',
+  // not a real assertion-bearing test. mocked-serverless-*.spec.ts run under
+  // playwright.mocked.config.ts instead (no globalSetup — they never hit a
+  // real backend), so both are excluded here to avoid duplicate runs.
+  testIgnore: ['**/seed.spec.ts', '**/mocked-serverless-*.spec.ts'],
   timeout: 30000,
   retries: process.env.CI ? 1 : 0,
   reporter: [

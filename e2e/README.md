@@ -57,12 +57,19 @@ e2e/
 │   ├── sidebar-progress-bar.spec.ts  # Sidebar pass-rate bar after a run
 │   ├── contract.spec.ts     # Responses validated against /openapi.json (ajv) +
 │   │                        #   property-based edge cases (fast-check)
-│   └── api.spec.ts          # API-level tests (no browser) — includes paginated
-│                            #   response assertions ({items, total, page, total_pages})
-│                            #   and full CRUD flow covering analytics endpoint
+│   ├── api.spec.ts          # API-level tests (no browser) — includes paginated
+│   │                        #   response assertions ({items, total, page, total_pages})
+│   │                        #   and full CRUD flow covering analytics endpoint
+│   ├── mocked-serverless-crud.spec.ts         # Serverless: projects/suites/test cases CRUD
+│   ├── mocked-serverless-ai-features.spec.ts  # Serverless: AI generate + triage
+│   ├── mocked-serverless-errors.spec.ts       # Serverless: 5xx/network/429/401/malformed-data
+│   └── mock-contract-drift.spec.ts            # Validates e2e/mocks/ against /openapi.json (real backend)
+├── mocks/                   # Typed fixtures for the serverless specs — see "Serverless mocked E2E tests" below
 ├── global-setup.ts          # Registers e2e test user and saves auth token
 ├── global-teardown.ts       # Deletes leftover test projects by name prefix
+├── serve-static.py          # Backend-free static server for the serverless specs
 ├── playwright.config.ts
+├── playwright.mocked.config.ts
 └── tsconfig.json
 ```
 
@@ -96,6 +103,55 @@ Python side. It has already found real bugs, not hypothetical ones:
 - A property-based test (`fast-check`) generates extreme integer path params (outside SQLite's 64-bit `INTEGER`
   range) and asserts the API never crashes with a 5xx — the regression test for an `OverflowError` fixed with a
   dedicated exception handler in `api/main.py`.
+
+## Serverless mocked E2E tests
+
+`mocked-serverless-*.spec.ts` are a second, fully offline test layer: every backend call is intercepted with
+Playwright's `page.route()` (no FastAPI process, no database, no network at all beyond the browser talking to a
+static file server). They run under a separate config, `playwright.mocked.config.ts` — the default
+`playwright.config.ts` can't be reused as-is because its `globalSetup`/`globalTeardown` perform a real
+register+login HTTP round-trip, which would fail with no backend running.
+
+```bash
+# from e2e/
+python3 serve-static.py 8010 &   # serves static/ the same way api/main.py's StaticFiles mount does
+npm run test:mocked
+```
+
+Why a second layer, given `contract.spec.ts` and the rest of the real-backend suite already exist:
+
+- **Speed and determinism.** No database seeding, no auth rate limits, no flakiness from a real server under load —
+  every response is exactly what the test says it is.
+- **Reachable error paths.** A 503 from the AI provider, a malformed JSON body, a 429 rate-limit response — these are
+  awkward or impossible to trigger on demand against a live backend, but are one `page.route()` call here
+  (`mocked-serverless-errors.spec.ts`, `mocked-serverless-ai-features.spec.ts`).
+
+**The catch, and how it's covered.** A mocked test only proves the frontend handles the shape it's given — it can't
+notice if the real backend's response shape has since changed. `e2e/mocks/factories.ts` is the single source of
+truth for every mocked shape (field names taken directly from `shared/schemas.py`/`api/schemas.py`, not guessed),
+and `mock-contract-drift.spec.ts` is what keeps it honest: it fetches the live `GET /openapi.json` and validates a
+sample from every registered factory against its real schema with `ajv` — the same approach `contract.spec.ts`
+already uses for real API responses, pointed at the mocks instead. Because it needs a real backend, it runs as part
+of the existing real-backend suite (`pw-ts.yml`), not the serverless one (`pw-mocked-e2e.yml`) — see
+`e2e/mocks/schema-registry.ts` for the fixture-to-schema mapping it checks.
+
+A drift-spec failure means the backend's response shape changed and `e2e/mocks/factories.ts` needs a matching
+update — a human or an agent does that (there is deliberately no automated fixer here, consistent with
+[`docs/agent-governance.md`](../docs/agent-governance.md)'s stance that a human/agent reviews the failure rather
+than an orchestrator silently patching it). The failure message names exactly which fixture and which `ajv`
+validation errors, so the fix is a small, targeted diff.
+
+```
+e2e/mocks/
+  factories.ts        — typed mock payload factories (Project, TestSuite, AIGenerateResponse, ...)
+  route-helpers.ts     — fulfillJson / mockAuthSession / byPath helpers over page.route()
+  schema-registry.ts   — maps each factory sample to its OpenAPI components.schemas key
+e2e/tests/
+  mocked-serverless-crud.spec.ts          — projects/suites/test cases CRUD
+  mocked-serverless-ai-features.spec.ts   — AI generate + triage, including provider error paths
+  mocked-serverless-errors.spec.ts        — generic 5xx/network/429/401/malformed-data edge cases
+  mock-contract-drift.spec.ts             — the drift check described above (real backend, runs in pw-ts.yml)
+```
 
 ## API pagination
 
@@ -195,3 +251,5 @@ the agent records against the live DOM and won't know those conventions on its o
 ## CI
 
 The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, generates the Allure report, and uploads both the Playwright HTML report and the Allure report as artifacts.
+
+`pw-mocked-e2e.yml` runs the serverless `mocked-serverless-*.spec.ts` suite separately: no `pip install`, no FastAPI, no database — just `npm ci`, `serve-static.py`, and `npm run test:mocked`. It's scoped (via `paths:`) to only fire when the mocks, those specs, or `static/` itself change, so it doesn't run on every unrelated backend PR.
