@@ -100,6 +100,7 @@ function showModal(type, data) {
     run:          buildRunModal,
     result:       buildResultModal,
     contact:      buildContactModal,
+    aiPipelineDemo: buildAiPipelineDemoModal,
   };
   if (builders[type]) builders[type](title, body, data);
 }
@@ -354,6 +355,69 @@ async function submitContact() {
     hideModal();
     toast("Message sent — we'll get back to you soon");
   } catch (e) { toast(e.message, "error"); }
+}
+
+// Animated, static (no live AI calls — cheap and safe for an anonymous
+// guest to open as many times as they like) walkthrough of where AI models
+// actually sit in this repo's own CI/CD pipeline. Every node names a real
+// file/workflow already covered in aiFirstEngineeringSection above; this is
+// just the same facts told as a sequence instead of a card grid.
+const AI_PIPELINE_DEMO_NODES = [
+  { icon: '📤', title: 'PR opened / pushed', model: null,
+    desc: 'A developer (or an AI agent) pushes a commit — the trigger for every step below.' },
+  { icon: '🛡️', title: 'AI PR Steward', model: 'Claude Sonnet',
+    desc: 'Reads the failing CI logs and review comments, diagnoses root cause, pushes a fix (.github/workflows/claude-pr-steward.yml).' },
+  { icon: '🧪', title: 'AI Test Authoring', model: 'Claude Haiku · LangChain',
+    desc: 'Coverage-Gap Agent flags untested changes; AI Test Generation and the Test-Plan Reviewer draft cases to fill them.' },
+  { icon: '🩹', title: 'Playwright Healer', model: 'Claude Sonnet',
+    desc: 'Classifies a failing spec as stale-locator (auto-fixes it) or real defect (escalates — never silently skipped).' },
+  { icon: '📊', title: 'Eval Harness & Flaky Detector', model: 'Ollama · deterministic',
+    desc: 'Scores AI output quality run-to-run before it ships; tracks which tests flip-flop across runs.' },
+  { icon: '✅', title: 'CI green → merged', model: null,
+    desc: 'Every check passes, the Steward resolves review threads, and the PR merges — the same loop that built this repo.' },
+];
+
+function buildAiPipelineDemoModal(title, body) {
+  title.textContent = 'AI Agents in This Repo’s CI/CD';
+  body.innerHTML = `
+    <div class="relative rounded-2xl overflow-hidden -mx-6 -my-5 px-5 py-6" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)" data-testid="ai-pipeline-demo">
+      <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
+      <div class="relative z-10">
+        <div class="flex items-center gap-1.5 mb-4">
+          <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+          <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
+        </div>
+        ${AI_PIPELINE_DEMO_NODES.map((n, i) => `
+          ${i > 0 ? `
+            <div class="flex justify-center items-center py-0.5 opacity-0" style="animation:aiDemoIn .3s ease forwards;animation-delay:${i * 260 - 60}ms">
+              <div class="flex flex-col items-center gap-0.5 relative">
+                <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+                <div class="ai-demo-pkt" style="width:6px;height:6px;border-radius:50%;background:#6366f1;position:absolute;top:0;animation:aiDemoPacket 2s ease-in-out infinite;animation-delay:${i * 300}ms"></div>
+                <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(99,102,241,.8)"></div>
+                <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+              </div>
+            </div>` : ''}
+          <div class="rounded-xl p-3 flex items-start gap-2.5 opacity-0" style="animation:aiDemoIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${i * 260}ms;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)">
+            <span class="text-lg flex-shrink-0">${n.icon}</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <p class="text-[12px] font-bold text-white leading-tight">${n.title}</p>
+                ${n.model ? `<span class="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style="background:rgba(99,102,241,.15);color:rgba(165,180,252,.9);border:1px solid rgba(99,102,241,.3)">${n.model}</span>` : ''}
+              </div>
+              <p class="text-[10px] leading-snug mt-0.5" style="color:rgba(255,255,255,.45)">${n.desc}</p>
+            </div>
+          </div>
+        `).join('')}
+        <p class="text-[10px] mt-4 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
+          Every node above is a real file in this repo — see the cards above for the exact path, or
+          <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
+        </p>
+      </div>
+    </div>
+    <style>
+      @keyframes aiDemoIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes aiDemoPacket { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
+    </style>`;
 }
 
 function selectResultStatus(s) {
@@ -1658,7 +1722,14 @@ async function renderProjects() {
   // produced.
   const aiFirstEngineeringSection = !getToken() ? `
     <div class="mb-6" data-testid="ai-first-engineering-section">
-      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">AI-First Quality Engineering</h2>
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">AI-First Quality Engineering</h2>
+        <button data-testid="ai-pipeline-demo-btn" onclick="showModal('aiPipelineDemo')"
+          class="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-lg transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          See the pipeline
+        </button>
+      </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         ${[
           { title: 'AI Test-Case Generation', desc: 'Claude Haiku drafts test cases from a feature description (services/ai). Outcome: a reviewable first draft in seconds instead of a blank suite.' },

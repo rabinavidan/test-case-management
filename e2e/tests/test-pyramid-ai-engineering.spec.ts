@@ -45,6 +45,29 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     await guestExpect(section.getByText('AI PR Steward')).toBeVisible();
     await guestExpect(section.getByText('Playwright Planning, Generation & Healing')).toBeVisible();
   });
+
+  guestTest('the "See the pipeline" button opens a static AI-pipeline walkthrough modal', async ({ page }) => {
+    const section = page.getByTestId('ai-first-engineering-section');
+    const demoButton = section.getByTestId('ai-pipeline-demo-btn');
+    await guestExpect(demoButton).toBeVisible();
+    await guestExpect(demoButton).toHaveText(/See the pipeline/);
+
+    await demoButton.click();
+
+    const modalBox = page.getByTestId('modal-box');
+    await guestExpect(modalBox).toBeVisible();
+    await guestExpect(page.getByTestId('modal-title')).toHaveText(/AI Agents in This Repo/);
+
+    const demo = page.getByTestId('ai-pipeline-demo');
+    await guestExpect(demo).toBeVisible();
+    await guestExpect(demo.getByText('Static walkthrough — not a live AI call')).toBeVisible();
+    await guestExpect(demo.getByText('AI PR Steward')).toBeVisible();
+    await guestExpect(demo.getByText('Playwright Healer')).toBeVisible();
+    await guestExpect(demo.getByText('CI green → merged')).toBeVisible();
+
+    await page.getByTestId('modal-close-btn').click();
+    await guestExpect(page.getByTestId('modal-overlay')).toHaveClass(/hidden/);
+  });
 });
 
 authTest.describe('Signed-in view — M3 sections are guest-only', () => {
@@ -57,5 +80,6 @@ authTest.describe('Signed-in view — M3 sections are guest-only', () => {
   authTest('Test Pyramid and AI-First Engineering sections do not show for a signed-in user', async ({ page }) => {
     await authExpect(page.getByTestId('test-pyramid-section')).toHaveCount(0);
     await authExpect(page.getByTestId('ai-first-engineering-section')).toHaveCount(0);
+    await authExpect(page.getByTestId('ai-pipeline-demo-btn')).toHaveCount(0);
   });
 });
