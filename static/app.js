@@ -380,34 +380,37 @@ const AI_PIPELINE_DEMO_NODES = [
 // Shared between the "See the pipeline" modal and the always-visible
 // aiLiveDemoSection on the homepage — same node data and animation, two
 // homes (a click-to-open detail view vs. a persistent hero-adjacent demo).
+// Deliberately matches demoBanner's "How TestFlow works" pipeline-step
+// style above (small fixed-width blocks, a pulsing colored icon badge,
+// arrow connectors) rather than inventing a new visual language for the
+// same "compact animated blocks" idea.
+const AI_PIPELINE_NODE_COLORS = [
+  'bg-indigo-500/80', 'bg-violet-500/80', 'bg-purple-500/80',
+  'bg-fuchsia-500/80', 'bg-pink-500/80', 'bg-emerald-500/80',
+];
+
 function renderAiPipelineTimelineInner() {
   return `
-    <div class="flex items-center gap-1.5 mb-4">
+    <div class="flex items-center gap-1.5 mb-3">
       <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
       <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
     </div>
-    ${AI_PIPELINE_DEMO_NODES.map((n, i) => `
-      ${i > 0 ? `
-        <div class="flex justify-center items-center py-0.5 opacity-0" style="animation:aiDemoIn .3s ease forwards;animation-delay:${i * 260 - 60}ms">
-          <div class="flex flex-col items-center gap-0.5 relative">
-            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
-            <div class="ai-demo-pkt" style="width:6px;height:6px;border-radius:50%;background:#6366f1;position:absolute;top:0;animation:aiDemoPacket 2s ease-in-out infinite;animation-delay:${i * 300}ms"></div>
-            <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(99,102,241,.8)"></div>
-            <div class="w-px h-4" style="background:rgba(99,102,241,.35)"></div>
+    <div class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pb-1">
+      ${AI_PIPELINE_DEMO_NODES.map((node, i, arr) => `
+        <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
+          <div class="ai-demo-node opacity-0 flex flex-col gap-2 rounded-xl p-3 w-32 sm:w-36" style="animation:aiDemoIn .4s ease ${i * 150}ms forwards;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)">
+            <div class="${AI_PIPELINE_NODE_COLORS[i % AI_PIPELINE_NODE_COLORS.length]} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg ai-demo-pulse flex-shrink-0" style="animation-delay:${i * 150}ms">${node.icon}</div>
+            <div>
+              <p class="text-white text-xs font-bold leading-tight">${node.title}</p>
+              ${node.model ? `<p class="text-[8px] font-bold uppercase tracking-wider mt-0.5" style="color:rgba(199,210,254,.85)">${node.model}</p>` : ''}
+              <p class="text-[10px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
+            </div>
           </div>
-        </div>` : ''}
-      <div class="rounded-xl p-3 flex items-start gap-2.5 opacity-0" style="animation:aiDemoIn .4s cubic-bezier(.22,1,.36,1) forwards;animation-delay:${i * 260}ms;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)">
-        <span class="text-lg flex-shrink-0">${n.icon}</span>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center justify-between gap-2 flex-wrap">
-            <p class="text-[12px] font-bold text-white leading-tight">${n.title}</p>
-            ${n.model ? `<span class="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style="background:rgba(99,102,241,.15);color:rgba(165,180,252,.9);border:1px solid rgba(99,102,241,.3)">${n.model}</span>` : ''}
-          </div>
-          <p class="text-[10px] leading-snug mt-0.5" style="color:rgba(255,255,255,.45)">${n.desc}</p>
+          ${i < arr.length - 1 ? `<div class="self-center text-indigo-300/60 text-lg font-bold opacity-0 flex-shrink-0" style="animation:aiDemoIn .3s ease ${i * 150 + 100}ms forwards">→</div>` : ''}
         </div>
-      </div>
-    `).join('')}
-    <p class="text-[10px] mt-4 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
+      `).join('')}
+    </div>
+    <p class="text-[10px] mt-3 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
       Every node above is a real file in this repo — see the cards above for the exact path, or
       <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
     </p>
@@ -417,7 +420,8 @@ function renderAiPipelineTimelineInner() {
 const AI_PIPELINE_DEMO_KEYFRAMES = `
   <style>
     @keyframes aiDemoIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes aiDemoPacket { 0%{top:0;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
+    .ai-demo-pulse { animation: aiDemoPulse 2.4s ease-in-out infinite; }
+    @keyframes aiDemoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,.15)} 50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(255,255,255,0)} }
   </style>`;
 
 function buildAiPipelineDemoModal(title, body) {
@@ -1785,16 +1789,27 @@ async function renderProjects() {
   // Pass Rate is the one live value: fetched from the flagship demo
   // project's own /stats endpoint, not a fixture.
   let flagshipStats = null;
+  let pipelineStats = null;
   if (!getToken()) {
     const flagship = state.projects.find(p => DEMO_KINDS.testflow.namePattern.test(p.name));
     if (flagship) {
       try { flagshipStats = await GET(`/api/projects/${flagship.id}/stats`); } catch (e) { flagshipStats = null; }
     }
+    // Real run durations for the required "Tests" workflow, fetched live
+    // from the GitHub Actions API by the backend (see /api/ci/pipeline-stats
+    // in api/main.py) - null fields on any failure, never a guessed number.
+    try { pipelineStats = await GET('/api/ci/pipeline-stats'); } catch (e) { pipelineStats = null; }
   }
   const _kpiTotal = flagshipStats
     ? flagshipStats.last_run_pass + flagshipStats.last_run_fail + flagshipStats.last_run_skip + flagshipStats.last_run_pending
     : 0;
   const livePassRate = _kpiTotal ? Math.round(flagshipStats.last_run_pass / _kpiTotal * 100) : null;
+  const _formatDurationSeconds = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  };
+  const pipelineMeanSeconds = pipelineStats?.mean_duration_seconds ?? null;
 
   const kpiBadge = (status) => {
     const styles = {
@@ -1866,10 +1881,16 @@ async function renderProjects() {
       source: 'scripts/ai_call_metrics.py',
     },
     {
-      name: 'Pipeline Execution Time', current: 'Not yet measured here', target: '—',
-      status: 'Not yet measured',
-      def: 'Real run durations are visible per-workflow on GitHub Actions; not yet pulled into this dashboard.',
-      source: 'GitHub Actions run history',
+      name: 'Pipeline Execution Time',
+      current: pipelineMeanSeconds != null
+        ? `${_formatDurationSeconds(pipelineMeanSeconds)} avg (n=${pipelineStats.runs_sampled})`
+        : 'Not yet measured here',
+      target: '—',
+      status: pipelineMeanSeconds != null ? 'Healthy' : 'Not yet measured',
+      def: pipelineMeanSeconds != null
+        ? `Mean wall-clock duration of the last ${pipelineStats.runs_sampled} completed runs of the required "Tests" workflow on main, fetched live from the GitHub Actions API.`
+        : 'Real run durations are visible per-workflow on GitHub Actions; not yet pulled into this dashboard.',
+      source: 'GET /api/ci/pipeline-stats (GitHub Actions API)',
     },
     {
       name: 'Escaped Defects', current: 'Not yet measured', target: '—',

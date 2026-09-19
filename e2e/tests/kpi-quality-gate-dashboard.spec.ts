@@ -47,9 +47,29 @@ guestTest.describe('Guest recruiter view — KPI dashboard', () => {
     for (const testId of [
       'kpi-card-flaky-test-rate', 'kpi-card-heal-success-rate', 'kpi-card-false-heal-rate',
       'kpi-card-ai-call-latency', 'kpi-card-ai-call-cost',
-      'kpi-card-pipeline-execution-time', 'kpi-card-escaped-defects', 'kpi-card-release-readiness',
+      'kpi-card-escaped-defects', 'kpi-card-release-readiness',
     ]) {
       const card = page.getByTestId(testId);
+      await guestExpect(card.getByText('Not yet measured').first()).toBeVisible();
+    }
+  });
+
+  guestTest('Pipeline Execution Time reflects real GitHub Actions run data, not a fixture', async ({ page, request }) => {
+    // /api/ci/pipeline-stats fetches live from the GitHub Actions API and
+    // degrades to null fields (never a guessed number) on any failure - so
+    // this test checks whichever of those two honest outcomes actually
+    // happened, rather than assuming the network call succeeds.
+    const res = await request.get('/api/ci/pipeline-stats');
+    const stats = await res.json();
+
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    const card = page.getByTestId('kpi-card-pipeline-execution-time');
+
+    if (stats.mean_duration_seconds != null) {
+      await guestExpect(card.getByText(`n=${stats.runs_sampled}`)).toBeVisible({ timeout: 10000 });
+      await guestExpect(card.getByText('Healthy')).toBeVisible();
+    } else {
       await guestExpect(card.getByText('Not yet measured').first()).toBeVisible();
     }
   });
