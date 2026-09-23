@@ -35,6 +35,7 @@ writes and self-heals the test suite itself:
 | **AI Failure Triage** | Summarizes a run's failed/skipped results into a root-cause hypothesis | Claude Haiku (or Ollama/Groq — see below) | `POST /api/runs/{id}/triage` |
 | **Eval Harness** | Runs the AI Test Generation and AI Failure Triage prompts N times per case against a local model, scoring output quality *and* run-to-run consistency; wired into CI (informational) against a real model | Ollama (local, no API key) | [`evals/`](evals/README.md) · [`.github/workflows/eval-harness.yml`](.github/workflows/eval-harness.yml) |
 | **Test Plan Reviewer** | A genuine two-step agent pipeline built with **LangChain** (`prompt \| llm \| parser`, LCEL) — a critic step finds test-coverage gaps for a feature, a drafter step writes test cases to fill them, in the same schema AI Test Generation uses | Ollama (local, no API key) | [`agents/`](agents/README.md) |
+| **Pipeline Orchestrator** | An explicit **LangGraph** multi-agent orchestrator for the Playwright planner→generator→healer trio — an authoring graph with a real `interrupt()`-based human-approval gate before generation and before a spec is marked ready to commit, plus a separate classify→fix→retry healer graph sharing the interactive healer's escalate-on-behavior-change guardrail. A headless illustration of the orchestration pattern (see `docs/agent-governance.md`), not a replacement for the real browser-driven Playwright Test Agents above | Ollama (local, no API key) | [`agents/pipeline_orchestrator.py`](agents/pipeline_orchestrator.py) · [`docs/agent-governance.md`](docs/agent-governance.md) |
 
 **Provider gateway.** AI Test Generation and AI Failure Triage both call through one router
 ([`api/ai_gateway.py`](api/ai_gateway.py)) instead of each hand-rolling its own client — which provider/model
@@ -687,7 +688,7 @@ since it's hosted on GitHub). See the comment at the top of that file for why it
 ├── e2e-bdd/                      # Cucumber.js + Playwright BDD suite — e2e-bdd/README.md
 ├── java-tests/                   # JUnit 5 + REST Assured black-box API tests
 ├── java-e2e/                     # JUnit 5 + Playwright Java browser E2E tests
-├── agents/                       # LangChain critic/drafter test-plan-review pipeline — agents/README.md
+├── agents/                       # LangChain critic/drafter pipeline + LangGraph Playwright-trio orchestrator — agents/README.md
 ├── evals/                        # AI eval harness — golden datasets, LLM-as-judge scoring — evals/README.md
 ├── scripts/                      # CI-support agents: flaky-test tracker, coverage-gap bot, heal/AI-call metrics
 ├── docs/                         # Architecture write-ups, interview prep, agent-governance notes, screenshots
