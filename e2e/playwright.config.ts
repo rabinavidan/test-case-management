@@ -10,13 +10,14 @@ export default defineConfig({
   timeout: 30000,
   retries: process.env.CI ? 1 : 0,
   reporter: [
-    ['html', { open: 'never' }],
     ['list', { printSteps: true }],
+    // json feeds pw-ts.yml's job-summary script only — Allure (below) is
+    // this project's human-facing report, not a plain HTML one.
     ['json', { outputFile: 'test-results/results.json' }],
     ['allure-playwright', { resultsDir: 'allure-results', detail: true, suiteTitle: false }],
     // blob is what CI's sharded matrix (.github/workflows/pw-ts.yml) merges
-    // back into one HTML/JSON report via `playwright merge-reports` — not
-    // useful for a local, unsharded run, so only enabled under CI.
+    // back into one JSON report via `playwright merge-reports` — not useful
+    // for a local, unsharded run, so only enabled under CI.
     ...(process.env.CI ? [['blob', { outputDir: 'blob-report' }] as const] : []),
   ],
   use: {
