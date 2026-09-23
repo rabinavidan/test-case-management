@@ -164,8 +164,21 @@ stages:
               BASE_URL: 'http://localhost:8010'
               CI: 'true'
 
+          - task: JavaToolInstaller@0
+            condition: always()
+            inputs:
+              versionSpec: '21'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+            displayName: 'Use Java (for Allure report generation)'
+
+          - script: npm run allure:generate:mocked
+            workingDirectory: e2e
+            condition: always()
+            displayName: 'Generate Allure report'
+
           - task: PublishBuildArtifacts@1
             condition: always()
             inputs:
-              PathtoPublish: 'e2e/playwright-report-mocked'
-              ArtifactName: 'playwright-report-mocked'
+              PathtoPublish: 'e2e/allure-report-mocked'
+              ArtifactName: 'allure-report-mocked'

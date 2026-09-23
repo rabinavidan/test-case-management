@@ -13,8 +13,8 @@ export default defineConfig({
   timeout: 30000,
   retries: process.env.CI ? 1 : 0,
   reporter: [
-    ['html', { open: 'never', outputFolder: 'playwright-report-mocked' }],
     ['list', { printSteps: true }],
+    ['allure-playwright', { resultsDir: 'allure-results-mocked', detail: true, suiteTitle: false }],
   ],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:8010',

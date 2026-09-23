@@ -2,7 +2,7 @@
 
 End-to-end tests for the TestFlow Test Case Management app, written with [Playwright](https://playwright.dev/) and TypeScript.
 This is the project's primary automation stack: fixture-based auth, a full Page Object Model, `test.step()`-annotated
-specs, HTML/JSON reporting, and its own CI workflow (`pw-ts.yml`). A feature-equivalent suite also exists in
+specs, Allure reporting, and its own CI workflow (`pw-ts.yml`). A feature-equivalent suite also exists in
 Python/pytest under [`../tests/e2e`](../tests/e2e) — see the [root README](../README.md#test-architecture) for how
 the two stacks map to each other.
 
@@ -75,12 +75,12 @@ e2e/
 
 ## Allure reporting
 
-The `allure-playwright` reporter is registered in `playwright.config.ts` alongside HTML/JSON, writing results to
-`allure-results/` on every run.
+The `allure-playwright` reporter is registered in `playwright.config.ts` (alongside a JSON reporter CI's job
+summary parses — no plain Playwright HTML reporter), writing results to `allure-results/` on every run.
 
 ```bash
-npm test                    # writes allure-results/ (and the html/json reports) as a side effect
-npm run allure:generate     # allure-results/ -> allure-report/ (static HTML)
+npm test                    # writes allure-results/ (and test-results/results.json) as a side effect
+npm run allure:generate     # allure-results/ -> allure-report/ (Allure's own static HTML report)
 npm run allure:open         # serve allure-report/ locally
 npm run allure:report       # generate + open in one step
 ```
@@ -88,6 +88,11 @@ npm run allure:report       # generate + open in one step
 Generating/opening the report requires the `allure` CLI (installed locally via the `allure-commandline`
 devDependency) and a Java runtime on `PATH`. CI (`pw-ts.yml`) sets up Java, generates the report on every run, and
 uploads it as the `allure-report-playwright-ts-<run id>` build artifact.
+
+The serverless mocked suite (below) is Allure-instrumented the same way, with its own output directories so the two
+suites never collide: `playwright.mocked.config.ts` registers `allure-playwright` writing to
+`allure-results-mocked/`, and `npm run allure:generate:mocked` / `allure:open:mocked` / `allure:report:mocked`
+mirror the commands above. CI (`pw-mocked-e2e.yml`) does the same generate-and-upload as `pw-ts.yml`.
 
 ## Contract testing
 
@@ -250,6 +255,6 @@ the agent records against the live DOM and won't know those conventions on its o
 
 ## CI
 
-The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, generates the Allure report, and uploads both the Playwright HTML report and the Allure report as artifacts.
+The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, generates the Allure report, and uploads it as an artifact.
 
 `pw-mocked-e2e.yml` runs the serverless `mocked-serverless-*.spec.ts` suite separately: no `pip install`, no FastAPI, no database — just `npm ci`, `serve-static.py`, and `npm run test:mocked`. It's scoped (via `paths:`) to only fire when the mocks, those specs, or `static/` itself change, so it doesn't run on every unrelated backend PR.
