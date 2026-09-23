@@ -4,7 +4,10 @@
 # source of truth for CI status on this project. This pipeline is included alongside it
 # to demonstrate Azure DevOps YAML pipeline authoring — multi-stage/multi-job structure,
 # native JUnit test-result publishing, and pip/npm caching — against the same app and
-# the same two test stacks (pytest, Cucumber/Gherkin) the GitHub workflows already cover.
+# three of the test stacks the GitHub workflows already cover: pytest, Cucumber/Gherkin,
+# and the fully offline mocked/service-virtualized Playwright suite (no pip install, no
+# FastAPI process, no database — see e2e/mocks/ and e2e/README.md's "Serverless mocked
+# E2E tests" section).
 # Wiring it to a live Azure DevOps project only requires importing this repo there and
 # pointing a pipeline at this file; no other change is needed.
 
@@ -122,3 +125,47 @@ stages:
             inputs:
               PathtoPublish: 'e2e-bdd/reports'
               ArtifactName: 'cucumber-bdd-reports'
+
+      - job: MockedServiceVirtualizedE2E
+        displayName: 'Playwright Mocked E2E (serverless / service-virtualized)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(PYTHON_VERSION)'
+            displayName: 'Use Python $(PYTHON_VERSION) (static file server only — no app, no database)'
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(NODE_VERSION)'
+            displayName: 'Use Node.js $(NODE_VERSION)'
+
+          - task: Cache@2
+            inputs:
+              key: 'npm | "$(Agent.OS)" | e2e/package-lock.json'
+              path: $(Pipeline.Workspace)/.npm-cache
+            displayName: 'Cache npm packages'
+
+          - script: |
+              npm ci --cache $(Pipeline.Workspace)/.npm-cache
+              npx playwright install --with-deps chromium
+            workingDirectory: e2e
+            displayName: 'Install mocked E2E suite dependencies + Chromium'
+
+          - script: python3 serve-static.py 8010 &
+            workingDirectory: e2e
+            displayName: 'Serve static/ (no FastAPI, no database — every API call is mocked)'
+
+          - script: npm run test:mocked
+            workingDirectory: e2e
+            displayName: 'Run serverless mocked E2E tests'
+            env:
+              BASE_URL: 'http://localhost:8010'
+              CI: 'true'
+
+          - task: PublishBuildArtifacts@1
+            condition: always()
+            inputs:
+              PathtoPublish: 'e2e/playwright-report-mocked'
+              ArtifactName: 'playwright-report-mocked'

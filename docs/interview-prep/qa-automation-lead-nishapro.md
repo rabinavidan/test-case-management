@@ -4,6 +4,11 @@ Personal notes mapping this repo (TestFlow) to the job posting, for interview pr
 documentation. Role: **AI-Driven QA Automation Lead**, posted by Nisha Pro (recruiting for a financial/fintech
 organization), Tel Aviv District, hybrid (4 days office / 1 day home).
 
+**Also applies to:** abra professional services' "AI-Driven QA Automation Lead" posting — near-identical
+requirement set (Cucumber/Gherkin, mobile Appium/Detox, Azure DevOps/VSTS, Test Data/Mocks/Service
+Virtualization, quality gates/KPIs, matrix leadership). The mapping and honest gaps below apply to both without
+change; only the specific advantage-line wording differs slightly.
+
 ## Requirement-by-requirement mapping
 
 | Job requirement | Repo evidence | File / link |
@@ -14,10 +19,10 @@ organization), Tel Aviv District, hybrid (4 days office / 1 day home).
 | 2+ years Mobile Automation (Appium/Detox) | Not directly covered — TestFlow's UI is a web SPA, not a mobile app. Talking point: the same BDD/Playwright skill set (Page Object Model, Gherkin authoring, CI wiring) transfers directly to Appium/Detox once given a mobile target | `e2e-bdd/pages/*.page.ts` (POM discipline) |
 | 2+ years React Native | Not covered — TestFlow's frontend is Vanilla JS, not React Native | — |
 | JavaScript / TypeScript / Python / Java | All four, each with a real automation stack, not toy examples | pytest (`tests/`), Playwright TS (`e2e/`), REST Assured + Playwright Java (`java-tests/`, `java-e2e/`) |
-| CI/CD | Six GitHub Actions workflows, each scoped to the stack/paths it covers, with coverage gating and artifact publishing | `.github/workflows/` |
-| Azure DevOps | New Azure Pipelines YAML — multi-job pipeline, `PublishTestResults@2`/`PublishCodeCoverageResults@2`, pip/npm caching | [`azure-pipelines.yml`](../../azure-pipelines.yml) |
-| Test Data, Mocks, Stubs, Service Virtualization | `anthropic.Anthropic` mocked at the true external boundary (not the app's own layers); throwaway per-test SQLite DBs; graceful-degradation tests with Redis/downstream services unreachable | `tests/api/test_ai_generate.py`, `tests/services/test_events_resilience.py` |
-| AI Testing / AI-driven QA | Three CI-time AI agents (PR Steward, Coverage-Gap Agent, Flaky-Test Detector) plus an authoring-time Playwright agent trio (planner/generator/healer) — a genuinely agentic AI-in-QA story, not just "we called an LLM" | `README.md#ai-engineering--not-just-ai-features` |
+| CI/CD | Eight test-execution GitHub Actions workflows, each scoped to the stack/paths it covers, with coverage gating and artifact publishing (17 workflow files total, including bot/automation workflows) | `README.md#ci-wiring-githubworkflows` |
+| Azure DevOps | Azure Pipelines YAML — three jobs (pytest, Cucumber, serverless mocked/service-virtualized Playwright), `PublishTestResults@2`/`PublishCodeCoverageResults@2`, pip/npm caching | [`azure-pipelines.yml`](../../azure-pipelines.yml) |
+| Test Data, Mocks, Stubs, Service Virtualization | A full strategy, not one trick: throwaway per-worker SQLite DBs; `anthropic.Anthropic` mocked at the true external boundary; Redis/Kafka-unreachable graceful-degradation tests; and a complete frontend service-virtualization layer — every backend call intercepted via `page.route()` against typed fixtures, contract-verified against the live OpenAPI schema so a mock can't silently drift | `README.md#test-data--service-virtualization`, [`e2e/mocks/`](../../e2e/mocks) |
+| AI Testing / AI-driven QA | Multiple AI agents/features across CI-time (PR Steward, Coverage-Gap Agent, Flaky-Test Detector), authoring-time (Playwright planner/generator/healer), and product (AI Test Generation, AI Failure Triage, Test Plan Reviewer) — plus a genuine LangGraph multi-agent orchestrator (real `interrupt()`-based human-in-the-loop gates, a classify/fix/retry planning loop) for the Playwright trio. A real agentic-AI-in-QA story, not just "we called an LLM" | `README.md#ai-engineering--not-just-ai-features`, [`agents/pipeline_orchestrator.py`](../../agents/pipeline_orchestrator.py) |
 | Automation First / Quality Engineering culture | Five parallel stacks, ~89% coverage gated at an 85% CI floor, contract testing (Schemathesis + ajv/fast-check) catching real bugs, documented in code not just claimed | `README.md#test-architecture`, `pytest.ini`, `.coveragerc` |
 | Coaching / Mentoring | Not directly demonstrable from a solo repo — bring concrete examples from your own experience here | — |
 | Fintech/Banking (advantage) | Not applicable to this repo directly — bring your own domain experience | — |
@@ -59,6 +64,15 @@ organization), Tel Aviv District, hybrid (4 days office / 1 day home).
    full browser E2E and cross-stack regression run on a schedule/manual dispatch — this maps directly onto the
    posting's "Automation First" and "Quality Engineering" language, and gives you a concrete answer if asked
    how you'd structure a pipeline from scratch.
+
+5. **"I know when an orchestration framework earns its complexity, and when it doesn't."** This repo runs eight
+   single-shot AI agents/features with no shared orchestrator — a deliberate choice, documented and reasoned
+   through in `docs/agent-governance.md`, not an oversight. The one place a real multi-step pipeline shape
+   exists (Playwright's planner → generator → healer) got an actual LangGraph orchestrator
+   (`agents/pipeline_orchestrator.py`) with real `interrupt()`-based human-approval gates — built *around* the
+   existing checkpoints, not bypassing them. That's the same judgment call this role's "Automation First"
+   transformation needs: knowing which parts of a QA org's tooling deserve heavier infrastructure and which
+   don't, rather than reaching for the fanciest framework everywhere.
 
 ## Questions worth asking them
 

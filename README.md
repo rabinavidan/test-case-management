@@ -388,6 +388,31 @@ targets a different hiring context (Playwright/TypeScript roles vs. pytest/Pytho
 stand on their own. The Java stacks (both `java-e2e/` and `java-tests/`) target a third hiring context —
 JUnit/Playwright/REST Assured roles — the same way; see their own READMEs for the same level of detail.
 
+### Test Data & Service Virtualization
+
+Every stack above deliberately minimizes dependency on live, shared, or unstable environments — not as one
+feature, but as a strategy applied consistently across layers:
+
+- **A fresh, throwaway database per test, not a shared fixture environment.** `tests/api/`, `tests/contract/`,
+  and `tests/services/` each get a real SQLite database created fresh and torn down per test (per-`pytest-xdist`-worker
+  path, so parallel workers never race the same file — see `tests/api/conftest.py`). No test ever depends on
+  another test's leftover state or a pre-seeded shared DB.
+- **External providers mocked at the true boundary, not at the app's own abstraction layer.** `tests/api/test_ai_generate.py`
+  mocks `anthropic.Anthropic` itself — the actual third-party client — rather than a wrapper this repo wrote
+  around it, so the test still exercises this app's own request-building and response-parsing code, not just a
+  fake of it.
+- **Graceful-degradation tests for unreachable downstream services**, not just happy-path mocks —
+  `tests/services/test_events_resilience.py` asserts the app degrades correctly when Redis or Kafka is
+  unreachable, and `tests/services/test_kafka_consumer.py` covers malformed-message and retries-exhausted
+  routing to a dead-letter topic.
+- **A full service-virtualization layer for the frontend**, closest to the classical sense of the term: `e2e/mocks/`
+  intercepts every backend call with Playwright's `page.route()` against typed fixtures, so the entire E2E suite
+  runs with no FastAPI process and no database at all (`e2e/tests/mocked-serverless-*.spec.ts`, 19 specs) — see
+  the **Serverless mocked E2E** row above. The risk a hand-maintained mock always carries is silent drift from
+  what the real backend actually returns; `e2e/tests/mock-contract-drift.spec.ts` validates every fixture in
+  `e2e/mocks/factories.ts` against the live OpenAPI schema (`ajv`) in CI, so a mock that stops matching reality
+  fails the build instead of quietly staying "green" against a contract that no longer exists.
+
 ### Python · pytest suite
 
 The Python side is further split into the classic pyramid — narrow and fast at the bottom, broad and slow at the
@@ -644,8 +669,9 @@ See [`e2e-bdd/README.md`](e2e-bdd/README.md) for the full breakdown.
 | `bdd-cucumber.yml` | every PR + push to `main` touching `e2e-bdd/`, `api/`, `static/` | starts the app locally, runs the full `e2e-bdd/` Cucumber suite, JSON + JUnit reports uploaded as an artifact |
 
 **Also included:** [`azure-pipelines.yml`](azure-pipelines.yml) — an Azure DevOps YAML pipeline running the
-pytest and Cucumber suites, alongside the GitHub Actions workflows above (which remain this repo's actual CI,
-since it's hosted on GitHub). See the comment at the top of that file for why it's here.
+pytest, Cucumber, and serverless mocked/service-virtualized Playwright suites, alongside the GitHub Actions
+workflows above (which remain this repo's actual CI, since it's hosted on GitHub). See the comment at the top
+of that file for why it's here.
 
 ---
 
