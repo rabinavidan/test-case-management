@@ -1,0 +1,162 @@
+"""Date with time (isoformat)"""
+scalar DateTime
+
+type Mutation {
+  createProject(input: ProjectInput!): Project!
+  createSuite(projectId: ID!, input: SuiteInput!): Suite!
+  createTestCase(suiteId: ID!, input: TestCaseInput!): TestCase!
+  updateTestCase(id: ID!, input: TestCaseUpdateInput!): TestCase!
+  deleteTestCase(id: ID!): Boolean!
+  createRun(suiteId: ID!, input: RunInput!): Run!
+
+  """Also broadcasts `result_updated` to the run's WebSocket room."""
+  updateResult(runId: ID!, testCaseId: ID!, input: ResultInput!): TestResult!
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+type Project {
+  id: ID!
+  name: String!
+  description: String
+  createdAt: DateTime!
+  suites: [Suite!]!
+}
+
+input ProjectInput {
+  name: String!
+  description: String = null
+}
+
+type Query {
+  me: User!
+
+  """Newest first. `limit` is capped at 100."""
+  projects(search: String = null, limit: Int! = 20, offset: Int! = 0): [Project!]!
+  project(id: ID!): Project
+  suite(id: ID!): Suite
+  testCase(id: ID!): TestCase
+  run(id: ID!): Run
+}
+
+input ResultInput {
+  status: ResultStatus!
+  notes: String = null
+}
+
+enum ResultStatus {
+  PENDING
+  PASS
+  FAIL
+  SKIP
+}
+
+type Run {
+  id: ID!
+  name: String!
+  createdAt: DateTime!
+  completedAt: DateTime
+  suiteId: ID!
+  suite: Suite!
+  createdBy: User
+  environmentKey: String
+  results(status: ResultStatus = null): [TestResult!]!
+  summary: RunSummary!
+}
+
+input RunInput {
+  name: String!
+  environmentKey: String = null
+}
+
+type RunSummary {
+  total: Int!
+  passed: Int!
+  failed: Int!
+  skipped: Int!
+  pending: Int!
+
+  """passed / (total - pending), 0-100; null until something has executed"""
+  passRate: Float
+}
+
+type Suite {
+  id: ID!
+  name: String!
+  description: String
+  createdAt: DateTime!
+  projectId: ID!
+  project: Project!
+  testCases(status: TestCaseStatus = null): [TestCase!]!
+  runs: [Run!]!
+}
+
+input SuiteInput {
+  name: String!
+  description: String = null
+}
+
+type TestCase {
+  id: ID!
+  title: String!
+  description: String
+  steps: String
+  expectedResult: String
+
+  """draft | active | deprecated"""
+  status: String!
+
+  """low | medium | high | critical"""
+  priority: String!
+  createdAt: DateTime!
+  suiteId: ID!
+  suite: Suite!
+}
+
+input TestCaseInput {
+  title: String!
+  description: String = null
+  steps: String = null
+  expectedResult: String = null
+  status: TestCaseStatus! = DRAFT
+  priority: Priority! = MEDIUM
+}
+
+enum TestCaseStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+}
+
+"""Only the fields present are changed."""
+input TestCaseUpdateInput {
+  title: String
+  description: String
+  steps: String
+  expectedResult: String
+  status: TestCaseStatus
+  priority: Priority
+}
+
+type TestResult {
+  id: ID!
+
+  """pending | pass | fail | skip"""
+  status: String!
+  notes: String
+  executedAt: DateTime
+  runId: ID!
+  testCaseId: ID!
+  testCase: TestCase!
+}
+
+type User {
+  id: ID!
+  username: String!
+  role: String!
+}

@@ -12,6 +12,14 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **GraphQL API** (`POST /graphql`, GraphQL/WebSocket plan — PR 2 of 5) — Strawberry schema in
+  `api/gql/` over projects → suites → test cases → runs → results, with a computed
+  `run.summary`. Nested reads are batched with request-scoped DataLoaders (a constant number of
+  SQL statements regardless of row count); mutations delegate to the REST handlers, so
+  permissions and validation rules are shared. Bearer auth on every operation, `extensions.code`
+  (`UNAUTHENTICATED`/`FORBIDDEN`/`NOT_FOUND`/`BAD_REQUEST`) on errors, depth/alias/token limits,
+  masked internal errors, and no introspection or GraphiQL in production. SDL committed as
+  `docs/schema.graphql` and enforced by `tests/contract/test_graphql_schema.py`.
 - **Hardened run-collaboration WebSocket** (`/ws/runs/{id}`, GraphQL/WebSocket plan — PR 1 of 5) —
   the socket now requires `?token=<JWT>` (close `4401` otherwise) and an existing run
   (close `4404`), answers JSON `{"type":"ping"}` with `{"type":"pong","ts":…}` alongside the

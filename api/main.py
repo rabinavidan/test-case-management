@@ -1639,6 +1639,14 @@ def seed_demo_playwright(db: Session = Depends(get_db), _: models.User = Depends
     return project
 
 
+# ─── GraphQL ──────────────────────────────────────────────────────────────────
+# Mounted before the SPA catch-all below, which would otherwise swallow
+# GET /graphql (the GraphiQL IDE). See api/gql/ for the schema.
+from .gql import graphql_router  # noqa: E402
+
+app.include_router(graphql_router, prefix="/graphql")
+
+
 # ─── Static files (must be last) ─────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

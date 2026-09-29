@@ -18,3 +18,7 @@ slowapi==0.1.9
 # test one. Pinned to match requirements-test.txt's existing httpx==0.27.2
 # so both install the same version.
 httpx==0.27.2
+# GraphQL endpoint (/graphql, api/gql/). Pinned exactly: strawberry ships
+# frequent minor releases and its FastAPI integration is verified against
+# fastapi==0.104.1 / starlette==0.27 above at this version.
+strawberry-graphql==0.327.7
