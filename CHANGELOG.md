@@ -12,6 +12,14 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **GraphQL + WebSocket tests in TypeScript and BDD** (GraphQL/WebSocket plan — PR 4 of 5) —
+  `e2e/tests/graphql.spec.ts` (GraphQL API against a real backend), `e2e/tests/realtime.spec.ts`
+  (WebSocket protocol and close codes from the browser, two-browser live collaboration, a
+  GraphQL mutation driving the live view, a browser graphql-transport-ws subscription),
+  `e2e/tests/mocked-serverless-realtime.spec.ts` (`page.routeWebSocket()` as the server: pushed
+  events, malformed frames, a 4401 close, the keep-alive ping), and
+  `e2e-bdd/features/live_collaboration.feature`.
+
 - **GraphQL subscriptions** (GraphQL/WebSocket plan — PR 3 of 5) — `subscription { runUpdates(runId) }`
   over **graphql-transport-ws** on `/graphql`, streaming the same `result_updated` /
   `results_populated` events as `/ws/runs/{id}` (both transports now share `ws_manager`'s
@@ -43,6 +51,11 @@ but isn't retroactively cataloged here.
 - `docs/ai-roadmap.md` — M7–M10 plan for closing the remaining gaps across LLMs,
   RAG, tool use, evals, and human-in-the-loop; linked from the README and shown on
   the guest home page's AI-First Quality Engineering section.
+
+### Fixed
+- `e2e/tests/guest-recruiter-fixes.spec.ts` counted *all* projects to prove a guest click
+  created none, so any spec creating or deleting a project in parallel could fail it; it now
+  counts only demo projects.
 
 ## [2.0.80] - 2026-08-29
 

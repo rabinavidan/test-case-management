@@ -80,9 +80,12 @@ test.describe('Guest recruiter journey — P0 fixes', () => {
       createdProjectIds.push(seededId);
     });
 
+    // Count only demo projects: other specs running in parallel create and
+    // delete their own projects, so the global total isn't stable.
+    const demoProjectsQuery = `/api/projects?page_size=100&search=${encodeURIComponent('E2E Tests Demo')}`;
     let countBefore: number;
-    await test.step('Record the project count before the guest clicks anything', async () => {
-      const res = await authedRequest.get('/api/projects?page_size=100');
+    await test.step('Record the demo-project count before the guest clicks anything', async () => {
+      const res = await authedRequest.get(demoProjectsQuery);
       countBefore = (await res.json()).total;
     });
 
@@ -102,7 +105,7 @@ test.describe('Guest recruiter journey — P0 fixes', () => {
     });
 
     await test.step('No new project was created', async () => {
-      const res = await authedRequest.get('/api/projects?page_size=100');
+      const res = await authedRequest.get(demoProjectsQuery);
       expect((await res.json()).total).toBe(countBefore);
     });
   });
