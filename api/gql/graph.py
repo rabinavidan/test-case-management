@@ -9,6 +9,8 @@ Design choices worth knowing before changing this file:
   stores whatever string it was given, and one odd row mustn't make every
   GraphQL read of it fail. Inputs *are* enums, so GraphQL writes are
   validated before they reach the database.
+- Subscriptions (`runUpdates`) run over graphql-transport-ws on the same
+  `/graphql` path; the token goes in the connection_init payload.
 - Guardrails against expensive queries (depth, aliases, tokens) always on;
   introspection and the GraphiQL IDE are off in production.
 """
@@ -16,7 +18,7 @@ import inspect
 import os
 from datetime import datetime, timezone
 from enum import Enum
-from typing import List, Optional
+from typing import AsyncGenerator, List, Optional
 
 import strawberry
 from fastapi import HTTPException
@@ -29,6 +31,7 @@ from strawberry.extensions import (
     QueryDepthLimiter,
 )
 from strawberry.fastapi import GraphQLRouter
+from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from strawberry.types import Info
 
 from .. import models, schemas
@@ -431,6 +434,49 @@ class Mutation:
         return TestResult.from_model(info.context.db.get(models.TestResult, out["id"]))
 
 
+@strawberry.type(description="A live change to a run — the same events the /ws/runs/{id} socket carries.")
+class RunEvent:
+    type: str = strawberry.field(description="result_updated | results_populated")
+    run_id: strawberry.ID
+    test_case_id: Optional[strawberry.ID]
+    status: Optional[str]
+    notes: Optional[str]
+    updated_by: Optional[str]
+    run_completed: Optional[bool]
+
+    @staticmethod
+    def from_payload(run_id: int, payload: dict) -> "RunEvent":
+        tc_id = payload.get("testcase_id")
+        return RunEvent(
+            type=payload.get("type", ""), run_id=strawberry.ID(str(run_id)),
+            test_case_id=strawberry.ID(str(tc_id)) if tc_id is not None else None,
+            status=payload.get("status"), notes=payload.get("notes"),
+            updated_by=payload.get("updated_by"), run_completed=payload.get("run_completed"),
+        )
+
+
+@strawberry.type
+class Subscription:
+    @strawberry.subscription(description="Streams every change to one run until the client completes the subscription.")
+    async def run_updates(self, info: Info[Context, None], run_id: strawberry.ID) -> AsyncGenerator[RunEvent, None]:
+        info.context.require_user()
+        pk = _pk(run_id)
+        db = info.context.db
+        if not db.query(models.TestRun).filter(models.TestRun.id == pk).first():
+            raise graphql_error(404, "Run not found")
+        # Don't pin a pooled DB connection for the subscription's lifetime.
+        db.close()
+        # Shares api/main.py's broadcaster with the plain WebSocket, so both
+        # transports see exactly the same events.
+        manager = _rest().ws_manager
+        queue = manager.listen(pk)
+        try:
+            while True:
+                yield RunEvent.from_payload(pk, await queue.get())
+        finally:
+            manager.unlisten(pk, queue)
+
+
 # ─── Schema + router ─────────────────────────────────────────────────────────
 
 def _should_mask(error: GraphQLError) -> bool:
@@ -462,7 +508,7 @@ def build_schema(production: bool) -> strawberry.Schema:
     ]
     if production:
         extensions.append(DisableIntrospection)
-    return _Schema(query=Query, mutation=Mutation, extensions=extensions)
+    return _Schema(query=Query, mutation=Mutation, subscription=Subscription, extensions=extensions)
 
 
 _PRODUCTION = _is_production()
@@ -474,7 +520,8 @@ graphql_router = GraphQLRouter(
     graphql_ide=None if _PRODUCTION else "graphiql",
     # POST only: GET queries end up in access logs and caches.
     allow_queries_via_get=False,
-    # Subscriptions (over graphql-transport-ws) arrive in a later change.
-    subscription_protocols=(),
+    # The current protocol only; the legacy `graphql-ws` (subscriptions-
+    # transport-ws) is unmaintained and not offered.
+    subscription_protocols=(GRAPHQL_TRANSPORT_WS_PROTOCOL,),
     include_in_schema=False,
 )

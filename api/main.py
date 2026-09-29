@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from typing import List, Optional, Dict, Set
 from datetime import datetime, timedelta
+import asyncio
 import os
 import random
 import hashlib
@@ -262,6 +263,20 @@ class ConnectionManager:
     def __init__(self):
         # run_id -> set of connected WebSockets
         self._rooms: Dict[int, Set[WebSocket]] = {}
+        # run_id -> in-process listeners (GraphQL `runUpdates` subscriptions)
+        self._listeners: Dict[int, Set[asyncio.Queue]] = {}
+
+    def listen(self, run_id: int) -> "asyncio.Queue":
+        """Receive every future broadcast for `run_id` on the returned queue."""
+        queue: asyncio.Queue = asyncio.Queue()
+        self._listeners.setdefault(run_id, set()).add(queue)
+        return queue
+
+    def unlisten(self, run_id: int, queue: "asyncio.Queue"):
+        listeners = self._listeners.get(run_id, set())
+        listeners.discard(queue)
+        if not listeners:
+            self._listeners.pop(run_id, None)
 
     def join(self, run_id: int, ws: WebSocket):
         """Add an already-accepted socket to `run_id`'s room."""
@@ -275,6 +290,8 @@ class ConnectionManager:
             self._rooms.pop(run_id, None)
 
     async def broadcast(self, run_id: int, payload: dict):
+        for queue in self._listeners.get(run_id, set()):
+            queue.put_nowait(payload)
         room = self._rooms.get(run_id, set())
         dead = set()
         for ws in room:

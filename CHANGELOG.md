@@ -12,6 +12,13 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **GraphQL subscriptions** (GraphQL/WebSocket plan — PR 3 of 5) — `subscription { runUpdates(runId) }`
+  over **graphql-transport-ws** on `/graphql`, streaming the same `result_updated` /
+  `results_populated` events as `/ws/runs/{id}` (both transports now share `ws_manager`'s
+  broadcaster, so a REST write and a GraphQL `updateResult` reach both). Token in the
+  `connection_init` payload (`authToken` or `Authorization: Bearer …`); DB connection released
+  once the subscription starts; listeners cleaned up on `complete`/disconnect. Legacy
+  `graphql-ws` protocol not offered.
 - **GraphQL API** (`POST /graphql`, GraphQL/WebSocket plan — PR 2 of 5) — Strawberry schema in
   `api/gql/` over projects → suites → test cases → runs → results, with a computed
   `run.summary`. Nested reads are batched with request-scoped DataLoaders (a constant number of
