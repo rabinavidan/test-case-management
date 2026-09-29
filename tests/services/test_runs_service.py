@@ -193,11 +193,15 @@ def test_ws_ping_pong_legacy_and_json(client, monkeypatch):
         assert ws.receive_json()["type"] == "error"
 
 
-@pytest.mark.parametrize("query", ["", "?token=bogus", f"?token={mint_token(1, ttl=-10)}"])
-def test_ws_rejects_missing_invalid_or_expired_token_with_4401(client, monkeypatch, query):
+# Queries are built inside the test, not in the parametrize list: an
+# expired token minted at collection time embeds the clock, so pytest-xdist
+# workers would collect different test IDs and abort the run.
+@pytest.mark.parametrize("kind", ["missing", "bogus", "expired"])
+def test_ws_rejects_missing_invalid_or_expired_token_with_4401(client, monkeypatch, kind):
     from starlette.websockets import WebSocketDisconnect
     from shared.ws_protocol import CLOSE_UNAUTHORIZED
 
+    query = {"missing": "", "bogus": "?token=bogus", "expired": f"?token={mint_token(1, ttl=-10)}"}[kind]
     run = _create_run(client, monkeypatch)
     with client.websocket_connect(f"/ws/runs/{run['id']}{query}") as ws:
         with pytest.raises(WebSocketDisconnect) as exc:
