@@ -27,6 +27,8 @@ on:
   pull_request:
     paths:
       - "api/ai_prompts.py"
+      - "api/embeddings.py"
+      - "api/retrieval.py"
       - "evals/**"
       - ".github/workflows/eval-harness.yml"
   workflow_dispatch:
@@ -99,6 +101,20 @@ jobs:
               --output evals/reports/triage.json --gate
           fi
 
+      - name: Run retrieval eval (hash vs learned embeddings)
+        # Course milestone M8: deterministic (no sampling), so one pass per
+        # provider is the whole measurement. The floor is the learned
+        # model's - the hashed vector is reported alongside for comparison,
+        # not gated (it's the known-weaker baseline M8 replaces).
+        id: eval_retrieval
+        if: always()
+        run: |
+          mkdir -p evals/reports
+          ollama pull nomic-embed-text
+          python -m evals.retrieval_eval --provider hash --output evals/reports/retrieval_hash.json
+          python -m evals.retrieval_eval --provider ollama --min-recall-at-3 0.9 \
+            --output evals/reports/retrieval_ollama.json
+
       - name: Commit refreshed baseline
         if: ${{ inputs.record_baseline == true }}
         run: |
@@ -143,6 +159,20 @@ jobs:
                   stdev = ", ".join(f"{k}={v:.2f}" for k, v in case["consistency_stdev"].items())
                   lines.append(f"| `{case['case_id']}` | {case['runs']} | {means} | {stdev} | {case['error_rate']:.0%} |")
               lines.append("")
+          retrieval_ok = "${{ steps.eval_retrieval.outcome }}" == "success"
+          lines.append(f"### {'✅' if retrieval_ok else '❌'} retrieval — {'gate passed' if retrieval_ok else 'gate failed'}")
+          lines += ["", "| Provider | Model | Recall@1 | Recall@3 | MRR |", "|---|---|---|---|---|"]
+          for name in ("hash", "ollama"):
+              path = pathlib.Path(f"evals/reports/retrieval_{name}.json")
+              if not path.exists():
+                  lines.append(f"| {name} | _no report_ | | | |")
+                  continue
+              r = json.loads(path.read_text())[name]
+              if "error" in r:
+                  lines.append(f"| {name} | error: {r['error']} | | | |")
+              else:
+                  lines.append(f"| {name} | `{r['model_id']}` | {r['recall_at_1']:.3f} | {r['recall_at_3']:.3f} | {r['mrr']:.3f} |")
+          lines.append("")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
               f.write("\n".join(lines))
           EOF

@@ -31,7 +31,7 @@ writes and self-heals the test suite itself:
 | **Coverage-Gap Agent** | Diffs a PR's changed source files against its test files; for any gap, prompts an LLM for concrete, specific test-case suggestions and posts them as a PR comment | Gemini (free tier) | [`scripts/coverage_gap_agent.py`](scripts/coverage_gap_agent.py) |
 | **Flaky-Test Detector** | Parses CI rerun results to distinguish "needed a retry" from a real failure, and maintains a single tracking GitHub issue across runs | Deterministic (no LLM) | [`scripts/flake_report.py`](scripts/flake_report.py) |
 | **Playwright Test Agents** | Planner/generator/healer trio: explores the running app in a real browser, drafts a numbered test plan, generates Playwright specs from it, and debugs/fixes failing ones — an authoring aid, not a CI job. The planner saves a shared accessibility-tree context artifact (`specs/*.context.json`) the generator and healer read instead of re-exploring the same flow from scratch. The healer classifies each failure as safe-to-auto-fix (locator/timing drift) or a suspected real defect (behavior change) — the latter is *never* silently skipped, only escalated — and every healing session is logged to `heal-outcomes/heal_outcomes.jsonl`, scored by [`scripts/heal_metrics.py`](scripts/heal_metrics.py) (heal-success-rate, false-heal-rate) | Claude (Sonnet, via Claude Code) | [`.claude/agents/playwright-test-*.md`](.claude/agents) · [`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents) |
-| **AI Test Generation** | Generates test cases from a plain-English feature description; can optionally run "grounded" (`grounded: true`), retrieving the suite's nearest existing test cases by embedding similarity and passing them as "don't duplicate these" context (monolith only — see `api/retrieval.py`) | Claude Haiku (or Ollama/Groq — see below) | `POST /api/suites/{id}/testcases/generate` |
+| **AI Test Generation** | Generates test cases from a plain-English feature description; can optionally run "grounded" (`grounded: true`), retrieving the suite's nearest existing test cases by embedding similarity and passing them as "don't duplicate these" context (monolith only — see `api/retrieval.py`). The embedding model is pluggable (M8): `EMBEDDING_PROVIDER=hash` (default) · `ollama` (`nomic-embed-text`) · `voyage` | Claude Haiku (or Ollama/Groq — see below) | `POST /api/suites/{id}/testcases/generate` |
 | **AI Failure Triage** | Summarizes a run's failed/skipped results into a root-cause hypothesis | Claude Haiku (or Ollama/Groq — see below) | `POST /api/runs/{id}/triage` |
 | **Agentic Failure Triage** *(M7)* | With `?agentic=true`, triage becomes a bounded **Anthropic tool-use loop**: the model can call scoped, read-only tools — `get_test_case_history`, `get_similar_test_cases` (RAG), `get_suite_flaky_tests` — before diagnosing, and the response carries the full tool trace for human review. Iteration cap, suite-scoped tool arguments, tool errors fed back to the model, single-shot fallback for non-Anthropic providers | Claude Haiku (tool use) | [`api/triage_agent.py`](api/triage_agent.py) · `complete_with_tools()` in [`api/ai_gateway.py`](api/ai_gateway.py) |
 | **Eval Harness** | Runs the AI Test Generation and AI Failure Triage prompts N times per case against a local model, scoring output quality *and* run-to-run consistency; wired into CI (informational) against a real model | Ollama (local, no API key) | [`evals/`](evals/README.md) · [`.github/workflows/eval-harness.yml`](.github/workflows/eval-harness.yml) |
@@ -80,13 +80,13 @@ Gemini client, and the Test Plan Reviewer's Ollama client keep their own, for no
 | Building block | Implemented in | Proof it works |
 |----------------|----------------|----------------|
 | **LLMs** | Provider gateway (`api/ai_gateway.py`) — Anthropic / Ollama / Groq by env var, per-call token + latency telemetry | `tests/unit/test_ai_gateway.py`, `tests/api/test_ai_generate.py` |
-| **RAG** | Retrieval-grounded test generation (`api/retrieval.py`, `api/embeddings.py`) and the triage agent's `get_similar_test_cases` tool | `tests/api/test_retrieval.py`, eval harness grounded-vs-plain comparison |
+| **RAG** | Retrieval-grounded test generation (`api/retrieval.py`) and the triage agent's `get_similar_test_cases` tool, over a pluggable embedding model (`api/embeddings.py`: hashed vector · Ollama `nomic-embed-text` · Voyage). Each vector records the model that made it; a provider switch re-embeds stale rows on read, and a provider outage falls back to the hash vector for the whole request — never mixing models | `tests/api/test_retrieval.py`; retrieval eval (`evals/retrieval_eval.py`) — `nomic-embed-text` **R@1 1.00 vs 0.56** for the hashed vector on 18 paraphrased queries |
 | **Tool use** | Agentic Failure Triage (`api/triage_agent.py`) · Playwright MCP agents (`.claude/agents/`) · PR Steward | `tests/api/test_triage_agentic.py` — scripted multi-turn tool loop, iteration cap, out-of-scope arguments rejected |
 | **Evaluations** | `evals/` — N-runs-per-case quality + variance, LLM-as-judge, baselines with regression thresholds, prompt versioning, CI job | `tests/unit/test_evals_*.py`, `.github/workflows/eval-harness.yml` |
 | **Human-in-the-loop** | LangGraph `interrupt()` approval gates (`agents/pipeline_orchestrator.py`), healer escalate-don't-skip rule, AI drafts saved as `draft` status, triage tool trace shown in the UI | `tests/unit/test_pipeline_orchestrator.py` |
 
 **Roadmap:** [`docs/ai-roadmap.md`](docs/ai-roadmap.md) tracks the next milestones that close the remaining gaps
-honestly — M7 agentic tool-use triage ✅, M8 a real embedding model behind RAG, M9 in-app human review of AI drafts
+honestly — M7 agentic tool-use triage ✅, M8 a real embedding model behind RAG ✅, M9 in-app human review of AI drafts
 feeding the eval dataset, M10 trajectory evals that score *which tools* an agent chose to call.
 
 See [`docs/interview-prep/agentic-ai-test-engineering.md`](docs/interview-prep/agentic-ai-test-engineering.md)
@@ -272,6 +272,9 @@ docker compose up --build
 | `DATABASE_URL` | SQLite `/tmp/testflow.db` | Postgres URL for production |
 | `JWT_SECRET_KEY` | `change-me-in-production` | HS256 signing secret |
 | `ANTHROPIC_API_KEY` | *(empty)* | Required for AI test generation |
+| `EMBEDDING_PROVIDER` | `hash` | Retrieval embeddings: `hash` (no dependencies), `ollama` (local model), or `voyage` (hosted) |
+| `EMBEDDING_MODEL` | provider default | `nomic-embed-text` for Ollama, `voyage-3-lite` for Voyage |
+| `VOYAGE_API_KEY` | *(empty)* | Required when `EMBEDDING_PROVIDER=voyage` |
 | `REDIS_URL` | `redis://localhost:6379` | Used by Runs service (microservice mode) |
 
 ---

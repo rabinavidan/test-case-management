@@ -109,6 +109,11 @@ class TestCaseEmbedding(Base):
     test_case_id = Column(Integer, ForeignKey("test_cases.id"), nullable=False, unique=True, index=True)
     suite_id = Column(Integer, ForeignKey("test_suites.id"), nullable=False, index=True)
     embedding_json = Column(Text, nullable=False)
+    # Which model produced embedding_json (course milestone M8, see
+    # api/embeddings.py) - NULL on rows written before M8, which were all
+    # the hashed vector. A row whose model differs from the current
+    # provider is re-embedded on read instead of compared across models.
+    embedding_model = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

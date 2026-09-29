@@ -1768,7 +1768,7 @@ async function renderProjects() {
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         ${[
-          { title: 'AI Test-Case Generation', desc: 'Claude Haiku drafts test cases from a feature description (services/ai). Outcome: a reviewable first draft in seconds instead of a blank suite.' },
+          { title: 'AI Test-Case Generation', desc: 'Claude Haiku drafts test cases from a feature description (services/ai), optionally grounded by RAG over the suite’s existing cases with a pluggable embedding model — nomic-embed-text finds reworded duplicates the hashed baseline misses (R@1 1.00 vs 0.56, evals/retrieval_eval.py).' },
           { title: 'Test-Plan Gap Review', desc: 'A two-step LangChain agent (agents/test_plan_reviewer.py) critiques existing test cases for a feature, then drafts one test case per gap it finds.' },
           { title: 'Coverage-Gap Agent', desc: 'On every PR, diffs changed source against tests/ and posts concrete test suggestions when a change has no matching-layer test (coverage-gap-agent.yml).' },
           { title: 'Flaky-Test Detection', desc: 'Parses CI’s rerun results and auto-files/updates one tracking GitHub issue per flaky test, so evidence accumulates instead of vanishing (scripts/flake_report.py).' },
@@ -1787,7 +1787,7 @@ async function renderProjects() {
         <ul class="space-y-1.5">
           ${[
             { id: 'M7', title: 'Agentic failure triage — tool use', done: true },
-            { id: 'M8', title: 'Real embedding model behind RAG retrieval', done: false },
+            { id: 'M8', title: 'Real embedding model behind RAG retrieval', done: true },
             { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: false },
             { id: 'M10', title: 'Trajectory evals — score which tools the agent chose', done: false },
           ].map(m => `

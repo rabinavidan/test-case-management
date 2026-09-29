@@ -12,6 +12,16 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **Pluggable embeddings for RAG (course milestone M8)** — `EMBEDDING_PROVIDER`
+  selects `hash` (default, unchanged), `ollama` (`nomic-embed-text`), or `voyage`
+  (`api/embeddings.py`). `test_case_embeddings.embedding_model` records which model
+  produced each vector (additive column + startup migration); retrieval re-embeds
+  rows from a different model and falls back to the hash vector on provider failure.
+- `evals/retrieval_eval.py` + `evals/datasets/retrieval.json` — Recall@k/MRR per
+  embedding provider; wired into `eval-harness.yml`. `nomic-embed-text` scores
+  R@1 1.00 vs 0.56 for the hashed vector.
+
+### Added
 - **GraphQL + WebSocket tests in Java** (GraphQL/WebSocket plan — PR 5 of 5) — `java-tests/`:
   `GraphQLApiTest` (REST Assured against `/graphql`), `RunWebSocketTest` and
   `GraphQLSubscriptionTest` over the JDK's own `java.net.http.WebSocket` (no new dependency,
