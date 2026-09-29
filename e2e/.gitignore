@@ -1,9 +1,9 @@
 node_modules/
-playwright-report/
-playwright-report-mocked/
 test-results/
 auth-state.json
 allure-results/
 allure-report/
+allure-results-mocked/
+allure-report-mocked/
 blob-report/
 all-blob-reports/

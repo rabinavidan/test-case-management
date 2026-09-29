@@ -7,10 +7,12 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:mocked": "playwright test --config=playwright.mocked.config.ts",
-    "report": "playwright show-report",
     "allure:generate": "allure generate allure-results --clean -o allure-report",
     "allure:open": "allure open allure-report",
-    "allure:report": "npm run allure:generate && npm run allure:open"
+    "allure:report": "npm run allure:generate && npm run allure:open",
+    "allure:generate:mocked": "allure generate allure-results-mocked --clean -o allure-report-mocked",
+    "allure:open:mocked": "allure open allure-report-mocked",
+    "allure:report:mocked": "npm run allure:generate:mocked && npm run allure:open:mocked"
   },
   "devDependencies": {
     "@playwright/mcp": "^0.0.79",

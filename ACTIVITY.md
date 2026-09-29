@@ -9,6 +9,44 @@ it readable, but don't compress it down to a bare bullet list of the final chang
 
 ---
 
+## 2026-09-23 — Allure-only reporting for the Playwright TypeScript suites
+
+User's instruction was explicit and unambiguous: no plain HTML reporter anywhere in the project, Allure
+only, for a project this important. Investigated first rather than guessing scope — pytest and both Java
+suites were already Allure-only (README's own "Reporting" row already said so); the only offenders were
+the two Playwright TypeScript configs.
+
+`e2e/playwright.config.ts` (real backend) had `html` registered *alongside* `allure-playwright` —
+removed the `html` entry, kept `list`/`json` (JSON only feeds `pw-ts.yml`'s job-summary script, not a
+competing human-facing report) and the CI-only `blob` reporter sharding merges back together.
+`e2e/playwright.mocked.config.ts` (serverless layer) had *only* `html`, no Allure at all — added
+`allure-playwright` writing to a separate `allure-results-mocked/` directory (never `allure-results/`,
+so a developer running both suites back to back never mixes their results), removed `html`.
+
+Also removed the now-broken `report: playwright show-report` npm script (nothing generates a
+`playwright-report/` dir for it to open anymore) and added mirrored `allure:generate:mocked` /
+`allure:open:mocked` / `allure:report:mocked` scripts for the mocked layer, matching the ones already
+there for the real-backend suite.
+
+CI followed the same split: `pw-ts.yml`'s merge-reports job dropped its `playwright merge-reports
+--reporter=html` step and the "Upload merged HTML report" artifact step entirely (the Allure
+generate+upload steps right next to it were already correct, untouched). `pw-mocked-e2e.yml` gained a
+Java setup step (needed for the `allure` CLI, which it never required before) and now generates + uploads
+an Allure report instead of the old `playwright-report-mocked` HTML artifact. `azure-pipelines.yml`'s
+mocked-E2E job (added earlier this session) got the same treatment — `JavaToolInstaller@0` +
+`allure:generate:mocked` + publish `allure-report-mocked` instead of the HTML folder.
+
+Verified rather than assumed: ran both suites locally end to end against the new configs (mocked: 19/19
+specs pass, `allure-results-mocked/` populated, `npm run allure:generate:mocked` produces a real report,
+no `playwright-report-mocked/` directory ever created; real-backend: the AI-pipeline-demo spec file passes
+6/6, same absence of any `playwright-report/` directory). Docs updated to match — root `README.md` (two
+spots), `e2e/README.md` (three spots) — every one of them previously said "HTML/JSON" or "alongside
+HTML" and needed correcting, not just the CI configs themselves. `ACTIVITY.md`'s own historical entry
+below (2026-09-14) describing the original HTML+Allure merge-reports setup was deliberately left
+unedited — it's a record of what was true then, not living documentation.
+
+---
+
 ## 2026-09-14 — Profile the Postgres/microservices deployment for real (Scalability Milestone 2b)
 
 Follow-up to the Docker-boot-fix session below, once that PR merged: reused `loadtests/locustfile.py`
