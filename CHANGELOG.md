@@ -12,6 +12,11 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **GraphQL + WebSocket tests in Java** (GraphQL/WebSocket plan — PR 5 of 5) — `java-tests/`:
+  `GraphQLApiTest` (REST Assured against `/graphql`), `RunWebSocketTest` and
+  `GraphQLSubscriptionTest` over the JDK's own `java.net.http.WebSocket` (no new dependency,
+  helper `support/WsClient`); `java-e2e/`: `LiveCollaborationTest` (two browsers on one run, and a
+  GraphQL mutation observed on the page's WebSocket frames).
 - **GraphQL + WebSocket tests in TypeScript and BDD** (GraphQL/WebSocket plan — PR 4 of 5) —
   `e2e/tests/graphql.spec.ts` (GraphQL API against a real backend), `e2e/tests/realtime.spec.ts`
   (WebSocket protocol and close codes from the browser, two-browser live collaboration, a

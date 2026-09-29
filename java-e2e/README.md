@@ -28,7 +28,8 @@ java-e2e/
     ├── ProjectsTest.java    # create/delete a project through the UI
     ├── SuitesTest.java      # create a suite inside a project
     ├── TestCasesTest.java   # create a test case
-    └── RunsTest.java        # start a run, mark results, summary counts
+    ├── RunsTest.java        # start a run, mark results, summary counts
+    └── LiveCollaborationTest.java # two browsers on one run; GraphQL write pushed over the WebSocket
 ```
 
 ## Running locally

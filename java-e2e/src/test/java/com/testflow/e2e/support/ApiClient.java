@@ -102,7 +102,21 @@ public final class ApiClient {
         }
     }
 
-    private static JsonNode postJson(String path, Map<String, String> body, String token) {
+    public static int createRun(int suiteId, String name) {
+        JsonNode body = postJson("/api/suites/" + suiteId + "/runs", Map.of("name", name), adminToken());
+        return body.get("id").asInt();
+    }
+
+    /** POST /graphql as the admin; throws if the response carries GraphQL errors. */
+    public static JsonNode graphql(String query, Map<String, String> variables) {
+        JsonNode body = postJson("/graphql", Map.of("query", query, "variables", variables), adminToken());
+        if (body.hasNonNull("errors")) {
+            throw new IllegalStateException("GraphQL errors: " + body.get("errors"));
+        }
+        return body.get("data");
+    }
+
+    private static JsonNode postJson(String path, Map<String, ?> body, String token) {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(BASE_URL + path))
                     .header("Content-Type", "application/json")

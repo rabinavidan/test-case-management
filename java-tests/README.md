@@ -19,13 +19,18 @@ java-tests/
     ├── support/
     │   ├── BaseApiTest.java    # REST Assured base URI + Allure filter setup
     │   ├── AuthSupport.java    # bootstrap admin token, on-demand executor users
-    │   └── TestData.java       # unique naming so repeated runs never collide
+    │   ├── TestData.java       # unique naming so repeated runs never collide
+    │   ├── GraphQL.java        # POST /graphql via REST Assured, error-code helpers
+    │   └── WsClient.java       # blocking wrapper over the JDK's java.net.http.WebSocket
     ├── AuthApiTest.java        # login/me/token validation
     ├── ProjectsApiTest.java    # CRUD, pagination envelope, admin-only writes
     ├── SuitesApiTest.java      # CRUD, 404s, admin-only writes
     ├── TestCasesApiTest.java   # CRUD, defaults, the null-vs-omitted-field regression
     ├── RunsApiTest.java        # run creation, pending-result seeding, auto-completion
-    └── UsersApiTest.java       # admin user management, self-delete guard
+    ├── UsersApiTest.java       # admin user management, self-delete guard
+    ├── GraphQLApiTest.java     # /graphql: auth, nested queries, mutations, error codes
+    ├── GraphQLSubscriptionTest.java # runUpdates over graphql-transport-ws
+    └── RunWebSocketTest.java   # /ws/runs/{id}: ping/pong, error frames, 4401/4404, broadcasts
 ```
 
 ## Running locally
