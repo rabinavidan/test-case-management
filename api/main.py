@@ -36,6 +36,7 @@ from .ai_prompts import (
     parse_testcase_generation_response,
 )
 from .retrieval import nearest_test_cases, store_test_case_embedding
+from .triage_agent import TRIAGE_AGENT_SYSTEM_PROMPT, TRIAGE_TOOLS, build_triage_tools
 
 # ─── Structured logging setup ────────────────────────────────────────────────
 logging.basicConfig(
@@ -869,10 +870,18 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
 
 
 @app.post("/api/runs/{run_id}/triage", response_model=schemas.TriageResponse)
-async def triage_run(run_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
+async def triage_run(
+    run_id: int,
+    agentic: bool = False,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_admin),
+):
     """AI-powered failure triage: summarizes a run's failed/skipped results into a
     plain-English root-cause guess, using the same Claude Haiku client as AI test
-    generation."""
+    generation. With ?agentic=true (course milestone M7) the model can call
+    read-only tools - case history, similar cases, suite flakiness - before
+    diagnosing; see api/triage_agent.py. Anthropic-only: other providers fall
+    back to the single-shot call and report mode="single_shot"."""
     run = db.query(models.TestRun).filter(models.TestRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -913,6 +922,33 @@ async def triage_run(run_id: int, db: Session = Depends(get_db), _: models.User 
             expected_result=tc.expected_result if tc else None,
             notes=result.notes,
         ))
+
+    if agentic and provider == "anthropic":
+        agent_lines = [
+            f"(testcase_id={item.testcase_id}) {line.removeprefix('- ')}"
+            for item, line in zip(problem_items, lines)
+        ]
+        loop = ai_gateway.complete_with_tools(
+            TRIAGE_AGENT_SYSTEM_PROMPT,
+            build_triage_user_prompt(run.name, agent_lines),
+            tools=TRIAGE_TOOLS,
+            tool_handlers=build_triage_tools(db, run.suite_id),
+            model=model,
+            max_tokens=1024,
+        )
+        ai_gateway.log_ai_call(loop.call, feature="triage_agentic")
+        if loop.call.outcome == "error":
+            logger.error(f"AI agentic triage error: {loop.call.error}")
+            raise HTTPException(status_code=502, detail=f"AI triage failed: {loop.call.error}")
+        logger.info(f"AI agentic triage for run={run_id}: {len(loop.tool_calls)} tool calls, {loop.iterations} turns")
+        return schemas.TriageResponse(
+            summary=loop.call.text,
+            problem_results=problem_items,
+            model=loop.call.model,
+            mode="agentic",
+            tool_calls=[schemas.TriageToolCall(**vars(tc)) for tc in loop.tool_calls],
+            hit_iteration_cap=loop.hit_iteration_cap,
+        )
 
     user_prompt = build_triage_user_prompt(run.name, lines)
     result = ai_gateway.complete(

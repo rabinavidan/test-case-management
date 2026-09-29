@@ -371,6 +371,8 @@ const AI_PIPELINE_DEMO_NODES = [
     desc: 'Coverage-Gap Agent flags untested changes; AI Test Generation and the Test-Plan Reviewer draft cases to fill them.' },
   { icon: '🩹', title: 'Playwright Healer', model: 'Claude Sonnet',
     desc: 'Classifies a failing spec as stale-locator (auto-fixes it) or real defect (escalates — never silently skipped).' },
+  { icon: '🔎', title: 'Agentic Failure Triage', model: 'Claude Haiku · tool use',
+    desc: 'Calls read-only tools (case history, similar cases, suite flakiness) in a bounded loop before diagnosing a failed run (api/triage_agent.py).' },
   { icon: '📊', title: 'Eval Harness & Flaky Detector', model: 'Ollama · deterministic',
     desc: 'Scores AI output quality run-to-run before it ships; tracks which tests flip-flop across runs.' },
   { icon: '✅', title: 'CI green → merged', model: null,
@@ -386,7 +388,7 @@ const AI_PIPELINE_DEMO_NODES = [
 // same "compact animated blocks" idea.
 const AI_PIPELINE_NODE_COLORS = [
   'bg-indigo-500/80', 'bg-violet-500/80', 'bg-purple-500/80',
-  'bg-fuchsia-500/80', 'bg-pink-500/80', 'bg-emerald-500/80',
+  'bg-fuchsia-500/80', 'bg-pink-500/80', 'bg-sky-500/80', 'bg-emerald-500/80',
 ];
 
 function renderAiPipelineTimelineInner() {
@@ -713,7 +715,7 @@ const RECRUITER_TOUR_STEPS = [
   { title: "System Architecture", desc: "Live microservice architecture, plus the real trade-offs behind it.", targetId: "showcase-toggle-btn", onEnter: () => { const c = document.getElementById("showcase-content"); if (c && c.classList.contains("hidden")) toggleShowcase(); } },
   { title: "Test Strategy", desc: "A real Test Pyramid with measured counts, and the Shift-Left strategy behind it.", targetId: "test-pyramid-section" },
   { title: "CI/CD Quality Gates & KPIs", desc: "The quality gates that block a merge, and the KPI dashboard tracking them.", targetId: "kpi-dashboard-section" },
-  { title: "AI Engineering & Source", desc: "Six real AI-assisted workflows, and the GitHub source behind all of it.", targetId: "ai-first-engineering-section" },
+  { title: "AI Engineering & Source", desc: "Eight real AI-assisted workflows, the roadmap, and the GitHub source behind all of it.", targetId: "ai-first-engineering-section" },
 ];
 
 // The element focus should return to once the tour closes - the "Start
@@ -1772,11 +1774,29 @@ async function renderProjects() {
           { title: 'Flaky-Test Detection', desc: 'Parses CI’s rerun results and auto-files/updates one tracking GitHub issue per flaky test, so evidence accumulates instead of vanishing (scripts/flake_report.py).' },
           { title: 'AI PR Steward', desc: 'Reads CI failures and review comments, diagnoses root cause, and pushes fixes until a PR is green — the same automation that drove every PR in this portfolio rebuild to merge.' },
           { title: 'Playwright Planning, Generation & Healing', desc: 'Dedicated agents (.claude/agents/playwright-test-*.md) plan coverage, author new Playwright specs, and repair broken locators across the 3-stack browser suite.' },
+          { title: 'Agentic Failure Triage (Tool Use)', desc: 'Claude calls scoped, read-only tools (case history, similar cases via RAG, suite flakiness) in a bounded loop before diagnosing a failed run, and returns the full tool trace for human review (api/triage_agent.py).' },
+          { title: 'Evals & Human-in-the-Loop', desc: 'An eval harness scores AI output quality and run-to-run variance in CI; a LangGraph orchestrator pauses on interrupt() for human approval before generated specs ship (evals/, agents/).' },
         ].map(c => `
           <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <h3 class="text-sm font-bold text-slate-800 mb-1">${c.title}</h3>
             <p class="text-xs text-slate-500 leading-relaxed">${c.desc}</p>
           </div>`).join('')}
+      </div>
+      <div data-testid="ai-roadmap" class="mt-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <h3 class="text-sm font-bold text-slate-800 mb-2">AI building-blocks roadmap</h3>
+        <ul class="space-y-1.5">
+          ${[
+            { id: 'M7', title: 'Agentic failure triage — tool use', done: true },
+            { id: 'M8', title: 'Real embedding model behind RAG retrieval', done: false },
+            { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: false },
+            { id: 'M10', title: 'Trajectory evals — score which tools the agent chose', done: false },
+          ].map(m => `
+            <li class="flex items-center gap-2 text-xs text-slate-600">
+              <span class="font-mono font-bold text-slate-400 w-8">${m.id}</span>
+              <span class="flex-1">${m.title}</span>
+              <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${m.done ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}">${m.done ? 'Done' : 'Planned'}</span>
+            </li>`).join('')}
+        </ul>
       </div>
     </div>
   ` : "";
@@ -4496,12 +4516,27 @@ async function showTriageModal(runId) {
   overlay.classList.remove("hidden");
 
   try {
-    const data = await POST(`/api/runs/${runId}/triage`);
+    // Agentic mode (course milestone M7): the model may call read-only tools
+    // (case history, similar cases, suite flakiness) before diagnosing. The
+    // server falls back to single-shot for non-Anthropic providers.
+    const data = await POST(`/api/runs/${runId}/triage?agentic=true`);
+    const toolCalls = data.tool_calls || [];
     body.innerHTML = `
       <div class="space-y-4">
         <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-sm text-violet-800">
           ${escHtml(data.summary)}
         </div>
+        ${data.mode === "agentic" ? `
+          <div data-testid="triage-tool-trace" class="border border-slate-200 rounded-xl p-3">
+            <p class="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">Evidence gathered · ${toolCalls.length} tool call${toolCalls.length === 1 ? "" : "s"}${data.hit_iteration_cap ? " · step limit reached" : ""}</p>
+            ${toolCalls.length ? `<ol class="space-y-1.5">
+              ${toolCalls.map((c, i) => `
+                <li class="text-xs text-slate-600">
+                  <span class="font-mono font-semibold ${c.is_error ? "text-red-600" : "text-violet-700"}">${i + 1}. ${escHtml(c.name)}</span>
+                  <span class="font-mono text-slate-400">${escHtml(JSON.stringify(c.input))}</span>
+                </li>`).join("")}
+            </ol>` : `<p class="text-xs text-slate-400">The agent answered without needing extra evidence.</p>`}
+          </div>` : ""}
         ${data.problem_results.length ? `
           <div class="space-y-2">
             ${data.problem_results.map(r => `

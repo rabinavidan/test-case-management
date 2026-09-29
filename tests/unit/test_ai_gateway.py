@@ -240,3 +240,15 @@ def test_log_ai_call_never_raises_on_an_unwritable_path():
     # A path under a file (not a directory) can never be created - mkdir raises.
     unwritable = Path(__file__) / "impossible" / "ai_calls.jsonl"
     ai_gateway.log_ai_call(result, feature="triage", log_path=unwritable)
+
+
+def test_complete_with_tools_without_api_key_returns_error_result(monkeypatch):
+    """Course milestone M7: like complete(), the tool loop never raises - a
+    missing key comes back as outcome="error" with no tool calls made."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    loop = ai_gateway.complete_with_tools(
+        "sys", "user", tools=[], tool_handlers={}, model="claude-haiku-4-5-20251001",
+    )
+    assert loop.call.outcome == "error"
+    assert "ANTHROPIC_API_KEY" in loop.call.error
+    assert loop.tool_calls == []
