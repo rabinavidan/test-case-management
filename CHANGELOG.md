@@ -12,6 +12,13 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **Hardened run-collaboration WebSocket** (`/ws/runs/{id}`, GraphQL/WebSocket plan — PR 1 of 5) —
+  the socket now requires `?token=<JWT>` (close `4401` otherwise) and an existing run
+  (close `4404`), answers JSON `{"type":"ping"}` with `{"type":"pong","ts":…}` alongside the
+  legacy text `ping`/`pong`, and replies `{"type":"error"}` to malformed frames without
+  dropping the socket. Same protocol in the monolith and `services/runs` (`shared/ws_protocol.py`);
+  the gateway bridge forwards the token and relays 4xxx close codes. Contract in
+  `docs/asyncapi.yaml`, enforced by `tests/contract/test_asyncapi_contract.py`.
 - **Agentic Failure Triage (course milestone M7)** — `POST /api/runs/{id}/triage?agentic=true`
   runs a bounded Anthropic tool-use loop (`api/ai_gateway.complete_with_tools()`,
   `api/triage_agent.py`) with three suite-scoped, read-only tools: case history,

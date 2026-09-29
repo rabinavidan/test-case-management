@@ -1,6 +1,7 @@
 """services/gateway — the declarative routing table (services/gateway/routes.py)
 and the HTTP proxy's error handling when a downstream service is unreachable.
 """
+import asyncio
 import threading
 
 import httpx
@@ -181,14 +182,18 @@ def test_routing_table_matches_real_service_routes(service):
 class _FakeUpstreamWS:
     """Stands in for the real `websockets` connection ws_bridge opens to
     services/runs. `outgoing` is drained one message at a time by
-    ws_bridge's `async for msg in upstream_ws` loop, then the loop ends —
-    same as a real connection with nothing left to say. `sent` records
+    ws_bridge's `async for msg in upstream_ws` loop. After that the loop
+    blocks, like a real open connection with nothing left to say — unless
+    `close_code` is set, in which case the loop ends as if the upstream
+    closed the socket with that code (a real `websockets` connection only
+    ends iteration on close, and exposes the code as `.close_code`). `sent` records
     whatever ws_bridge relays from the client via `.send()`; `_sent_event`
     (a plain `threading.Event`, not an asyncio one) lets a test on the main
     thread wait for that relay to happen inside the portal's own background
     thread, without touching the asyncio loop running there directly."""
 
-    def __init__(self, outgoing=()):
+    def __init__(self, outgoing=(), close_code=None):
+        self.close_code = close_code
         self.sent = []
         self._outgoing = list(outgoing)
         self._sent_event = threading.Event()
@@ -202,7 +207,9 @@ class _FakeUpstreamWS:
 
     async def __anext__(self):
         if not self._outgoing:
-            raise StopAsyncIteration
+            if self.close_code is not None:
+                raise StopAsyncIteration
+            await asyncio.Event().wait()  # open, idle: blocks until cancelled
         return self._outgoing.pop(0)
 
 
@@ -277,6 +284,54 @@ def test_ws_bridge_closes_the_client_connection_when_upstream_is_unreachable(cli
     with client.websocket_connect("/ws/runs/1") as ws:
         with pytest.raises(WebSocketDisconnect):
             ws.receive_text()
+
+
+def test_ws_bridge_forwards_the_query_string_upstream(client, monkeypatch):
+    """services/runs authenticates the socket from `?token=...`, so the
+    bridge must pass the client's query string through untouched."""
+    from services.gateway import main as gateway_main
+
+    captured_urls = []
+
+    def _fake_connect(url):
+        captured_urls.append(url)
+        return _FakeConnect(_FakeUpstreamWS())
+
+    monkeypatch.setattr(gateway_main.websockets, "connect", _fake_connect)
+
+    with client.websocket_connect("/ws/runs/7?token=abc.def.ghi"):
+        pass
+
+    assert captured_urls[0].endswith("/ws/runs/7?token=abc.def.ghi")
+
+
+@pytest.mark.parametrize("upstream_code", [4401, 4404])
+def test_ws_bridge_relays_the_upstreams_application_close_code(client, monkeypatch, upstream_code):
+    from services.gateway import main as gateway_main
+    from starlette.websockets import WebSocketDisconnect
+
+    fake_upstream = _FakeUpstreamWS(close_code=upstream_code)
+    monkeypatch.setattr(gateway_main.websockets, "connect", lambda url: _FakeConnect(fake_upstream))
+
+    with client.websocket_connect("/ws/runs/1") as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_text()
+    assert exc.value.code == upstream_code
+
+
+def test_ws_bridge_does_not_relay_a_protocol_level_close_code(client, monkeypatch):
+    """Only application codes (4000-4999) are meaningful to the browser;
+    anything else is reported as a normal close."""
+    from services.gateway import main as gateway_main
+    from starlette.websockets import WebSocketDisconnect
+
+    fake_upstream = _FakeUpstreamWS(close_code=1011)
+    monkeypatch.setattr(gateway_main.websockets, "connect", lambda url: _FakeConnect(fake_upstream))
+
+    with client.websocket_connect("/ws/runs/1") as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_text()
+    assert exc.value.code == 1000
 
 
 def test_routing_table_has_no_stale_entries():

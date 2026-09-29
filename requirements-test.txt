@@ -22,6 +22,10 @@ pytest-rerunfailures==14.0
 # Pinned to the 3.x line: 4.x requires pytest>=9, which conflicts with the
 # pytest==7.4.3 / pytest-playwright pins above.
 schemathesis==3.39.16
+# tests/contract/test_asyncapi_contract.py validates WebSocket messages
+# against docs/asyncapi.yaml. Already installed transitively by schemathesis;
+# listed so the direct import is declared.
+jsonschema>=4.18
 # Only used by tests/services/ (the microservices layer's runs service imports
 # it at module load, whether or not a Redis is actually reachable in CI).
 redis==5.2.1

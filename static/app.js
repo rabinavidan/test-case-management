@@ -4292,8 +4292,12 @@ function connectRunWebSocket(runId) {
     _activeRunWs = null;
   }
 
+  // Browsers can't send an Authorization header on a WebSocket handshake,
+  // so the JWT goes in the query string (see shared/ws_protocol.py).
+  const token = getToken();
+  if (!token) return;
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${proto}://${location.host}/ws/runs/${runId}`);
+  const ws = new WebSocket(`${proto}://${location.host}/ws/runs/${runId}?token=${encodeURIComponent(token)}`);
   _activeRunWs = ws;
 
   ws.onopen = () => {
@@ -4307,6 +4311,7 @@ function connectRunWebSocket(runId) {
     if (evt.data === "pong") return;
     try {
       const msg = JSON.parse(evt.data);
+      if (msg.type === "pong" || msg.type === "error") return;
       if (msg.type === "result_updated") {
         applyLiveResultUpdate(msg);
         if (msg.run_completed) {
@@ -4320,8 +4325,13 @@ function connectRunWebSocket(runId) {
     } catch { /* ignore malformed */ }
   };
 
-  ws.onclose = () => {
+  ws.onclose = (evt) => {
     clearInterval(ws._ping);
+    // 4401 = token rejected, 4404 = run gone; live updates are best-effort,
+    // so just log it — the page itself still works over REST.
+    if (evt.code === 4401 || evt.code === 4404) {
+      console.warn(`Live updates unavailable for run ${runId} (close ${evt.code}: ${evt.reason})`);
+    }
     const ind = document.getElementById("ws-indicator");
     if (ind) ind.classList.add("hidden");
     _activeRunWs = null;

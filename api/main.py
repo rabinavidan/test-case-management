@@ -24,7 +24,8 @@ import re
 
 from .database import engine, get_db, Base
 from . import ai_gateway, models, schemas
-from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin
+from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin, _decode_token
+from shared import ws_protocol
 from .ai_prompts import (
     TESTCASE_GENERATION_SYSTEM_PROMPT,
     TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT,
@@ -262,8 +263,8 @@ class ConnectionManager:
         # run_id -> set of connected WebSockets
         self._rooms: Dict[int, Set[WebSocket]] = {}
 
-    async def connect(self, run_id: int, ws: WebSocket):
-        await ws.accept()
+    def join(self, run_id: int, ws: WebSocket):
+        """Add an already-accepted socket to `run_id`'s room."""
         self._rooms.setdefault(run_id, set()).add(ws)
         logger.info(f"WS connected run={run_id} total={len(self._rooms[run_id])}")
 
@@ -1006,14 +1007,36 @@ def flaky_tests(suite_id: int, db: Session = Depends(get_db)):
 # ─── WebSocket: live run collaboration ────────────────────────────────────────
 
 @app.websocket("/ws/runs/{run_id}")
-async def run_websocket(run_id: int, ws: WebSocket):
-    await ws_manager.connect(run_id, ws)
+async def run_websocket(
+    run_id: int,
+    ws: WebSocket,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    # Protocol, close codes and why we accept-then-close: shared/ws_protocol.py
+    await ws.accept()
+    user = None
+    if token:
+        try:
+            data = _decode_token(token)
+            user = db.query(models.User).filter(models.User.id == int(data["sub"])).first()
+        except HTTPException:
+            user = None
+    if user is None:
+        await ws.close(code=ws_protocol.CLOSE_UNAUTHORIZED, reason="Not authenticated")
+        return
+    if not db.query(models.TestRun).filter(models.TestRun.id == run_id).first():
+        await ws.close(code=ws_protocol.CLOSE_RUN_NOT_FOUND, reason="Run not found")
+        return
+    # Don't pin a pooled DB connection for the socket's whole lifetime.
+    db.close()
+
+    ws_manager.join(run_id, ws)
     try:
         while True:
-            # Keep connection alive; client sends ping, we echo pong
-            data = await ws.receive_text()
-            if data == "ping":
-                await ws.send_text("pong")
+            reply = ws_protocol.reply_to(await ws.receive_text())
+            if reply is not None:
+                await ws.send_text(reply)
     except WebSocketDisconnect:
         ws_manager.disconnect(run_id, ws)
         logger.info(f"WS disconnected run={run_id}")

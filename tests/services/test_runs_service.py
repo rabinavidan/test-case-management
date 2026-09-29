@@ -170,3 +170,58 @@ def test_internal_last_run_stats_with_no_runs(client):
     res = client.get("/internal/projects/last-run-stats", params={"suite_ids": "1,2,3"})
     assert res.status_code == 200
     assert res.json()["total_runs"] == 0
+
+
+# ─── WebSocket (/ws/runs/{run_id}) — protocol: shared/ws_protocol.py ─────────
+
+def _create_run(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
+    )
+    return client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
+
+
+def test_ws_ping_pong_legacy_and_json(client, monkeypatch):
+    run = _create_run(client, monkeypatch)
+    with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+        ws.send_text("ping")
+        assert ws.receive_text() == "pong"
+        ws.send_text('{"type": "ping"}')
+        assert ws.receive_json()["type"] == "pong"
+        ws.send_text("garbage")
+        assert ws.receive_json()["type"] == "error"
+
+
+@pytest.mark.parametrize("query", ["", "?token=bogus", f"?token={mint_token(1, ttl=-10)}"])
+def test_ws_rejects_missing_invalid_or_expired_token_with_4401(client, monkeypatch, query):
+    from starlette.websockets import WebSocketDisconnect
+    from shared.ws_protocol import CLOSE_UNAUTHORIZED
+
+    run = _create_run(client, monkeypatch)
+    with client.websocket_connect(f"/ws/runs/{run['id']}{query}") as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_text()
+    assert exc.value.code == CLOSE_UNAUTHORIZED
+
+
+def test_ws_unknown_run_closes_with_4404(client):
+    from starlette.websockets import WebSocketDisconnect
+    from shared.ws_protocol import CLOSE_RUN_NOT_FOUND
+
+    with client.websocket_connect(f"/ws/runs/999?token={mint_token(1)}") as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_text()
+    assert exc.value.code == CLOSE_RUN_NOT_FOUND
+
+
+def test_ws_receives_result_update_broadcast(client, monkeypatch):
+    run = _create_run(client, monkeypatch)
+    # No Redis here: publish_ws_broadcast fails, so the replica broadcasts locally.
+    monkeypatch.setattr(runs_main, "publish_ws_broadcast", lambda run_id, payload: False)
+    with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+        client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN)
+        msg = ws.receive_json()
+        assert msg["type"] == "result_updated"
+        assert msg["testcase_id"] == 10
+        assert msg["status"] == "pass"

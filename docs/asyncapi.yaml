@@ -1,0 +1,128 @@
+asyncapi: 3.0.0
+info:
+  title: TestFlow — live run collaboration
+  version: 1.0.0
+  description: |
+    WebSocket contract for `/ws/runs/{runId}`, served identically by the
+    monolith (api/main.py) and the runs microservice (services/runs/main.py,
+    reached through the gateway's WebSocket bridge). Implementation of the
+    client-message handling lives in shared/ws_protocol.py.
+
+    The server accepts the socket first, then closes it with an application
+    close code when the handshake is not allowed:
+
+    | Code | Meaning |
+    |------|---------|
+    | 4401 | `token` missing, malformed, expired, or its user no longer exists |
+    | 4404 | no run with this `runId` |
+
+    Server messages are validated against the schemas below by
+    tests/contract/test_asyncapi_contract.py.
+
+servers:
+  local:
+    host: localhost:8000
+    protocol: ws
+
+channels:
+  run:
+    address: /ws/runs/{runId}?token={token}
+    parameters:
+      runId:
+        description: ID of the test run to follow.
+      token:
+        description: JWT from `POST /api/auth/login` (browsers can't set an Authorization header on a WebSocket handshake).
+    messages:
+      ping:
+        $ref: '#/components/messages/ping'
+      legacyPing:
+        $ref: '#/components/messages/legacyPing'
+      pong:
+        $ref: '#/components/messages/pong'
+      legacyPong:
+        $ref: '#/components/messages/legacyPong'
+      error:
+        $ref: '#/components/messages/error'
+      resultUpdated:
+        $ref: '#/components/messages/resultUpdated'
+      resultsPopulated:
+        $ref: '#/components/messages/resultsPopulated'
+
+operations:
+  sendPing:
+    action: send
+    channel:
+      $ref: '#/channels/run'
+    messages:
+      - $ref: '#/channels/run/messages/ping'
+      - $ref: '#/channels/run/messages/legacyPing'
+    reply:
+      channel:
+        $ref: '#/channels/run'
+      messages:
+        - $ref: '#/channels/run/messages/pong'
+        - $ref: '#/channels/run/messages/legacyPong'
+        - $ref: '#/channels/run/messages/error'
+  receiveRunUpdates:
+    action: receive
+    channel:
+      $ref: '#/channels/run'
+    messages:
+      - $ref: '#/channels/run/messages/resultUpdated'
+      - $ref: '#/channels/run/messages/resultsPopulated'
+
+components:
+  messages:
+    ping:
+      summary: JSON keep-alive.
+      payload:
+        type: object
+        required: [type]
+        properties:
+          type: {const: ping}
+    legacyPing:
+      summary: Plain-text keep-alive, still sent by static/app.js.
+      contentType: text/plain
+      payload: {type: string, const: ping}
+    pong:
+      payload:
+        type: object
+        required: [type, ts]
+        additionalProperties: false
+        properties:
+          type: {const: pong}
+          ts: {type: integer, description: Server time, unix seconds.}
+    legacyPong:
+      contentType: text/plain
+      payload: {type: string, const: pong}
+    error:
+      summary: Reply to a frame the server can't handle; the socket stays open.
+      payload:
+        type: object
+        required: [type, detail]
+        additionalProperties: false
+        properties:
+          type: {const: error}
+          detail: {type: string}
+    resultUpdated:
+      summary: A tester changed one result in this run.
+      payload:
+        type: object
+        required: [type, testcase_id, status, notes, updated_by, run_completed]
+        additionalProperties: false
+        properties:
+          type: {const: result_updated}
+          testcase_id: {type: integer}
+          status: {type: string, enum: [pending, pass, fail, skip]}
+          notes: {type: [string, "null"]}
+          updated_by: {type: string, description: Username (monolith) or user ID (microservices).}
+          run_completed: {type: boolean}
+    resultsPopulated:
+      summary: services/worker finished creating this run's pending results; clients should refetch.
+      payload:
+        type: object
+        required: [type, run_id]
+        additionalProperties: false
+        properties:
+          type: {const: results_populated}
+          run_id: {type: integer}
