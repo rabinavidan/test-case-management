@@ -15,7 +15,7 @@
     "allure:report:mocked": "npm run allure:generate:mocked && npm run allure:open:mocked"
   },
   "devDependencies": {
-    "@playwright/mcp": "^0.0.79",
+    "@playwright/mcp": "^0.0.82",
     "@playwright/test": "^1.62.1",
     "@types/node": "^20.0.0",
     "ajv": "^8.20.0",
