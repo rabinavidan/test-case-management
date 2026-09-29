@@ -33,6 +33,7 @@ writes and self-heals the test suite itself:
 | **Playwright Test Agents** | Planner/generator/healer trio: explores the running app in a real browser, drafts a numbered test plan, generates Playwright specs from it, and debugs/fixes failing ones — an authoring aid, not a CI job. The planner saves a shared accessibility-tree context artifact (`specs/*.context.json`) the generator and healer read instead of re-exploring the same flow from scratch. The healer classifies each failure as safe-to-auto-fix (locator/timing drift) or a suspected real defect (behavior change) — the latter is *never* silently skipped, only escalated — and every healing session is logged to `heal-outcomes/heal_outcomes.jsonl`, scored by [`scripts/heal_metrics.py`](scripts/heal_metrics.py) (heal-success-rate, false-heal-rate) | Claude (Sonnet, via Claude Code) | [`.claude/agents/playwright-test-*.md`](.claude/agents) · [`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents) |
 | **AI Test Generation** | Generates test cases from a plain-English feature description; can optionally run "grounded" (`grounded: true`), retrieving the suite's nearest existing test cases by embedding similarity and passing them as "don't duplicate these" context (monolith only — see `api/retrieval.py`) | Claude Haiku (or Ollama/Groq — see below) | `POST /api/suites/{id}/testcases/generate` |
 | **AI Failure Triage** | Summarizes a run's failed/skipped results into a root-cause hypothesis | Claude Haiku (or Ollama/Groq — see below) | `POST /api/runs/{id}/triage` |
+| **Agentic Failure Triage** *(M7)* | With `?agentic=true`, triage becomes a bounded **Anthropic tool-use loop**: the model can call scoped, read-only tools — `get_test_case_history`, `get_similar_test_cases` (RAG), `get_suite_flaky_tests` — before diagnosing, and the response carries the full tool trace for human review. Iteration cap, suite-scoped tool arguments, tool errors fed back to the model, single-shot fallback for non-Anthropic providers | Claude Haiku (tool use) | [`api/triage_agent.py`](api/triage_agent.py) · `complete_with_tools()` in [`api/ai_gateway.py`](api/ai_gateway.py) |
 | **Eval Harness** | Runs the AI Test Generation and AI Failure Triage prompts N times per case against a local model, scoring output quality *and* run-to-run consistency; wired into CI (informational) against a real model | Ollama (local, no API key) | [`evals/`](evals/README.md) · [`.github/workflows/eval-harness.yml`](.github/workflows/eval-harness.yml) |
 | **Test Plan Reviewer** | A genuine two-step agent pipeline built with **LangChain** (`prompt \| llm \| parser`, LCEL) — a critic step finds test-coverage gaps for a feature, a drafter step writes test cases to fill them, in the same schema AI Test Generation uses | Ollama (local, no API key) | [`agents/`](agents/README.md) |
 | **Pipeline Orchestrator** | An explicit **LangGraph** multi-agent orchestrator for the Playwright planner→generator→healer trio — an authoring graph with a real `interrupt()`-based human-approval gate before generation and before a spec is marked ready to commit, plus a separate classify→fix→retry healer graph sharing the interactive healer's escalate-on-behavior-change guardrail. A headless illustration of the orchestration pattern (see `docs/agent-governance.md`), not a replacement for the real browser-driven Playwright Test Agents above | Ollama (local, no API key) | [`agents/pipeline_orchestrator.py`](agents/pipeline_orchestrator.py) · [`docs/agent-governance.md`](docs/agent-governance.md) |
@@ -73,6 +74,20 @@ Gemini client, and the Test Plan Reviewer's Ollama client keep their own, for no
   documents why (the checkpoints an orchestrator would remove are exactly where a human should be looking) and
   what evidence would change that call, plus [`scripts/agent_telemetry.py`](scripts/agent_telemetry.py)'s unified
   view over the healer's and AI gateway's separate telemetry logs.
+
+### AI building blocks — where each one lives
+
+| Building block | Implemented in | Proof it works |
+|----------------|----------------|----------------|
+| **LLMs** | Provider gateway (`api/ai_gateway.py`) — Anthropic / Ollama / Groq by env var, per-call token + latency telemetry | `tests/unit/test_ai_gateway.py`, `tests/api/test_ai_generate.py` |
+| **RAG** | Retrieval-grounded test generation (`api/retrieval.py`, `api/embeddings.py`) and the triage agent's `get_similar_test_cases` tool | `tests/api/test_retrieval.py`, eval harness grounded-vs-plain comparison |
+| **Tool use** | Agentic Failure Triage (`api/triage_agent.py`) · Playwright MCP agents (`.claude/agents/`) · PR Steward | `tests/api/test_triage_agentic.py` — scripted multi-turn tool loop, iteration cap, out-of-scope arguments rejected |
+| **Evaluations** | `evals/` — N-runs-per-case quality + variance, LLM-as-judge, baselines with regression thresholds, prompt versioning, CI job | `tests/unit/test_evals_*.py`, `.github/workflows/eval-harness.yml` |
+| **Human-in-the-loop** | LangGraph `interrupt()` approval gates (`agents/pipeline_orchestrator.py`), healer escalate-don't-skip rule, AI drafts saved as `draft` status, triage tool trace shown in the UI | `tests/unit/test_pipeline_orchestrator.py` |
+
+**Roadmap:** [`docs/ai-roadmap.md`](docs/ai-roadmap.md) tracks the next milestones that close the remaining gaps
+honestly — M7 agentic tool-use triage ✅, M8 a real embedding model behind RAG, M9 in-app human review of AI drafts
+feeding the eval dataset, M10 trajectory evals that score *which tools* an agent chose to call.
 
 See [`docs/interview-prep/agentic-ai-test-engineering.md`](docs/interview-prep/agentic-ai-test-engineering.md)
 for the deeper case study behind the Eval Harness and Test Plan Reviewer — what they're for, the real failures
@@ -296,6 +311,7 @@ GET    /api/suites/{id}/runs
 GET    /api/runs/{id}
 PUT    /api/runs/{id}/results/{testcase_id}
 POST   /api/runs/{id}/triage                    # AI failure triage — plain-English root-cause guess
+POST   /api/runs/{id}/triage?agentic=true       # Agentic triage — Claude calls read-only tools first; returns tool_calls trace
 GET    /api/suites/{id}/flaky-tests             # Flags test cases with repeated pass/fail flips
 
 WS     /ws/runs/{run_id}                        # Real-time result updates

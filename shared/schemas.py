@@ -301,10 +301,23 @@ class TriageResultItem(BaseModel):
     notes: Optional[str] = None
 
 
+class TriageToolCall(BaseModel):
+    name: str
+    input: dict = {}
+    result_preview: str = ""
+    is_error: bool = False
+
+
 class TriageResponse(BaseModel):
     summary: str
     problem_results: List[TriageResultItem] = []
     model: Optional[str] = None
+    # Agentic triage (course milestone M7 - see api/triage_agent.py). "single_shot"
+    # unless ?agentic=true ran the tool-use loop; tool_calls is the full trace
+    # so a human can see what evidence the diagnosis rests on.
+    mode: str = "single_shot"
+    tool_calls: List[TriageToolCall] = []
+    hit_iteration_cap: bool = False
 
 
 # ─── Flaky test detection ────────────────────────────────────────────────────

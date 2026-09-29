@@ -70,6 +70,18 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     await guestExpect(section.getByText('Flaky-Test Detection')).toBeVisible();
     await guestExpect(section.getByText('AI PR Steward')).toBeVisible();
     await guestExpect(section.getByText('Playwright Planning, Generation & Healing')).toBeVisible();
+    await guestExpect(section.getByText('Agentic Failure Triage (Tool Use)')).toBeVisible();
+    await guestExpect(section.getByText('Evals & Human-in-the-Loop')).toBeVisible();
+  });
+
+  guestTest('the AI roadmap lists M7 as done and M8–M10 as planned', async ({ page }) => {
+    const roadmap = page.getByTestId('ai-first-engineering-section').getByTestId('ai-roadmap');
+    await guestExpect(roadmap).toBeVisible();
+    const m7 = roadmap.locator('li', { hasText: 'M7' });
+    await guestExpect(m7).toContainText('Done');
+    for (const id of ['M8', 'M9', 'M10']) {
+      await guestExpect(roadmap.locator('li', { hasText: id })).toContainText('Planned');
+    }
   });
 
   guestTest('the "See the pipeline" button opens a static AI-pipeline walkthrough modal', async ({ page }) => {

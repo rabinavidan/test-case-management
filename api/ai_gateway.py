@@ -175,6 +175,125 @@ def _call_groq(system_prompt: str, user_prompt: str, model: str, temperature: fl
     return text, usage.get("prompt_tokens"), usage.get("completion_tokens")
 
 
+@dataclass
+class ToolCallRecord:
+    name: str
+    input: dict
+    result_preview: str
+    is_error: bool = False
+
+
+@dataclass
+class ToolLoopResult:
+    call: AICallResult
+    tool_calls: list
+    iterations: int
+    hit_iteration_cap: bool = False
+
+
+def complete_with_tools(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    tools: list[dict],
+    tool_handlers: dict,
+    model: str,
+    max_tokens: int = 1024,
+    max_iterations: int = 4,
+) -> ToolLoopResult:
+    """Anthropic tool-use loop (course milestone M7 - see docs/ai-roadmap.md).
+
+    The model gets `tools` (Anthropic tool schemas) and may answer with
+    tool_use blocks instead of text; each is dispatched to
+    tool_handlers[name](**input) and the result sent back as a tool_result,
+    until the model answers in plain text or max_iterations is reached. On
+    the cap, one last call is made with tool_choice "none" so the model must
+    answer with what it already has - the loop is always bounded.
+
+    A handler that raises is reported back to the model as an is_error
+    tool_result (the model can recover or answer anyway) rather than
+    failing the request; an unknown tool name is handled the same way.
+    Like complete(), this never raises: any API failure comes back as an
+    AICallResult with outcome="error". Token counts are summed across every
+    turn of the loop so log_ai_call() reports the true cost.
+
+    Anthropic-only by design: tool-use wire formats differ per provider and
+    only the Anthropic backend is used for in-product agentic calls here.
+    """
+    import anthropic
+
+    start = time.monotonic()
+    tokens_in = tokens_out = 0
+    records: list[ToolCallRecord] = []
+    messages: list[dict] = [{"role": "user", "content": user_prompt}]
+    iterations = 0
+    try:
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY not configured")
+        client = anthropic.Anthropic(api_key=api_key)
+        while True:
+            iterations += 1
+            force_answer = iterations > max_iterations
+            kwargs = {
+                "model": model, "max_tokens": max_tokens, "system": system_prompt,
+                "messages": messages, "tools": tools,
+            }
+            if force_answer:
+                kwargs["tool_choice"] = {"type": "none"}
+            message = client.messages.create(**kwargs)
+            usage = getattr(message, "usage", None)
+            tokens_in += getattr(usage, "input_tokens", 0) or 0 if usage else 0
+            tokens_out += getattr(usage, "output_tokens", 0) or 0 if usage else 0
+
+            blocks = [_block_to_dict(b) for b in message.content]
+            tool_uses = [b for b in blocks if b["type"] == "tool_use"]
+            if not tool_uses or force_answer:
+                text = "".join(b.get("text", "") for b in blocks if b["type"] == "text").strip()
+                if not text:
+                    raise RuntimeError("Model returned no text answer")
+                call = AICallResult(
+                    text=text, provider="anthropic", model=model,
+                    tokens_in=tokens_in, tokens_out=tokens_out,
+                    latency_ms=(time.monotonic() - start) * 1000, outcome="success",
+                )
+                return ToolLoopResult(call, records, iterations - 1 if force_answer else iterations,
+                                      hit_iteration_cap=force_answer)
+
+            messages.append({"role": "assistant", "content": blocks})
+            results = []
+            for use in tool_uses:
+                handler = tool_handlers.get(use["name"])
+                try:
+                    if handler is None:
+                        raise ValueError(f"Unknown tool: {use['name']}")
+                    output = json.dumps(handler(**(use["input"] or {})), default=str)
+                    is_error = False
+                except Exception as exc:
+                    output, is_error = f"Error: {exc}", True
+                records.append(ToolCallRecord(use["name"], use["input"] or {}, output[:300], is_error))
+                results.append({
+                    "type": "tool_result", "tool_use_id": use["id"],
+                    "content": output, "is_error": is_error,
+                })
+            messages.append({"role": "user", "content": results})
+    except Exception as exc:
+        call = AICallResult(
+            text=None, provider="anthropic", model=model,
+            tokens_in=tokens_in or None, tokens_out=tokens_out or None,
+            latency_ms=(time.monotonic() - start) * 1000, outcome="error", error=str(exc),
+        )
+        return ToolLoopResult(call, records, iterations)
+
+
+def _block_to_dict(block) -> dict:
+    """Normalizes an SDK content block (or a test double) to the plain dict
+    shape the Messages API accepts back in the next turn."""
+    if getattr(block, "type", "text") == "tool_use":
+        return {"type": "tool_use", "id": block.id, "name": block.name, "input": dict(block.input or {})}
+    return {"type": "text", "text": getattr(block, "text", "")}
+
+
 def log_ai_call(result: AICallResult, feature: str, log_path: Path = DEFAULT_LOG_PATH) -> None:
     """Appends one JSON line per call. Never raises: a logging failure
     (read-only filesystem, disk full) must not fail the AI call it's riding

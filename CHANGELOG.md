@@ -11,6 +11,17 @@ but isn't retroactively cataloged here.
 
 ## [Unreleased]
 
+### Added
+- **Agentic Failure Triage (course milestone M7)** — `POST /api/runs/{id}/triage?agentic=true`
+  runs a bounded Anthropic tool-use loop (`api/ai_gateway.complete_with_tools()`,
+  `api/triage_agent.py`) with three suite-scoped, read-only tools: case history,
+  similar cases (RAG), and suite flakiness. The response adds `mode`, `tool_calls`,
+  and `hit_iteration_cap`; the run-page AI Triage modal shows the tool trace.
+  Default (no flag) behaviour is unchanged.
+- `docs/ai-roadmap.md` — M7–M10 plan for closing the remaining gaps across LLMs,
+  RAG, tool use, evals, and human-in-the-loop; linked from the README and shown on
+  the guest home page's AI-First Quality Engineering section.
+
 ## [2.0.80] - 2026-08-29
 
 Portfolio hardening pass — CI quality gate, test coverage reporting, and a
