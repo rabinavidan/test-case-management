@@ -69,6 +69,20 @@ type Run {
   summary: RunSummary!
 }
 
+"""
+A live change to a run — the same events the /ws/runs/{id} socket carries.
+"""
+type RunEvent {
+  """result_updated | results_populated"""
+  type: String!
+  runId: ID!
+  testCaseId: ID
+  status: String
+  notes: String
+  updatedBy: String
+  runCompleted: Boolean
+}
+
 input RunInput {
   name: String!
   environmentKey: String = null
@@ -83,6 +97,13 @@ type RunSummary {
 
   """passed / (total - pending), 0-100; null until something has executed"""
   passRate: Float
+}
+
+type Subscription {
+  """
+  Streams every change to one run until the client completes the subscription.
+  """
+  runUpdates(runId: ID!): RunEvent!
 }
 
 type Suite {
