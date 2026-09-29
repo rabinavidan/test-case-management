@@ -4,8 +4,8 @@ import asyncio
 import random
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import List, Dict, Set
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from typing import List, Dict, Optional, Set
+from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,10 @@ from .events import (
 )
 from .kafka_events import publish_alert_triggered
 from .population import populate_pending_results
+from services.common.auth import SECRET_KEY
 from services.common.health import health_response
+from services.common.jwt import decode_token
+from shared import ws_protocol
 from services.common.http import get_with_retry
 from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware
@@ -51,8 +54,8 @@ class ConnectionManager:
     def __init__(self):
         self._rooms: Dict[int, Set[WebSocket]] = {}
 
-    async def connect(self, run_id: int, ws: WebSocket):
-        await ws.accept()
+    def join(self, run_id: int, ws: WebSocket):
+        """Add an already-accepted socket to `run_id`'s room."""
         self._rooms.setdefault(run_id, set()).add(ws)
 
     def disconnect(self, run_id: int, ws: WebSocket):
@@ -262,12 +265,30 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
 # ─── WebSocket ────────────────────────────────────────────────────────────────
 
 @app.websocket("/ws/runs/{run_id}")
-async def run_websocket(run_id: int, ws: WebSocket):
-    await ws_manager.connect(run_id, ws)
+async def run_websocket(
+    run_id: int,
+    ws: WebSocket,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    # Same protocol as the monolith's endpoint: shared/ws_protocol.py
+    await ws.accept()
+    try:
+        decode_token(token or "", SECRET_KEY)
+    except HTTPException:
+        await ws.close(code=ws_protocol.CLOSE_UNAUTHORIZED, reason="Not authenticated")
+        return
+    if not db.query(models.TestRun).filter(models.TestRun.id == run_id).first():
+        await ws.close(code=ws_protocol.CLOSE_RUN_NOT_FOUND, reason="Run not found")
+        return
+    # Don't pin a pooled DB connection for the socket's whole lifetime.
+    db.close()
+
+    ws_manager.join(run_id, ws)
     try:
         while True:
-            data = await ws.receive_text()
-            if data == "ping":
-                await ws.send_text("pong")
+            reply = ws_protocol.reply_to(await ws.receive_text())
+            if reply is not None:
+                await ws.send_text(reply)
     except WebSocketDisconnect:
         ws_manager.disconnect(run_id, ws)

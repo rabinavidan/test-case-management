@@ -90,6 +90,10 @@ async def ws_bridge(run_id: int, client_ws: WebSocket):
     await client_ws.accept()
     runs_ws_url = RUNS_URL.replace("http://", "ws://").replace("https://", "wss://")
     upstream_url = f"{runs_ws_url}/ws/runs/{run_id}"
+    # Forward `?token=...` — services/runs authenticates the socket itself.
+    if client_ws.url.query:
+        upstream_url += f"?{client_ws.url.query}"
+    close_code = 1000
     try:
         async with websockets.connect(upstream_url) as upstream_ws:
             async def client_to_upstream():
@@ -107,12 +111,24 @@ async def ws_bridge(run_id: int, client_ws: WebSocket):
                 except Exception:
                     pass
 
-            await asyncio.gather(client_to_upstream(), upstream_to_client())
+            # Whichever side ends first ends the bridge — waiting on both
+            # would leave client_to_upstream blocked on the client's next
+            # frame after the upstream had already closed.
+            pumps = [asyncio.ensure_future(client_to_upstream()),
+                     asyncio.ensure_future(upstream_to_client())]
+            _, pending = await asyncio.wait(pumps, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+            # Relay the upstream's application close code (4401/4404, see
+            # shared/ws_protocol.py) instead of masking it as a normal close.
+            upstream_code = getattr(upstream_ws, "close_code", None)
+            if isinstance(upstream_code, int) and 4000 <= upstream_code <= 4999:
+                close_code = upstream_code
     except Exception as e:
         logger.warning(f"WS bridge error run={run_id}: {e}")
     finally:
         try:
-            await client_ws.close()
+            await client_ws.close(code=close_code)
         except Exception:
             pass
 
