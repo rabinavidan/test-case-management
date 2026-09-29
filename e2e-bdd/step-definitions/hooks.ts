@@ -50,6 +50,7 @@ After(async function (this: TestFlowWorld) {
       .catch(() => {});
   }
   await this.request.dispose();
+  await this.teammateContext?.close();
   await this.context.close();
 });
 

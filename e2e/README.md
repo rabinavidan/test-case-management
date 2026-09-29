@@ -170,7 +170,10 @@ Query params: `?page=1&page_size=50&search=keyword`.
 |---------|-------------|
 | Auth modal (render / success / invalid credentials) | `login.spec.ts` |
 | AI test case generation (`POST /api/suites/{id}/testcases/generate`) | `api.spec.ts` full CRUD flow |
-| WebSocket live updates (`/ws/runs/{run_id}`) | run view in browser tests |
+| WebSocket live updates (`/ws/runs/{run_id}`) — protocol (JSON/legacy ping, error frames, 4401/4404 closes) and two-browser live collaboration | `realtime.spec.ts` |
+| WebSocket client edge cases (pushed events, malformed frames, 4401 close, keep-alive ping) via `page.routeWebSocket()` | `mocked-serverless-realtime.spec.ts` |
+| GraphQL API (`POST /graphql`) — auth, nested queries, mutations, error codes, depth limit | `graphql.spec.ts` (helpers in `fixtures/graphql.ts`) |
+| GraphQL `runUpdates` subscription (graphql-transport-ws) from a browser client | `realtime.spec.ts` |
 | Analytics endpoint (`GET /api/projects/{id}/analytics`) | `api.spec.ts` full CRUD flow |
 | Paginated project list | `api.spec.ts`, `projects.spec.ts` |
 | Sidebar pass-rate progress bar | `sidebar-progress-bar.spec.ts` |

@@ -22,6 +22,13 @@ export class TestFlowWorld extends World {
   projectNames = new Map<string, string>();
   createdProjectIds: number[] = [];
 
+  // Live collaboration scenarios (realtime.steps.ts)
+  runId?: string;
+  /** Gherkin test case title -> GraphQL ID. */
+  testCaseIds = new Map<string, string>();
+  teammateContext?: BrowserContext;
+  teammatePage?: Page;
+
   constructor(options: IWorldOptions) {
     super(options);
   }
