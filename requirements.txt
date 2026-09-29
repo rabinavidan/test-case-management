@@ -11,7 +11,7 @@ python-multipart==0.0.6
 psycopg2-binary==2.9.9
 passlib==1.7.4
 anthropic>=0.40.0
-websockets>=12.0
+websockets>=17.1
 slowapi==0.1.9
 # api/ai_gateway.py's Ollama/Groq backends call their HTTP APIs directly
 # with httpx (no SDK) - a production dependency as of course M6, not just a
