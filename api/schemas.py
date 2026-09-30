@@ -86,9 +86,3 @@ class TestRunResponse(BaseModel):
     results: List[TestResultResponse] = []
 
     model_config = {"from_attributes": True}
-
-    @classmethod
-    def from_orm_with_user(cls, run):
-        obj = cls.model_validate(run)
-        obj.created_by_username = run.created_by.username if run.created_by else None
-        return obj

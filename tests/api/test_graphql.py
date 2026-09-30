@@ -252,9 +252,7 @@ def test_run_matches_the_rest_representation(auth_client):
     assert graph["name"] == rest["name"]
     assert int(graph["suiteId"]) == rest["suite_id"]
     assert graph["environmentKey"] == rest["environment_key"]
-    # REST's created_by_username is always null (TestRunResponse.from_orm_with_user
-    # is never called) — a known REST gap; GraphQL resolves the creator.
-    assert graph["createdBy"]["username"] == "testuser"
+    assert graph["createdBy"]["username"] == rest["created_by_username"] == "testuser"
     assert graph["createdAt"] == rest["created_at"]
     as_rest = lambda r: (int(r["id"]), r["status"], r["notes"], int(r["testCase"]["id"]), r["testCase"]["title"])  # noqa: E731
     assert sorted(map(as_rest, graph["results"])) == sorted(
