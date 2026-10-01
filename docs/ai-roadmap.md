@@ -241,7 +241,9 @@ What the numbers say:
 against the committed baseline
 ([`evals/baselines/qwen2.5_3b/triage_trajectory.json`](../evals/baselines/qwen2.5_3b/triage_trajectory.json),
 which records the system-prompt hash it was measured with) on
-`tool_selection_accuracy` and `verdict_coverage`, tolerance 0.15. Accuracy is
+`tool_selection_accuracy` and `verdict_coverage`, tolerance 0.15, averaging 2
+repeats per scenario (single-repeat CI runs on one commit measured tool
+selection 0.9, 0.9 and 0.8 — one missed case from the floor). Accuracy is
 reported but not gated: at 10 cases and 0.8 repeatability it moves by a
 whole case between identical runs, so gating it would gate noise. The job
 now also triggers on `api/triage_agent.py` and `api/ai_gateway.py`, so a
