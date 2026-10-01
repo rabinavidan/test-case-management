@@ -31,7 +31,7 @@ jobs:
           cache-dependency-path: java-e2e/pom.xml
 
       - name: Set up Python (to run the app under test)
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip
