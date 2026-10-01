@@ -33,17 +33,15 @@ from .ai_prompts import (
     build_testcase_generation_user_prompt,
     build_grounded_testcase_generation_user_prompt,
     build_triage_user_prompt,
-    format_triage_problem_line,
     parse_testcase_generation_response,
 )
 from .retrieval import nearest_test_cases, store_test_case_embedding
 from .environment_health import simulate_environment_health as _simulate_environment_health
 from .triage_agent import (
-    TRIAGE_AGENT_SYSTEM_PROMPT,
-    TRIAGE_TOOLS,
-    build_triage_tools,
     collect_evidence,
+    collect_problems,
     heuristic_verdict,
+    run_triage_agent,
 )
 
 # ─── Structured logging setup ────────────────────────────────────────────────
@@ -895,12 +893,8 @@ async def triage_run(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    problem_results = db.query(models.TestResult).filter(
-        models.TestResult.run_id == run_id,
-        models.TestResult.status.in_(["fail", "skip"]),
-    ).all()
-
-    if not problem_results:
+    problems = collect_problems(db, run)
+    if not problems:
         return schemas.TriageResponse(
             summary="No failed or skipped results in this run — nothing to triage.",
         )
@@ -913,26 +907,11 @@ async def triage_run(
             detail=f"AI triage unavailable: {provider} not configured",
         )
 
-    problem_items = []
-    lines = []
-    for result in problem_results:
-        tc = db.query(models.TestCase).filter(models.TestCase.id == result.testcase_id).first()
-        title = tc.title if tc else f"Test case #{result.testcase_id}"
-        problem_items.append(schemas.TriageResultItem(
-            testcase_id=result.testcase_id,
-            title=title,
-            status=result.status,
-            notes=result.notes,
-        ))
-        lines.append(format_triage_problem_line(
-            title=title,
-            status=result.status,
-            steps=tc.steps if tc else None,
-            expected_result=tc.expected_result if tc else None,
-            notes=result.notes,
-        ))
+    problem_items = [schemas.TriageResultItem(testcase_id=p["testcase_id"], title=p["title"],
+                                              status=p["status"], notes=p["notes"]) for p in problems]
+    lines = [p["line"] for p in problems]
 
-    failing_ids = [r.testcase_id for r in problem_results if r.status == "fail"]
+    failing_ids = [p["testcase_id"] for p in problems if p["status"] == "fail"]
     titles = {item.testcase_id: item.title for item in problem_items}
 
     def build_verdicts(agent_verdicts: dict | None) -> list:
@@ -956,21 +935,7 @@ async def triage_run(
         return verdicts
 
     if agentic and provider == "anthropic":
-        agent_verdicts: dict = {}
-        agent_lines = [
-            f"(testcase_id={item.testcase_id}) {line.removeprefix('- ')}"
-            for item, line in zip(problem_items, lines)
-        ]
-        loop = ai_gateway.complete_with_tools(
-            TRIAGE_AGENT_SYSTEM_PROMPT,
-            build_triage_user_prompt(run.name, agent_lines),
-            tools=TRIAGE_TOOLS,
-            tool_handlers=build_triage_tools(db, run.suite_id, run=run,
-                                             problem_testcase_ids=failing_ids,
-                                             verdict_sink=agent_verdicts),
-            model=model,
-            max_tokens=1024,
-        )
+        loop, agent_verdicts = run_triage_agent(db, run, problems, model=model)
         ai_gateway.log_ai_call(loop.call, feature="triage_agentic")
         if loop.call.outcome == "error":
             logger.error(f"AI agentic triage error: {loop.call.error}")
@@ -996,7 +961,7 @@ async def triage_run(
         raise HTTPException(status_code=502, detail=f"AI triage failed: {result.error}")
 
     summary = result.text.strip()
-    logger.info(f"AI triage generated for run={run_id} ({len(problem_results)} problem results)")
+    logger.info(f"AI triage generated for run={run_id} ({len(problems)} problem results)")
     return schemas.TriageResponse(summary=summary, problem_results=problem_items, model=result.model,
                                   verdicts=build_verdicts(None))
 

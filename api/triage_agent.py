@@ -13,7 +13,8 @@ the model as an is_error tool result rather than leaking another suite's data.
 """
 from sqlalchemy.orm import Session
 
-from . import models
+from . import ai_gateway, models
+from .ai_prompts import build_triage_user_prompt, format_triage_problem_line
 from .environment_health import simulate_environment_health
 from .retrieval import nearest_test_cases
 
@@ -272,3 +273,48 @@ def build_triage_tools(db: Session, suite_id: int, run: models.TestRun | None = 
     if verdict_sink is not None:
         tools["record_verdict"] = record_verdict
     return tools
+
+
+def collect_problems(db: Session, run: models.TestRun) -> list[dict]:
+    """The run's failed/skipped results, each with the formatted prompt line
+    the triage prompts use. One builder for the endpoint and the M10
+    trajectory eval, so the eval measures exactly what production sends."""
+    problems = []
+    results = db.query(models.TestResult).filter(
+        models.TestResult.run_id == run.id, models.TestResult.status.in_(["fail", "skip"]),
+    ).all()
+    for result in results:
+        tc = db.query(models.TestCase).filter(models.TestCase.id == result.testcase_id).first()
+        title = tc.title if tc else f"Test case #{result.testcase_id}"
+        problems.append({
+            "testcase_id": result.testcase_id, "title": title, "status": result.status, "notes": result.notes,
+            "line": format_triage_problem_line(
+                title=title, status=result.status,
+                steps=tc.steps if tc else None, expected_result=tc.expected_result if tc else None,
+                notes=result.notes,
+            ),
+        })
+    return problems
+
+
+def run_triage_agent(db: Session, run: models.TestRun, problems: list[dict], *, model: str,
+                     provider: str = "anthropic", host: str | None = None,
+                     system_prompt: str = TRIAGE_AGENT_SYSTEM_PROMPT,
+                     max_iterations: int = 4) -> tuple[ai_gateway.ToolLoopResult, dict]:
+    """Runs the agentic triage loop over collect_problems() output. Returns
+    the loop result (text, tool trace, iterations, cap) and the
+    {testcase_id: {verdict, evidence}} the agent recorded. system_prompt is
+    a parameter so the trajectory eval can score a candidate prompt before
+    it ships."""
+    failing_ids = [p["testcase_id"] for p in problems if p["status"] == "fail"]
+    agent_verdicts: dict = {}
+    agent_lines = [f"(testcase_id={p['testcase_id']}) {p['line'].removeprefix('- ')}" for p in problems]
+    loop = ai_gateway.complete_with_tools(
+        system_prompt,
+        build_triage_user_prompt(run.name, agent_lines),
+        tools=TRIAGE_TOOLS,
+        tool_handlers=build_triage_tools(db, run.suite_id, run=run, problem_testcase_ids=failing_ids,
+                                         verdict_sink=agent_verdicts),
+        model=model, max_tokens=1024, max_iterations=max_iterations, provider=provider, host=host,
+    )
+    return loop, agent_verdicts
