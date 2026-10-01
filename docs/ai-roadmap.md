@@ -195,7 +195,7 @@ evidence an investigator must look at before deciding (`history` or
 | `investigation_rate` | Did it call any evidence tool at all? |
 | `verdict_coverage` / `verdict_accuracy` | Did it classify every failing case, and correctly? |
 | `confident_errors` | Wrong verdicts that weren't `unknown` |
-| `cap_hit_rate`, `tool_error_rate`, `mean_tool_calls` | Did it loop, misuse tools, or over-spend? |
+| `cap_hit_rate`, `tool_error_rate`, `mean_tool_calls`, `re_verdict_attempts` | Did it loop, misuse tools, over-spend, or try to change a final answer? |
 | `verdict_repeatability` | Same verdict for the same case across repeats? |
 
 **A real model in CI, no API key:** `complete_with_tools()` gained an
@@ -207,6 +207,8 @@ next to the Anthropic one, sharing one tool dispatcher. Measured locally,
 |-------|---------------:|-------------:|---------:|---------:|-----------------:|---------:|-----------:|
 | qwen2.5:1.5b | 0.00 | 0.08 | 0.00 | 0.00 | 0 | 0.00 | 1.00 |
 | qwen2.5:3b | **0.93** | 1.00 | 0.90 | 0.57 | 7 | 0.38 | 0.80 |
+| qwen2.5:7b — before the fix below | 0.90 | 1.00 | 0.73 | 0.00 | 12 | 0.54 | 0.50 |
+| qwen2.5:7b — verdicts made final | 0.90 | 1.00 | 0.73 | **0.40** | 6 | 0.54 | **0.90** |
 
 What the numbers say:
 - **1.5B writes a confident diagnosis without investigating.** It answered
@@ -219,6 +221,19 @@ What the numbers say:
   failure mode R1's heuristic cross-check exists for: in production each of
   these cases disagrees with the heuristic (`product_bug`) and is flagged
   *Needs human review*.
+- **7B found a real bug in the agent, not just in itself.** It investigated
+  (tool selection 0.90) yet scored 0.00 accuracy. The trajectory showed why:
+  it recorded the *correct* verdict first (`environment`), kept calling
+  tools, then recorded again — `flaky` or `unknown` — and `record_verdict`
+  was last-write-wins although the prompt says "exactly once". Verdicts are
+  now final (first write wins; a second call returns an error telling the
+  model so) and the eval reports `re_verdict_attempts` (19 rejected for 7B).
+  Same model, same prompt, after the fix: accuracy 0.00 → **0.40**,
+  confident errors 12 → 6, repeatability 0.50 → **0.90**. That is the loop
+  this milestone exists for: measure → read the trajectory → fix → re-measure.
+- **7B still has an open failure mode:** in 8 of 24 runs it ends a turn with
+  neither text nor a tool call (`failed_runs`), and 54% of runs hit the
+  iteration cap — both reported, neither hidden.
 - **Repeatability is not free:** 3B gave a different verdict for 20% of
   cases across identical runs, even at temperature 0 with a fixed seed.
 

@@ -13,8 +13,9 @@
     "verdict_accuracy": 0.567,
     "confident_errors": 7,
     "cap_hit_rate": 0.375,
-    "tool_error_rate": 0.151,
+    "tool_error_rate": 0.163,
     "mean_tool_calls": 3.58,
+    "re_verdict_attempts": 1,
     "failed_runs": 0,
     "verdict_repeatability": 0.8,
     "tool_usage": {

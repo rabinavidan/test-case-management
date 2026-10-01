@@ -20,6 +20,10 @@ but isn't retroactively cataloged here.
   `--record-baseline` / `--gate` against `evals/baselines/<model>/triage_trajectory.json`
   (prompt hash recorded); `eval-harness.yml` gates `qwen2.5:3b` (tool selection 0.93,
   coverage 0.90 baseline) and now triggers on `api/triage_agent.py` / `api/ai_gateway.py`.
+- **Triage verdicts are final** — `record_verdict` rejects a second verdict for the same
+  case (first write wins). Found by the M10 eval: qwen2.5:7b recorded the right verdict,
+  then overwrote it; after the fix its verdict accuracy went 0.00 → 0.40 and
+  repeatability 0.50 → 0.90. Reported as `re_verdict_attempts`.
 - `complete_with_tools(provider="ollama")` — the tool-use loop over Ollama `/api/chat`
   tool calling. The agentic triage endpoint now runs through
   `triage_agent.collect_problems()` + `run_triage_agent()`, shared with the eval.
