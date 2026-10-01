@@ -12,6 +12,17 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **Trajectory evals for the triage agent (course milestone M10)** —
+  `evals/triage_trajectory_eval.py` + `evals/datasets/triage_trajectories.json`
+  seed 8 scenarios into an in-memory DB, run the production agent path and score
+  what it did: tool-selection accuracy, investigation rate, verdict
+  coverage/accuracy, confident errors, cap hits, tool errors, repeatability.
+  `--record-baseline` / `--gate` against `evals/baselines/<model>/triage_trajectory.json`
+  (prompt hash recorded); `eval-harness.yml` gates `qwen2.5:3b` (tool selection 0.93,
+  coverage 0.90 baseline) and now triggers on `api/triage_agent.py` / `api/ai_gateway.py`.
+- `complete_with_tools(provider="ollama")` — the tool-use loop over Ollama `/api/chat`
+  tool calling. The agentic triage endpoint now runs through
+  `triage_agent.collect_problems()` + `run_triage_agent()`, shared with the eval.
 - **Triage verdicts: bug vs flaky vs environment** — agentic triage now classifies every failing
   case through a `record_verdict` tool (`product_bug` · `flaky` · `environment` · `unknown`) after a
   new `get_run_environment_status` tool (env health + the case's result on other environments).

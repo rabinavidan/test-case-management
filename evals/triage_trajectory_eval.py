@@ -23,10 +23,10 @@ path - api.triage_agent.run_triage_agent(), the same function the
   verdict_repeatability   - with --repeats > 1, the fraction of cases given
                             the same verdict on every repeat
 
---gate compares against a committed baseline
-(evals/baselines/<model>/triage_trajectory.json, written by
---record-baseline) with a fixed tolerance, so a prompt change that makes the
-agent stop investigating - tool_selection_accuracy falling - fails CI. The
+--gate compares tool_selection_accuracy and verdict_coverage against a
+committed baseline (evals/baselines/<model>/triage_trajectory.json, written
+by --record-baseline) with a fixed tolerance, so a prompt change that makes
+the agent stop investigating - tool_selection_accuracy falling - fails CI. The
 baseline records a hash of the system prompt it was measured with.
 
 Usage:
@@ -56,8 +56,13 @@ BASELINE_DIR = Path(__file__).parent / "baselines"
 TARGET = "triage_trajectory"
 EVIDENCE_TOOLS = {"get_test_case_history", "get_similar_test_cases", "get_suite_flaky_tests",
                   "get_run_environment_status"}
-GATED_METRICS = ("tool_selection_accuracy", "verdict_coverage", "verdict_accuracy")
-TOLERANCE = 0.10
+# Gated: the behaviour this eval exists for (did it investigate, did it
+# answer every case). verdict_accuracy is reported, not gated - on a 3B
+# model it moves by a whole case (0.1) between identical runs
+# (verdict_repeatability 0.8 measured), so gating it would gate noise.
+# The tolerance is likewise sized to one case's worth of drift plus slack.
+GATED_METRICS = ("tool_selection_accuracy", "verdict_coverage")
+TOLERANCE = 0.15
 _ENV_TIERS = {"staging": 1, "regression": 2, "preprod": 3, "prod": 4}
 
 
