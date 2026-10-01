@@ -1,0 +1,85 @@
+{
+  "description": "Triage-agent trajectory scenarios (course milestone M10). Each scenario seeds a suite, prior runs across environments and one run to triage, plus the run environment's health. Every failing case carries a human label (expected_verdict) and the evidence an investigator must look at before deciding (must_check): 'history' = its own result history (get_test_case_history for that case, or get_suite_flaky_tests), 'environment' = get_run_environment_status. Statuses in 'history' are oldest first; each entry is one earlier run on the named environment.",
+  "scenarios": [
+    {
+      "id": "flaky-checkout",
+      "run_environment": {"key": "staging", "status": "healthy"},
+      "cases": [
+        {"key": "pay", "title": "Checkout with saved card", "notes": "Timed out waiting for #pay-btn",
+         "history": [["staging", "pass"], ["staging", "fail"], ["staging", "pass"], ["staging", "fail"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "flaky", "must_check": ["history"]}
+      ]
+    },
+    {
+      "id": "regression-after-green-streak",
+      "run_environment": {"key": "staging", "status": "healthy"},
+      "cases": [
+        {"key": "discount", "title": "Discount code reduces the total", "notes": "Total unchanged after applying SAVE10",
+         "history": [["staging", "pass"], ["staging", "pass"], ["staging", "pass"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "product_bug", "must_check": ["history"]}
+      ]
+    },
+    {
+      "id": "environment-down",
+      "run_environment": {"key": "preprod", "status": "down"},
+      "cases": [
+        {"key": "login", "title": "Login with valid credentials", "notes": "502 Bad Gateway",
+         "history": [["preprod", "pass"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "environment", "must_check": ["environment"]}
+      ]
+    },
+    {
+      "id": "environment-degraded-many-failures",
+      "run_environment": {"key": "regression", "status": "degraded"},
+      "cases": [
+        {"key": "search", "title": "Search returns results", "notes": "Request timed out after 30s",
+         "history": [["regression", "pass"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "environment", "must_check": ["environment"]},
+        {"key": "export", "title": "Export suite to CSV", "notes": "Connection reset",
+         "history": [["regression", "pass"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "environment", "must_check": ["environment"]}
+      ]
+    },
+    {
+      "id": "bug-fails-on-every-environment",
+      "run_environment": {"key": "staging", "status": "healthy"},
+      "cases": [
+        {"key": "reset", "title": "Password reset email is sent", "notes": "No email received within 2 minutes",
+         "history": [["preprod", "fail"], ["regression", "fail"]],
+         "current": "fail", "expected_verdict": "product_bug", "must_check": ["environment"]}
+      ]
+    },
+    {
+      "id": "mixed-flaky-and-bug",
+      "run_environment": {"key": "staging", "status": "healthy"},
+      "cases": [
+        {"key": "upload", "title": "Upload a profile picture", "notes": "Element detached from DOM",
+         "history": [["staging", "fail"], ["staging", "pass"], ["staging", "fail"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "flaky", "must_check": ["history"]},
+        {"key": "invoice", "title": "Invoice PDF shows VAT", "notes": "VAT line missing from the PDF",
+         "history": [["staging", "pass"], ["staging", "pass"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "product_bug", "must_check": ["history"]}
+      ]
+    },
+    {
+      "id": "env-down-but-flaky-looking-history",
+      "run_environment": {"key": "staging", "status": "down"},
+      "cases": [
+        {"key": "cart", "title": "Cart persists across sessions", "notes": "503 Service Unavailable",
+         "history": [["staging", "pass"], ["staging", "fail"], ["staging", "pass"], ["preprod", "pass"]],
+         "current": "fail", "expected_verdict": "environment", "must_check": ["environment"]}
+      ]
+    },
+    {
+      "id": "skip-is-not-a-failure",
+      "run_environment": {"key": "staging", "status": "healthy"},
+      "cases": [
+        {"key": "sso", "title": "SSO login via Okta", "notes": "Skipped: Okta sandbox not provisioned",
+         "history": [["staging", "pass"]], "current": "skip"},
+        {"key": "profile", "title": "Profile name can be edited", "notes": "Saved name reverts after reload",
+         "history": [["staging", "pass"], ["staging", "pass"]],
+         "current": "fail", "expected_verdict": "product_bug", "must_check": ["history"]}
+      ]
+    }
+  ]
+}
