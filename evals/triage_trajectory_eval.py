@@ -19,6 +19,8 @@ path - api.triage_agent.run_triage_agent(), the same function the
   confident_errors        - recorded verdicts that are wrong and not 'unknown'
   cap_hit_rate            - scenarios that ran into the iteration cap
   tool_error_rate         - tool calls that returned an error to the model
+  re_verdict_attempts     - extra record_verdict calls for an already-classified
+                            case (verdicts are final; the tool rejects them)
   mean_tool_calls         - cost/efficiency of the investigation
   verdict_repeatability   - with --repeats > 1, the fraction of cases given
                             the same verdict on every repeat
@@ -181,6 +183,8 @@ def score_trajectory(scenario: dict, ids: dict, loop, agent_verdicts: dict) -> d
         "tool_sequence": [c.name for c in calls],
         "tool_calls": len(calls),
         "tool_errors": sum(1 for c in calls if c.is_error),
+        "re_verdict_attempts": sum(n - 1 for n in Counter(
+            str(c.input.get("testcase_id")) for c in calls if c.name == "record_verdict").values() if n > 1),
         "investigated": any(c.name in EVIDENCE_TOOLS and not c.is_error for c in calls),
         "hit_iteration_cap": loop.hit_iteration_cap,
         "iterations": loop.iterations,
@@ -212,6 +216,7 @@ def aggregate(trajectories: list[dict]) -> dict:
         "cap_hit_rate": ratio(sum(t["hit_iteration_cap"] for t in trajectories), n),
         "tool_error_rate": ratio(sum(t["tool_errors"] for t in trajectories), calls),
         "mean_tool_calls": round(calls / n, 2),
+        "re_verdict_attempts": sum(t["re_verdict_attempts"] for t in trajectories),
         "failed_runs": sum(1 for t in trajectories if t["outcome"] != "success"),
         "verdict_repeatability": ratio(sum(1 for v in by_case.values() if len(v) == 1), len(by_case)),
         "tool_usage": dict(Counter(name for t in trajectories for name in t["tool_sequence"])),
@@ -270,7 +275,8 @@ def _print(report: dict) -> None:
     print(f"{report['provider']}:{report['model']} prompt={report['prompt_hash']} "
           f"trajectories={m['trajectories']} failing_cases={m['failing_cases']}")
     for key in ("tool_selection_accuracy", "investigation_rate", "verdict_coverage", "verdict_accuracy",
-                "confident_errors", "cap_hit_rate", "tool_error_rate", "mean_tool_calls", "failed_runs",
+                "confident_errors", "cap_hit_rate", "tool_error_rate", "mean_tool_calls", "re_verdict_attempts",
+                "failed_runs",
                 "verdict_repeatability"):
         print(f"  {key:<24} {m[key]}")
     for t in report["trajectories"]:

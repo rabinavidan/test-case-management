@@ -188,8 +188,8 @@ def build_triage_tools(db: Session, suite_id: int, run: models.TestRun | None = 
                        verdict_sink: dict | None = None) -> dict:
     """Returns {tool_name: handler} closed over one suite. With a run, also
     exposes get_run_environment_status; with a verdict_sink dict, also
-    record_verdict, which stores {testcase_id: {verdict, evidence}} there and
-    only accepts IDs of this run's failing cases."""
+    record_verdict, which stores {testcase_id: {verdict, evidence}} there,
+    only accepts IDs of this run's failing cases, and only once per case."""
     problem_ids = set(problem_testcase_ids or [])
 
     def _require_in_suite(testcase_id: int) -> models.TestCase:
@@ -260,6 +260,13 @@ def build_triage_tools(db: Session, suite_id: int, run: models.TestRun | None = 
             raise ValueError(f"verdict must be one of {', '.join(VERDICTS)}")
         if int(testcase_id) not in problem_ids:
             raise ValueError(f"Test case {testcase_id} is not a failing case in this run")
+        if int(testcase_id) in verdict_sink:
+            # Verdicts are final (the prompt says "exactly once"). The M10
+            # trajectory eval caught qwen2.5:7b recording the right verdict
+            # first, then overwriting it with a worse one after more tool
+            # calls - first write wins, and the model is told so.
+            raise ValueError(f"A verdict for test case {testcase_id} is already recorded "
+                             f"({verdict_sink[int(testcase_id)]['verdict']}); verdicts are final")
         verdict_sink[int(testcase_id)] = {"verdict": verdict, "evidence": str(evidence)[:300]}
         return {"recorded": True}
 

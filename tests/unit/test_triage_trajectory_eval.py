@@ -154,3 +154,23 @@ def test_cli_records_then_gates_against_the_baseline(agent, monkeypatch, tmp_pat
     assert traj.main(args + ["--gate", "--system-prompt-file", str(prompt)]) == 1
     out = capsys.readouterr().out
     assert "prompt changed since the baseline" in out and "REGRESSION tool_selection_accuracy" in out
+
+
+def test_re_verdict_attempts_are_counted_and_rejected(agent):
+    def flip_flopper(messages):
+        failing = _failing(messages[0]["content"])
+        if len(messages) == 1:
+            return _uses([("get_run_environment_status", {})] + [("get_test_case_history", {"testcase_id": i})
+                                                                  for i, _ in failing])
+        if len(messages) == 3:
+            return _uses([("record_verdict", {"testcase_id": i, "verdict": LABELS[t], "evidence": "first"})
+                          for i, t in failing]
+                         + [("record_verdict", {"testcase_id": i, "verdict": "unknown", "evidence": "second"})
+                            for i, _ in failing])
+        return _Msg([_Block("text", text="Summary.")])
+
+    agent(flip_flopper)
+    report = _run(only=["mixed-flaky-and-bug"])
+    m = report["metrics"]
+    assert m["re_verdict_attempts"] == 2
+    assert m["verdict_accuracy"] == 1.0  # the first (correct) verdicts stood
