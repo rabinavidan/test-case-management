@@ -75,6 +75,7 @@ def _run_migrations():
                 "ALTER TABLE test_runs ADD COLUMN created_by_id INTEGER REFERENCES users(id)",
                 "ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE",
                 "ALTER TABLE test_runs ADD COLUMN environment_id INTEGER REFERENCES environments(id)",
+                "ALTER TABLE test_case_embeddings ADD COLUMN embedding_model VARCHAR(100)",
             ]:
                 try:
                     conn.execute(text(stmt))

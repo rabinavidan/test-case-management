@@ -74,12 +74,13 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     await guestExpect(section.getByText('Evals & Human-in-the-Loop')).toBeVisible();
   });
 
-  guestTest('the AI roadmap lists M7 as done and M8–M10 as planned', async ({ page }) => {
+  guestTest('the AI roadmap lists M7–M8 as done and M9–M10 as planned', async ({ page }) => {
     const roadmap = page.getByTestId('ai-first-engineering-section').getByTestId('ai-roadmap');
     await guestExpect(roadmap).toBeVisible();
-    const m7 = roadmap.locator('li', { hasText: 'M7' });
-    await guestExpect(m7).toContainText('Done');
-    for (const id of ['M8', 'M9', 'M10']) {
+    for (const id of ['M7', 'M8']) {
+      await guestExpect(roadmap.locator('li', { hasText: id })).toContainText('Done');
+    }
+    for (const id of ['M9', 'M10']) {
       await guestExpect(roadmap.locator('li', { hasText: id })).toContainText('Planned');
     }
   });

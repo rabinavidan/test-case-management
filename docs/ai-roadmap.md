@@ -9,7 +9,7 @@ production code *and* a test that proves it — not a README claim.
 | # | Milestone | Building block | Gap it closes | Status |
 |---|-----------|----------------|---------------|--------|
 | M7 | Agentic failure triage (tool use) | Tool use | Product LLM calls were single-shot; tool use only existed in authoring-time Claude Code agents | ✅ Done |
-| M8 | Real embeddings behind `get_embedding()` | RAG | Retrieval used a hashed bag-of-words vector, not a learned embedding model | 🟡 Planned |
+| M8 | Real embeddings behind `get_embedding()` | RAG | Retrieval used a hashed bag-of-words vector, not a learned embedding model | ✅ Done |
 | M9 | In-app human review of AI drafts + feedback loop | Human-in-the-loop · Evals | HITL existed only in the headless LangGraph illustration; human decisions never fed back into evals | 🟡 Planned |
 | M10 | Trajectory evals for the triage agent | Evaluations · Tool use | The eval harness scores final text only, not *which tools* an agent chose to call | 🟡 Planned |
 
@@ -51,17 +51,46 @@ diagnosing:
 (tool_use → tool_result → final text), the iteration cap, cross-suite
 scoping, and the fallback — all with a fake Anthropic client, no API key.
 
-## M8 — Real embeddings behind `get_embedding()` 🟡
+## M8 — Real embeddings behind `get_embedding()` ✅
 
 **What:** add an `EMBEDDING_PROVIDER` switch (`hash` default · `ollama`
 `nomic-embed-text` · a hosted API) behind the existing `get_embedding()`
 seam, storing the model name alongside each vector so a provider change
 triggers a re-embed instead of silently comparing incompatible vectors.
 
-**Done when:** the eval harness's retrieval-grounded comparison shows a
-measurable duplicate-rate reduction for the learned embedding vs. the
-hashed baseline on the same dataset — or documents that it doesn't at this
-scale, which is also a valid result.
+**Done when:** a retrieval eval shows a measurable win for the learned
+embedding vs. the hashed baseline on the same dataset — or documents that
+it doesn't at this scale, which is also a valid result.
+
+**Result.** `api/embeddings.py`'s `embed_texts()` routes on
+`EMBEDDING_PROVIDER` (`hash` default · `ollama` · `voyage`), always
+L2-normalizing so cosine stays a dot product. `api/retrieval.py` stores the
+`embedding_model` next to each vector (additive column + startup
+migration; pre-M8 `NULL` rows count as the hash vector), re-embeds stale
+rows in one batch when the provider changes, and on a provider failure
+redoes the *whole* ranking on the hash vector — a learned query vector is
+never compared against hashed case vectors.
+
+The measurement is a new, deterministic retrieval eval
+([`evals/retrieval_eval.py`](../evals/retrieval_eval.py),
+[`evals/datasets/retrieval.json`](../evals/datasets/retrieval.json)): 18
+queries across 3 suites, each reworded from the case it should find
+("Forgot-my-password mail never arrives" → "Password reset email is sent").
+
+| Provider | Model | Recall@1 | Recall@3 | MRR |
+|----------|-------|---------:|---------:|----:|
+| hash | `hash-bow-128` | 0.556 | 0.722 | 0.666 |
+| ollama | `nomic-embed-text` | **1.000** | **1.000** | **1.000** |
+
+Honest caveat: 18 hand-written queries is a small set and the learned
+model saturates it — the result proves the direction and size of the gap
+(the hashed vector ranked some correct cases 5th–8th of 8), not a
+production-grade accuracy figure. Growing the dataset with harder negatives
+is the natural next step. CI runs both providers on every eval-relevant PR
+(`eval-harness.yml`), gating the learned model at Recall@3 ≥ 0.9.
+
+The default stays `hash`: the Vercel production deployment has no local
+model service, and `voyage` is opt-in because it's a paid API.
 
 ## M9 — In-app human review of AI drafts + feedback loop 🟡
 

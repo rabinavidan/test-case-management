@@ -295,6 +295,33 @@ python -m evals.cli --target test_generation_grounded   --model qwen2.5:0.5b --r
 
 Not wired into `eval-harness.yml` this milestone — see Future work.
 
+### Retrieval quality: hashed vs learned embeddings (M8)
+
+The comparison above holds retrieval fixed and varies the prompt. M8 holds
+the prompt out entirely and measures retrieval itself:
+`evals/retrieval_eval.py` embeds each suite's corpus in
+`evals/datasets/retrieval.json` and ranks it against 18 queries that
+reword the case they should find, reporting Recall@1, Recall@3 and MRR per
+embedding provider. Embedding is deterministic, so one pass is the whole
+measurement — no `--runs`, no variance to report.
+
+| Provider | Model | Recall@1 | Recall@3 | MRR |
+|----------|-------|---------:|---------:|----:|
+| hash | `hash-bow-128` | 0.556 | 0.722 | 0.666 |
+| ollama | `nomic-embed-text` | 1.000 | 1.000 | 1.000 |
+
+```
+ollama pull nomic-embed-text
+python -m evals.retrieval_eval --provider hash --provider ollama
+```
+
+Wired into `eval-harness.yml` (it's cheap: one small model pull, no
+generation), gating `ollama` at `--min-recall-at-3 0.9`. The learned model
+saturates this small set; treat it as proof of the gap, not an accuracy
+figure. `cross_duplicate_rate` above deliberately keeps using the hashed
+`get_embedding()` — a scorer's yardstick must not move when production's
+retrieval model does.
+
 ## Layout
 
 | File | Purpose |
@@ -371,7 +398,7 @@ without special-casing.
   reason as the judge model above: two more full eval runs per CI trigger
   is real added job duration for a milestone whose "Done when" only asked
   for a measurable local result, not a standing CI signal.
-- `api/retrieval.py`'s embedding is a hashed bag-of-words vector, not a
-  learned model (see `api/embeddings.py`'s docstring for the reasoning) —
-  worth revisiting behind the same `get_embedding()` seam if the app's
-  scale or budget ever changes that trade-off.
+- ~~`api/retrieval.py`'s embedding is a hashed bag-of-words vector~~ —
+  done in M8: `EMBEDDING_PROVIDER` selects `hash`, `ollama`, or `voyage`
+  (see "Retrieval quality" above). Still open: a larger retrieval dataset
+  with hard negatives, since the learned model saturates the current one.

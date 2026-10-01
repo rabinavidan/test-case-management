@@ -1,0 +1,66 @@
+{
+  "description": "Retrieval-quality golden set (course milestone M8). Each suite is a small corpus of existing test cases; each query is how a user or a failing run would describe one of them, deliberately reworded (synonyms, different phrasing) so lexical overlap alone is not enough. 'relevant' lists the corpus ids a correct retriever should rank first.",
+  "suites": [
+    {
+      "id": "auth",
+      "corpus": [
+        {"id": "auth-1", "title": "Login with valid credentials succeeds", "description": "Enter a correct username and password and submit; the dashboard loads."},
+        {"id": "auth-2", "title": "Login with wrong password shows an error", "description": "A valid username with an incorrect password displays an invalid-credentials message."},
+        {"id": "auth-3", "title": "Account locks after five failed attempts", "description": "Five consecutive bad passwords lock the account for 15 minutes."},
+        {"id": "auth-4", "title": "Password reset email is sent", "description": "Requesting a reset for a registered address emails a reset link."},
+        {"id": "auth-5", "title": "Expired reset link is rejected", "description": "Opening a reset link after 24 hours shows an expiry error."},
+        {"id": "auth-6", "title": "Session expires after inactivity", "description": "After 30 idle minutes the next request redirects to the login page."},
+        {"id": "auth-7", "title": "Logout clears the session", "description": "Clicking logout invalidates the token; the back button does not restore the page."},
+        {"id": "auth-8", "title": "Two-factor code required for admins", "description": "Admin accounts must enter a one-time code from the authenticator app."}
+      ],
+      "queries": [
+        {"id": "auth-q1", "text": "Sign-in rejects an incorrect secret", "relevant": ["auth-2"]},
+        {"id": "auth-q2", "text": "User is blocked after repeated bad sign-in tries", "relevant": ["auth-3"]},
+        {"id": "auth-q3", "text": "Forgot-my-password mail never arrives", "relevant": ["auth-4"]},
+        {"id": "auth-q4", "text": "Idle user gets kicked out and must authenticate again", "relevant": ["auth-6"]},
+        {"id": "auth-q5", "text": "Signing out still lets me see the page when pressing back", "relevant": ["auth-7"]},
+        {"id": "auth-q6", "text": "Administrators are asked for an OTP from their phone", "relevant": ["auth-8"]}
+      ]
+    },
+    {
+      "id": "checkout",
+      "corpus": [
+        {"id": "co-1", "title": "Checkout with a valid credit card", "description": "Pay with a valid Visa card; the order is confirmed."},
+        {"id": "co-2", "title": "Expired card is declined", "description": "Paying with a card past its expiry date shows a decline message."},
+        {"id": "co-3", "title": "Discount code reduces the total", "description": "Applying a valid promo code lowers the order total by the promo amount."},
+        {"id": "co-4", "title": "Out-of-stock item cannot be purchased", "description": "Adding an item with zero inventory disables the buy button."},
+        {"id": "co-5", "title": "Shipping cost calculated by region", "description": "Delivery fee changes when the shipping address country changes."},
+        {"id": "co-6", "title": "Order confirmation email is sent", "description": "A receipt email with the order number is sent after payment."},
+        {"id": "co-7", "title": "Cart persists across sessions", "description": "Items added to the basket are still there after logging back in."},
+        {"id": "co-8", "title": "Refund issued for a cancelled order", "description": "Cancelling before dispatch returns the money to the original payment method."}
+      ],
+      "queries": [
+        {"id": "co-q1", "text": "Payment goes through even though the Visa is no longer valid", "relevant": ["co-2"]},
+        {"id": "co-q2", "text": "Coupon is accepted but the price does not drop", "relevant": ["co-3"]},
+        {"id": "co-q3", "text": "Customer can buy a product we have none of in the warehouse", "relevant": ["co-4"]},
+        {"id": "co-q4", "text": "Delivery fee is the same for every country", "relevant": ["co-5"]},
+        {"id": "co-q5", "text": "No receipt in the inbox after paying", "relevant": ["co-6"]},
+        {"id": "co-q6", "text": "Basket is empty when the shopper returns the next day", "relevant": ["co-7"]},
+        {"id": "co-q7", "text": "Money not returned after the purchase was called off", "relevant": ["co-8"]}
+      ]
+    },
+    {
+      "id": "reporting",
+      "corpus": [
+        {"id": "rp-1", "title": "Export suite to CSV", "description": "Download a suite's test cases as a comma-separated file."},
+        {"id": "rp-2", "title": "Pass-rate trend chart renders", "description": "The analytics page plots pass percentage per run over time."},
+        {"id": "rp-3", "title": "Empty suite exports header row only", "description": "Exporting a suite with zero test cases produces a file with just the column names."},
+        {"id": "rp-4", "title": "Flaky tests are flagged", "description": "Test cases that alternate pass and fail across runs are listed as flaky."},
+        {"id": "rp-5", "title": "Run report PDF download", "description": "A finished run can be downloaded as a printable PDF summary."},
+        {"id": "rp-6", "title": "Filter runs by environment", "description": "Selecting staging shows only runs executed against staging."}
+      ],
+      "queries": [
+        {"id": "rp-q1", "text": "Spreadsheet download of all cases in a suite", "relevant": ["rp-1"]},
+        {"id": "rp-q2", "text": "Graph of success percentage over time is blank", "relevant": ["rp-2"]},
+        {"id": "rp-q3", "text": "Tests that keep flip-flopping are not highlighted", "relevant": ["rp-4"]},
+        {"id": "rp-q4", "text": "Printable summary of a completed execution", "relevant": ["rp-5"]},
+        {"id": "rp-q5", "text": "Only show executions that ran against the staging stage", "relevant": ["rp-6"]}
+      ]
+    }
+  ]
+}
