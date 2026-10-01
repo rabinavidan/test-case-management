@@ -92,6 +92,77 @@ is the natural next step. CI runs both providers on every eval-relevant PR
 The default stays `hash`: the Vercel production deployment has no local
 model service, and `voyage` is opt-in because it's a paid API.
 
+## Reliability gaps
+
+The milestones above are organised by building block. These are organised
+by the ways AI-in-QA agents actually go wrong in practice, and what in this
+repo stops each one.
+
+| Failure mode | Status | Guard |
+|--------------|--------|-------|
+| Failure investigation: an agent can't tell a product bug from a flaky test or an environment issue | ✅ Done | Structured triage verdicts + heuristic cross-check + verdict eval (below) |
+| Self-healing: an agent fixed a selector but changed what the test verifies | ✅ Done | Assertion guard in CI (below) |
+| Agent workflows: wrong tools, lost context, needed a human | 🟡 Partial | Bounded loop, scoped tools, full trace (M7); disagreement → human review; trajectory scoring is M10 |
+| Evaluation: are the agent's decisions correct *and* repeatable? | 🟡 Partial | Verdict eval scores the heuristic baseline (accuracy, confident errors, repeatability); scoring the live agent on the same set is M10 |
+| Test generation: generated tests pass but miss business scenarios | 🟡 Partial | Grounded generation + Test Plan Reviewer critic; a scenario-coverage scorer is a natural M9 follow-up |
+
+### Bug vs flaky vs environment ✅
+
+**What:** agentic triage now ends with one **structured verdict per failing
+case** — `product_bug` · `flaky` · `environment` · `unknown` — recorded through
+a `record_verdict` tool rather than parsed out of prose, so it is
+machine-checkable. A new `get_run_environment_status` tool gives the agent
+the evidence it was missing: the run environment's health and how the same
+case did on the *other* environments. (Health is the deterministic simulation
+in `api/environment_health.py`; the seam is where a real k8s/metrics probe
+would plug in.)
+
+Every case also gets a deterministic `heuristic_verdict()` from the same
+evidence (`collect_evidence()`): unhealthy env + passes elsewhere →
+environment; ≥ 2 pass/fail flips → flaky; green recent history, or failing
+everywhere on a healthy env → product bug; otherwise unknown. The response
+carries both, and **`needs_human_review` is set when they disagree, when the
+agent skipped a case, or when it said `unknown`** — the agent never silently
+wins an argument with the baseline. Single-shot mode returns the heuristic
+verdicts.
+
+**Measured:** [`evals/triage_verdict_eval.py`](../evals/triage_verdict_eval.py)
+on 16 human-labelled cases
+([`evals/datasets/triage_verdicts.json`](../evals/datasets/triage_verdicts.json)),
+including deliberately hard ones. It separates *abstaining* (`unknown`, which
+routes to a human — acceptable) from a *confident error* (a wrong verdict that
+sends someone chasing a product bug that was really a dead pod — not
+acceptable):
+
+| Classifier | Accuracy | Coverage | Precision | Confident errors | Repeatable |
+|------------|---------:|---------:|----------:|-----------------:|:----------:|
+| heuristic baseline | 0.75 | 0.75 | **1.00** | **0** | ✅ |
+
+The 4 abstentions are cases the evidence genuinely doesn't settle (no
+history at all; env down *and* failing elsewhere). Unit tests gate
+`confident_errors == 0`. Scoring the live agent on the same set needs an API
+key and is part of M10.
+
+### Assertion guard ✅
+
+**What:** the healer prompt already forbids deleting or loosening an
+assertion, and `scripts/heal_metrics.py` measures whether the healer *said*
+it complied. [`scripts/assertion_guard.py`](../scripts/assertion_guard.py)
+checks what the diff actually *does*: for every changed `e2e/**/*.spec.ts`
+(comments stripped, so commenting an `expect()` out counts as removing it) it
+blocks fewer `expect()` calls, new `skip`/`fixme`, more loose matchers
+(`toBeTruthy`, `toBeDefined`, …) and more `.not` inversions, and lists every
+changed expected value as a warning for a human. A selector-only heal touches
+none of these and passes. The override is a human decision, visible in
+review: the `assertion-change-approved` PR label or a
+`// assertion-change-approved: <reason>` comment in the spec — the healer is
+told never to write that marker itself.
+
+**Back-test:** run over every spec-changing commit in the repo's history (19),
+it flagged exactly one — a commit that inverted an assertion because the
+product behaviour was intentionally removed. That is the case the human
+approval exists for.
+
 ## M9 — In-app human review of AI drafts + feedback loop 🟡
 
 **What:** AI-generated test cases already land as `draft`. Add an explicit

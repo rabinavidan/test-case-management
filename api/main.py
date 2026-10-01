@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 import asyncio
 import os
 import random
-import hashlib
 import pathlib
 import json
 import time
@@ -38,7 +37,14 @@ from .ai_prompts import (
     parse_testcase_generation_response,
 )
 from .retrieval import nearest_test_cases, store_test_case_embedding
-from .triage_agent import TRIAGE_AGENT_SYSTEM_PROMPT, TRIAGE_TOOLS, build_triage_tools
+from .environment_health import simulate_environment_health as _simulate_environment_health
+from .triage_agent import (
+    TRIAGE_AGENT_SYSTEM_PROMPT,
+    TRIAGE_TOOLS,
+    build_triage_tools,
+    collect_evidence,
+    heuristic_verdict,
+)
 
 # ─── Structured logging setup ────────────────────────────────────────────────
 logging.basicConfig(
@@ -324,29 +330,8 @@ def setup_status(db: Session = Depends(get_db)):
 # poll — deterministic within a 5-minute window so numbers don't jitter on
 # every refresh, and closer to "healthy" for prod/preprod than for
 # staging/regression, mirroring the stability gradient a real pipeline has.
-# Swap `_simulate_environment_health` for a real Kubernetes client call
-# (`kubernetes.client.CoreV1Api`) to point this at an actual cluster; the
-# node/namespace layout it reports already matches k8s/overlays/<key>/.
-_ENVIRONMENT_DESIRED_PODS = {"staging": 2, "regression": 2, "preprod": 3, "prod": 4}
-
-
-def _simulate_environment_health(key: str) -> dict:
-    bucket = int(time.time() // 300)
-    seed = int(hashlib.sha256(f"{key}:{bucket}".encode()).hexdigest(), 16)
-    rnd = random.Random(seed)
-    desired = _ENVIRONMENT_DESIRED_PODS.get(key, 2)
-    healthy_bias = 0.97 if key in ("prod", "preprod") else 0.9
-    ready = desired if rnd.random() < healthy_bias else max(0, desired - rnd.randint(1, 2))
-    health_status = "healthy" if ready == desired else ("degraded" if ready > 0 else "down")
-    load_bias = 15 if key == "prod" else 0
-    return {
-        "status": health_status,
-        "pods_ready": ready,
-        "pods_desired": desired,
-        "cpu_pct": round(rnd.uniform(15, 45) + load_bias, 1),
-        "mem_pct": round(rnd.uniform(20, 55) + load_bias, 1),
-        "uptime_seconds": rnd.randint(3600, 30 * 24 * 3600),
-    }
+# The simulation itself lives in api/environment_health.py so the triage
+# agent (api/triage_agent.py) can read the same health signal.
 
 
 @app.get("/api/environments", response_model=List[schemas.EnvironmentResponse])
@@ -900,7 +885,12 @@ async def triage_run(
     generation. With ?agentic=true (course milestone M7) the model can call
     read-only tools - case history, similar cases, suite flakiness - before
     diagnosing; see api/triage_agent.py. Anthropic-only: other providers fall
-    back to the single-shot call and report mode="single_shot"."""
+    back to the single-shot call and report mode="single_shot".
+
+    Every failing case also gets a structured verdict (product_bug / flaky /
+    environment / unknown): the agent's, recorded through its record_verdict
+    tool, cross-checked against a deterministic heuristic over the same
+    evidence. Single-shot mode returns the heuristic verdicts alone."""
     run = db.query(models.TestRun).filter(models.TestRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -942,7 +932,31 @@ async def triage_run(
             notes=result.notes,
         ))
 
+    failing_ids = [r.testcase_id for r in problem_results if r.status == "fail"]
+    titles = {item.testcase_id: item.title for item in problem_items}
+
+    def build_verdicts(agent_verdicts: dict | None) -> list:
+        verdicts = []
+        for tid in failing_ids:
+            h_verdict, h_evidence = heuristic_verdict(collect_evidence(db, run, tid))
+            agent = (agent_verdicts or {}).get(tid)
+            if agent_verdicts is None:
+                needs_review = h_verdict == "unknown"
+            else:
+                needs_review = (agent is None or agent["verdict"] == "unknown"
+                                or agent["verdict"] != h_verdict)
+            verdicts.append(schemas.TriageVerdict(
+                testcase_id=tid, title=titles[tid],
+                verdict=agent["verdict"] if agent else h_verdict,
+                agent_verdict=agent["verdict"] if agent else None,
+                agent_evidence=agent["evidence"] if agent else None,
+                heuristic_verdict=h_verdict, heuristic_evidence=h_evidence,
+                needs_human_review=needs_review,
+            ))
+        return verdicts
+
     if agentic and provider == "anthropic":
+        agent_verdicts: dict = {}
         agent_lines = [
             f"(testcase_id={item.testcase_id}) {line.removeprefix('- ')}"
             for item, line in zip(problem_items, lines)
@@ -951,7 +965,9 @@ async def triage_run(
             TRIAGE_AGENT_SYSTEM_PROMPT,
             build_triage_user_prompt(run.name, agent_lines),
             tools=TRIAGE_TOOLS,
-            tool_handlers=build_triage_tools(db, run.suite_id),
+            tool_handlers=build_triage_tools(db, run.suite_id, run=run,
+                                             problem_testcase_ids=failing_ids,
+                                             verdict_sink=agent_verdicts),
             model=model,
             max_tokens=1024,
         )
@@ -967,6 +983,7 @@ async def triage_run(
             mode="agentic",
             tool_calls=[schemas.TriageToolCall(**vars(tc)) for tc in loop.tool_calls],
             hit_iteration_cap=loop.hit_iteration_cap,
+            verdicts=build_verdicts(agent_verdicts),
         )
 
     user_prompt = build_triage_user_prompt(run.name, lines)
@@ -980,7 +997,8 @@ async def triage_run(
 
     summary = result.text.strip()
     logger.info(f"AI triage generated for run={run_id} ({len(problem_results)} problem results)")
-    return schemas.TriageResponse(summary=summary, problem_results=problem_items, model=result.model)
+    return schemas.TriageResponse(summary=summary, problem_results=problem_items, model=result.model,
+                                  verdicts=build_verdicts(None))
 
 
 @app.get("/api/suites/{suite_id}/flaky-tests", response_model=schemas.FlakyTestsResponse)

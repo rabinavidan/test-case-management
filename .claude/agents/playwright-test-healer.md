@@ -84,6 +84,15 @@ unnoticed. Instead:
 resort after you attempted a real fix and could not make it pass reliably — never as the default,
 and never for a failure you classified as behavior change.
 
+**CI enforces this, not just this prompt.** `scripts/assertion_guard.py` (the `Assertion Guard`
+workflow) compares every changed spec against its base and blocks the PR if an `expect()` was
+removed or commented out, a `skip`/`fixme` was added, a matcher was loosened (`toBeTruthy`,
+`toBeDefined`, …) or inverted (`.not`). It also lists every changed expected value for a human.
+A locator/timing heal touches none of these, so it passes. Never add an
+`// assertion-change-approved:` comment yourself — that marker, like the
+`assertion-change-approved` label, is a human's sign-off that the verified behaviour changed on
+purpose.
+
 **Heal outcome recording**: after you finish working a failing test (whether it ends up healed,
 escalated, or — for locator/timing drift only — marked `test.fixme()`), append one JSON object as a
 single line to `heal-outcomes/heal_outcomes.jsonl` (create the file and its directory if they don't

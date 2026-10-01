@@ -133,4 +133,42 @@ test.describe('AI failure triage — serverless', () => {
     await expect(page.locator('#modal-body')).toContainText('All failures trace back to a stale test fixture.');
     await expect(page.locator('#modal-body')).toContainText('Checkout with expired coupon');
   });
+
+  test('each failing case shows a bug/flaky/environment verdict and flags disagreement for review', async ({ page }) => {
+    await mockAuthSession(page);
+    const project = mockProject({ name: 'Verdict Project' });
+    const suite = mockSuite({ project_id: project.id, name: 'Verdict Suite' });
+    const run = mockRun({ suite_id: suite.id, name: 'Nightly Run' });
+
+    await page.route(byPath(`/api/runs/${run.id}`), (route) => fulfillJson(route, 200, run));
+    await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
+
+    const triage = mockTriageResponse({
+      problem_results: [
+        { testcase_id: 601, title: 'Login succeeds', status: 'fail', notes: null },
+        { testcase_id: 602, title: 'Search returns results', status: 'fail', notes: null },
+      ],
+      verdicts: [
+        { testcase_id: 601, title: 'Login succeeds', verdict: 'environment', agent_verdict: 'environment',
+          agent_evidence: 'staging is down; passes on preprod', heuristic_verdict: 'environment',
+          heuristic_evidence: 'staging is down and the case passes on preprod', needs_human_review: false },
+        { testcase_id: 602, title: 'Search returns results', verdict: 'product_bug', agent_verdict: 'product_bug',
+          agent_evidence: 'new failure after a green streak', heuristic_verdict: 'flaky',
+          heuristic_evidence: 'pass/fail flipped 3 times across runs', needs_human_review: true },
+      ],
+    });
+    await page.route(byPath(`/api/runs/${run.id}/triage`), (route) => fulfillJson(route, 200, triage));
+
+    await page.goto(`/#run/${run.id}`);
+    await page.getByRole('button', { name: 'AI Triage' }).click();
+
+    const verdicts = page.getByTestId('triage-verdict');
+    await expect(verdicts).toHaveCount(2);
+    await expect(verdicts.nth(0)).toContainText('Environment');
+    await expect(verdicts.nth(0).getByTestId('triage-needs-review')).toHaveCount(0);
+    await expect(verdicts.nth(1)).toContainText('Product bug');
+    await expect(verdicts.nth(1)).toContainText('heuristic says Flaky test');
+    await expect(verdicts.nth(1).getByTestId('triage-needs-review')).toBeVisible();
+  });
 });

@@ -308,6 +308,21 @@ class TriageToolCall(BaseModel):
     is_error: bool = False
 
 
+class TriageVerdict(BaseModel):
+    """One failing case's classification. verdict is the agent's when it
+    recorded one, else the deterministic heuristic's; needs_human_review is
+    set when the agent gave no verdict, said "unknown", or disagreed with
+    the heuristic - see api/triage_agent.py."""
+    testcase_id: int
+    title: str
+    verdict: str  # product_bug | flaky | environment | unknown
+    agent_verdict: Optional[str] = None
+    agent_evidence: Optional[str] = None
+    heuristic_verdict: str
+    heuristic_evidence: str
+    needs_human_review: bool
+
+
 class TriageResponse(BaseModel):
     summary: str
     problem_results: List[TriageResultItem] = []
@@ -318,6 +333,7 @@ class TriageResponse(BaseModel):
     mode: str = "single_shot"
     tool_calls: List[TriageToolCall] = []
     hit_iteration_cap: bool = False
+    verdicts: List[TriageVerdict] = []
 
 
 # ─── Flaky test detection ────────────────────────────────────────────────────
