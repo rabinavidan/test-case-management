@@ -201,10 +201,22 @@ export function mockTriageResultItem(overrides: Partial<TriageResultItem> = {}):
   };
 }
 
+export interface TriageVerdict {
+  testcase_id: number;
+  title: string;
+  verdict: 'product_bug' | 'flaky' | 'environment' | 'unknown';
+  agent_verdict?: string | null;
+  agent_evidence?: string | null;
+  heuristic_verdict: string;
+  heuristic_evidence: string;
+  needs_human_review: boolean;
+}
+
 export interface TriageResponse {
   summary: string;
   problem_results: TriageResultItem[];
   model: string | null;
+  verdicts?: TriageVerdict[];
 }
 
 export function mockTriageResponse(overrides: Partial<TriageResponse> = {}): TriageResponse {

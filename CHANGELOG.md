@@ -12,6 +12,20 @@ but isn't retroactively cataloged here.
 ## [Unreleased]
 
 ### Added
+- **Triage verdicts: bug vs flaky vs environment** — agentic triage now classifies every failing
+  case through a `record_verdict` tool (`product_bug` · `flaky` · `environment` · `unknown`) after a
+  new `get_run_environment_status` tool (env health + the case's result on other environments).
+  A deterministic `heuristic_verdict()` cross-checks it; disagreement or `unknown` sets
+  `needs_human_review`. `TriageResponse.verdicts` (additive) carries both; the triage modal shows a
+  verdict badge and a *Needs human review* badge. Single-shot mode returns heuristic verdicts.
+  Environment health moved to `api/environment_health.py`.
+- `evals/triage_verdict_eval.py` + `evals/datasets/triage_verdicts.json` — 16 labelled cases;
+  reports accuracy, coverage, precision, confident errors and repeatability. Heuristic baseline:
+  precision 1.00, 0 confident errors, coverage 0.75 (gated in unit tests).
+- **Assertion guard** — `scripts/assertion_guard.py` + `.github/workflows/assertion-guard.yml`
+  block a PR whose spec changes remove, disable, loosen or invert an assertion (a heal must not
+  change what a test verifies); the `assertion-change-approved` label or an in-file
+  `// assertion-change-approved: <reason>` is the human override.
 - **Pluggable embeddings for RAG (course milestone M8)** — `EMBEDDING_PROVIDER`
   selects `hash` (default, unchanged), `ollama` (`nomic-embed-text`), or `voyage`
   (`api/embeddings.py`). `test_case_embeddings.embedding_model` records which model

@@ -1,0 +1,42 @@
+# Assertion guard (docs/ai-roadmap.md, "Reliability gaps") - blocks a PR
+# that removes, disables, weakens or inverts a Playwright assertion, so a
+# self-heal can fix a selector but cannot quietly change what a test
+# verifies. Selector-only changes pass untouched. An intended assertion
+# change is approved by a human: the `assertion-change-approved` label, or
+# a `// assertion-change-approved: <reason>` comment in the spec.
+# See scripts/assertion_guard.py for the exact rules.
+name: Assertion Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - "e2e/**/*.spec.ts"
+      - "scripts/assertion_guard.py"
+      - ".github/workflows/assertion-guard.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  assertion-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Compare assertions against the base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'assertion-change-approved') }}
+        run: |
+          set -o pipefail
+          args=(--base "origin/$BASE_REF" --head HEAD)
+          if [ "$APPROVED" = "true" ]; then args+=(--approved); fi
+          python scripts/assertion_guard.py "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"

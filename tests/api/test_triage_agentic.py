@@ -95,7 +95,8 @@ def test_agentic_triage_runs_tool_loop_and_returns_trace(failing_run, monkeypatc
 
     # The model was offered the tools and told the case's ID so it can call them.
     assert {t["name"] for t in calls[0]["tools"]} == {
-        "get_test_case_history", "get_similar_test_cases", "get_suite_flaky_tests"}
+        "get_test_case_history", "get_similar_test_cases", "get_suite_flaky_tests",
+        "get_run_environment_status", "record_verdict"}
     assert f"testcase_id={tc['id']}" in calls[0]["messages"][0]["content"]
 
     # Real handler output went back as the tool_result for the model's next turn.
@@ -203,3 +204,99 @@ def test_default_triage_stays_single_shot(failing_run, monkeypatch):
     assert r.status_code == 200
     assert r.json()["mode"] == "single_shot"
     assert "tools" not in calls[0]
+
+
+# ─── Structured verdicts (bug vs flaky vs environment) ───────────────────────
+
+def test_agent_verdict_agreeing_with_heuristic_needs_no_review(failing_run, monkeypatch):
+    """failing_run's case went pass, fail, pass, fail: the heuristic calls it
+    flaky, so an agent that also says flaky is not flagged for review."""
+    client, headers, run, tc = failing_run
+    _install_scripted_anthropic(monkeypatch, [
+        tool_use("record_verdict", {"testcase_id": tc["id"], "verdict": "flaky",
+                                    "evidence": "alternating pass/fail history"}),
+        text("Flaky."),
+    ])
+    data = client.post(f"/api/runs/{run['id']}/triage?agentic=true", headers=headers).json()
+    [v] = data["verdicts"]
+    assert v == {**v, "testcase_id": tc["id"], "verdict": "flaky", "agent_verdict": "flaky",
+                 "heuristic_verdict": "flaky", "needs_human_review": False}
+    assert v["agent_evidence"] == "alternating pass/fail history"
+
+
+def test_agent_heuristic_disagreement_is_flagged_for_review(failing_run, monkeypatch):
+    client, headers, run, tc = failing_run
+    _install_scripted_anthropic(monkeypatch, [
+        tool_use("record_verdict", {"testcase_id": tc["id"], "verdict": "product_bug",
+                                    "evidence": "checkout broke"}),
+        text("Regression."),
+    ])
+    [v] = client.post(f"/api/runs/{run['id']}/triage?agentic=true", headers=headers).json()["verdicts"]
+    assert v["verdict"] == "product_bug"
+    assert v["heuristic_verdict"] == "flaky"
+    assert v["needs_human_review"] is True
+
+
+def test_missing_agent_verdict_falls_back_to_heuristic_and_flags_review(failing_run, monkeypatch):
+    client, headers, run, tc = failing_run
+    _install_scripted_anthropic(monkeypatch, [text("No verdict recorded.")])
+    [v] = client.post(f"/api/runs/{run['id']}/triage?agentic=true", headers=headers).json()["verdicts"]
+    assert v["agent_verdict"] is None
+    assert v["verdict"] == "flaky"
+    assert v["needs_human_review"] is True
+
+
+def test_record_verdict_rejects_bad_enum_and_non_failing_cases(failing_run, monkeypatch):
+    client, headers, run, tc = failing_run
+    calls = _install_scripted_anthropic(monkeypatch, [
+        tool_use("record_verdict", {"testcase_id": tc["id"], "verdict": "cosmic_rays", "evidence": "x"}),
+        tool_use("record_verdict", {"testcase_id": 99999, "verdict": "flaky", "evidence": "x"}, id="tu_2"),
+        text("Done."),
+    ])
+    data = client.post(f"/api/runs/{run['id']}/triage?agentic=true", headers=headers).json()
+    assert [c["is_error"] for c in data["tool_calls"]] == [True, True]
+    assert "must be one of" in calls[1]["messages"][-1]["content"][0]["content"]
+    assert "not a failing case" in calls[2]["messages"][-1]["content"][0]["content"]
+    assert data["verdicts"][0]["agent_verdict"] is None
+
+
+def test_environment_tool_reports_health_and_other_environment_results(auth_client, monkeypatch):
+    """A case that fails on staging while passing on prod: the tool shows
+    both, and with staging forced unhealthy the heuristic says environment."""
+    from api import triage_agent
+
+    client, headers = auth_client
+    p = client.post("/api/projects", json={"name": "P"}, headers=headers).json()
+    s = client.post(f"/api/projects/{p['id']}/suites", json={"name": "S"}, headers=headers).json()
+    tc = client.post(f"/api/suites/{s['id']}/testcases", json={"title": "Login", "status": "active"},
+                     headers=headers).json()
+    prod = client.post(f"/api/suites/{s['id']}/runs", json={"name": "prod run", "environment_key": "prod"},
+                       headers=headers).json()
+    client.put(f"/api/runs/{prod['id']}/results/{tc['id']}", json={"status": "pass"}, headers=headers)
+    run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "staging run", "environment_key": "staging"},
+                      headers=headers).json()
+    client.put(f"/api/runs/{run['id']}/results/{tc['id']}", json={"status": "fail"}, headers=headers)
+
+    monkeypatch.setattr(triage_agent, "simulate_environment_health",
+                        lambda key: {"status": "down" if key == "staging" else "healthy", "pods_ready": 0,
+                                     "pods_desired": 2, "cpu_pct": 0, "mem_pct": 0, "uptime_seconds": 0})
+    calls = _install_scripted_anthropic(monkeypatch, [
+        tool_use("get_run_environment_status", {}),
+        text("Staging is down."),
+    ])
+    data = client.post(f"/api/runs/{run['id']}/triage?agentic=true", headers=headers).json()
+    env_result = json.loads(calls[1]["messages"][-1]["content"][0]["content"])
+    assert env_result["environment"]["key"] == "staging"
+    assert env_result["environment"]["status"] == "down"
+    assert env_result["failing_cases"] == [
+        {"testcase_id": tc["id"], "other_environments": [{"environment": "prod", "status": "pass"}]}]
+    assert data["verdicts"][0]["heuristic_verdict"] == "environment"
+
+
+def test_single_shot_mode_returns_heuristic_verdicts(failing_run, monkeypatch):
+    client, headers, run, tc = failing_run
+    _install_scripted_anthropic(monkeypatch, [text("Plain diagnosis.")])
+    [v] = client.post(f"/api/runs/{run['id']}/triage", headers=headers).json()["verdicts"]
+    assert v["verdict"] == v["heuristic_verdict"] == "flaky"
+    assert v["agent_verdict"] is None
+    assert v["needs_human_review"] is False

@@ -1773,8 +1773,8 @@ async function renderProjects() {
           { title: 'Coverage-Gap Agent', desc: 'On every PR, diffs changed source against tests/ and posts concrete test suggestions when a change has no matching-layer test (coverage-gap-agent.yml).' },
           { title: 'Flaky-Test Detection', desc: 'Parses CI’s rerun results and auto-files/updates one tracking GitHub issue per flaky test, so evidence accumulates instead of vanishing (scripts/flake_report.py).' },
           { title: 'AI PR Steward', desc: 'Reads CI failures and review comments, diagnoses root cause, and pushes fixes until a PR is green — the same automation that drove every PR in this portfolio rebuild to merge.' },
-          { title: 'Playwright Planning, Generation & Healing', desc: 'Dedicated agents (.claude/agents/playwright-test-*.md) plan coverage, author new Playwright specs, and repair broken locators across the 3-stack browser suite.' },
-          { title: 'Agentic Failure Triage (Tool Use)', desc: 'Claude calls scoped, read-only tools (case history, similar cases via RAG, suite flakiness) in a bounded loop before diagnosing a failed run, and returns the full tool trace for human review (api/triage_agent.py).' },
+          { title: 'Playwright Planning, Generation & Healing', desc: 'Dedicated agents (.claude/agents/playwright-test-*.md) plan coverage, author new Playwright specs, and repair broken locators across the 3-stack browser suite — and an Assertion Guard in CI blocks any heal that removes, skips, loosens or inverts an assertion (scripts/assertion_guard.py).' },
+          { title: 'Agentic Failure Triage (Tool Use)', desc: 'Claude calls scoped, read-only tools (case history, similar cases via RAG, suite flakiness) in a bounded loop, checks environment health, and classifies each failure as product bug, flaky, or environment — a deterministic heuristic cross-checks every verdict and disagreements are flagged for human review (api/triage_agent.py).' },
           { title: 'Evals & Human-in-the-Loop', desc: 'An eval harness scores AI output quality and run-to-run variance in CI; a LangGraph orchestrator pauses on interrupt() for human approval before generated specs ship (evals/, agents/).' },
         ].map(c => `
           <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -1790,6 +1790,8 @@ async function renderProjects() {
             { id: 'M8', title: 'Real embedding model behind RAG retrieval', done: true },
             { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: false },
             { id: 'M10', title: 'Trajectory evals — score which tools the agent chose', done: false },
+            { id: 'R1', title: 'Triage verdicts: bug vs flaky vs environment, with a labelled eval', done: true },
+            { id: 'R2', title: 'Assertion guard: a heal can’t change what a test verifies', done: true },
           ].map(m => `
             <li class="flex items-center gap-2 text-xs text-slate-600">
               <span class="font-mono font-bold text-slate-400 w-8">${m.id}</span>
@@ -4517,6 +4519,30 @@ async function showFlakyTestsModal(suiteId) {
 
 
 // ─── AI Failure Triage ──────────────────────────────────────────────────────────
+const TRIAGE_VERDICT_LABELS = {
+  product_bug: ["Product bug", "bg-red-100 text-red-700"],
+  flaky:       ["Flaky test", "bg-amber-100 text-amber-700"],
+  environment: ["Environment", "bg-sky-100 text-sky-700"],
+  unknown:     ["Undecided", "bg-slate-200 text-slate-600"],
+};
+
+// Bug vs flaky vs environment for one failing case: the agent's verdict
+// (or the heuristic's in single-shot mode), the evidence behind it, and a
+// "needs review" flag when agent and heuristic disagree or nobody could tell.
+function triageVerdictHtml(v) {
+  if (!v) return "";
+  const [label, cls] = TRIAGE_VERDICT_LABELS[v.verdict] || TRIAGE_VERDICT_LABELS.unknown;
+  const evidence = v.agent_evidence || v.heuristic_evidence;
+  const crossCheck = v.agent_verdict && v.agent_verdict !== v.heuristic_verdict
+    ? ` · heuristic says ${escHtml((TRIAGE_VERDICT_LABELS[v.heuristic_verdict] || TRIAGE_VERDICT_LABELS.unknown)[0])}` : "";
+  return `
+    <div data-testid="triage-verdict" class="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+      <span class="px-2 py-0.5 rounded-full font-semibold ${cls}">${label}</span>
+      ${v.needs_human_review ? `<span data-testid="triage-needs-review" class="px-2 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-700">Needs human review</span>` : ""}
+      <span class="text-slate-500">${escHtml(evidence)}${crossCheck}</span>
+    </div>`;
+}
+
 async function showTriageModal(runId) {
   const title = document.getElementById("modal-title");
   const body = document.getElementById("modal-body");
@@ -4531,6 +4557,7 @@ async function showTriageModal(runId) {
     // server falls back to single-shot for non-Anthropic providers.
     const data = await POST(`/api/runs/${runId}/triage?agentic=true`);
     const toolCalls = data.tool_calls || [];
+    const verdicts = Object.fromEntries((data.verdicts || []).map(v => [v.testcase_id, v]));
     body.innerHTML = `
       <div class="space-y-4">
         <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-sm text-violet-800">
@@ -4556,6 +4583,7 @@ async function showTriageModal(runId) {
                   <span class="text-xs px-2 py-0.5 rounded-full font-medium ${r.status === "fail" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}">${r.status}</span>
                 </div>
                 ${r.notes ? `<p class="text-xs text-slate-500 mt-1">${escHtml(r.notes)}</p>` : ""}
+                ${triageVerdictHtml(verdicts[r.testcase_id])}
               </div>`).join("")}
           </div>` : ""}
         ${data.model ? `<p class="text-xs text-slate-400">via ${escHtml(data.model)}</p>` : ""}
