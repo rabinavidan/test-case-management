@@ -51,3 +51,20 @@ def test_flake_report_step_only_passes_a_real_token_on_push_to_main():
 
 def test_flake_report_script_exists():
     assert (REPO_ROOT / "scripts/flake_report.py").exists()
+
+
+def test_failure_classifier_step_runs_after_pytest_and_never_gates():
+    job = _api_tests_job()
+    names = [s.get("name") for s in job["steps"]]
+    step = next(s for s in job["steps"] if s.get("name") == "Classify failures (product / test-code / infra)")
+    assert step["if"] == "always()"
+    assert step["run"] == 'python scripts/failure_classifier.py report.json >> "$GITHUB_STEP_SUMMARY"'
+    assert names.index(step["name"]) > next(i for i, s in enumerate(job["steps"]) if s.get("id") == "pytest")
+
+
+def test_playwright_merge_job_classifies_failures():
+    workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/pw-ts.yml").read_text())
+    steps = [s for job in workflow["jobs"].values() for s in job.get("steps", [])]
+    step = next(s for s in steps if s.get("name") == "Classify failures (product / test-code / infra)")
+    assert step["if"] == "always()"
+    assert "../scripts/failure_classifier.py test-results/results.json" in step["run"]
