@@ -11,6 +11,11 @@ but isn't retroactively cataloged here.
 
 ## [Unreleased]
 
+### Changed
+- **PR Steward is opt-in** — `claude-pr-steward.yml` is skipped (not failed) unless the
+  `ENABLE_CLAUDE_STEWARD` repository variable is `true`, so a missing `ANTHROPIC_API_KEY` no longer
+  turns every PR red and no API tokens are spent by default.
+
 ### Added
 - **CI failure triage: product bug vs test-code bug vs infra** — `scripts/failure_classifier.py`
   labels every failing test in the pytest JSON report and the merged Playwright JSON report with a

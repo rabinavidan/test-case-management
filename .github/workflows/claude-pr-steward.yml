@@ -4,10 +4,11 @@
 # or when someone comments "@claude" on a PR, runs Claude Code against the
 # PR with .claude/skills/steward/SKILL.md's repo-specific conventions.
 #
-# Requires an ANTHROPIC_API_KEY repository secret (Settings -> Secrets and
-# variables -> Actions) to actually run — not committed here. Until that
-# secret is set, this workflow's jobs will fail at the "Run Claude Code"
-# step with an auth error; every other check in test.yml is unaffected.
+# Off by default, because every run spends paid Anthropic API tokens: the
+# job is skipped unless the repository variable ENABLE_CLAUDE_STEWARD is
+# "true". To turn it on, add an ANTHROPIC_API_KEY repository secret and set
+# that variable (Settings -> Secrets and variables -> Actions -> Secrets /
+# Variables). Skipped is not failed: no other check depends on this one.
 name: Claude PR Steward
 
 on:
@@ -24,12 +25,14 @@ concurrency:
 
 jobs:
   steward:
+    # Opt-in (see header): skipped unless ENABLE_CLAUDE_STEWARD is "true".
     # issue_comment fires for both issues and PRs — only act on PR comments,
     # and only when they mention @claude (avoid running on every comment).
     if: >
-      github.event_name != 'issue_comment' ||
-      (github.event.issue.pull_request != null &&
-       contains(github.event.comment.body, '@claude'))
+      vars.ENABLE_CLAUDE_STEWARD == 'true' &&
+      (github.event_name != 'issue_comment' ||
+       (github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '@claude')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
