@@ -46,3 +46,19 @@ def test_static_assets_served(client):
         return
     r = client.get("/static/app.js")
     assert r.status_code == 200
+
+
+def test_static_app_js_is_gzipped(client):
+    # The SPA bundle is the largest thing on the homepage's critical path.
+    app_js = pathlib.Path(__file__).resolve().parents[2] / "static" / "app.js"
+    assert app_js.exists()
+    r = client.get("/static/app.js", headers={"Accept-Encoding": "gzip"})
+    assert r.status_code == 200
+    assert r.headers.get("content-encoding") == "gzip"
+    assert r.text == app_js.read_text(encoding="utf-8")
+
+
+def test_small_json_response_not_gzipped(client):
+    r = client.get("/api/version", headers={"Accept-Encoding": "gzip"})
+    assert r.status_code == 200
+    assert "content-encoding" not in r.headers

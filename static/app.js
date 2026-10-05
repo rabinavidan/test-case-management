@@ -528,7 +528,22 @@ function setBreadcrumb(items) {
 }
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
-async function loadSidebar() {
+// Bootstrap and the routed view both call loadSidebar() on first paint;
+// share one in-flight load instead of fetching /api/projects twice. Only
+// coalesced while the active project is unchanged, since that decides
+// which suites get expanded.
+let _sidebarInflight = null;
+function loadSidebar() {
+  const key = state.currentProject ? state.currentProject.id : null;
+  if (_sidebarInflight && _sidebarInflight.key === key) return _sidebarInflight.promise;
+  const promise = _loadSidebar().finally(() => {
+    if (_sidebarInflight && _sidebarInflight.promise === promise) _sidebarInflight = null;
+  });
+  _sidebarInflight = { key, promise };
+  return promise;
+}
+
+async function _loadSidebar() {
   const ul = document.getElementById("sidebar-projects");
   const newProjBtn = document.getElementById("sidebar-new-project-btn");
   if (newProjBtn) newProjBtn.style.display = isAdmin() ? "" : "none";
@@ -1810,28 +1825,16 @@ async function renderProjects() {
   // real data source here shows "Not yet measured" instead of a guess.
   // Pass Rate is the one live value: fetched from the flagship demo
   // project's own /stats endpoint, not a fixture.
-  let flagshipStats = null;
-  let pipelineStats = null;
-  if (!getToken()) {
-    const flagship = state.projects.find(p => DEMO_KINDS.testflow.namePattern.test(p.name));
-    if (flagship) {
-      try { flagshipStats = await GET(`/api/projects/${flagship.id}/stats`); } catch (e) { flagshipStats = null; }
-    }
-    // Real run durations for the required "Tests" workflow, fetched live
-    // from the GitHub Actions API by the backend (see /api/ci/pipeline-stats
-    // in api/main.py) - null fields on any failure, never a guessed number.
-    try { pipelineStats = await GET('/api/ci/pipeline-stats'); } catch (e) { pipelineStats = null; }
-  }
-  const _kpiTotal = flagshipStats
-    ? flagshipStats.last_run_pass + flagshipStats.last_run_fail + flagshipStats.last_run_skip + flagshipStats.last_run_pending
-    : 0;
-  const livePassRate = _kpiTotal ? Math.round(flagshipStats.last_run_pass / _kpiTotal * 100) : null;
+  //
+  // The two live cards render as "Loading…" and are filled in by
+  // hydrateLiveKpis() after the page is on screen - /api/ci/pipeline-stats
+  // calls the GitHub Actions API on a cold cache, and awaiting it here held
+  // the whole homepage (owner card included) behind that round trip.
   const _formatDurationSeconds = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = Math.round(seconds % 60);
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
-  const pipelineMeanSeconds = pipelineStats?.mean_duration_seconds ?? null;
 
   const kpiBadge = (status) => {
     const styles = {
@@ -1845,94 +1848,99 @@ async function renderProjects() {
     return `<span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${styles[status] || styles['Not yet measured']}">${status}</span>`;
   };
 
-  const KPI_CARDS = [
-    {
-      name: 'Code Coverage', current: '89.1%', target: '85% floor (CI-enforced)',
-      status: 'Healthy',
-      def: 'Line coverage of api/, services/, and shared/ from the pytest suite — a PR that drops below the floor fails the build. Not the same as test-inventory count or pass rate.',
-      source: '.github/workflows/test.yml',
-    },
-    {
-      name: 'Pass Rate (live)',
-      current: livePassRate !== null ? `${livePassRate}%` : 'No run recorded yet',
-      target: '≥ 95%',
-      status: livePassRate === null ? 'Not yet measured' : livePassRate >= 95 ? 'Healthy' : livePassRate >= 80 ? 'Attention' : 'Blocked',
-      def: 'Percentage of executed results that passed in the flagship demo project’s most recent run — fetched live from /api/projects/{id}/stats, not a fixture. Execution pass rate only, not product or requirement coverage.',
-      source: 'GET /api/projects/{id}/stats',
-    },
-    {
-      name: 'Test Inventory', current: '706 tests / 4 layers', target: 'Grows with the codebase',
-      status: 'Healthy',
-      def: 'Total automated test count across unit, component, API/contract, and E2E layers (see Test Pyramid above). This counts tests that exist, not requirements or risk covered.',
-      source: 'tests/, e2e/, java-tests/, java-e2e/, e2e-bdd/',
-    },
-    {
-      name: 'Quality Gate Status', current: '4 gates enforced', target: 'All required checks pass before merge',
-      status: 'Enforced',
-      def: 'Lint, the coverage floor, contract tests, and a live Docker-Compose boot smoke test all block a PR from merging if any fails.',
-      source: '.github/workflows/test.yml, microservices-smoke.yml',
-    },
-    {
-      name: 'Flaky Test Rate', current: 'Not yet measured here', target: '—',
-      status: 'Not yet measured',
-      def: 'Tests that needed a rerun to pass are already detected and tracked automatically in one standing GitHub issue — not yet surfaced as a live rate in this dashboard.',
-      source: 'scripts/flake_report.py',
-    },
-    {
-      name: 'Heal Success Rate', current: 'Not yet measured', target: '—',
-      status: 'Not yet measured',
-      def: 'Of the locator/timing-drift failures the Playwright test-healer agent is allowed to auto-fix, the share it actually healed rather than escalated or skipped. Populates once heal-outcomes/heal_outcomes.jsonl has recorded healing sessions.',
-      source: 'scripts/heal_metrics.py',
-    },
-    {
-      name: 'False Heal Rate', current: 'Not yet measured', target: '0% (any nonzero value is a guardrail violation)',
-      status: 'Not yet measured',
-      def: 'Of the failures the healer classified as a suspected real product defect (behavior change), the share that were NOT escalated — i.e. silently healed or skipped instead. The healer prompt forbids this outcome; this rate is how it would be caught if it happened anyway.',
-      source: 'scripts/heal_metrics.py',
-    },
-    {
-      name: 'AI Call Latency', current: 'Not yet measured', target: '—',
-      status: 'Not yet measured',
-      def: 'Mean latency across AI Test Generation and AI Failure Triage calls, per provider (Anthropic/Ollama/Groq). Populates once ai-call-logs/ai_calls.jsonl has recorded live calls — see api/ai_gateway.py.',
-      source: 'scripts/ai_call_metrics.py',
-    },
-    {
-      name: 'AI Call Cost', current: 'Not yet measured', target: '—',
-      status: 'Not yet measured',
-      def: 'Deliberately not computed from a hardcoded $/token rate, which would silently go stale as providers reprice — token counts and latency are real per-call facts (see AI Call Latency); a cost figure needs a currently-accurate rate this app does not have configured.',
-      source: 'scripts/ai_call_metrics.py',
-    },
-    {
-      name: 'Pipeline Execution Time',
-      current: pipelineMeanSeconds != null
-        ? `${_formatDurationSeconds(pipelineMeanSeconds)} avg (n=${pipelineStats.runs_sampled})`
-        : 'Not yet measured here',
-      target: '—',
-      status: pipelineMeanSeconds != null ? 'Healthy' : 'Not yet measured',
-      def: pipelineMeanSeconds != null
-        ? `Mean wall-clock duration of the last ${pipelineStats.runs_sampled} completed runs of the required "Tests" workflow on main, fetched live from the GitHub Actions API.`
-        : 'Real run durations are visible per-workflow on GitHub Actions; not yet pulled into this dashboard.',
-      source: 'GET /api/ci/pipeline-stats (GitHub Actions API)',
-    },
-    {
-      name: 'Escaped Defects', current: 'Not yet measured', target: '—',
-      status: 'Not yet measured',
-      def: 'Would require a production incident or defect-tracking integration this app doesn’t have yet.',
-      source: '—',
-    },
-    {
-      name: 'Release Readiness', current: 'Not yet measured', target: '—',
-      status: 'Not yet measured',
-      def: 'No formal release-readiness gate beyond "all required CI checks pass on main" is defined yet.',
-      source: '—',
-    },
-  ];
-  const kpiDashboardSection = !getToken() ? `
-    <div class="mb-6" data-testid="kpi-dashboard-section">
-      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Quality Engineering KPIs</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        ${KPI_CARDS.map(k => `
-          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4" data-testid="kpi-card-${k.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}">
+  const buildKpiCards = (flagshipStats, pipelineStats, pending) => {
+    const _kpiTotal = flagshipStats
+      ? flagshipStats.last_run_pass + flagshipStats.last_run_fail + flagshipStats.last_run_skip + flagshipStats.last_run_pending
+      : 0;
+    const livePassRate = _kpiTotal ? Math.round(flagshipStats.last_run_pass / _kpiTotal * 100) : null;
+    const pipelineMeanSeconds = pipelineStats?.mean_duration_seconds ?? null;
+
+    return [
+      {
+        name: 'Code Coverage', current: '89.1%', target: '85% floor (CI-enforced)',
+        status: 'Healthy',
+        def: 'Line coverage of api/, services/, and shared/ from the pytest suite — a PR that drops below the floor fails the build. Not the same as test-inventory count or pass rate.',
+        source: '.github/workflows/test.yml',
+      },
+      {
+        name: 'Pass Rate (live)',
+        current: pending ? 'Loading…' : livePassRate !== null ? `${livePassRate}%` : 'No run recorded yet',
+        target: '≥ 95%',
+        status: pending ? 'Loading…' : livePassRate === null ? 'Not yet measured' : livePassRate >= 95 ? 'Healthy' : livePassRate >= 80 ? 'Attention' : 'Blocked',
+        def: 'Percentage of executed results that passed in the flagship demo project’s most recent run — fetched live from /api/projects/{id}/stats, not a fixture. Execution pass rate only, not product or requirement coverage.',
+        source: 'GET /api/projects/{id}/stats',
+      },
+      {
+        name: 'Test Inventory', current: '706 tests / 4 layers', target: 'Grows with the codebase',
+        status: 'Healthy',
+        def: 'Total automated test count across unit, component, API/contract, and E2E layers (see Test Pyramid above). This counts tests that exist, not requirements or risk covered.',
+        source: 'tests/, e2e/, java-tests/, java-e2e/, e2e-bdd/',
+      },
+      {
+        name: 'Quality Gate Status', current: '4 gates enforced', target: 'All required checks pass before merge',
+        status: 'Enforced',
+        def: 'Lint, the coverage floor, contract tests, and a live Docker-Compose boot smoke test all block a PR from merging if any fails.',
+        source: '.github/workflows/test.yml, microservices-smoke.yml',
+      },
+      {
+        name: 'Flaky Test Rate', current: 'Not yet measured here', target: '—',
+        status: 'Not yet measured',
+        def: 'Tests that needed a rerun to pass are already detected and tracked automatically in one standing GitHub issue — not yet surfaced as a live rate in this dashboard.',
+        source: 'scripts/flake_report.py',
+      },
+      {
+        name: 'Heal Success Rate', current: 'Not yet measured', target: '—',
+        status: 'Not yet measured',
+        def: 'Of the locator/timing-drift failures the Playwright test-healer agent is allowed to auto-fix, the share it actually healed rather than escalated or skipped. Populates once heal-outcomes/heal_outcomes.jsonl has recorded healing sessions.',
+        source: 'scripts/heal_metrics.py',
+      },
+      {
+        name: 'False Heal Rate', current: 'Not yet measured', target: '0% (any nonzero value is a guardrail violation)',
+        status: 'Not yet measured',
+        def: 'Of the failures the healer classified as a suspected real product defect (behavior change), the share that were NOT escalated — i.e. silently healed or skipped instead. The healer prompt forbids this outcome; this rate is how it would be caught if it happened anyway.',
+        source: 'scripts/heal_metrics.py',
+      },
+      {
+        name: 'AI Call Latency', current: 'Not yet measured', target: '—',
+        status: 'Not yet measured',
+        def: 'Mean latency across AI Test Generation and AI Failure Triage calls, per provider (Anthropic/Ollama/Groq). Populates once ai-call-logs/ai_calls.jsonl has recorded live calls — see api/ai_gateway.py.',
+        source: 'scripts/ai_call_metrics.py',
+      },
+      {
+        name: 'AI Call Cost', current: 'Not yet measured', target: '—',
+        status: 'Not yet measured',
+        def: 'Deliberately not computed from a hardcoded $/token rate, which would silently go stale as providers reprice — token counts and latency are real per-call facts (see AI Call Latency); a cost figure needs a currently-accurate rate this app does not have configured.',
+        source: 'scripts/ai_call_metrics.py',
+      },
+      {
+        name: 'Pipeline Execution Time',
+        current: pending ? 'Loading…' : pipelineMeanSeconds != null
+          ? `${_formatDurationSeconds(pipelineMeanSeconds)} avg (n=${pipelineStats.runs_sampled})`
+          : 'Not yet measured here',
+        target: '—',
+        status: pending ? 'Loading…' : pipelineMeanSeconds != null ? 'Healthy' : 'Not yet measured',
+        def: pipelineMeanSeconds != null
+          ? `Mean wall-clock duration of the last ${pipelineStats.runs_sampled} completed runs of the required "Tests" workflow on main, fetched live from the GitHub Actions API.`
+          : 'Real run durations are visible per-workflow on GitHub Actions; not yet pulled into this dashboard.',
+        source: 'GET /api/ci/pipeline-stats (GitHub Actions API)',
+      },
+      {
+        name: 'Escaped Defects', current: 'Not yet measured', target: '—',
+        status: 'Not yet measured',
+        def: 'Would require a production incident or defect-tracking integration this app doesn’t have yet.',
+        source: '—',
+      },
+      {
+        name: 'Release Readiness', current: 'Not yet measured', target: '—',
+        status: 'Not yet measured',
+        def: 'No formal release-readiness gate beyond "all required CI checks pass on main" is defined yet.',
+        source: '—',
+      },
+    ];
+  };
+  const kpiCardTestId = (k) => `kpi-card-${k.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+  const kpiCardHtml = (k) => `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4" data-testid="${kpiCardTestId(k)}">
             <div class="flex items-start justify-between gap-2 mb-1">
               <h3 class="text-xs font-bold text-slate-700">${k.name}</h3>
               ${kpiBadge(k.status)}
@@ -1941,7 +1949,28 @@ async function renderProjects() {
             <p class="text-[10px] text-slate-400 mb-2">Target: ${k.target}</p>
             <p class="text-[11px] text-slate-500 leading-snug">${k.def}</p>
             ${k.source !== '—' ? `<p class="text-[10px] text-slate-300 mt-1.5"><code>${k.source}</code></p>` : ''}
-          </div>`).join('')}
+          </div>`;
+  // Fetches the two live KPI sources in parallel and swaps in just those
+  // cards. Same honest-fallback contract as before: a failed fetch leaves
+  // null, which renders "Not yet measured", never a guessed number.
+  const hydrateLiveKpis = async () => {
+    if (getToken()) return;
+    const flagship = state.projects.find(p => DEMO_KINDS.testflow.namePattern.test(p.name));
+    const [flagshipStats, pipelineStats] = await Promise.all([
+      flagship ? GET(`/api/projects/${flagship.id}/stats`).catch(() => null) : null,
+      GET('/api/ci/pipeline-stats').catch(() => null),
+    ]);
+    const live = new Set(['Pass Rate (live)', 'Pipeline Execution Time']);
+    for (const k of buildKpiCards(flagshipStats, pipelineStats, false).filter(k => live.has(k.name))) {
+      const card = document.querySelector(`[data-testid="${kpiCardTestId(k)}"]`);
+      if (card) card.outerHTML = kpiCardHtml(k);
+    }
+  };
+  const kpiDashboardSection = !getToken() ? `
+    <div class="mb-6" data-testid="kpi-dashboard-section">
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Quality Engineering KPIs</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        ${buildKpiCards(null, null, true).map(kpiCardHtml).join('')}
       </div>
       <p class="text-[11px] text-slate-400 mt-3">
         Test-inventory count, execution pass rate, requirement/risk coverage, and code coverage are
@@ -2024,6 +2053,7 @@ async function renderProjects() {
           </button>` : ""}
         </div>
       </div>`;
+    hydrateLiveKpis();
     return;
   }
 
@@ -2098,6 +2128,7 @@ async function renderProjects() {
       <div id="proj-pagination" class="flex items-center justify-between flex-wrap gap-3 mt-3"></div>
     </div>`;
   filterProjectTable();
+  hydrateLiveKpis();
 }
 
 async function loadProjectStats(projects) {
