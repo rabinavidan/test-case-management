@@ -31,6 +31,15 @@ show `skipped` on every PR, that's expected, not a failure to chase.
 `Vercel Preview Comments` / preview-deploy bot comments are not CI; never
 treat them as a check to fix.
 
+## Triage a red test first
+
+Before fixing a failing test, read the "🧭 Failure triage" table in the
+job summary (`scripts/failure_classifier.py`) and follow the
+`failure-triage` skill (`.claude/skills/failure-triage/SKILL.md`): a
+`product` failure is fixed in product code, never by touching the
+assertion; `test-code` is fixed in the test; `infra` gets at most the one
+rerun the flake rule allows.
+
 ## Known flake
 
 `tests/contract/test_openapi_contract.py::test_api_matches_its_own_openapi_schema[POST /api/users]`

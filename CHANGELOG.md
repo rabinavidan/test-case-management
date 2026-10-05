@@ -11,7 +11,20 @@ but isn't retroactively cataloged here.
 
 ## [Unreleased]
 
+### Changed
+- **PR Steward is opt-in** — `claude-pr-steward.yml` is skipped (not failed) unless the
+  `ENABLE_CLAUDE_STEWARD` repository variable is `true`, so a missing `ANTHROPIC_API_KEY` no longer
+  turns every PR red and no API tokens are spent by default.
+
 ### Added
+- **CI failure triage: product bug vs test-code bug vs infra** — `scripts/failure_classifier.py`
+  labels every failing test in the pytest JSON report and the merged Playwright JSON report with a
+  category and owner (`product` → Developers, `test-code` → Automation / QA, `infra` → DevOps,
+  `unknown` → human), using deterministic rules (error signature, failing phase, and whether the
+  exception came from a test file or product code). Both `test.yml` and `pw-ts.yml` append the table
+  to the job summary; it never gates the build. New `failure-triage` Claude Code skill
+  (`.claude/skills/failure-triage/SKILL.md`) says how to confirm and act on each category, and the
+  steward skill points to it.
 - **Triage verdicts: bug vs flaky vs environment** — agentic triage now classifies every failing
   case through a `record_verdict` tool (`product_bug` · `flaky` · `environment` · `unknown`) after a
   new `get_run_environment_status` tool (env health + the case's result on other environments).

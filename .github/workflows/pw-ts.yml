@@ -222,6 +222,11 @@ jobs:
           fs.appendFileSync(summaryFile, lines.join('\n'));
           EOF
 
+      - name: Classify failures (product / test-code / infra)
+        if: always()
+        # Labels each failing test with who owns the fix; never fails the job.
+        run: python3 ../scripts/failure_classifier.py test-results/results.json >> "$GITHUB_STEP_SUMMARY"
+
       - name: Download raw Allure results from every shard
         if: always()
         uses: actions/download-artifact@v4
