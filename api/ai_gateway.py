@@ -200,8 +200,10 @@ def complete_with_tools(
     model: str,
     max_tokens: int = 1024,
     max_iterations: int = 4,
+    provider: str = "anthropic",
+    host: str | None = None,
 ) -> ToolLoopResult:
-    """Anthropic tool-use loop (course milestone M7 - see docs/ai-roadmap.md).
+    """Bounded tool-use loop (course milestone M7 - see docs/ai-roadmap.md).
 
     The model gets `tools` (Anthropic tool schemas) and may answer with
     tool_use blocks instead of text; each is dispatched to
@@ -217,9 +219,20 @@ def complete_with_tools(
     AICallResult with outcome="error". Token counts are summed across every
     turn of the loop so log_ai_call() reports the true cost.
 
-    Anthropic-only by design: tool-use wire formats differ per provider and
-    only the Anthropic backend is used for in-product agentic calls here.
+    provider="anthropic" (the in-product default) or "ollama" (M10: lets the
+    trajectory eval measure a real local model in CI with no API key - see
+    evals/triage_trajectory_eval.py). Both take the same Anthropic-shaped
+    `tools` list and return the same ToolLoopResult; Ollama has no
+    tool_choice, so its forced last turn simply omits the tools.
     """
+    if provider == "ollama":
+        return _complete_with_tools_ollama(system_prompt, user_prompt, tools, tool_handlers,
+                                           model, max_tokens, max_iterations, host)
+    if provider != "anthropic":
+        return ToolLoopResult(AICallResult(
+            text=None, provider=provider, model=model, tokens_in=None, tokens_out=None,
+            latency_ms=0.0, outcome="error", error=f"Tool use is not supported for provider {provider!r}",
+        ), [], 0)
     import anthropic
 
     start = time.monotonic()
@@ -263,14 +276,7 @@ def complete_with_tools(
             messages.append({"role": "assistant", "content": blocks})
             results = []
             for use in tool_uses:
-                handler = tool_handlers.get(use["name"])
-                try:
-                    if handler is None:
-                        raise ValueError(f"Unknown tool: {use['name']}")
-                    output = json.dumps(handler(**(use["input"] or {})), default=str)
-                    is_error = False
-                except Exception as exc:
-                    output, is_error = f"Error: {exc}", True
+                output, is_error = _dispatch_tool(tool_handlers, use["name"], use["input"])
                 records.append(ToolCallRecord(use["name"], use["input"] or {}, output[:300], is_error))
                 results.append({
                     "type": "tool_result", "tool_use_id": use["id"],
@@ -280,6 +286,86 @@ def complete_with_tools(
     except Exception as exc:
         call = AICallResult(
             text=None, provider="anthropic", model=model,
+            tokens_in=tokens_in or None, tokens_out=tokens_out or None,
+            latency_ms=(time.monotonic() - start) * 1000, outcome="error", error=str(exc),
+        )
+        return ToolLoopResult(call, records, iterations)
+
+
+def _dispatch_tool(tool_handlers: dict, name: str, tool_input) -> tuple[str, bool]:
+    """Runs one tool call; a raising handler or an unknown tool becomes an
+    error string for the model, never an exception for the caller."""
+    handler = tool_handlers.get(name)
+    try:
+        if handler is None:
+            raise ValueError(f"Unknown tool: {name}")
+        if not isinstance(tool_input or {}, dict):
+            raise ValueError("Tool arguments must be a JSON object")
+        return json.dumps(handler(**(tool_input or {})), default=str), False
+    except Exception as exc:
+        return f"Error: {exc}", True
+
+
+def _complete_with_tools_ollama(system_prompt, user_prompt, tools, tool_handlers, model,
+                                max_tokens, max_iterations, host) -> ToolLoopResult:
+    """Same loop over Ollama's /api/chat tool calling (OpenAI-style function
+    schemas, role "tool" results). Deterministic sampling (temperature 0,
+    fixed seed) so a trajectory eval's repeat runs measure the prompt, not
+    sampling noise."""
+    url = f"{(host or os.getenv('OLLAMA_HOST') or DEFAULT_OLLAMA_HOST).rstrip('/')}/api/chat"
+    functions = [{"type": "function", "function": {
+        "name": t["name"], "description": t.get("description", ""), "parameters": t["input_schema"],
+    }} for t in tools]
+    start = time.monotonic()
+    tokens_in = tokens_out = 0
+    records: list[ToolCallRecord] = []
+    messages: list[dict] = [{"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}]
+    iterations = 0
+    try:
+        while True:
+            iterations += 1
+            force_answer = iterations > max_iterations
+            body = {"model": model, "messages": messages, "stream": False,
+                    "options": {"temperature": 0, "seed": 7, "num_predict": max_tokens}}
+            if not force_answer:
+                body["tools"] = functions
+            response = httpx.post(url, json=body, timeout=300)
+            response.raise_for_status()
+            data = response.json()
+            tokens_in += data.get("prompt_eval_count") or 0
+            tokens_out += data.get("eval_count") or 0
+            message = data.get("message") or {}
+            calls = message.get("tool_calls") or []
+            if not calls or force_answer:
+                text = (message.get("content") or "").strip()
+                if not text:
+                    raise RuntimeError("Model returned no text answer")
+                call = AICallResult(
+                    text=text, provider="ollama", model=model,
+                    tokens_in=tokens_in, tokens_out=tokens_out,
+                    latency_ms=(time.monotonic() - start) * 1000, outcome="success",
+                )
+                return ToolLoopResult(call, records, iterations - 1 if force_answer else iterations,
+                                      hit_iteration_cap=force_answer)
+
+            messages.append({"role": "assistant", "content": message.get("content") or "",
+                             "tool_calls": calls})
+            for c in calls:
+                fn = c.get("function") or {}
+                name, args = fn.get("name", ""), fn.get("arguments") or {}
+                if isinstance(args, str):  # some models emit the arguments as a JSON string
+                    try:
+                        args = json.loads(args)
+                    except ValueError:
+                        pass
+                output, is_error = _dispatch_tool(tool_handlers, name, args)
+                records.append(ToolCallRecord(name, args if isinstance(args, dict) else {"raw": args},
+                                              output[:300], is_error))
+                messages.append({"role": "tool", "tool_name": name, "content": output})
+    except Exception as exc:
+        call = AICallResult(
+            text=None, provider="ollama", model=model,
             tokens_in=tokens_in or None, tokens_out=tokens_out or None,
             latency_ms=(time.monotonic() - start) * 1000, outcome="error", error=str(exc),
         )

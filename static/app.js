@@ -1790,7 +1790,7 @@ async function renderProjects() {
           { title: 'AI PR Steward', desc: 'Reads CI failures and review comments, diagnoses root cause, and pushes fixes until a PR is green — the same automation that drove every PR in this portfolio rebuild to merge.' },
           { title: 'Playwright Planning, Generation & Healing', desc: 'Dedicated agents (.claude/agents/playwright-test-*.md) plan coverage, author new Playwright specs, and repair broken locators across the 3-stack browser suite — and an Assertion Guard in CI blocks any heal that removes, skips, loosens or inverts an assertion (scripts/assertion_guard.py).' },
           { title: 'Agentic Failure Triage (Tool Use)', desc: 'Claude calls scoped, read-only tools (case history, similar cases via RAG, suite flakiness) in a bounded loop, checks environment health, and classifies each failure as product bug, flaky, or environment — a deterministic heuristic cross-checks every verdict and disagreements are flagged for human review (api/triage_agent.py).' },
-          { title: 'Evals & Human-in-the-Loop', desc: 'An eval harness scores AI output quality and run-to-run variance in CI; a LangGraph orchestrator pauses on interrupt() for human approval before generated specs ship (evals/, agents/).' },
+          { title: 'Evals & Human-in-the-Loop', desc: 'An eval harness scores AI output quality and run-to-run variance in CI, and a trajectory eval scores what the triage agent actually did — which tools it called before deciding — so a prompt that stops it investigating fails CI; a LangGraph orchestrator pauses on interrupt() for human approval before generated specs ship (evals/, agents/).' },
         ].map(c => `
           <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
             <h3 class="text-sm font-bold text-slate-800 mb-1">${c.title}</h3>
@@ -1804,7 +1804,7 @@ async function renderProjects() {
             { id: 'M7', title: 'Agentic failure triage — tool use', done: true },
             { id: 'M8', title: 'Real embedding model behind RAG retrieval', done: true },
             { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: false },
-            { id: 'M10', title: 'Trajectory evals — score which tools the agent chose', done: false },
+            { id: 'M10', title: 'Trajectory evals — score which tools the agent chose', done: true },
             { id: 'R1', title: 'Triage verdicts: bug vs flaky vs environment, with a labelled eval', done: true },
             { id: 'R2', title: 'Assertion guard: a heal can’t change what a test verifies', done: true },
           ].map(m => `

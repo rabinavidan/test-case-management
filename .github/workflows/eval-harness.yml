@@ -29,6 +29,8 @@ on:
       - "api/ai_prompts.py"
       - "api/embeddings.py"
       - "api/retrieval.py"
+      - "api/triage_agent.py"
+      - "api/ai_gateway.py"
       - "evals/**"
       - ".github/workflows/eval-harness.yml"
   workflow_dispatch:
@@ -115,6 +117,29 @@ jobs:
           python -m evals.retrieval_eval --provider ollama --min-recall-at-3 0.9 \
             --output evals/reports/retrieval_ollama.json
 
+      - name: Run triage-agent trajectory eval
+        # Course milestone M10: scores what the agent DID (which tools it
+        # called before deciding, verdict coverage/accuracy, iteration cap)
+        # rather than what it said - so a prompt change that makes the agent
+        # stop investigating fails here. Runs the production agent path over
+        # Ollama tool calling; gated against
+        # evals/baselines/qwen2.5_3b/triage_trajectory.json. Two repeats:
+        # single-repeat CI runs measured tool selection 0.9, 0.9 and 0.8 on
+        # the same commit, one missed case from the gate floor - averaging
+        # two keeps the gate on regressions, not sampling noise.
+        id: eval_trajectory
+        if: always()
+        run: |
+          mkdir -p evals/reports
+          ollama pull qwen2.5:3b
+          if [ "${{ inputs.record_baseline }}" = "true" ]; then
+            python -m evals.triage_trajectory_eval --provider ollama --model qwen2.5:3b --repeats 3 \
+              --output evals/reports/triage_trajectory.json --record-baseline
+          else
+            python -m evals.triage_trajectory_eval --provider ollama --model qwen2.5:3b --repeats 2 \
+              --output evals/reports/triage_trajectory.json --gate
+          fi
+
       - name: Commit refreshed baseline
         if: ${{ inputs.record_baseline == true }}
         run: |
@@ -172,6 +197,16 @@ jobs:
                   lines.append(f"| {name} | error: {r['error']} | | | |")
               else:
                   lines.append(f"| {name} | `{r['model_id']}` | {r['recall_at_1']:.3f} | {r['recall_at_3']:.3f} | {r['mrr']:.3f} |")
+          lines.append("")
+          traj_ok = "${{ steps.eval_trajectory.outcome }}" == "success"
+          lines.append(f"### {'✅' if traj_ok else '❌'} triage trajectory (qwen2.5:3b) — {'gate passed' if traj_ok else 'gate failed'}")
+          traj_path = pathlib.Path("evals/reports/triage_trajectory.json")
+          if traj_path.exists():
+              m = json.loads(traj_path.read_text())["metrics"]
+              lines += ["", "| Metric | Value |", "|---|---|"]
+              for k in ("tool_selection_accuracy", "investigation_rate", "verdict_coverage", "verdict_accuracy",
+                        "confident_errors", "cap_hit_rate", "mean_tool_calls", "failed_runs"):
+                  lines.append(f"| {k} | {m[k]} |")
           lines.append("")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
               f.write("\n".join(lines))
