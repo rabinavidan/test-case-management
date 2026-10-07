@@ -48,6 +48,13 @@ def test_steward_job_skips_issue_comments_that_do_not_mention_claude():
     assert "issue_comment" in condition
 
 
+def test_steward_job_is_opt_in_so_it_never_spends_tokens_by_default():
+    # Without the repository variable the job is skipped (not failed), so a
+    # missing or unpaid ANTHROPIC_API_KEY never turns a PR red.
+    condition = _load_workflow()["jobs"]["steward"]["if"]
+    assert condition.lstrip().startswith("vars.ENABLE_CLAUDE_STEWARD == 'true' &&")
+
+
 def test_steward_job_uses_the_claude_code_action_with_the_api_key_secret():
     config = _load_workflow()
     steps = config["jobs"]["steward"]["steps"]

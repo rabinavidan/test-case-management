@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -166,6 +167,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# static/app.js is ~300 KB of plain text on the homepage's critical path;
+# gzip cuts it to roughly a fifth. Small JSON responses stay uncompressed.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Rate limiting on auth endpoints — brute-force/credential-stuffing protection.
 # In-memory storage is per-process, which is fine for a single-instance

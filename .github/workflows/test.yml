@@ -154,6 +154,11 @@ jobs:
             f.write("\n".join(lines))
           EOF
 
+      - name: Classify failures (product / test-code / infra)
+        if: always()
+        # Labels each failing test with who owns the fix; never fails the job.
+        run: python scripts/failure_classifier.py report.json >> "$GITHUB_STEP_SUMMARY"
+
       - name: Report flaky tests
         if: always()
         env:

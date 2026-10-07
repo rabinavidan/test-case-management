@@ -102,6 +102,7 @@ repo stops each one.
 |--------------|--------|-------|
 | Failure investigation: an agent can't tell a product bug from a flaky test or an environment issue | ✅ Done | Structured triage verdicts + heuristic cross-check + verdict eval (below) |
 | Self-healing: an agent fixed a selector but changed what the test verifies | ✅ Done | Assertion guard in CI (below) |
+| CI failures: a red test of the repo's own suites gets fixed by the wrong owner | ✅ Done | `scripts/failure_classifier.py` (product / test-code / infra in the job summary) + `failure-triage` skill |
 | Agent workflows: wrong tools, lost context, needed a human | ✅ Done | Bounded loop, scoped tools, full trace (M7); disagreement → human review; M10 trajectory eval scores which tools it called, per case |
 | Evaluation: are the agent's decisions correct *and* repeatable? | ✅ Done | Verdict eval scores the heuristic baseline; M10 scores the live agent's verdicts, confident errors and run-to-run repeatability on seeded scenarios |
 | Test generation: generated tests pass but miss business scenarios | 🟡 Partial | Grounded generation + Test Plan Reviewer critic; a scenario-coverage scorer is a natural M9 follow-up |
