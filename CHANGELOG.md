@@ -95,6 +95,11 @@ but isn't retroactively cataloged here.
   the guest home page's AI-First Quality Engineering section.
 
 ### Fixed
+- `created_by_username` on run responses (`GET /api/runs/{id}`, `GET /api/suites/{id}/runs`,
+  `POST /api/suites/{id}/runs`) was always `null`: `TestRunResponse.from_orm_with_user`, the only
+  code that filled it, was never called. It is now a `TestRun` model property (like
+  `environment_key`), so every route returns the creator's username; the dead helper is gone.
+  The run page's "Started … by" line and the suite runs table now show who started a run.
 - `e2e/tests/guest-recruiter-fixes.spec.ts` counted *all* projects to prove a guest click
   created none, so any spec creating or deleting a project in parallel could fail it; it now
   counts only demo projects.
