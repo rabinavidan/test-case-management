@@ -40,6 +40,7 @@ from pathlib import Path
 from evals.baseline import (
     check_error_rates,
     check_regressions,
+    check_suite_regressions,
     compute_prompt_delta,
     load_baseline,
     write_baseline,
@@ -131,20 +132,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.gate:
         if baseline is not None:
-            regressions = check_regressions(
+            # Per-case drift: reported, never gating on its own (too noisy at
+            # a handful of runs - see SUITE_BAND in evals/baseline.py).
+            for finding in check_regressions(
                 report, baseline, target_module.DEFAULT_MIN_THRESHOLDS, target_module.DEFAULT_MAX_THRESHOLDS,
-            )
+            ):
+                print(f"  note (per-case, not gating): {finding}", file=sys.stderr)
+            regressions = check_suite_regressions(
+                report, baseline, target_module.DEFAULT_MIN_THRESHOLDS, target_module.DEFAULT_MAX_THRESHOLDS,
+            ) + check_error_rates(report, baseline, target_module.DEFAULT_MAX_ERROR_RATE)
             if regressions:
                 print(f"EVAL GATE FAILED ({args.target}): regression vs. the recorded baseline for {args.model}:",
                       file=sys.stderr)
                 for finding in regressions:
-                    print(f"  - {finding}", file=sys.stderr)
-                return 1
-            error_findings = check_error_rates(report, baseline, target_module.DEFAULT_MAX_ERROR_RATE)
-            if error_findings:
-                print(f"EVAL GATE FAILED ({args.target}): error rate rose vs. the recorded baseline for "
-                      f"{args.model}:", file=sys.stderr)
-                for finding in error_findings:
                     print(f"  - {finding}", file=sys.stderr)
                 return 1
         elif not report.overall_pass(

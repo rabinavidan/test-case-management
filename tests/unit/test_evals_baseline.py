@@ -13,6 +13,7 @@ from evals.baseline import (
     build_baseline,
     check_error_rates,
     check_regressions,
+    check_suite_regressions,
     compute_prompt_delta,
     load_baseline,
     sanitize_model_name,
@@ -292,3 +293,59 @@ def test_error_rate_floor_still_applies_to_a_clean_baseline(tmp_path):
     three_errors = _scripted_report(tmp_path, ["1.0", "1.0", "x", "x", "x"], 5)  # 60%
     assert check_error_rates(one_error, baseline, max_error_rate=0.2) == []
     assert check_error_rates(three_errors, baseline, max_error_rate=0.2)
+
+
+class _PerCaseClient:
+    """Answers by case id: {case_id: [responses cycled per run]}."""
+    def __init__(self, by_case):
+        self.by_case = {k: list(v) for k, v in by_case.items()}
+        self.i = {k: 0 for k in by_case}
+
+    def generate(self, system_prompt, user_prompt, temperature=0.7):
+        case = user_prompt.split()[-1]
+        r = self.by_case[case][self.i[case] % len(self.by_case[case])]
+        self.i[case] += 1
+        return r
+
+
+def _suite(tmp_path, by_case, n_runs=5):
+    dataset = tmp_path / "suite.json"
+    dataset.write_text(json.dumps({"cases": [{"id": cid} for cid in by_case]}))
+    return run_suite(dataset, _PerCaseClient(by_case), TOY_TARGET, n_runs=n_runs)
+
+
+CASES = [f"c{i}" for i in range(15)]
+
+
+def test_one_case_swinging_hard_does_not_fail_the_suite_gate(tmp_path):
+    """The CI failure after the first fix: one case 1.0 -> 0.4 (3 of 5 runs)
+    on an unchanged prompt. Reported per case, not a suite regression."""
+    write_baseline(_suite(tmp_path, {c: ["1.0"] for c in CASES}), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    current = _suite(tmp_path, {**{c: ["1.0"] for c in CASES}, "c3": ["1.0", "1.0", "0.0", "0.0", "0.0"]})
+    assert check_regressions(current, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS)  # still visible per case
+    assert check_suite_regressions(current, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS) == []
+
+
+def test_a_drop_across_every_case_fails_the_suite_gate(tmp_path):
+    write_baseline(_suite(tmp_path, {c: ["1.0"] for c in CASES}), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    broken = _suite(tmp_path, {c: ["1.0", "1.0", "0.0", "0.0", "0.0"] for c in CASES})  # every case 1.0 -> 0.4
+    findings = check_suite_regressions(broken, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS)
+    assert any(f.startswith("suite mean goodness") for f in findings)
+    assert any(f.startswith("suite mean badness") for f in findings)
+
+
+def test_suite_gate_tolerates_drift_inside_the_band(tmp_path):
+    write_baseline(_suite(tmp_path, {c: ["1.0"] for c in CASES}), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    drift = _suite(tmp_path, {c: ["1.0", "1.0", "1.0", "1.0", "0.0"] for c in CASES})  # every case -0.2
+    assert check_suite_regressions(drift, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS) == []
+
+
+def test_suite_gate_only_compares_cases_present_in_both(tmp_path):
+    write_baseline(_suite(tmp_path, {"c0": ["1.0"]}), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    current = _suite(tmp_path, {"c0": ["1.0"], "new-case": ["0.0"]})  # no baseline for new-case
+    assert check_suite_regressions(current, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS) == []
+    assert check_suite_regressions(_suite(tmp_path, {"other": ["0.0"]}), baseline, MIN_THRESHOLDS, MAX_THRESHOLDS) == []

@@ -125,26 +125,32 @@ baseline once one has been recorded:
   checked into the repo, so refreshing it is an ordinary, reviewable diff,
   not an opaque artifact or a database row.
 - **Gating**: once a baseline exists for a `(model, target)` pair, `--gate`
-  compares the current run's mean score, per case and per gated metric,
-  against `baseline_mean ± noise_band`, where `noise_band = max(2 ×
-  baseline_stdev, 0.05, min(2 / runs, 0.5))`. The baseline's own recorded
-  variance sets most of the band; the last term is a floor of two runs'
-  worth of movement, because a case's mean over N runs moves by 1/N when a
-  single run changes. Without it, a baseline that happened to record 0 stdev
-  turned one unlucky run into a "regression": `qwen2.5:0.5b` at 5 runs
-  failed every CI run from the baseline's recording on, each time on a
-  different case and always by one or two runs out of five, with the
-  prompts unchanged (largest swing across 10 runs: 2 of 5). Three runs out
-  of five, or a collapse at any run count, still fails. Error rates are
-  judged the same way: against the case's recorded baseline error rate plus
-  that floor, with the target's fixed `DEFAULT_MAX_ERROR_RATE` as the
-  minimum limit. Which metrics are gated, and in which direction, is
-  read straight from the target's existing `DEFAULT_MIN_THRESHOLDS` /
-  `DEFAULT_MAX_THRESHOLDS` (see `evals/targets/*.py`) — a min-thresholded
-  metric (e.g. `schema_score`) regresses on a *drop* below the band, a
-  max-thresholded one (e.g. `verbatim_echo_rate`) regresses on a *rise*
-  above it. No baseline recorded yet for a `(model, target)` pair → `--gate`
-  falls back to the original fixed-threshold check.
+  compares each gated metric's **mean over every case in the suite** against
+  the baseline's mean over the same cases, with a band of ±0.20
+  (`SUITE_BAND`), and the suite's error rate against the baseline's
+  (floored at the target's `DEFAULT_MAX_ERROR_RATE`). Which metrics are
+  gated, and in which direction, is read straight from the target's
+  `DEFAULT_MIN_THRESHOLDS` / `DEFAULT_MAX_THRESHOLDS` (see
+  `evals/targets/*.py`) — a min-thresholded metric (e.g. `schema_score`)
+  regresses on a *drop*, a max-thresholded one (e.g. `verbatim_echo_rate`)
+  on a *rise*. No baseline recorded yet → `--gate` falls back to the
+  original fixed-threshold check.
+
+  **Why suite-level, not per case.** The gate used to compare every case
+  separately, with a band of `max(2 × baseline_stdev, 0.05)`. On
+  `qwen2.5:0.5b` at 5 runs that failed every CI run from the baseline's
+  recording on, with prompts and scorers unchanged — a different case each
+  time. A single case is that noisy: the same case on the same prompt
+  measured 0.6, then 1.0 (a re-recorded baseline), then 0.4 an hour later,
+  and 60 per-case comparisons per target guarantee one of them trips. The
+  suite mean averages 15 cases × 5 runs: three recordings of
+  `test_generation` moved it at most 0.17 (`schema_score` 0.59 / 0.76 /
+  0.68), about 3σ of the ~0.06 expected, while a broken prompt or parser
+  moves every case at once. Replayed on the real reports, the old and new
+  baselines pass against each other and a simulated −0.5 on every case
+  fails all three quality metrics. Per-case drift beyond `max(2 × stdev,
+  0.05, two runs' worth)` is still printed as a non-gating note, so a
+  single case going bad stays visible.
 - **Refreshing deliberately**: `eval-harness.yml`'s `workflow_dispatch` takes
   a `record_baseline` boolean input. Triggered with it set, the job runs
   `--record-baseline` for both targets against the real CI runner (not a
