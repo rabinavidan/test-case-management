@@ -17,6 +17,28 @@ but isn't retroactively cataloged here.
   turns every PR red and no API tokens are spent by default.
 
 ### Added
+- **Trajectory evals for the triage agent (course milestone M10)** —
+  `evals/triage_trajectory_eval.py` + `evals/datasets/triage_trajectories.json`
+  seed 8 scenarios into an in-memory DB, run the production agent path and score
+  what it did: tool-selection accuracy, investigation rate, verdict
+  coverage/accuracy, confident errors, cap hits, tool errors, repeatability.
+  `--record-baseline` / `--gate` against `evals/baselines/<model>/triage_trajectory.json`
+  (prompt hash recorded); `eval-harness.yml` gates `qwen2.5:3b` tool selection (0.87
+  baseline recorded on the CI runner, tolerance 0.20, 2 repeats) and now triggers on `api/triage_agent.py` / `api/ai_gateway.py`.
+- **Eval gate gates the suite mean, not each case** — `evals.cli --gate` now fails on
+  `check_suite_regressions` (each gated metric's mean over all cases vs. the baseline's,
+  band ±0.20) and a suite-level `check_error_rates`; per-case drift is printed as a
+  non-gating note. The per-case gate failed every `qwen2.5:0.5b` CI run since 2026-09-17 on
+  unchanged prompts: a single case measured 0.6 → 1.0 → 0.4 on the same prompt, while the
+  suite mean moved at most 0.17. Baselines for `qwen2.5:0.5b` and `qwen2.5:3b` re-recorded
+  on the CI runner.
+- **Triage verdicts are final** — `record_verdict` rejects a second verdict for the same
+  case (first write wins). Found by the M10 eval: qwen2.5:7b recorded the right verdict,
+  then overwrote it; after the fix its verdict accuracy went 0.00 → 0.40 and
+  repeatability 0.50 → 0.90. Reported as `re_verdict_attempts`.
+- `complete_with_tools(provider="ollama")` — the tool-use loop over Ollama `/api/chat`
+  tool calling. The agentic triage endpoint now runs through
+  `triage_agent.collect_problems()` + `run_triage_agent()`, shared with the eval.
 - **CI failure triage: product bug vs test-code bug vs infra** — `scripts/failure_classifier.py`
   labels every failing test in the pytest JSON report and the merged Playwright JSON report with a
   category and owner (`product` → Developers, `test-code` → Automation / QA, `infra` → DevOps,

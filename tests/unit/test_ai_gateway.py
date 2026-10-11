@@ -252,3 +252,68 @@ def test_complete_with_tools_without_api_key_returns_error_result(monkeypatch):
     assert loop.call.outcome == "error"
     assert "ANTHROPIC_API_KEY" in loop.call.error
     assert loop.tool_calls == []
+
+
+TOOLS = [{"name": "lookup", "description": "Look something up",
+          "input_schema": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]}}]
+
+
+def _ollama_script(monkeypatch, replies):
+    """M10: scripted Ollama /api/chat replies; returns the request bodies."""
+    bodies, it = [], iter(replies)
+
+    def fake_post(url, json, timeout):
+        bodies.append(json)
+        return _fake_response({"message": next(it), "prompt_eval_count": 10, "eval_count": 2})
+
+    monkeypatch.setattr(ai_gateway.httpx, "post", fake_post)
+    return bodies
+
+
+def test_ollama_tool_loop_dispatches_tools_and_returns_answer(monkeypatch):
+    bodies = _ollama_script(monkeypatch, [
+        {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "lookup", "arguments": {"q": "a"}}}]},
+        # some models send arguments as a JSON string
+        {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "lookup", "arguments": '{"q": "b"}'}}]},
+        {"role": "assistant", "content": "Done."},
+    ])
+    loop = ai_gateway.complete_with_tools(
+        "sys", "user", tools=TOOLS, tool_handlers={"lookup": lambda q: {"found": q}},
+        model="qwen2.5:3b", provider="ollama",
+    )
+    assert loop.call.outcome == "success" and loop.call.text == "Done."
+    assert loop.call.provider == "ollama" and loop.call.tokens_in == 30
+    assert [c.input for c in loop.tool_calls] == [{"q": "a"}, {"q": "b"}]
+    assert bodies[0]["tools"][0]["function"]["parameters"] == TOOLS[0]["input_schema"]
+    assert bodies[0]["options"]["temperature"] == 0
+    tool_msgs = [m for m in bodies[-1]["messages"] if m["role"] == "tool"]
+    assert tool_msgs[0] == {"role": "tool", "tool_name": "lookup", "content": '{"found": "a"}'}
+    assert loop.iterations == 3 and not loop.hit_iteration_cap
+
+
+def test_ollama_tool_loop_cap_drops_tools_and_errors_are_reported(monkeypatch):
+    call = {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "nope", "arguments": {}}}]}
+    bodies = _ollama_script(monkeypatch, [call, {"role": "assistant", "content": "Best guess."}])
+    loop = ai_gateway.complete_with_tools(
+        "sys", "user", tools=TOOLS, tool_handlers={}, model="m", provider="ollama", max_iterations=1,
+    )
+    assert loop.hit_iteration_cap and loop.call.text == "Best guess."
+    assert loop.tool_calls[0].is_error and "Unknown tool" in loop.tool_calls[0].result_preview
+    assert "tools" not in bodies[-1]
+
+
+def test_ollama_tool_loop_empty_answer_is_an_error_but_keeps_the_trace(monkeypatch):
+    _ollama_script(monkeypatch, [
+        {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "lookup", "arguments": {"q": "x"}}}]},
+        {"role": "assistant", "content": ""},
+    ])
+    loop = ai_gateway.complete_with_tools(
+        "sys", "user", tools=TOOLS, tool_handlers={"lookup": lambda q: q}, model="m", provider="ollama",
+    )
+    assert loop.call.outcome == "error" and "no text answer" in loop.call.error
+    assert [c.name for c in loop.tool_calls] == ["lookup"]
+
+
+def test_complete_with_tools_rejects_unsupported_provider():
+    loop = ai_gateway.complete_with_tools("s", "u", tools=[], tool_handlers={}, model="m", provider="groq")
+    assert loop.call.outcome == "error" and "not supported" in loop.call.error

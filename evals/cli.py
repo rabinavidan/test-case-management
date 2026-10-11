@@ -37,7 +37,14 @@ import json
 import sys
 from pathlib import Path
 
-from evals.baseline import check_regressions, compute_prompt_delta, load_baseline, write_baseline
+from evals.baseline import (
+    check_error_rates,
+    check_regressions,
+    check_suite_regressions,
+    compute_prompt_delta,
+    load_baseline,
+    write_baseline,
+)
 from evals.harness import run_suite
 from evals.ollama_client import DEFAULT_MODEL, OllamaClient
 from evals.targets import TARGETS
@@ -125,18 +132,20 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.gate:
         if baseline is not None:
-            regressions = check_regressions(
+            # Per-case drift: reported, never gating on its own (too noisy at
+            # a handful of runs - see SUITE_BAND in evals/baseline.py).
+            for finding in check_regressions(
                 report, baseline, target_module.DEFAULT_MIN_THRESHOLDS, target_module.DEFAULT_MAX_THRESHOLDS,
-            )
+            ):
+                print(f"  note (per-case, not gating): {finding}", file=sys.stderr)
+            regressions = check_suite_regressions(
+                report, baseline, target_module.DEFAULT_MIN_THRESHOLDS, target_module.DEFAULT_MAX_THRESHOLDS,
+            ) + check_error_rates(report, baseline, target_module.DEFAULT_MAX_ERROR_RATE)
             if regressions:
                 print(f"EVAL GATE FAILED ({args.target}): regression vs. the recorded baseline for {args.model}:",
                       file=sys.stderr)
                 for finding in regressions:
                     print(f"  - {finding}", file=sys.stderr)
-                return 1
-            if any(c.error_rate > target_module.DEFAULT_MAX_ERROR_RATE for c in report.cases):
-                print(f"EVAL GATE FAILED ({args.target}): error rate exceeded "
-                      f"{target_module.DEFAULT_MAX_ERROR_RATE:.0%} on one or more cases.", file=sys.stderr)
                 return 1
         elif not report.overall_pass(
             target_module.DEFAULT_MIN_THRESHOLDS,

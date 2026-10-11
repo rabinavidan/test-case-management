@@ -300,3 +300,19 @@ def test_single_shot_mode_returns_heuristic_verdicts(failing_run, monkeypatch):
     assert v["verdict"] == v["heuristic_verdict"] == "flaky"
     assert v["agent_verdict"] is None
     assert v["needs_human_review"] is False
+
+
+def test_verdicts_are_final_a_second_record_is_rejected(failing_run, monkeypatch):
+    """M10: the trajectory eval caught a model recording the right verdict,
+    then overwriting it after more tool calls. First write wins."""
+    client, headers, run, tc = failing_run
+    calls = _install_scripted_anthropic(monkeypatch, [
+        tool_use("record_verdict", {"testcase_id": tc["id"], "verdict": "flaky", "evidence": "flip-flops"}),
+        tool_use("record_verdict", {"testcase_id": tc["id"], "verdict": "product_bug", "evidence": "changed mind"},
+                 id="tu_2"),
+        text("Done."),
+    ])
+    data = client.post(f"/api/runs/{run['id']}/triage?agentic=true", headers=headers).json()
+    assert [c["is_error"] for c in data["tool_calls"]] == [False, True]
+    assert "verdicts are final" in calls[2]["messages"][-1]["content"][0]["content"]
+    assert data["verdicts"][0]["agent_verdict"] == "flaky"
