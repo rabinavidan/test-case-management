@@ -11,6 +11,7 @@ import evals.baseline as baseline_module
 from evals.baseline import (
     baseline_path,
     build_baseline,
+    check_error_rates,
     check_regressions,
     compute_prompt_delta,
     load_baseline,
@@ -241,3 +242,53 @@ def test_compute_prompt_delta_skips_a_case_missing_from_the_baseline(tmp_path):
 
     delta = compute_prompt_delta(new_case_report, baseline, "toy_prompt", "v1")
     assert delta["per_case_delta"] == {}
+
+
+def _scripted_report(tmp_path, responses, n_runs, name="toy.json"):
+    dataset = tmp_path / name
+    dataset.write_text(json.dumps({"cases": [{"id": "a"}]}))
+    return run_suite(dataset, _ScriptedClient(responses), TOY_TARGET, n_runs=n_runs)
+
+
+def test_one_or_two_runs_changing_out_of_five_is_noise_not_a_regression(tmp_path):
+    """The eval-harness failure mode this guards against: a baseline that
+    happened to record stdev 0 (5/5 runs alike) turned a single different run
+    into a 'regression' because the band was 0.05 and one run is 0.2."""
+    write_baseline(_scripted_report(tmp_path, ["1.0"], 5), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    one_off = _scripted_report(tmp_path, ["1.0", "1.0", "1.0", "1.0", "0.0"], 5)
+    two_off = _scripted_report(tmp_path, ["1.0", "1.0", "1.0", "0.0", "0.0"], 5)
+    assert check_regressions(one_off, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS) == []
+    assert check_regressions(two_off, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS) == []
+
+
+def test_three_runs_changing_out_of_five_is_still_a_regression(tmp_path):
+    write_baseline(_scripted_report(tmp_path, ["1.0"], 5), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    three_off = _scripted_report(tmp_path, ["1.0", "1.0", "0.0", "0.0", "0.0"], 5)
+    findings = check_regressions(three_off, baseline, MIN_THRESHOLDS, MAX_THRESHOLDS)
+    assert any(f.startswith("a.goodness") for f in findings)
+    assert any(f.startswith("a.badness") for f in findings)
+
+
+def test_error_rate_is_judged_against_the_baseline_not_only_the_fixed_limit(tmp_path):
+    erroring = ["1.0", "not-a-number", "not-a-number", "not-a-number", "1.0"]  # 60% unparseable
+    write_baseline(_scripted_report(tmp_path, erroring, 5), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    assert baseline["cases"][0]["error_rate"] == pytest.approx(0.6)
+
+    same = _scripted_report(tmp_path, erroring, 5)
+    assert check_error_rates(same, baseline, max_error_rate=0.2) == []  # as bad as recorded: not a regression
+
+    worse_baseline = {"cases": [{"case_id": "a", "error_rate": 0.0}]}
+    findings = check_error_rates(same, worse_baseline, max_error_rate=0.2)
+    assert findings and "error rate 60%" in findings[0]
+
+
+def test_error_rate_floor_still_applies_to_a_clean_baseline(tmp_path):
+    write_baseline(_scripted_report(tmp_path, ["1.0"], 5), "m", "toy")
+    baseline = load_baseline("m", "toy")
+    one_error = _scripted_report(tmp_path, ["1.0", "1.0", "1.0", "1.0", "x"], 5)  # 20%
+    three_errors = _scripted_report(tmp_path, ["1.0", "1.0", "x", "x", "x"], 5)  # 60%
+    assert check_error_rates(one_error, baseline, max_error_rate=0.2) == []
+    assert check_error_rates(three_errors, baseline, max_error_rate=0.2)

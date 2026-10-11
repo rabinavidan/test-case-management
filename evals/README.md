@@ -127,10 +127,18 @@ baseline once one has been recorded:
 - **Gating**: once a baseline exists for a `(model, target)` pair, `--gate`
   compares the current run's mean score, per case and per gated metric,
   against `baseline_mean ± noise_band`, where `noise_band = max(2 ×
-  baseline_stdev, 0.05)`. The 2× multiplier and 0.05 floor are deliberately
-  generous — the baseline's own recorded variance sets most of the band, but
-  a baseline that happened to record ~0 stdev by chance doesn't become a
-  zero-tolerance gate. Which metrics are gated, and in which direction, is
+  baseline_stdev, 0.05, min(2 / runs, 0.5))`. The baseline's own recorded
+  variance sets most of the band; the last term is a floor of two runs'
+  worth of movement, because a case's mean over N runs moves by 1/N when a
+  single run changes. Without it, a baseline that happened to record 0 stdev
+  turned one unlucky run into a "regression": `qwen2.5:0.5b` at 5 runs
+  failed every CI run from the baseline's recording on, each time on a
+  different case and always by one or two runs out of five, with the
+  prompts unchanged (largest swing across 10 runs: 2 of 5). Three runs out
+  of five, or a collapse at any run count, still fails. Error rates are
+  judged the same way: against the case's recorded baseline error rate plus
+  that floor, with the target's fixed `DEFAULT_MAX_ERROR_RATE` as the
+  minimum limit. Which metrics are gated, and in which direction, is
   read straight from the target's existing `DEFAULT_MIN_THRESHOLDS` /
   `DEFAULT_MAX_THRESHOLDS` (see `evals/targets/*.py`) — a min-thresholded
   metric (e.g. `schema_score`) regresses on a *drop* below the band, a

@@ -37,7 +37,13 @@ import json
 import sys
 from pathlib import Path
 
-from evals.baseline import check_regressions, compute_prompt_delta, load_baseline, write_baseline
+from evals.baseline import (
+    check_error_rates,
+    check_regressions,
+    compute_prompt_delta,
+    load_baseline,
+    write_baseline,
+)
 from evals.harness import run_suite
 from evals.ollama_client import DEFAULT_MODEL, OllamaClient
 from evals.targets import TARGETS
@@ -134,9 +140,12 @@ def main(argv: list[str] | None = None) -> int:
                 for finding in regressions:
                     print(f"  - {finding}", file=sys.stderr)
                 return 1
-            if any(c.error_rate > target_module.DEFAULT_MAX_ERROR_RATE for c in report.cases):
-                print(f"EVAL GATE FAILED ({args.target}): error rate exceeded "
-                      f"{target_module.DEFAULT_MAX_ERROR_RATE:.0%} on one or more cases.", file=sys.stderr)
+            error_findings = check_error_rates(report, baseline, target_module.DEFAULT_MAX_ERROR_RATE)
+            if error_findings:
+                print(f"EVAL GATE FAILED ({args.target}): error rate rose vs. the recorded baseline for "
+                      f"{args.model}:", file=sys.stderr)
+                for finding in error_findings:
+                    print(f"  - {finding}", file=sys.stderr)
                 return 1
         elif not report.overall_pass(
             target_module.DEFAULT_MIN_THRESHOLDS,

@@ -26,6 +26,18 @@ BASELINE_DIR = Path("evals/baselines")
 # happened to record ~0 stdev doesn't become a zero-tolerance gate.
 NOISE_MULTIPLIER = 2.0
 MIN_BAND = 0.05
+# A case's mean over N runs moves by up to 1/N when a single run changes,
+# so a band narrower than that turns one unlucky sample into a "regression".
+# With qwen2.5:0.5b at 5 runs and baselines that happened to record stdev 0,
+# that is exactly what failed every eval-harness run from 2026-09-17 on: a
+# different case each time, always by one or two runs, on unchanged prompts
+# (largest swing seen across 10 CI runs: 2 of 5). The floor is therefore
+# RUN_SWING runs' worth of movement; a real regression - a broken prompt -
+# moves more runs than that, or many cases at once. MAX_RUN_BAND caps the
+# floor for very few runs (two runs' worth of 1 run is the whole range), so
+# a collapse is still caught at any N.
+RUN_SWING = 2
+MAX_RUN_BAND = 0.5
 
 
 def sanitize_model_name(model: str) -> str:
@@ -93,7 +105,7 @@ def check_regressions(report, baseline: dict, min_thresholds: dict, max_threshol
             if base_mean is None:
                 continue
             base_stdev = base_case["consistency_stdev"].get(metric, 0.0)
-            band = max(base_stdev * NOISE_MULTIPLIER, MIN_BAND)
+            band = max(base_stdev * NOISE_MULTIPLIER, MIN_BAND, _run_swing(len(case.runs)))
             if metric in min_thresholds and current < base_mean - band:
                 findings.append(
                     f"{case.case_id}.{metric}: {current:.3f} fell below baseline "
@@ -104,6 +116,29 @@ def check_regressions(report, baseline: dict, min_thresholds: dict, max_threshol
                     f"{case.case_id}.{metric}: {current:.3f} rose above baseline "
                     f"{base_mean:.3f} (band ±{band:.3f})"
                 )
+    return findings
+
+
+def _run_swing(n_runs: int) -> float:
+    # +1e-9: a swing of exactly RUN_SWING runs (1.0 -> 0.6) must not fail on float rounding.
+    return min(RUN_SWING / n_runs, MAX_RUN_BAND) + 1e-9 if n_runs else 0.0
+
+
+def check_error_rates(report, baseline: dict, max_error_rate: float) -> list[str]:
+    """Cases whose error rate (runs whose output couldn't be parsed/scored)
+    rose beyond what the baseline itself recorded. The fixed max_error_rate
+    stays the floor, but a model whose recorded baseline already errs on 60%
+    of runs for a case isn't failed for doing the same again - only for
+    getting worse by more than RUN_SWING runs."""
+    baseline_cases = {c["case_id"]: c for c in baseline.get("cases", [])}
+    findings = []
+    for case in report.cases:
+        base_case = baseline_cases.get(case.case_id)
+        base_rate = base_case.get("error_rate", 0.0) if base_case else 0.0
+        limit = max(max_error_rate, base_rate + _run_swing(len(case.runs)))
+        if case.error_rate > limit:
+            findings.append(f"{case.case_id}: error rate {case.error_rate:.0%} > {limit:.0%} "
+                            f"(baseline {base_rate:.0%})")
     return findings
 
 
