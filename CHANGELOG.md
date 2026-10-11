@@ -23,8 +23,14 @@ but isn't retroactively cataloged here.
   what it did: tool-selection accuracy, investigation rate, verdict
   coverage/accuracy, confident errors, cap hits, tool errors, repeatability.
   `--record-baseline` / `--gate` against `evals/baselines/<model>/triage_trajectory.json`
-  (prompt hash recorded); `eval-harness.yml` gates `qwen2.5:3b` tool selection (0.93
-  baseline, tolerance 0.20, 2 repeats) and now triggers on `api/triage_agent.py` / `api/ai_gateway.py`.
+  (prompt hash recorded); `eval-harness.yml` gates `qwen2.5:3b` tool selection (0.87
+  baseline recorded on the CI runner, tolerance 0.20, 2 repeats) and now triggers on `api/triage_agent.py` / `api/ai_gateway.py`.
+- **Eval gate noise band calibrated to the run count** — `check_regressions` adds a floor of
+  two runs' worth of movement (`min(2/N, 0.5)`), and error rates are judged against the
+  baseline's own rate (`check_error_rates`). The `qwen2.5:0.5b` gates failed on every CI run
+  since 2026-09-17 on unchanged prompts, each time on a different case by one or two runs of
+  five; a re-recorded baseline on the same prompt moved cases by up to 0.4 in both directions.
+  Baselines for `qwen2.5:0.5b` and `qwen2.5:3b` re-recorded on the CI runner.
 - **Triage verdicts are final** — `record_verdict` rejects a second verdict for the same
   case (first write wins). Found by the M10 eval: qwen2.5:7b recorded the right verdict,
   then overwrote it; after the fix its verdict accuracy went 0.00 → 0.40 and

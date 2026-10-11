@@ -241,13 +241,14 @@ What the numbers say:
 **Gate:** `eval-harness.yml` runs the eval on `qwen2.5:3b` and `--gate`s it
 against the committed baseline
 ([`evals/baselines/qwen2.5_3b/triage_trajectory.json`](../evals/baselines/qwen2.5_3b/triage_trajectory.json),
-which records the system-prompt hash it was measured with) on
+which records the system-prompt hash it was measured with, re-recorded on
+the CI runner via `record_baseline`: tool selection 0.87) on
 `tool_selection_accuracy`, tolerance 0.20, averaging 2 repeats per scenario.
 Coverage and accuracy are reported but not gated — they were tried and
 dropped: on a 3B model they move by whole cases between identical runs
 (repeatability 0.8), and CI runners measured coverage 0.75–0.90 against
 0.90 locally, which put the gate on the noise line. Tool selection measured
-0.80–0.93 in every environment, while an agent that stops investigating
+0.80–0.93 in every environment (0.87 for the CI-recorded baseline), while an agent that stops investigating
 scores ~0.0 — that gap is what the gate exists to catch. The job
 now also triggers on `api/triage_agent.py` and `api/ai_gateway.py`, so a
 prompt edit is measured before it merges; `--system-prompt-file` scores a
