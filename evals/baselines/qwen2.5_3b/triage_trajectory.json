@@ -7,23 +7,23 @@
   "metrics": {
     "trajectories": 24,
     "failing_cases": 30,
-    "tool_selection_accuracy": 0.933,
-    "investigation_rate": 1.0,
-    "verdict_coverage": 0.9,
-    "verdict_accuracy": 0.567,
-    "confident_errors": 7,
-    "cap_hit_rate": 0.375,
-    "tool_error_rate": 0.163,
-    "mean_tool_calls": 3.58,
-    "re_verdict_attempts": 1,
+    "tool_selection_accuracy": 0.867,
+    "investigation_rate": 0.958,
+    "verdict_coverage": 0.8,
+    "verdict_accuracy": 0.5,
+    "confident_errors": 4,
+    "cap_hit_rate": 0.083,
+    "tool_error_rate": 0.225,
+    "mean_tool_calls": 2.96,
+    "re_verdict_attempts": 0,
     "failed_runs": 0,
-    "verdict_repeatability": 0.8,
+    "verdict_repeatability": 0.5,
     "tool_usage": {
-      "get_test_case_history": 15,
+      "get_test_case_history": 12,
+      "record_verdict": 38,
       "get_suite_flaky_tests": 4,
-      "get_run_environment_status": 25,
-      "record_verdict": 35,
-      "get_similar_test_cases": 7
+      "get_run_environment_status": 16,
+      "get_similar_test_cases": 1
     }
   }
 }
