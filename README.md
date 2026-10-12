@@ -236,6 +236,10 @@ users      analytics     WebSocket             test generation
 - Kafka for `alert.triggered` events on test failure; both the `runs` producer and the `worker` consumer
   no-op (never fail the request) if the broker is unreachable — the same graceful-degradation shape as Redis
 - Gateway is a thin proxy — frontend requires zero changes vs. the monolith
+- Liveness and readiness are split: `/health/live` never checks a dependency (a DB outage must not
+  restart every replica at once), `/health/ready` checks the service's database and returns 503 so
+  Kubernetes pulls the pod out of rotation instead. The port-less worker uses a heartbeat-file exec
+  probe — see [`services/README.md`](services/README.md#health-checks-liveness-vs-readiness)
 
 ### Monolith mode *(original · still works)*
 
@@ -333,6 +337,15 @@ POST   /api/runs/{id}/triage?agentic=true       # Agentic triage — Claude call
 GET    /api/suites/{id}/flaky-tests             # Flags test cases with repeated pass/fail flips
 
 WS     /ws/runs/{run_id}                        # Real-time result updates
+```
+
+Each microservice (auth · projects · runs · ai — on its own port, not through the gateway) also exposes
+the health endpoints its Kubernetes probes use:
+
+```
+GET    /health/live                             # Liveness — process is serving; never checks a dependency
+GET    /health/ready                            # Readiness — checks the service's DB; 503 + {"checks": {...}} when down
+GET    /health                                  # Same as /health/live (kept for existing callers)
 ```
 
 ---
@@ -778,6 +791,8 @@ Use `docker-compose.microservices.yml` with a Postgres 16 instance, Redis 7, and
 service and the broker are both optional at runtime — `runs`' Kafka producer and `worker`'s consumer both
 degrade gracefully if the broker is unreachable). The gateway container is the only one that needs to be
 publicly exposed.
+Point your orchestrator's health checks at each service's `/health/live` (restart) and
+`/health/ready` (route traffic) — `k8s/base/` already wires them as startup/liveness/readiness probes.
 
 ---
 

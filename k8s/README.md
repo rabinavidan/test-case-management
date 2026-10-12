@@ -33,6 +33,23 @@ topology. Pinning every workload for an environment to one named node via
 `nodeSelector` (rather than a shared pool) mirrors the constraint the task
 started from: four environments, each on its own specific node.
 
+## Health probes
+
+| Workload | `startupProbe` | `livenessProbe` (restart) | `readinessProbe` (traffic) |
+|---|---|---|---|
+| auth · projects · runs · ai | `GET /health/live` (up to 2 min to boot) | `GET /health/live` | `GET /health/ready` — checks the DB, 503 when down |
+| gateway | — | `GET /api/version` | `GET /api/version` |
+| worker (no HTTP port) | — | exec `python -m services.common.heartbeat /tmp/worker-heartbeat 60` | — |
+
+Liveness never checks a dependency on purpose: a database outage should pull
+pods out of the Service (readiness), not restart every replica at once in a
+loop (liveness). The worker's consume loop touches the heartbeat file on every
+iteration — including while it retries a Redis outage — so the probe only
+fires for a loop that has wedged without crashing. Details in
+[`services/README.md`](../services/README.md#health-checks-liveness-vs-readiness);
+`tests/infra/test_k8s_gcp_overlays.py` checks every rendered overlay keeps
+this wiring.
+
 ## Building / applying
 
 ```bash
