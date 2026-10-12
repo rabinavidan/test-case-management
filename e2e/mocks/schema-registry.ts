@@ -5,6 +5,7 @@
  * themselves never import this file, only `factories.ts` directly.
  */
 import {
+  mockAIDraftReview,
   mockAIGenerateResponse,
   mockProject,
   mockProjectList,
@@ -32,6 +33,7 @@ export const FIXTURE_SCHEMA_REGISTRY: DriftCheckEntry[] = [
   { schemaName: 'TestRunResponse', sample: mockRun() },
   { schemaName: 'TestResultResponse', sample: mockTestResult() },
   { schemaName: 'AIGenerateResponse', sample: mockAIGenerateResponse() },
+  { schemaName: 'AIDraftReviewResponse', sample: mockAIDraftReview() },
   { schemaName: 'TriageResponse', sample: mockTriageResponse() },
   { schemaName: 'UserResponse', sample: mockUser() },
   { schemaName: 'TokenResponse', sample: mockTokenResponse() },
