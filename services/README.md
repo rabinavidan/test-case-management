@@ -144,6 +144,30 @@ instead of resetting at each hop. WebSocket connections aren't covered (a
 single id per long-lived connection doesn't map cleanly onto per-message
 request/response tracing) — HTTP only, for now.
 
+## Health checks (liveness vs. readiness)
+
+Every HTTP service exposes two endpoints ([`common/health.py`](common/health.py)),
+wired to separate Kubernetes probes in `k8s/base/*.yaml`:
+
+| Endpoint | Probe | Checks | On failure |
+|---|---|---|---|
+| `/health/live` (and the original `/health`) | `startupProbe`, `livenessProbe` | nothing beyond "the process is serving" | pod is restarted |
+| `/health/ready` | `readinessProbe` | the service's database (`SELECT 1`) — `ai` has none, so it's ready whenever live | pod leaves the Service's endpoints, not restarted |
+
+Liveness deliberately never touches a dependency: if it checked the database,
+a database outage would fail every replica's liveness probe at once and
+Kubernetes would restart them all in a loop. Redis and Kafka aren't readiness
+checks either — runs and worker already degrade gracefully without them
+(see above), so they shouldn't take a pod out of rotation.
+
+**worker** has no HTTP port, so its consume loop touches a heartbeat file
+(`/tmp/worker-heartbeat`) on every iteration — including while it's waiting
+out a Redis outage — and an exec `livenessProbe` runs
+`python -m services.common.heartbeat /tmp/worker-heartbeat 60`
+([`common/heartbeat.py`](common/heartbeat.py)), which fails once the file is
+over 60s old. That catches a loop that wedges without crashing, which the
+container's exit code alone never would.
+
 ## JWT Strategy
 
 Auth service embeds `role` in the JWT payload. Other services verify the token

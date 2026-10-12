@@ -9,7 +9,7 @@ import httpx
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import get_current_user, require_admin, UserClaims
-from services.common.health import health_response
+from services.common.health import database_check, health_response, readiness_response
 from services.common.http import get_with_retry, request_id_headers, DEFAULT_TIMEOUT
 from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware
@@ -27,8 +27,14 @@ app.add_middleware(RequestIDMiddleware, logger=logger)
 
 
 @app.get("/health")
+@app.get("/health/live")
 def health():
     return health_response("projects")
+
+
+@app.get("/health/ready")
+def ready():
+    return readiness_response("projects", {"database": database_check(engine)})
 
 
 # ─── Internal endpoints (called by other services) ────────────────────────────

@@ -31,6 +31,26 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok", "service": "projects"}
 
 
+def test_health_live_and_ready(client):
+    assert client.get("/health/live").json() == {"status": "ok", "service": "projects"}
+    res = client.get("/health/ready")
+    assert res.status_code == 200
+    assert res.json() == {"status": "ok", "service": "projects", "checks": {"database": "ok"}}
+
+
+def test_health_ready_503_when_database_down_but_live_stays_up(client, monkeypatch):
+    """A DB outage must pull the pod out of rotation (readiness), never
+    restart it (liveness) — see services/common/health.py."""
+    import sys
+    from sqlalchemy import create_engine
+    monkeypatch.setattr(sys.modules["services.projects.main"], "engine",
+                        create_engine("sqlite:////nonexistent-dir/unreachable.db"))
+    res = client.get("/health/ready")
+    assert res.status_code == 503
+    assert res.json()["checks"] == {"database": "fail"}
+    assert client.get("/health/live").status_code == 200
+
+
 def test_create_and_list_projects(client):
     created = client.post("/api/projects", json={"name": "Proj A"}, headers=ADMIN)
     assert created.status_code == 201

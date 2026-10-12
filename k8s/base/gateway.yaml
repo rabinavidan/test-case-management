@@ -18,6 +18,10 @@ spec:
             - containerPort: 8000
           envFrom:
             - configMapRef: { name: testflow-config }
+          livenessProbe:
+            httpGet: { path: /api/version, port: 8000 }
+            periodSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet: { path: /api/version, port: 8000 }
             initialDelaySeconds: 5

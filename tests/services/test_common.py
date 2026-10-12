@@ -158,3 +158,40 @@ def test_get_with_retry_omits_params_kwarg_when_not_given(monkeypatch):
     monkeypatch.setattr(httpx, "get", _get)
     resp = get_with_retry("http://svc/x", timeout=DEFAULT_TIMEOUT)
     assert resp.status_code == 200
+
+
+def test_database_check_reports_reachable_and_unreachable(tmp_path):
+    from sqlalchemy import create_engine
+    from services.common.health import database_check
+    assert database_check(create_engine(f"sqlite:///{tmp_path / 'ok.db'}"))() is True
+    assert database_check(create_engine("sqlite:////nonexistent-dir/unreachable.db"))() is False
+
+
+def test_readiness_response_is_503_if_any_check_fails():
+    import json
+    from services.common.health import readiness_response
+    ok = readiness_response("svc", {"database": lambda: True})
+    assert ok.status_code == 200
+    assert json.loads(ok.body) == {"status": "ok", "service": "svc", "checks": {"database": "ok"}}
+    bad = readiness_response("svc", {"database": lambda: True, "other": lambda: False})
+    assert bad.status_code == 503
+    assert json.loads(bad.body)["checks"] == {"database": "ok", "other": "fail"}
+
+
+def test_heartbeat_fresh_after_touch_stale_when_old_or_missing(tmp_path):
+    import os
+    from services.common.heartbeat import heartbeat_is_fresh, main, touch_heartbeat
+    path = str(tmp_path / "hb")
+    assert heartbeat_is_fresh(path, 60) is False
+    assert main([path, "60"]) == 1
+    touch_heartbeat(path)
+    assert heartbeat_is_fresh(path, 60) is True
+    assert main([path, "60"]) == 0
+    old = time.time() - 120
+    os.utime(path, (old, old))
+    assert heartbeat_is_fresh(path, 60) is False
+
+
+def test_touch_heartbeat_never_raises_on_unwritable_path():
+    from services.common.heartbeat import touch_heartbeat
+    touch_heartbeat("/nonexistent-dir/hb")  # must not raise

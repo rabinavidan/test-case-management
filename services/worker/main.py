@@ -19,6 +19,7 @@ import threading
 import redis.asyncio as aioredis
 from sqlalchemy.orm import Session
 
+from services.common.heartbeat import touch_heartbeat
 from services.common.logging_config import configure_json_logging
 from services.runs.database import engine, Base
 from services.runs.events import STREAM_RUN_POPULATE, CONSUMER_GROUP_POPULATE, publish_ws_broadcast
@@ -75,6 +76,7 @@ async def consume_forever() -> None:
             await _ensure_group(client)
             logger.info("Worker ready, consuming runs.populate")
             while True:
+                touch_heartbeat()
                 response = await client.xreadgroup(
                     CONSUMER_GROUP_POPULATE, CONSUMER_NAME,
                     {STREAM_RUN_POPULATE: ">"}, count=1, block=5000,
@@ -91,6 +93,9 @@ async def consume_forever() -> None:
             raise
         except Exception as e:
             logger.warning(f"Redis unavailable, retrying: {e}")
+        # Still alive while waiting out a Redis outage — liveness must not
+        # restart the worker over a dependency it already retries on its own.
+        touch_heartbeat()
         await asyncio.sleep(RECONNECT_DELAY_SECONDS)
 
 

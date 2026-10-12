@@ -59,3 +59,27 @@ def test_handle_message_is_safe_to_call_twice(monkeypatch):
     with Session(db_mod.engine) as db:
         results = db.query(models.TestResult).filter(models.TestResult.run_id == run.id).all()
     assert len(results) == 2
+
+
+def test_consume_forever_keeps_heartbeat_alive_while_redis_is_down(monkeypatch):
+    """Liveness must not restart the worker over a Redis outage it already
+    retries on its own — the retry path still touches the heartbeat."""
+    import asyncio
+
+    beats = []
+    monkeypatch.setattr(worker_main, "touch_heartbeat", lambda: beats.append(1))
+
+    def _unreachable(*args, **kwargs):
+        raise ConnectionError("redis down")
+
+    async def _stop(_seconds):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(worker_main.aioredis, "from_url", _unreachable)
+    monkeypatch.setattr(worker_main.asyncio, "sleep", _stop)
+
+    try:
+        asyncio.run(worker_main.consume_forever())
+    except asyncio.CancelledError:
+        pass
+    assert beats == [1]

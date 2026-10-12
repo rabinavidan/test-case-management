@@ -17,6 +17,11 @@ but isn't retroactively cataloged here.
   turns every PR red and no API tokens are spent by default.
 
 ### Added
+- **Liveness / readiness health checks** — every HTTP microservice exposes `/health/live` (no
+  dependency checks) and `/health/ready` (checks its database, 503 when down), wired to separate
+  `startupProbe` / `livenessProbe` / `readinessProbe` in `k8s/base/` instead of readiness polling
+  `/docs`. The worker gets a heartbeat-file exec liveness probe, so a consume loop that wedges
+  without crashing is restarted. See `services/README.md#health-checks-liveness-vs-readiness`.
 - **Trajectory evals for the triage agent (course milestone M10)** —
   `evals/triage_trajectory_eval.py` + `evals/datasets/triage_trajectories.json`
   seed 8 scenarios into an in-memory DB, run the production agent path and score
