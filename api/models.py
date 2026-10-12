@@ -134,6 +134,11 @@ class TestRun(Base):
     environment = relationship("Environment", back_populates="runs")
 
     @property
+    def created_by_username(self):
+        # Read by TestRunResponse (from_attributes), like environment_key below.
+        return self.created_by.username if self.created_by else None
+
+    @property
     def environment_key(self):
         return self.environment.key if self.environment else None
 

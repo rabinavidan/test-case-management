@@ -48,11 +48,8 @@ class RunsApiTest extends BaseApiTest {
         List<Integer> testcaseIds = run.jsonPath().getList("results.testcase_id", Integer.class);
         assertThat(testcaseIds).containsExactly(activeTestCaseId);
         assertThat(run.jsonPath().getList("results.status", String.class)).containsExactly("pending");
-        // The create-run response includes the field but never populates it (only the
-        // schema's from_orm_with_user helper would, and no route calls it) — matches the
-        // Python suite's tests/api/test_runs.py::test_create_run_response_includes_created_by_field.
-        java.util.Map<String, Object> body = run.jsonPath().getMap("$");
-        assertThat(body).containsKey("created_by_username");
+        // Matches tests/api/test_runs.py::test_run_responses_carry_the_creators_username.
+        assertThat(run.jsonPath().getString("created_by_username")).isEqualTo("testuser_e2e");
     }
 
     @Test

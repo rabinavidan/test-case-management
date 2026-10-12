@@ -106,7 +106,28 @@ def test_executor_can_update_result(executor_client, suite_with_cases):
     assert r.json()["status"] == "fail"
 
 
-def test_create_run_response_includes_created_by_field(auth_client, suite_with_cases):
+def test_run_responses_carry_the_creators_username(auth_client, suite_with_cases, executor_client):
     s, headers, client = suite_with_cases
     run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run 1"}, headers=headers).json()
-    assert "created_by_username" in run
+    assert run["created_by_username"] == "testuser"
+    assert client.get(f"/api/runs/{run['id']}", headers=headers).json()["created_by_username"] == "testuser"
+    listed = client.get(f"/api/suites/{s['id']}/runs", headers=headers).json()
+    assert [r["created_by_username"] for r in listed] == ["testuser"]
+
+    # A run started by an executor is attributed to the executor, not the admin.
+    _, exec_headers = executor_client
+    exec_run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run 2"}, headers=exec_headers).json()
+    assert exec_run["created_by_username"] == "executor"
+
+
+def test_run_without_a_creator_has_null_username(auth_client, suite_with_cases):
+    from tests.api.conftest import TestingSessionLocal
+    from api import models
+
+    s, headers, client = suite_with_cases
+    run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Orphan"}, headers=headers).json()
+    db = TestingSessionLocal()
+    db.query(models.TestRun).filter(models.TestRun.id == run["id"]).update({"created_by_id": None})
+    db.commit()
+    db.close()
+    assert client.get(f"/api/runs/{run['id']}", headers=headers).json()["created_by_username"] is None
