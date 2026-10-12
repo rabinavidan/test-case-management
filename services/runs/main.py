@@ -18,7 +18,7 @@ from .events import (
 from .kafka_events import publish_alert_triggered
 from .population import populate_pending_results
 from services.common.auth import SECRET_KEY
-from services.common.health import health_response
+from services.common.health import database_check, health_response, readiness_response
 from services.common.jwt import decode_token
 from shared import ws_protocol
 from services.common.http import get_with_retry
@@ -89,8 +89,14 @@ async def broadcast_result_update(run_id: int, payload: dict):
 
 
 @app.get("/health")
+@app.get("/health/live")
 def health():
     return health_response("runs")
+
+
+@app.get("/health/ready")
+def ready():
+    return readiness_response("runs", {"database": database_check(engine)})
 
 
 # ─── Internal endpoints (called by other services) ────────────────────────────

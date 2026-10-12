@@ -20,7 +20,10 @@ app.add_middleware(RequestIDMiddleware, logger=logger)
 
 
 @app.get("/health")
+@app.get("/health/live")
+@app.get("/health/ready")
 def health():
+    # No database or other hard dependency to check — ready whenever live.
     return health_response("ai")
 
 

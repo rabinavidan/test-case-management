@@ -12,7 +12,7 @@ from typing import List
 from .database import engine, get_db, Base
 from . import models, schemas
 from .auth import hash_password, create_access_token, get_current_user, require_admin
-from services.common.health import health_response
+from services.common.health import database_check, health_response, readiness_response
 from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware
 
@@ -61,8 +61,14 @@ app.add_middleware(SlowAPIMiddleware)
 
 
 @app.get("/health")
+@app.get("/health/live")
 def health():
     return health_response("auth")
+
+
+@app.get("/health/ready")
+def ready():
+    return readiness_response("auth", {"database": database_check(engine)})
 
 
 @app.get("/api/version")

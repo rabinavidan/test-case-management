@@ -79,3 +79,32 @@ def test_overlay_points_redis_url_at_memorystore(overlay):
     docs = _render(overlay)
     configmap = next(d for d in docs if d["kind"] == "ConfigMap" and d["metadata"]["name"].startswith("testflow-config"))
     assert configmap["data"]["REDIS_URL"] == "redis://MEMORYSTORE_HOST:6379"
+
+
+HTTP_SERVICE_PORTS = {"auth": 8001, "projects": 8002, "runs": 8003, "ai": 8004}
+
+
+@pytest.mark.parametrize("overlay", OVERLAYS)
+def test_overlay_http_services_split_liveness_from_readiness(overlay):
+    """Liveness must hit a dependency-free endpoint (a DB outage restarting
+    every replica at once is the failure this split exists to prevent);
+    readiness hits the one that checks the database. See
+    services/common/health.py."""
+    docs = _render(overlay)
+    deployments = {d["metadata"]["name"]: d for d in docs if d["kind"] == "Deployment"}
+    for service, port in HTTP_SERVICE_PORTS.items():
+        container = deployments[service]["spec"]["template"]["spec"]["containers"][0]
+        for probe, path in [("startupProbe", "/health/live"),
+                            ("livenessProbe", "/health/live"),
+                            ("readinessProbe", "/health/ready")]:
+            assert container[probe]["httpGet"] == {"path": path, "port": port}, (
+                f"{service} in {overlay}: {probe} should GET {path} on {port}"
+            )
+
+
+@pytest.mark.parametrize("overlay", OVERLAYS)
+def test_overlay_worker_has_heartbeat_liveness_probe(overlay):
+    docs = _render(overlay)
+    worker = next(d for d in docs if d["kind"] == "Deployment" and d["metadata"]["name"] == "worker")
+    command = worker["spec"]["template"]["spec"]["containers"][0]["livenessProbe"]["exec"]["command"]
+    assert command[:3] == ["python", "-m", "services.common.heartbeat"]

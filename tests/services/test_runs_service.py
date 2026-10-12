@@ -43,6 +43,26 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok", "service": "runs"}
 
 
+def test_health_live_and_ready(client):
+    assert client.get("/health/live").json() == {"status": "ok", "service": "runs"}
+    res = client.get("/health/ready")
+    assert res.status_code == 200
+    assert res.json() == {"status": "ok", "service": "runs", "checks": {"database": "ok"}}
+
+
+def test_health_ready_503_when_database_down_but_live_stays_up(client, monkeypatch):
+    """A DB outage must pull the pod out of rotation (readiness), never
+    restart it (liveness) — see services/common/health.py."""
+    import sys
+    from sqlalchemy import create_engine
+    monkeypatch.setattr(sys.modules["services.runs.main"], "engine",
+                        create_engine("sqlite:////nonexistent-dir/unreachable.db"))
+    res = client.get("/health/ready")
+    assert res.status_code == 503
+    assert res.json()["checks"] == {"database": "fail"}
+    assert client.get("/health/live").status_code == 200
+
+
 def test_create_run_returns_503_when_projects_service_unreachable(client):
     """No mock installed here — PROJECTS_SERVICE_URL is genuinely unreachable,
     so create_run()'s httpx.get() call raises, which must surface as a clean

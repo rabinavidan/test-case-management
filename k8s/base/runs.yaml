@@ -23,9 +23,21 @@ spec:
               valueFrom: { secretKeyRef: { name: testflow-secrets, key: DATABASE_URL } }
             - name: JWT_SECRET_KEY
               valueFrom: { secretKeyRef: { name: testflow-secrets, key: JWT_SECRET_KEY } }
+          # /health/live never checks a dependency (see services/common/health.py),
+          # so a database outage pulls pods out of rotation via readiness instead
+          # of restarting every replica at once via liveness.
+          startupProbe:
+            httpGet: { path: /health/live, port: 8003 }
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet: { path: /health/live, port: 8003 }
+            periodSeconds: 10
+            failureThreshold: 3
           readinessProbe:
-            httpGet: { path: /docs, port: 8003 }
-            initialDelaySeconds: 5
+            httpGet: { path: /health/ready, port: 8003 }
+            periodSeconds: 5
+            failureThreshold: 2
           resources:
             requests: { cpu: 50m, memory: 64Mi }
             limits: { cpu: 250m, memory: 256Mi }

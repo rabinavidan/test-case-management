@@ -74,6 +74,14 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok", "service": "ai"}
 
 
+def test_health_live_and_ready(client):
+    # No database or other hard dependency — ready whenever live.
+    for path in ("/health/live", "/health/ready"):
+        res = client.get(path)
+        assert res.status_code == 200
+        assert res.json() == {"status": "ok", "service": "ai"}
+
+
 def test_generate_requires_admin(client):
     res = client.post("/api/suites/1/testcases/generate", json={
         "feature_description": "Login", "count": 1,

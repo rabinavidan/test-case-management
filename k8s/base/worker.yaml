@@ -1,8 +1,9 @@
 # Consumes services/runs' `runs.populate` queue (see services/worker/main.py)
 # - no HTTP port, so no Service/Ingress entry and no httpGet probe (there's
-# nothing to GET). Liveness is left to the container's own process exit
-# code: a crashed consumer loop exits non-zero and gets restarted like any
-# other container.
+# nothing to GET). A crashed consumer loop exits non-zero and gets restarted
+# like any other container; a loop that wedges *without* crashing stops
+# touching its heartbeat file, and the exec liveness probe below
+# (services/common/heartbeat.py) restarts it once that goes stale.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,6 +25,12 @@ spec:
           env:
             - name: DATABASE_URL
               valueFrom: { secretKeyRef: { name: testflow-secrets, key: DATABASE_URL } }
+          livenessProbe:
+            exec:
+              command: ["python", "-m", "services.common.heartbeat", "/tmp/worker-heartbeat", "60"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
           resources:
             requests: { cpu: 50m, memory: 64Mi }
             limits: { cpu: 250m, memory: 256Mi }
