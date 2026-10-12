@@ -195,3 +195,18 @@ def test_heartbeat_fresh_after_touch_stale_when_old_or_missing(tmp_path):
 def test_touch_heartbeat_never_raises_on_unwritable_path():
     from services.common.heartbeat import touch_heartbeat
     touch_heartbeat("/nonexistent-dir/hb")  # must not raise
+
+
+def test_health_module_imports_without_sqlalchemy():
+    """services/ai imports services.common.health but its image doesn't
+    install sqlalchemy (no database) — a top-level sqlalchemy import there
+    crashed ai on boot."""
+    import subprocess
+    import sys
+    code = (
+        "import sys; sys.modules['sqlalchemy'] = None\n"
+        "from services.common.health import health_response\n"
+        "assert health_response('ai') == {'status': 'ok', 'service': 'ai'}\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

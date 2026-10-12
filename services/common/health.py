@@ -17,18 +17,23 @@ purpose:
 The worker has no HTTP surface — its liveness check lives in
 services/common/heartbeat.py instead.
 """
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-from sqlalchemy.engine import Engine
+
+if TYPE_CHECKING:
+    # Imported lazily below: services/ai has no database and doesn't install
+    # sqlalchemy, but still imports this module for health_response.
+    from sqlalchemy.engine import Engine
 
 
 def health_response(service_name: str) -> dict:
     return {"status": "ok", "service": service_name}
 
 
-def database_check(engine: Engine) -> Callable[[], bool]:
+def database_check(engine: "Engine") -> Callable[[], bool]:
+    from sqlalchemy import text
+
     def check() -> bool:
         try:
             with engine.connect() as conn:
