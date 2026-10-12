@@ -1,0 +1,37 @@
+# Local kind lab — prod (see lab/README.md). Same base as the GKE overlays,
+# plus in-cluster Kafka + MongoDB; every workload pinned to the kind worker
+# labelled testflow.io/env=prod (lab/kind-config.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: testflow-prod
+
+resources:
+  - ../../../base
+  - namespace.yaml
+
+components:
+  - ../../../components/lab-infra
+
+patches:
+  - target:
+      kind: (Deployment|StatefulSet)
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          testflow.io/env: prod
+
+configMapGenerator:
+  - name: testflow-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=prod
+
+images:
+  - { name: testflow/gateway, newTag: lab }
+  - { name: testflow/auth, newTag: lab }
+  - { name: testflow/projects, newTag: lab }
+  - { name: testflow/runs, newTag: lab }
+  - { name: testflow/ai, newTag: lab }
+  - { name: testflow/worker, newTag: lab }
