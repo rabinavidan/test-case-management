@@ -80,7 +80,8 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     for (const id of ['M7', 'M8', 'M9', 'M10', 'R1', 'R2']) {
       await guestExpect(roadmap.locator('li', { hasText: id })).toContainText('Done');
     }
-    await guestExpect(roadmap).not.toContainText('Planned');
+    // Nothing left planned: every roadmap item carries the Done badge.
+    await guestExpect(roadmap.getByText('Planned', { exact: true })).toHaveCount(0);
   });
 
   guestTest('the "See the pipeline" button opens a static AI-pipeline walkthrough modal', async ({ page }) => {
