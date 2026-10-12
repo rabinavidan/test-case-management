@@ -4,7 +4,29 @@ endpoints so the eval harness (evals/) can run the exact same prompts
 against other models (e.g. a local Ollama model) without importing FastAPI
 route code or drifting out of sync with what production actually sends.
 """
+import hashlib
 import json
+
+
+def prompt_version(text: str) -> str:
+    """Short content hash of a prompt — the same algorithm as
+    evals/prompt_versions.py (tests/unit/test_ai_prompts.py holds them
+    equal), recorded on every AI generation so a human review can be traced
+    to the exact prompt text that produced the draft."""
+    return hashlib.sha256(text.encode()).hexdigest()[:8]
+
+
+def _reviewer_feedback_block(rejections: list[dict] | None) -> str:
+    """Course milestone M9's in-product feedback loop: drafts a human
+    rejected earlier for this suite, with their reason, so the model stops
+    repeating them. Empty (prompt text unchanged) when there are none."""
+    if not rejections:
+        return ""
+    lines = "\n".join(f"- {r.get('title', '')}: {r.get('reason', '')}" for r in rejections)
+    return (
+        "\nReviewers rejected these earlier drafts for this suite. Do not produce them again, "
+        f"and avoid the problems they named:\n{lines}"
+    )
 
 TESTCASE_GENERATION_SYSTEM_PROMPT = (
     "You are a senior QA engineer. Generate detailed, actionable test cases for the given feature. "
@@ -15,11 +37,14 @@ TESTCASE_GENERATION_SYSTEM_PROMPT = (
 )
 
 
-def build_testcase_generation_user_prompt(suite_name: str, feature_description: str, count: int) -> str:
+def build_testcase_generation_user_prompt(
+    suite_name: str, feature_description: str, count: int, rejections: list[dict] | None = None,
+) -> str:
     return (
         f"Suite: {suite_name}\n"
         f"Feature description: {feature_description}\n"
         f"Generate exactly {count} test cases."
+        f"{_reviewer_feedback_block(rejections)}"
     )
 
 
@@ -45,6 +70,7 @@ TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT = (
 
 def build_grounded_testcase_generation_user_prompt(
     suite_name: str, feature_description: str, count: int, similar_cases: list[dict],
+    rejections: list[dict] | None = None,
 ) -> str:
     existing_block = "\n".join(
         f"- {case.get('title', '')}: {case.get('description', '') or '(no description)'}"
@@ -55,6 +81,7 @@ def build_grounded_testcase_generation_user_prompt(
         f"Feature description: {feature_description}\n"
         f"Existing test cases already in this suite (do not duplicate these):\n{existing_block}\n"
         f"Generate exactly {count} NEW test cases not already covered above."
+        f"{_reviewer_feedback_block(rejections)}"
     )
 
 

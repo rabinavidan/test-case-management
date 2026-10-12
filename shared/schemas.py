@@ -290,6 +290,10 @@ class AIGeneratedTestCase(BaseModel):
 class AIGenerateResponse(BaseModel):
     test_cases: List[AIGeneratedTestCase]
     model: str
+    # Monolith only (course milestone M9): pass back to .../generate/save as
+    # ?generation_id= so each saved draft is linked to the call that made it
+    # and its human review can be exported as an eval case.
+    generation_id: Optional[str] = None
 
 
 # ─── AI failure triage ───────────────────────────────────────────────────────
