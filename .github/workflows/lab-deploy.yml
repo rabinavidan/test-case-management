@@ -1,0 +1,98 @@
+# Deploy to and test one environment of the local kind lab (lab/README.md).
+# Runs only on a self-hosted runner registered on the machine that hosts the
+# lab cluster (label: testflow-lab) and only when started by hand, so it never
+# queues on PRs or GitHub-hosted runners.
+name: Lab — deploy & test (self-hosted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Lab environment to deploy and test
+        type: choice
+        options: [staging, regression, preprod, prod]
+        default: staging
+
+concurrency:
+  group: lab-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-and-test:
+    runs-on: [self-hosted, testflow-lab]
+    # A GitHub Environment per lab environment: add a required reviewer to
+    # lab-preprod / lab-prod in Settings → Environments to gate promotion.
+    environment: lab-${{ inputs.environment }}
+    env:
+      LAB_ENV: ${{ inputs.environment }}
+      NS: testflow-${{ inputs.environment }}
+      # staging/regression get the full E2E suite; preprod/prod keep the real
+      # auth rate limit and get smoke checks only (k8s/overlays/lab/*).
+      FULL_E2E: ${{ inputs.environment == 'staging' || inputs.environment == 'regression' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build images and deploy ${{ inputs.environment }}
+        run: lab/up.sh "$LAB_ENV"
+
+      - name: Smoke — every workload Ready
+        run: lab/health.sh "$LAB_ENV"
+
+      - name: Port-forward the gateway
+        if: env.FULL_E2E == 'true'
+        run: |
+          kubectl port-forward svc/gateway 18000:8000 -n "$NS" > "$RUNNER_TEMP/port-forward.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/port-forward.pid"
+          for i in $(seq 1 30); do curl -sf localhost:18000/api/version && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/port-forward.log"; exit 1
+
+      - uses: actions/setup-node@v4
+        if: env.FULL_E2E == 'true'
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        if: env.FULL_E2E == 'true'
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install chromium
+
+      - name: E2E (Playwright) against ${{ inputs.environment }}
+        if: env.FULL_E2E == 'true'
+        working-directory: e2e
+        env:
+          BASE_URL: http://localhost:18000
+          CI: "true"
+        run: npx playwright test --project=chromium $(cat ../lab/e2e-specs.txt)
+
+      - name: Allure environment info
+        if: always() && env.FULL_E2E == 'true'
+        working-directory: e2e
+        run: |
+          mkdir -p allure-results
+          printf 'Environment=%s\nNamespace=%s\nCommit=%s\n' "$LAB_ENV" "$NS" "$GITHUB_SHA" \
+            > allure-results/environment.properties
+
+      - uses: actions/setup-java@v4
+        if: always() && env.FULL_E2E == 'true'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Generate Allure report
+        if: always() && env.FULL_E2E == 'true'
+        working-directory: e2e
+        run: npm run allure:generate
+
+      - name: Upload Allure report
+        if: always() && env.FULL_E2E == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-lab-${{ inputs.environment }}-${{ github.run_id }}
+          path: e2e/allure-report/
+
+      - name: Stop port-forward
+        if: always()
+        run: |
+          [ -f "$RUNNER_TEMP/port-forward.pid" ] && kill "$(cat "$RUNNER_TEMP/port-forward.pid")" || true

@@ -1,0 +1,11 @@
+tests/accessibility-responsiveness.spec.ts
+tests/api-timeout-resilience.spec.ts
+tests/guest-recruiter-fixes.spec.ts
+tests/kpi-quality-gate-dashboard.spec.ts
+tests/login.spec.ts
+tests/mocked-api-errors.spec.ts
+tests/portfolio-positioning.spec.ts
+tests/projects.spec.ts
+tests/recruiter-tour-architecture.spec.ts
+tests/test-pyramid-ai-engineering.spec.ts
+tests/testcases.spec.ts

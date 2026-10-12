@@ -17,6 +17,12 @@ but isn't retroactively cataloged here.
   turns every PR red and no API tokens are spent by default.
 
 ### Added
+- **Local Kubernetes lab** (`lab/`) — a 4-worker kind cluster with one node per environment
+  (staging, regression, preprod, prod), each running the full stack plus in-cluster Postgres, Redis,
+  Kafka and MongoDB (`k8s/overlays/lab/*`, `k8s/components/lab-infra`). `lab/up.sh` / `lab/health.sh` /
+  `lab/down.sh`, and a self-hosted `lab-deploy.yml` workflow that deploys one environment and, for
+  staging/regression, runs Playwright E2E into an Allure report. Rendered overlays are covered by
+  `tests/infra/test_k8s_lab_overlays.py`.
 - **Liveness / readiness health checks** — every HTTP microservice exposes `/health/live` (no
   dependency checks) and `/health/ready` (checks its database, 503 when down), wired to separate
   `startupProbe` / `livenessProbe` / `readinessProbe` in `k8s/base/` instead of readiness polling
