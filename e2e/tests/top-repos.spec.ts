@@ -77,6 +77,77 @@ guestTest.describe('Guest home page — Open-Source Repositories', () => {
   });
 });
 
+// The section is the same shared carousel as Success Stories (whose spec
+// covers the engine's edge cases); these pin that it is one, and that the
+// two carousels on the page don't drive each other.
+guestTest.describe('Guest home page — repositories carousel', () => {
+  const scrollLeft = (page: import('@playwright/test').Page, prefix: string) =>
+    page.getByTestId(`${prefix}-track`).evaluate((t) => t.scrollLeft);
+
+  guestTest('Next, Previous and the dots move only this carousel', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' }); // no auto-advance
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    const prev = page.getByTestId('repos-prev');
+    const next = page.getByTestId('repos-next');
+    const dots = page.getByTestId('repos-dots').getByRole('button');
+
+    await guestExpect(page.getByTestId('repo-card').first()).toHaveAttribute('role', 'group');
+    await guestExpect(page.getByTestId('repo-card').first()).toHaveAttribute('aria-roledescription', 'slide');
+    await guestExpect(dots).toHaveCount(REPOS.length);
+    await guestExpect(prev).toBeDisabled();
+    await guestExpect(next).toHaveAttribute('aria-label', 'Next repository');
+
+    await next.click();
+    await guestExpect.poll(() => scrollLeft(page, 'repos')).toBeGreaterThan(0);
+    guestExpect(await scrollLeft(page, 'stories')).toBe(0);
+
+    await dots.last().click();
+    await guestExpect(next).toBeDisabled();
+    await guestExpect(dots.last()).toHaveAttribute('aria-current', 'true');
+    await guestExpect(page.getByTestId('stories-dots').getByRole('button').first()).toHaveAttribute('aria-current', 'true');
+
+    await prev.click();
+    await guestExpect(next).toBeEnabled();
+  });
+
+  guestTest('starts paused while scrolled out of view, and runs once on screen', async ({ page }) => {
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    await page.mouse.move(0, 0);
+    const repos = page.getByTestId('top-repos-section');
+    // Below the fold at the default 720px-tall viewport.
+    guestExpect(await repos.evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThan(720);
+    await guestExpect(repos).toHaveAttribute('data-autoplay', 'paused');
+
+    await repos.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await guestExpect(repos).toHaveAttribute('data-autoplay', 'running');
+  });
+
+  guestTest('auto-advances on its own clock, and pausing it leaves Success Stories running', async ({ page }) => {
+    // Tall enough that both carousels are on screen, so neither is paused for being out of view.
+    await page.setViewportSize({ width: 1280, height: 2200 });
+    await page.clock.install();
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    await page.mouse.move(0, 0);
+    const repos = page.getByTestId('top-repos-section');
+    const stories = page.getByTestId('success-stories-section');
+    await guestExpect(repos).toHaveAttribute('data-autoplay', 'running');
+
+    await page.getByTestId('repos-autoplay').click();
+    await page.mouse.move(0, 0);
+    await guestExpect(page.getByTestId('repos-autoplay')).toHaveAttribute('aria-label', 'Play auto-advance');
+    await guestExpect(repos).toHaveAttribute('data-autoplay', 'paused');
+    await guestExpect(stories).toHaveAttribute('data-autoplay', 'running');
+
+    await page.clock.runFor(5100);
+    await guestExpect.poll(() => scrollLeft(page, 'stories')).toBeGreaterThan(0);
+    guestExpect(await scrollLeft(page, 'repos')).toBe(0);
+  });
+});
+
 authTest.describe('Signed-in home page — Open-Source Repositories is guest-only', () => {
   authTest('does not show for a signed-in user', async ({ page, authToken }) => {
     await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);

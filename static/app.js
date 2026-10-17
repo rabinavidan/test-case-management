@@ -884,126 +884,108 @@ const SUCCESS_STORIES = [
     alt: "Infographic: From Cucumber Java to Playwright mocks. Before and after of a three-year automation transformation for Angular micro frontends, with its impact on stability and release speed." },
 ];
 
-function renderSuccessStoriesSection() {
-  const fmt = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
-  const postUrl = (s) => `https://www.linkedin.com/feed/update/urn:li:activity:${s.activity}/`;
-  const n = SUCCESS_STORIES.length;
+// ─── Carousel ────────────────────────────────────────────────────────────────
+// One scroll-snap carousel, shared by Success Stories and the repositories
+// section. Swipe, Previous/Next, dots and arrow keys all drive the same
+// track; auto-advance runs every 5 s with a Pause/Play control, pausing on
+// hover, on focus inside, off-screen or in a hidden tab, and never for
+// reduced-motion users. `prefix` names its test ids (`${prefix}-track` ...).
+const CAROUSEL_INTERVAL_MS = 5000;
+const _carousels = new Map(); // id -> { index, autoplay, abort }
+
+function renderCarousel({ id, prefix, noun, heading, subtitle, slides, slideTestId, headerLink = "", beforeTrack = "" }) {
+  const n = slides.length;
+  const btn = "w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 transition-colors items-center justify-center";
   return `
     <section class="relative rounded-2xl overflow-hidden mb-6 px-4 sm:px-5 py-5" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)"
-      data-testid="success-stories-section" aria-roledescription="carousel" aria-labelledby="success-stories-heading">
+      data-carousel="${id}" data-testid="${id}-section" aria-roledescription="carousel" aria-labelledby="${id}-heading">
       <div class="flex items-start justify-between gap-3 mb-4">
         <div class="min-w-0">
-          <h2 id="success-stories-heading" class="text-sm font-bold text-white uppercase tracking-wide">Success Stories</h2>
-          <p class="text-[11px] mt-1" style="color:rgba(255,255,255,.5)">Automation work I've shipped, as I shared it on LinkedIn.</p>
+          <h2 id="${id}-heading" class="text-sm font-bold text-white uppercase tracking-wide">${escHtml(heading)}</h2>
+          <p class="text-[11px] mt-1" style="color:rgba(255,255,255,.5)">${escHtml(subtitle)}${headerLink}</p>
         </div>
         <div class="flex gap-2 flex-shrink-0">
-          <button type="button" data-testid="stories-autoplay" onclick="toggleSuccessStoriesAutoplay()" aria-label="Pause auto-advance"
-            class="hidden w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 transition-colors items-center justify-center">
+          <button type="button" data-carousel-autoplay data-testid="${prefix}-autoplay" onclick="toggleCarouselAutoplay('${id}')" aria-label="Pause auto-advance" class="hidden ${btn}">
             <svg data-icon="pause" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
             <svg data-icon="play" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
           </button>
-          <button type="button" data-testid="stories-prev" onclick="scrollSuccessStories(-1)" aria-label="Previous story"
-            class="w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+          <button type="button" data-carousel-prev data-testid="${prefix}-prev" onclick="stepCarousel('${id}', -1)" aria-label="Previous ${noun}" class="flex ${btn} disabled:opacity-30 disabled:cursor-not-allowed">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
           </button>
-          <button type="button" data-testid="stories-next" onclick="scrollSuccessStories(1)" aria-label="Next story"
-            class="w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+          <button type="button" data-carousel-next data-testid="${prefix}-next" onclick="stepCarousel('${id}', 1)" aria-label="Next ${noun}" class="flex ${btn} disabled:opacity-30 disabled:cursor-not-allowed">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </button>
         </div>
       </div>
-      <div id="stories-track" data-testid="stories-track" tabindex="0" aria-label="Success stories. Use the arrow keys to browse."
-        class="stories-track flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1">
-        ${SUCCESS_STORIES.map((s, i) => `
-          <article role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}: ${escHtml(s.title)}" data-testid="story-slide"
+      ${beforeTrack}
+      <div data-carousel-track data-testid="${prefix}-track" tabindex="0" aria-label="${escHtml(heading)}. Use the arrow keys to browse."
+        class="carousel-track flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1">
+        ${slides.map((s, i) => `
+          <article role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}: ${escHtml(s.label)}" data-testid="${slideTestId}" ${s.attrs || ""}
             class="group snap-start shrink-0 w-[85%] sm:w-[calc(50%-0.5rem)] lg:w-[calc((100%-2rem)/3)] rounded-xl overflow-hidden border border-white/10 bg-white/[.03] flex flex-col transition-all duration-300 hover:-translate-y-1 hover:border-sky-400/40 hover:shadow-lg hover:shadow-sky-500/10">
-            <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true" class="block bg-slate-950">
-              <img src="/static/img/success-stories/${s.slug}.webp" alt="${escHtml(s.alt)}" width="800" height="1000"
-                ${i < 3 ? "" : 'loading="lazy"'} decoding="async" class="w-full aspect-[4/5] object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
-            </a>
-            <div class="p-3 flex flex-col gap-1 flex-1">
-              <time datetime="${s.date}" class="text-[10px] uppercase tracking-wider" style="color:rgba(255,255,255,.45)">${fmt(s.date)}</time>
-              <h3 class="text-sm font-semibold text-white leading-snug">${escHtml(s.title)}</h3>
-              <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.6)">${escHtml(s.summary)}</p>
-              <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" data-testid="story-link"
-                aria-label="View ${escHtml(s.title)} on LinkedIn (opens in a new tab)"
-                class="mt-auto pt-2 text-xs font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">View on LinkedIn<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M9 7h8v8"/></svg></a>
-            </div>
+            ${s.html}
           </article>`).join("")}
       </div>
-      <div class="flex justify-center gap-1 mt-3" data-testid="stories-dots">
-        ${SUCCESS_STORIES.map((s, i) => `
-          <button type="button" onclick="goToSuccessStory(${i})" aria-label="Go to story ${i + 1}: ${escHtml(s.title)}"
-            class="story-dot p-1.5 group"><span class="block w-2 h-2 rounded-full bg-white/25 transition-colors"></span></button>`).join("")}
+      <div class="flex justify-center gap-1 mt-3" data-testid="${prefix}-dots">
+        ${slides.map((s, i) => `
+          <button type="button" data-carousel-dot onclick="goToCarousel('${id}', ${i})" aria-label="Go to ${noun} ${i + 1}: ${escHtml(s.label)}"
+            class="p-1.5"><span class="block w-2 h-2 rounded-full bg-white/25 transition-colors"></span></button>`).join("")}
       </div>
     </section>`;
 }
 
-function _storiesTrack() { return document.getElementById("stories-track"); }
-function _storyScrollBehavior() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+function _carouselEl(id) { return document.querySelector(`[data-carousel="${id}"]`); }
+function _carouselTrack(id) { return _carouselEl(id)?.querySelector("[data-carousel-track]"); }
+function _carouselScrollBehavior() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+function _slideOffset(track, i) { return track.children[i].offsetLeft - track.firstElementChild.offsetLeft; }
+function _carouselAtEnd(track) { return track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; }
 
-// The story the carousel means to show. Only navigation (buttons, dots, keys,
-// auto-advance, the user's own swipe) changes it - never layout: when the
-// slide widths change (the Tailwind CDN's CSS lands after this markup), WebKit
-// re-snaps a mandatory scroll-snap track to its *last* slide.
-let _storyIndex = 0;
-
-function _storyOffset(track, i) {
-  return track.children[i].offsetLeft - track.firstElementChild.offsetLeft;
-}
-
-function _nearestStory(track) {
+function _nearestSlide(track) {
   let best = 0;
   [...track.children].forEach((_, i) => {
-    if (Math.abs(_storyOffset(track, i) - track.scrollLeft) < Math.abs(_storyOffset(track, best) - track.scrollLeft)) best = i;
+    if (Math.abs(_slideOffset(track, i) - track.scrollLeft) < Math.abs(_slideOffset(track, best) - track.scrollLeft)) best = i;
   });
   return best;
 }
 
-function _storiesAtEnd(track) { return track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; }
-
-// The last story the track can scroll to the start of: when several slides
-// fit on screen, the final few share one end position. Navigation is
-// clamped to it, so the index never runs past what the track can show.
-function _lastReachableStory(track) {
+// The last slide the track can scroll to the start of: when several fit on
+// screen, the final few share one end position. Navigation clamps to it, so
+// the index never runs past what the track can show.
+function _lastReachableSlide(track) {
   const max = track.scrollWidth - track.clientWidth;
   let last = 0;
-  [...track.children].forEach((_, i) => { if (_storyOffset(track, i) <= max + 2) last = i; });
+  [...track.children].forEach((_, i) => { if (_slideOffset(track, i) <= max + 2) last = i; });
   return last;
 }
 
-function goToSuccessStory(i, behavior = _storyScrollBehavior()) {
-  const track = _storiesTrack();
-  if (!track?.children[i]) return;
-  const last = _lastReachableStory(track);
-  _storyIndex = Math.min(i, last);
-  const left = _storyIndex === last ? track.scrollWidth - track.clientWidth : _storyOffset(track, _storyIndex);
+function goToCarousel(id, i, behavior = _carouselScrollBehavior()) {
+  const track = _carouselTrack(id);
+  const c = _carousels.get(id);
+  if (!track?.children[i] || !c) return;
+  const last = _lastReachableSlide(track);
+  c.index = Math.min(i, last);
+  const left = c.index === last ? track.scrollWidth - track.clientWidth : _slideOffset(track, c.index);
   track.scrollTo({ left, behavior });
 }
 
-function scrollSuccessStories(dir) {
-  const track = _storiesTrack();
-  if (!track?.firstElementChild) return;
-  const last = _lastReachableStory(track);
-  goToSuccessStory(Math.min(Math.max(Math.min(_storyIndex, last) + dir, 0), last));
+function stepCarousel(id, dir) {
+  const track = _carouselTrack(id);
+  const c = _carousels.get(id);
+  if (!track?.firstElementChild || !c) return;
+  const last = _lastReachableSlide(track);
+  goToCarousel(id, Math.min(Math.max(Math.min(c.index, last) + dir, 0), last));
 }
 
-// Auto-advance, WCAG 2.2.2-style: a visible Pause/Play control, paused
-// while the pointer or keyboard focus is inside the carousel, while it is
-// off-screen or the tab is hidden, and never on for reduced-motion users.
-const STORIES_INTERVAL_MS = 5000;
-let _storiesAutoplay = null;
-
-function toggleSuccessStoriesAutoplay() {
-  if (!_storiesAutoplay) return;
-  _storiesAutoplay.userPaused = !_storiesAutoplay.userPaused;
-  _storiesAutoplay.sync();
+function toggleCarouselAutoplay(id) {
+  const ap = _carousels.get(id)?.autoplay;
+  if (!ap) return;
+  ap.userPaused = !ap.userPaused;
+  ap.sync();
 }
 
-function _startStoriesAutoplay(track, section, signal) {
-  const btn = section.querySelector('[data-testid="stories-autoplay"]');
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (reduced) return; // the control stays hidden: nothing moves on its own
+function _startCarouselAutoplay(id, section, track, signal) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; // control stays hidden
+  const btn = section.querySelector("[data-carousel-autoplay]");
   btn.classList.remove("hidden");
   btn.classList.add("flex");
 
@@ -1011,11 +993,11 @@ function _startStoriesAutoplay(track, section, signal) {
   // Index-based, not scroll-position-based: a tick can land while the
   // previous smooth scroll is still moving.
   const advance = () => {
-    if (_storyIndex >= _lastReachableStory(track)) goToSuccessStory(0); else scrollSuccessStories(1);
+    if (_carousels.get(id).index >= _lastReachableSlide(track)) goToCarousel(id, 0); else stepCarousel(id, 1);
   };
   ap.sync = () => {
     const running = !ap.userPaused && !ap.hovered && !ap.focused && ap.inView && !document.hidden;
-    if (running && !ap.timer) ap.timer = setInterval(advance, STORIES_INTERVAL_MS);
+    if (running && !ap.timer) ap.timer = setInterval(advance, CAROUSEL_INTERVAL_MS);
     if (!running && ap.timer) { clearInterval(ap.timer); ap.timer = null; }
     btn.setAttribute("aria-label", ap.userPaused ? "Play auto-advance" : "Pause auto-advance");
     btn.querySelector('[data-icon="pause"]').classList.toggle("hidden", ap.userPaused);
@@ -1034,66 +1016,107 @@ function _startStoriesAutoplay(track, section, signal) {
   io.observe(section);
   signal.addEventListener("abort", () => { io.disconnect(); if (ap.timer) clearInterval(ap.timer); });
 
-  _storiesAutoplay = ap;
+  _carousels.get(id).autoplay = ap;
   ap.sync();
 }
 
-// Keeps the dots and the Previous/Next disabled state in step with the
-// scroll position: swipe, arrow keys and the buttons all move the same track.
-let _storiesAbort = null;
-function initSuccessStories() {
+function initCarousel(id) {
   // The home page re-renders on every visit; drop the previous render's
   // timer and document-level listeners first.
-  _storiesAbort?.abort();
-  _storiesAutoplay = null;
-  const track = _storiesTrack();
-  if (!track) return;
-  _storiesAbort = new AbortController();
-  const { signal } = _storiesAbort;
-  _storyIndex = 0;
+  _carousels.get(id)?.abort.abort();
+  _carousels.delete(id);
+  const section = _carouselEl(id);
+  const track = section?.querySelector("[data-carousel-track]");
+  if (!track?.firstElementChild) return;
+  const abort = new AbortController();
+  const { signal } = abort;
+  // `index` is the slide the carousel means to show. Only navigation changes
+  // it - never layout: when slide widths change (the Tailwind CDN's CSS lands
+  // after this markup), WebKit re-snaps a scroll-snap track to its last slide.
+  const c = { index: 0, autoplay: null, abort };
+  _carousels.set(id, c);
+
+  const prev = section.querySelector("[data-carousel-prev]");
+  const next = section.querySelector("[data-carousel-next]");
+  const dots = section.querySelectorAll("[data-carousel-dot]");
   let userScrolling = false;
+
   const update = () => {
     if (!document.body.contains(track)) return;
-    const slides = [...track.children];
-    const atEnd = _storiesAtEnd(track);
-    if (userScrolling) _storyIndex = atEnd ? _lastReachableStory(track) : _nearestStory(track);
-    const current = atEnd ? slides.length - 1 : _nearestStory(track);
-    document.querySelectorAll(".story-dot").forEach((d, i) => {
+    const atEnd = _carouselAtEnd(track);
+    if (userScrolling) c.index = atEnd ? _lastReachableSlide(track) : _nearestSlide(track);
+    const current = atEnd ? track.children.length - 1 : _nearestSlide(track);
+    dots.forEach((d, i) => {
       d.firstElementChild.classList.toggle("bg-white", i === current);
       d.firstElementChild.classList.toggle("bg-white/25", i !== current);
       if (i === current) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current");
     });
-    document.querySelector('[data-testid="stories-prev"]').disabled = track.scrollLeft <= 2;
-    document.querySelector('[data-testid="stories-next"]').disabled = atEnd;
+    prev.disabled = track.scrollLeft <= 2;
+    next.disabled = atEnd;
   };
-  track.addEventListener("scroll", update, { passive: true });
-  // A swipe, drag or wheel is the user choosing a story; anything else that
-  // scrolls the track (a layout re-snap) must not change _storyIndex.
+  const resnap = () => {
+    if (!userScrolling) {
+      const last = _lastReachableSlide(track);
+      const i = Math.min(c.index, last);
+      const want = i === last ? track.scrollWidth - track.clientWidth : _slideOffset(track, i);
+      if (Math.abs(track.scrollLeft - want) > 2) goToCarousel(id, i, "auto");
+    }
+    update();
+  };
+
+  track.addEventListener("scroll", update, { passive: true, signal });
+  // A swipe, drag or wheel is the user choosing a slide; anything else that
+  // scrolls the track (a layout re-snap) must not change the index.
   for (const ev of ["pointerdown", "touchstart", "wheel"]) {
     track.addEventListener(ev, () => { userScrolling = true; }, { passive: true, signal });
   }
   for (const ev of ["pointerup", "touchend"]) {
     track.addEventListener(ev, () => setTimeout(() => { userScrolling = false; }, 600), { passive: true, signal });
   }
-  const resnap = () => {
-    if (!userScrolling) {
-      const last = _lastReachableStory(track);
-      const i = Math.min(_storyIndex, last);
-      const want = i === last ? track.scrollWidth - track.clientWidth : _storyOffset(track, i);
-      if (Math.abs(track.scrollLeft - want) > 2) goToSuccessStory(i, "auto");
-    }
-    update();
-  };
   track.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight") { e.preventDefault(); scrollSuccessStories(1); }
-    if (e.key === "ArrowLeft") { e.preventDefault(); scrollSuccessStories(-1); }
-  });
+    if (e.key === "ArrowRight") { e.preventDefault(); stepCarousel(id, 1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); stepCarousel(id, -1); }
+  }, { signal });
   // Not just window resize: the Tailwind CDN generates the slide-width CSS
   // after this markup is inserted, so the first measurement can predate it.
-  new ResizeObserver(resnap).observe(track);
-  [...track.children].forEach((slide) => new ResizeObserver(resnap).observe(slide));
+  const ro = new ResizeObserver(resnap);
+  ro.observe(track);
+  [...track.children].forEach((slide) => ro.observe(slide));
+  signal.addEventListener("abort", () => ro.disconnect());
   update();
-  _startStoriesAutoplay(track, track.closest('[data-testid="success-stories-section"]'), signal);
+  _startCarouselAutoplay(id, section, track, signal);
+}
+
+function initHomeCarousels() {
+  initCarousel("success-stories");
+  initCarousel("top-repos");
+}
+
+const _extLinkIcon = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M9 7h8v8"/></svg>`;
+
+function renderSuccessStoriesSection() {
+  const fmt = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  const postUrl = (s) => `https://www.linkedin.com/feed/update/urn:li:activity:${s.activity}/`;
+  return renderCarousel({
+    id: "success-stories", prefix: "stories", noun: "story", slideTestId: "story-slide",
+    heading: "Success Stories", subtitle: "Automation work I've shipped, as I shared it on LinkedIn.",
+    slides: SUCCESS_STORIES.map((s, i) => ({
+      label: s.title,
+      html: `
+        <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true" class="block bg-slate-950 overflow-hidden">
+          <img src="/static/img/success-stories/${s.slug}.webp" alt="${escHtml(s.alt)}" width="800" height="1000"
+            ${i < 3 ? "" : 'loading="lazy"'} decoding="async" class="w-full aspect-[4/5] object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
+        </a>
+        <div class="p-3 flex flex-col gap-1 flex-1">
+          <time datetime="${s.date}" class="text-[10px] uppercase tracking-wider" style="color:rgba(255,255,255,.45)">${fmt(s.date)}</time>
+          <h3 class="text-sm font-semibold text-white leading-snug">${escHtml(s.title)}</h3>
+          <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.6)">${escHtml(s.summary)}</p>
+          <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" data-testid="story-link"
+            aria-label="View ${escHtml(s.title)} on LinkedIn (opens in a new tab)"
+            class="mt-auto pt-2 text-xs font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">View on LinkedIn${_extLinkIcon}</a>
+        </div>`,
+    })),
+  });
 }
 
 // ─── Open-Source Repositories ────────────────────────────────────────────────
@@ -1130,60 +1153,61 @@ const TOP_REPOS = [
 ];
 
 function renderTopReposSection() {
-  // Every technology, ranked by how many repos use it (ties keep first-seen order).
+  // Every technology shared by two or more repos, ranked by how many use it
+  // (ties keep first-seen order) - computed from the cards so they can't disagree.
   const counts = new Map();
   TOP_REPOS.forEach((r) => r.tech.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1)));
   const ranked = [...counts.entries()].filter(([, c]) => c > 1).sort((a, b) => b[1] - a[1]);
   const ghIcon = `<svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 007.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 015.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0023.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>`;
-  const arrow = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M9 7h8v8"/></svg>`;
-  return `
-    <section class="mb-6" data-testid="top-repos-section" aria-labelledby="top-repos-heading">
-      <div class="flex items-end justify-between gap-3 mb-3 flex-wrap">
-        <div>
-          <h2 id="top-repos-heading" class="text-sm font-bold text-slate-700 uppercase tracking-wide">Open-Source Repositories</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Public projects on GitHub, and the stack behind each one.</p>
-        </div>
-        <a href="https://github.com/rabinavidan?tab=repositories" target="_blank" rel="noopener noreferrer"
-          class="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">All repositories${arrow}</a>
-      </div>
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-3" data-testid="repos-tech-summary">
-        <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Technologies across these repos</p>
-        <ul class="flex flex-wrap gap-1.5">
-          ${ranked.map(([t, c]) => `
-            <li data-testid="repos-tech" data-tech="${escHtml(t)}" data-count="${c}"
-              class="text-[11px] font-medium text-slate-700 bg-slate-100 rounded-full pl-2.5 pr-1 py-0.5 inline-flex items-center gap-1">
-              ${escHtml(t)}<span class="text-[10px] font-bold text-slate-500 bg-white rounded-full px-1.5" aria-label="in ${c} repos">${c}</span>
-            </li>`).join("")}
-        </ul>
-      </div>
-      <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        ${TOP_REPOS.map((r) => {
-          const url = `https://github.com/rabinavidan/${r.name}`;
-          return `
-          <li data-testid="repo-card" data-repo="${escHtml(r.name)}"
-            class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-200">
-            <div class="flex items-center gap-2 text-slate-800 min-w-0">
+
+  const techSummary = `
+    <div class="mb-4" data-testid="repos-tech-summary">
+      <p class="text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:rgba(255,255,255,.45)">Technologies across these repos</p>
+      <ul class="flex flex-wrap gap-1.5">
+        ${ranked.map(([t, c]) => `
+          <li data-testid="repos-tech" data-tech="${escHtml(t)}" data-count="${c}"
+            class="text-[11px] font-medium text-white/85 bg-white/10 rounded-full pl-2.5 pr-1 py-0.5 inline-flex items-center gap-1">
+            ${escHtml(t)}<span class="text-[10px] font-bold text-sky-200 bg-white/10 rounded-full px-1.5" aria-label="in ${c} repos">${c}</span>
+          </li>`).join("")}
+      </ul>
+    </div>`;
+
+  return renderCarousel({
+    id: "top-repos", prefix: "repos", noun: "repository", slideTestId: "repo-card",
+    heading: "Open-Source Repositories",
+    subtitle: "Public projects on GitHub, and the stack behind each one. ",
+    headerLink: `<a href="https://github.com/rabinavidan?tab=repositories" target="_blank" rel="noopener noreferrer"
+      class="font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1 whitespace-nowrap">All repositories${_extLinkIcon}</a>`,
+    beforeTrack: techSummary,
+    slides: TOP_REPOS.map((r) => {
+      const url = `https://github.com/rabinavidan/${r.name}`;
+      return {
+        label: r.title,
+        attrs: `data-repo="${escHtml(r.name)}"`,
+        html: `
+          <div class="p-4 flex flex-col gap-2 flex-1">
+            <div class="flex items-start gap-2 text-white min-w-0">
               ${ghIcon}
-              <h3 class="text-sm font-bold truncate" title="${escHtml(r.title)}">${escHtml(r.title)}</h3>
+              <h3 class="text-sm font-bold leading-snug">${escHtml(r.title)}</h3>
             </div>
-            <p class="text-[11px] font-mono text-slate-400 truncate -mt-1">rabinavidan/${escHtml(r.name)}</p>
-            <p class="text-xs text-slate-600 leading-relaxed">${escHtml(r.summary)}</p>
-            <p class="text-xs font-semibold text-emerald-700" data-testid="repo-fact">${escHtml(r.fact)}</p>
+            <p class="text-[11px] font-mono truncate -mt-1" style="color:rgba(255,255,255,.4)">rabinavidan/${escHtml(r.name)}</p>
+            <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.65)">${escHtml(r.summary)}</p>
+            <p class="text-xs font-semibold text-emerald-300" data-testid="repo-fact">${escHtml(r.fact)}</p>
             <ul class="flex flex-wrap gap-1" aria-label="Technologies">
-              ${r.tech.map((t) => `<li class="text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-1.5 py-0.5">${escHtml(t)}</li>`).join("")}
+              ${r.tech.map((t) => `<li class="text-[10px] font-medium text-sky-200 bg-sky-400/10 border border-sky-300/20 rounded-md px-1.5 py-0.5">${escHtml(t)}</li>`).join("")}
             </ul>
             <div class="mt-auto pt-2 flex items-center gap-3 text-xs font-semibold">
               <a href="${url}" target="_blank" rel="noopener noreferrer" data-testid="repo-code-link"
                 aria-label="${escHtml(r.title)} source code on GitHub (opens in a new tab)"
-                class="text-slate-700 hover:text-blue-700 inline-flex items-center gap-1">Code${arrow}</a>
+                class="text-white/85 hover:text-white inline-flex items-center gap-1">Code${_extLinkIcon}</a>
               ${r.live ? `<a href="${r.live}" target="_blank" rel="noopener noreferrer" data-testid="repo-live-link"
                 aria-label="${escHtml(r.title)} ${escHtml(r.liveLabel || "live demo")} (opens in a new tab)"
-                class="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">${escHtml(r.liveLabel || "Live")}${arrow}</a>` : ""}
+                class="text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">${escHtml(r.liveLabel || "Live")}${_extLinkIcon}</a>` : ""}
             </div>
-          </li>`;
-        }).join("")}
-      </ul>
-    </section>`;
+          </div>`,
+      };
+    }),
+  });
 }
 
 // ─── Projects View ───────────────────────────────────────────────────────────
@@ -2389,7 +2413,7 @@ async function renderProjects() {
         </div>
       </div>`;
     hydrateLiveKpis();
-    initSuccessStories();
+    initHomeCarousels();
     return;
   }
 
@@ -2467,7 +2491,7 @@ async function renderProjects() {
     </div>`;
   filterProjectTable();
   hydrateLiveKpis();
-  initSuccessStories();
+  initHomeCarousels();
 }
 
 async function loadProjectStats(projects) {
