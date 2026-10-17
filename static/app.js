@@ -4511,14 +4511,16 @@ async function renderUsers() {
                   <div class="flex items-center justify-end gap-1">
                   ${u.role !== "admin" ? `
                   <button onclick="toggleUserStatus(${u.id}, '${escHtml(u.username)}', ${u.is_active !== false})"
-                    class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-all ${u.is_active !== false ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}"
+                    aria-label="${u.is_active !== false ? 'Deactivate' : 'Activate'} ${escHtml(u.username)}"
+                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-all ${u.is_active !== false ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}"
                     title="${u.is_active !== false ? 'Deactivate' : 'Activate'}">
                     ${u.is_active !== false
                       ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>`
                       : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`}
                   </button>
                   <button onclick="deleteUser(${u.id}, '${escHtml(u.username)}')"
-                    class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
+                    aria-label="Remove ${escHtml(u.username)}"
+                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>` : ""}
                   </div>
@@ -5333,7 +5335,12 @@ async function renderLogs() {
   await loadLogs();
 }
 
+// Each filter change starts a load; only the latest may render, or a slower
+// earlier response would replace newer results with stale ones.
+let _logsLoadSeq = 0;
+
 async function loadLogs() {
+  const seq = ++_logsLoadSeq;
   const el = document.getElementById("view-logs");
   const params = new URLSearchParams({ page: String(logFilters.page), page_size: String(LOG_PAGE_SIZE) });
   if (logFilters.level) params.set("level", logFilters.level);
@@ -5344,9 +5351,11 @@ async function loadLogs() {
   try {
     resp = await GET(`/api/logs?${params.toString()}`);
   } catch (e) {
+    if (seq !== _logsLoadSeq) return;
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
     return;
   }
+  if (seq !== _logsLoadSeq) return;
   if (!resp) return;
   const entries = resp.items ?? resp ?? [];
   const total = resp.total ?? entries.length;
