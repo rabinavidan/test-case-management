@@ -35,6 +35,8 @@ from typing import Optional
 ROUTES: list[tuple[str, str]] = [
     ("/api/suites/{suite_id}/testcases/generate", "ai"),
     ("/api/suites/{suite_id}/testcases/generate/save", "projects"),
+    ("/api/suites/{suite_id}/testcases/generate/review", "projects"),
+    ("/api/ai/reviews", "projects"),
     ("/api/suites/{suite_id}/runs", "runs"),
     ("/api/auth/setup", "auth"),
     ("/api/auth/register", "auth"),

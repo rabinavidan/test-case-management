@@ -163,3 +163,21 @@ def test_demo_seed_endpoint_still_creates_data_when_runs_service_unreachable(cli
 
     suites = client.get(f"/api/projects/{project_id}/suites", headers=ADMIN)
     assert len(suites.json()) > 0
+
+
+def test_ai_draft_review_saves_kept_drafts_and_records_every_verdict(client):
+    # Same contract as the monolith's (tests/api/test_ai_reviews.py).
+    project = client.post("/api/projects", json={"name": "P"}, headers=ADMIN).json()
+    suite = client.post(f"/api/projects/{project['id']}/suites", json={"name": "S"}, headers=ADMIN).json()
+    draft = {"title": "Login", "priority": "high"}
+    res = client.post(f"/api/suites/{suite['id']}/testcases/generate/review", headers=ADMIN, json={
+        "feature_description": "Login", "decisions": [
+            {"output": draft, "verdict": "accepted"},
+            {"output": draft, "verdict": "rejected", "reason": "misses lockout", "must_cover": ["lockout"]},
+        ]})
+    assert res.status_code == 200, res.text
+    assert res.json()["saved"] == 1 and res.json()["rejected"] == 1
+    reviews = client.get("/api/ai/reviews", headers=ADMIN).json()
+    assert sorted(r["verdict"] for r in reviews) == ["accepted", "rejected"]
+    assert all(r["reviewer"] == "user:1" for r in reviews)
+    assert client.get("/api/ai/reviews", headers=EXECUTOR).status_code == 403

@@ -33,8 +33,8 @@ and a resolved `created_by_username` that the runs service alone can't
 produce (that data lives in the projects/auth services in microservices
 mode). Those stay defined per-stack rather than forced into one shape.
 """
-from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, WithJsonSchema
-from typing import Annotated, Optional, List
+from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, WithJsonSchema, model_validator
+from typing import Annotated, Literal, Optional, List
 from datetime import datetime, timezone
 
 
@@ -303,6 +303,60 @@ class AIGeneratedTestCase(BaseModel):
 class AIGenerateResponse(BaseModel):
     test_cases: List[AIGeneratedTestCase]
     model: str
+
+
+# ─── Human review of AI drafts (course milestone M9) ─────────────────────────
+# A reviewer's verdict on each generated draft, recorded with the prompt and
+# the model output it judged, so evals/export_reviews.py can turn rejections
+# into eval cases (docs/ai-roadmap.md#m9).
+
+class AIDraftDecision(BaseModel):
+    output: AIGeneratedTestCase
+    verdict: Literal["accepted", "edited", "rejected"]
+    # Rejections: why, and the scenarios/keywords the draft should have
+    # covered - those become the exported eval case's required_keywords.
+    reason: Optional[str] = None
+    must_cover: List[str] = Field(default_factory=list)
+    # Edits: the reviewer's corrected version, saved instead of `output`.
+    edited: Optional[AIGeneratedTestCase] = None
+
+    @model_validator(mode="after")
+    def _verdict_needs_its_detail(self):
+        if self.verdict == "rejected" and not (self.reason or "").strip():
+            raise ValueError("a rejection needs a reason")
+        if self.verdict == "edited" and self.edited is None:
+            raise ValueError("an edit needs the edited test case")
+        self.must_cover = [k.strip() for k in self.must_cover if k.strip()]
+        return self
+
+
+class AIDraftReviewSubmit(BaseModel):
+    feature_description: str = Field(min_length=1)
+    model: Optional[str] = None
+    decisions: List[AIDraftDecision] = Field(min_length=1)
+
+
+class AIDraftReviewResult(BaseModel):
+    saved: int
+    rejected: int
+    review_ids: List[int]
+
+
+class AIDraftReviewResponse(BaseModel):
+    id: int
+    suite_id: Optional[int]
+    suite_name: Optional[str]
+    test_case_id: Optional[int]
+    feature_description: str
+    model: Optional[str]
+    batch_size: int
+    verdict: str
+    reason: Optional[str]
+    must_cover: List[str]
+    output: AIGeneratedTestCase
+    edited: Optional[AIGeneratedTestCase]
+    reviewer: Optional[str]
+    created_at: UTCDatetime
 
 
 # ─── AI failure triage ───────────────────────────────────────────────────────

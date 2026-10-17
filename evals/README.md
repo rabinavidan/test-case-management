@@ -397,6 +397,20 @@ padding. `count` (test generation) is kept to 3-5 so a single scripted test
 double in `tests/unit/test_evals_cli.py` can score every case consistently
 without special-casing.
 
+## Human-review eval cases (M9)
+
+Reviewers accept, edit or reject AI drafts in the app's generation modal.
+`evals/export_reviews.py` turns each rejection that names what the draft
+should have covered into a `test_generation` case, with those keywords as its
+`required_keywords`, in `evals/datasets/human_reviews.json`. It fails on the
+output the reviewer rejected and passes once a prompt change covers it.
+See [docs/ai-roadmap.md#m9](../docs/ai-roadmap.md).
+
+```bash
+python -m evals.export_reviews --base-url http://localhost:8000 --token $TOKEN
+python -m evals.cli --target test_generation --dataset evals/datasets/human_reviews.json
+```
+
 ## Future work
 
 - Wire `--judge-model` into `eval-harness.yml` so CI reports a judge score

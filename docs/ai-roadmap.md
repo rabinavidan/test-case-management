@@ -10,7 +10,7 @@ production code *and* a test that proves it — not a README claim.
 |---|-----------|----------------|---------------|--------|
 | M7 | Agentic failure triage (tool use) | Tool use | Product LLM calls were single-shot; tool use only existed in authoring-time Claude Code agents | ✅ Done |
 | M8 | Real embeddings behind `get_embedding()` | RAG | Retrieval used a hashed bag-of-words vector, not a learned embedding model | ✅ Done |
-| M9 | In-app human review of AI drafts + feedback loop | Human-in-the-loop · Evals | HITL existed only in the headless LangGraph illustration; human decisions never fed back into evals | 🟡 Planned |
+| M9 | In-app human review of AI drafts + feedback loop | Human-in-the-loop · Evals | HITL existed only in the headless LangGraph illustration; human decisions never fed back into evals | ✅ Done |
 | M10 | Trajectory evals for the triage agent | Evaluations · Tool use | The eval harness scores final text only, not *which tools* an agent chose to call | ✅ Done |
 
 ---
@@ -105,7 +105,7 @@ repo stops each one.
 | CI failures: a red test of the repo's own suites gets fixed by the wrong owner | ✅ Done | `scripts/failure_classifier.py` (product / test-code / infra in the job summary) + `failure-triage` skill |
 | Agent workflows: wrong tools, lost context, needed a human | ✅ Done | Bounded loop, scoped tools, full trace (M7); disagreement → human review; M10 trajectory eval scores which tools it called, per case |
 | Evaluation: are the agent's decisions correct *and* repeatable? | ✅ Done | Verdict eval scores the heuristic baseline; M10 scores the live agent's verdicts, confident errors and run-to-run repeatability on seeded scenarios |
-| Test generation: generated tests pass but miss business scenarios | 🟡 Partial | Grounded generation + Test Plan Reviewer critic; a scenario-coverage scorer is a natural M9 follow-up |
+| Test generation: generated tests pass but miss business scenarios | 🟡 Partial | Grounded generation + Test Plan Reviewer critic; M9's human reviews now feed missed scenarios back as `required_keywords` eval cases |
 
 ### Bug vs flaky vs environment ✅
 
@@ -164,16 +164,39 @@ it flagged exactly one — a commit that inverted an assertion because the
 product behaviour was intentionally removed. That is the case the human
 approval exists for.
 
-## M9 — In-app human review of AI drafts + feedback loop 🟡
+## M9 — In-app human review of AI drafts + feedback loop ✅
 
-**What:** AI-generated test cases already land as `draft`. Add an explicit
-review step — accept / edit / reject-with-reason — recorded per case, and a
-script that exports reviewed pairs (prompt, model output, human verdict,
-human edit) into `evals/datasets/` as new eval cases.
+**What:** the AI generation modal now has a review step. Each draft is
+**accepted**, **edited** (title, steps, expected result inline) or
+**rejected** with a required reason and, optionally, the keywords it should
+have covered. `POST /api/suites/{id}/testcases/generate/review` saves the
+accepted and edited drafts as `draft` test cases and records every verdict
+with the feature description, model, the draft as generated and the human
+version (`ai_draft_reviews`; `projects_ai_draft_reviews` in the
+microservices). Reviews are a log, not part of the suite, so they survive
+the project being deleted. `GET /api/ai/reviews` lists them for admins.
+
+[`evals/export_reviews.py`](../evals/export_reviews.py) turns them into
+[`evals/datasets/human_reviews.json`](../evals/datasets/):
+
+- a rejection with keywords becomes a `test_generation` eval case whose
+  `required_keywords` are those keywords;
+- a rejection without keywords is listed under `unscored_rejections` for a
+  person to turn into a case;
+- edits are kept as model-output → human-version pairs under `human_edits`.
+
+```bash
+python -m evals.export_reviews --base-url http://localhost:8000 --token $TOKEN
+python -m evals.cli --target test_generation --dataset evals/datasets/human_reviews.json
+```
 
 **Done when:** a rejection in the UI shows up as a failing-then-fixed eval
 case, closing the loop *human judgement → eval dataset → prompt change →
-regression check*.
+regression check*. `tests/api/test_ai_reviews.py::test_a_rejection_becomes_an_eval_case_that_fails_then_passes_once_fixed`
+submits a rejection through the API, exports it and scores it with the
+harness's own `test_generation` target: the rejected output scores below
+the keyword-coverage gate, and output that covers the reviewer's keywords
+scores 1.0. `e2e/tests/ai-review.spec.ts` drives the review in the UI.
 
 ## M10 — Trajectory evals for the triage agent ✅
 

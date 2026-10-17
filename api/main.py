@@ -1170,6 +1170,74 @@ def save_generated_testcases(
     return {"saved": len(created)}
 
 
+# ─── Human review of AI drafts (course milestone M9) ─────────────────────────
+# Each generated draft is accepted, edited or rejected with a reason; accepted
+# and edited ones are saved as draft test cases, and every verdict is recorded
+# with the prompt and model output it judged, for evals/export_reviews.py.
+
+def _review_response(r: "models.AIDraftReview") -> schemas.AIDraftReviewResponse:
+    return schemas.AIDraftReviewResponse(
+        id=r.id, suite_id=r.suite_id, suite_name=r.suite_name, test_case_id=r.test_case_id,
+        feature_description=r.feature_description, model=r.model, batch_size=r.batch_size,
+        verdict=r.verdict, reason=r.reason, must_cover=json.loads(r.must_cover or "[]"),
+        output=json.loads(r.output), edited=json.loads(r.edited) if r.edited else None,
+        reviewer=r.reviewer, created_at=r.created_at,
+    )
+
+
+@app.post("/api/suites/{suite_id}/testcases/generate/review", response_model=schemas.AIDraftReviewResult)
+def review_generated_testcases(
+    suite_id: int,
+    payload: schemas.AIDraftReviewSubmit,
+    db: Session = Depends(get_db),
+    current: models.User = Depends(require_admin),
+):
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
+    reviews, saved_cases = [], []
+    for d in payload.decisions:
+        case = None
+        if d.verdict != "rejected":
+            kept = d.edited if d.verdict == "edited" else d.output
+            case = models.TestCase(suite_id=suite_id, status="draft", **kept.model_dump())
+            db.add(case)
+            db.flush()
+            saved_cases.append(case)
+        review = models.AIDraftReview(
+            suite_id=suite_id, suite_name=suite.name, test_case_id=case.id if case else None,
+            feature_description=payload.feature_description, model=payload.model,
+            batch_size=len(payload.decisions), verdict=d.verdict, reason=d.reason,
+            must_cover=json.dumps(d.must_cover), output=d.output.model_dump_json(),
+            edited=d.edited.model_dump_json() if d.edited else None, reviewer=current.username,
+        )
+        db.add(review)
+        reviews.append(review)
+    db.commit()
+    for case in saved_cases:
+        db.refresh(case)
+        store_test_case_embedding(db, case)
+    logger.info(f"Reviewed {len(reviews)} AI drafts for suite={suite_id}: {len(saved_cases)} saved")
+    return schemas.AIDraftReviewResult(
+        saved=len(saved_cases), rejected=len(reviews) - len(saved_cases), review_ids=[r.id for r in reviews],
+    )
+
+
+@app.get("/api/ai/reviews", response_model=List[schemas.AIDraftReviewResponse])
+def list_ai_reviews(
+    suite_id: Optional[int] = None,
+    verdict: Optional[str] = Query(None, pattern="^(accepted|edited|rejected)$"),
+    db: Session = Depends(get_db),
+    _: models.User = Depends(require_admin),
+):
+    q = db.query(models.AIDraftReview)
+    if suite_id is not None:
+        q = q.filter(models.AIDraftReview.suite_id == suite_id)
+    if verdict:
+        q = q.filter(models.AIDraftReview.verdict == verdict)
+    return [_review_response(r) for r in q.order_by(models.AIDraftReview.id.desc()).all()]
+
+
 # ─── Analytics ────────────────────────────────────────────────────────────────
 
 @app.get("/api/projects/{project_id}/analytics", response_model=schemas.ProjectAnalytics)

@@ -2278,7 +2278,7 @@ async function renderProjects() {
           ${[
             { id: 'M7', title: 'Agentic failure triage — tool use', done: true },
             { id: 'M8', title: 'Real embedding model behind RAG retrieval', done: true },
-            { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: false },
+            { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: true },
             { id: 'M10', title: 'Trajectory evals — score which tools the agent chose', done: true },
             { id: 'R1', title: 'Triage verdicts: bug vs flaky vs environment, with a labelled eval', done: true },
             { id: 'R2', title: 'Assertion guard: a heal can’t change what a test verifies', done: true },
@@ -4932,34 +4932,22 @@ async function runAIGenerate(suiteId) {
     if (!data) throw new Error("No response from server");
 
     const tcs = data.test_cases || [];
+    // Every draft starts accepted; the reviewer edits or rejects the ones that
+    // need it, and every verdict is recorded for the eval dataset (M9).
+    window._aiReview = { suiteId, feature: desc, model: data.model, cases: tcs, verdicts: tcs.map(() => "accepted") };
     resultsEl.classList.remove("hidden");
     resultsEl.innerHTML = `
-      <div class="flex items-center justify-between">
-        <p class="text-sm font-semibold text-slate-700">${tcs.length} test cases generated <span class="text-xs font-normal text-slate-400">via ${data.model}</span></p>
-        <button onclick="saveAllAITestCases(${suiteId})"
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <p class="text-sm font-semibold text-slate-700">${tcs.length} test cases generated <span class="text-xs font-normal text-slate-400">via ${escHtml(data.model)}</span></p>
+        <button onclick="submitAIReview()" data-testid="ai-review-submit"
           class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
-          Save All
+          Save reviewed cases
         </button>
       </div>
-      ${tcs.map((tc, i) => `
-        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
-          <div class="flex items-start justify-between gap-2">
-            <p class="text-sm font-semibold text-slate-800">${escHtml(tc.title)}</p>
-            <span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-              tc.priority === 'critical' ? 'bg-red-100 text-red-700' :
-              tc.priority === 'high'     ? 'bg-orange-100 text-orange-700' :
-              tc.priority === 'medium'   ? 'bg-blue-100 text-blue-700' :
-                                          'bg-slate-100 text-slate-600'
-            }">${tc.priority}</span>
-          </div>
-          <p class="text-xs text-slate-500">${escHtml(tc.description)}</p>
-          ${tc.steps ? `<p class="text-xs text-slate-600 mt-1"><strong>Steps:</strong> ${escHtml(tc.steps)}</p>` : ""}
-          ${tc.expected_result ? `<p class="text-xs text-slate-600"><strong>Expected:</strong> ${escHtml(tc.expected_result)}</p>` : ""}
-        </div>`).join("")}`;
-
-    // Store generated cases for bulk save
-    window._aiGeneratedCases = tcs;
-    window._aiTargetSuiteId  = suiteId;
+      <p class="text-xs text-slate-500">Accept, edit or reject each draft. Rejections need a reason, and are kept as eval cases so the prompt can be fixed and checked against them.</p>
+      ${tcs.map((tc, i) => renderAIDraftCard(tc, i)).join("")}
+      <p id="ai-review-error" data-testid="ai-review-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"></p>`;
+    tcs.forEach((_, i) => setAIDraftVerdict(i, "accepted")); // paint the default state
 
     btn.disabled = false;
     btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Regenerate`;
@@ -4971,16 +4959,102 @@ async function runAIGenerate(suiteId) {
   }
 }
 
-async function saveAllAITestCases(suiteId) {
-  const cases = window._aiGeneratedCases;
-  if (!cases || !cases.length) return;
+const AI_PRIORITY_CLS = {
+  critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700",
+  medium: "bg-blue-100 text-blue-700", low: "bg-slate-100 text-slate-600",
+};
+
+function renderAIDraftCard(tc, i) {
+  const verdictBtn = (v, label) => `
+    <button type="button" onclick="setAIDraftVerdict(${i}, '${v}')" data-testid="ai-verdict-${i}-${v}" aria-pressed="${v === "accepted"}"
+      class="ai-verdict px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors">${label}</button>`;
+  const field = (id, label, value, rows) => `
+    <label class="block text-xs font-medium text-slate-600">${label}
+      ${rows
+        ? `<textarea id="${id}" data-testid="${id}" rows="${rows}" class="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs">${escHtml(value || "")}</textarea>`
+        : `<input id="${id}" data-testid="${id}" value="${escHtml(value || "")}" class="mt-1 w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs" />`}
+    </label>`;
+  return `
+    <div id="ai-draft-${i}" data-testid="ai-draft" data-verdict="accepted" class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-sm font-semibold text-slate-800">${escHtml(tc.title)}</p>
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${AI_PRIORITY_CLS[tc.priority] || AI_PRIORITY_CLS.low}">${escHtml(tc.priority)}</span>
+      </div>
+      ${tc.description ? `<p class="text-xs text-slate-500">${escHtml(tc.description)}</p>` : ""}
+      ${tc.steps ? `<p class="text-xs text-slate-600"><strong>Steps:</strong> ${escHtml(tc.steps)}</p>` : ""}
+      ${tc.expected_result ? `<p class="text-xs text-slate-600"><strong>Expected:</strong> ${escHtml(tc.expected_result)}</p>` : ""}
+      <div class="flex gap-1.5 flex-wrap" role="group" aria-label="Review of draft ${i + 1}">
+        ${verdictBtn("accepted", "Accept")}${verdictBtn("edited", "Edit")}${verdictBtn("rejected", "Reject")}
+      </div>
+      <div id="ai-edit-${i}" class="hidden space-y-1.5">
+        ${field(`ai-edit-title-${i}`, "Title", tc.title)}
+        ${field(`ai-edit-steps-${i}`, "Steps", tc.steps, 2)}
+        ${field(`ai-edit-expected-${i}`, "Expected result", tc.expected_result, 2)}
+      </div>
+      <div id="ai-reject-${i}" class="hidden space-y-1.5">
+        ${field(`ai-reject-reason-${i}`, "Why is it wrong? (required)", "", 2)}
+        ${field(`ai-reject-cover-${i}`, "What should it have covered? (comma-separated keywords, optional)", "")}
+      </div>
+    </div>`;
+}
+
+function setAIDraftVerdict(i, verdict) {
+  const review = window._aiReview;
+  if (!review) return;
+  review.verdicts[i] = verdict;
+  const card = document.getElementById(`ai-draft-${i}`);
+  card.dataset.verdict = verdict;
+  card.classList.toggle("opacity-70", verdict === "rejected");
+  card.querySelectorAll(".ai-verdict").forEach((b) => {
+    const on = b.dataset.testid.endsWith(`-${verdict}`);
+    b.setAttribute("aria-pressed", String(on));
+    b.className = `ai-verdict px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${on
+      ? (verdict === "rejected" ? "bg-red-600 border-red-600 text-white" : verdict === "edited" ? "bg-amber-500 border-amber-500 text-white" : "bg-emerald-600 border-emerald-600 text-white")
+      : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"}`;
+  });
+  document.getElementById(`ai-edit-${i}`).classList.toggle("hidden", verdict !== "edited");
+  document.getElementById(`ai-reject-${i}`).classList.toggle("hidden", verdict !== "rejected");
+  if (verdict === "rejected") document.getElementById(`ai-reject-reason-${i}`).focus();
+}
+
+async function submitAIReview() {
+  const review = window._aiReview;
+  if (!review) return;
+  const errEl = document.getElementById("ai-review-error");
+  errEl.classList.add("hidden");
+  const value = (id) => document.getElementById(id).value.trim();
+
+  const decisions = [];
+  for (const [i, output] of review.cases.entries()) {
+    const verdict = review.verdicts[i];
+    const d = { output, verdict };
+    if (verdict === "edited") {
+      d.edited = { ...output, title: value(`ai-edit-title-${i}`) || output.title,
+                   steps: value(`ai-edit-steps-${i}`) || null, expected_result: value(`ai-edit-expected-${i}`) || null };
+    }
+    if (verdict === "rejected") {
+      d.reason = value(`ai-reject-reason-${i}`);
+      if (!d.reason) {
+        errEl.textContent = `Draft ${i + 1} is rejected: say why, so the reason can be turned into an eval case.`;
+        errEl.classList.remove("hidden");
+        document.getElementById(`ai-reject-reason-${i}`).focus();
+        return;
+      }
+      d.must_cover = value(`ai-reject-cover-${i}`).split(",").map((k) => k.trim()).filter(Boolean);
+    }
+    decisions.push(d);
+  }
+
   try {
-    const result = await api("POST", `/api/suites/${suiteId}/testcases/generate/save`, cases);
-    toast(`${result.saved} test cases saved!`, "success");
+    const result = await POST(`/api/suites/${review.suiteId}/testcases/generate/review`,
+      { feature_description: review.feature, model: review.model, decisions });
+    toast(`${result.saved} saved as drafts${result.rejected ? `, ${result.rejected} rejected` : ""}`, "success");
+    window._aiReview = null;
     hideModal();
-    await renderSuite(suiteId);
+    await renderSuite(review.suiteId);
   } catch (e) {
-    toast(e.message, "error");
+    errEl.textContent = e.message;
+    errEl.classList.remove("hidden");
   }
 }
 
