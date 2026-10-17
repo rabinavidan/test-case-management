@@ -20,10 +20,35 @@ function watch(page: Page): Problems {
   return p;
 }
 
+// A 404 for a project, suite or run that another user deleted while the page
+// loaded is correct behaviour (the sidebar, for one, fetches every project's
+// stats); the app handles it. It's excused only after asking the API that the
+// resource really is gone - a 404 for one that still exists stays a failure.
+// Browsers also log each 4xx fetch as a console error, which can't be
+// suppressed from script, so one such line is excused per excused 404.
+const RESOURCE = /^\/api\/(projects|suites|runs)\/(\d+)(?:\/|$)/;
+
+async function isGone(page: Page, url: string) {
+  const m = new URL(url).pathname.match(RESOURCE);
+  if (!m) return false;
+  return (await page.request.get(`/api/${m[1]}/${m[2]}`, { failOnStatusCode: false })).status() === 404;
+}
+
 async function expectClean(page: Page, p: Problems, label: string) {
   await page.waitForLoadState('networkidle');
-  expect(p.errors, `${label}: script/console errors`).toEqual([]);
-  expect(p.badResponses, `${label}: failed or 4xx/5xx requests`).toEqual([]);
+  let excused = 0;
+  const bad: string[] = [];
+  for (const entry of p.badResponses) {
+    const [status, url] = entry.split(': ', 2);
+    if (status === '404' && (await isGone(page, url))) excused++;
+    else bad.push(entry);
+  }
+  const errors = p.errors.filter((e) => {
+    if (excused > 0 && /Failed to load resource: .*404/.test(e)) { excused--; return false; }
+    return true;
+  });
+  expect(errors, `${label}: script/console errors`).toEqual([]);
+  expect(bad, `${label}: failed or 4xx/5xx requests`).toEqual([]);
   expect(p.clientLogs, `${label}: client-error reports`).toBe(0);
 }
 
@@ -60,6 +85,15 @@ test.describe('Home page smoke — guest', () => {
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(panel).toBeHidden();
+  });
+
+  test('the page declares a favicon that loads, so browsers never fall back to /favicon.ico', async ({ page }) => {
+    await page.goto('/#projects');
+    const href = await page.locator('link[rel="icon"]').getAttribute('href');
+    expect(href).toBe('/static/favicon.svg');
+    const icon = await page.request.get(href!);
+    expect(icon.status()).toBe(200);
+    expect(icon.headers()['content-type']).toBe('image/svg+xml');
   });
 
   test('a missing file or API route is a real 404, while page paths still load the app', async ({ page }) => {
