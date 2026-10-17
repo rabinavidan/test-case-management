@@ -392,39 +392,152 @@ const AI_PIPELINE_NODE_COLORS = [
 ];
 
 function renderAiPipelineTimelineInner() {
+  const n = AI_PIPELINE_DEMO_NODES.length;
   return `
-    <div class="flex items-center gap-1.5 mb-3">
-      <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-      <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
-    </div>
-    <div class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pb-1">
-      ${AI_PIPELINE_DEMO_NODES.map((node, i, arr) => `
-        <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
-          <div class="ai-demo-node opacity-0 flex flex-col gap-2 rounded-xl p-3 w-32 sm:w-36" style="animation:aiDemoIn .4s ease ${i * 150}ms forwards;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)">
-            <div class="${AI_PIPELINE_NODE_COLORS[i % AI_PIPELINE_NODE_COLORS.length]} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg ai-demo-pulse flex-shrink-0" style="animation-delay:${i * 150}ms">${node.icon}</div>
-            <div>
-              <p class="text-white text-xs font-bold leading-tight">${node.title}</p>
-              ${node.model ? `<p class="text-[8px] font-bold uppercase tracking-wider mt-0.5" style="color:rgba(199,210,254,.85)">${node.model}</p>` : ''}
-              <p class="text-[10px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
-            </div>
-          </div>
-          ${i < arr.length - 1 ? `<div class="self-center text-indigo-300/60 text-lg font-bold opacity-0 flex-shrink-0" style="animation:aiDemoIn .3s ease ${i * 150 + 100}ms forwards">→</div>` : ''}
+    <div data-pipe-root data-testid="pipe-root">
+      <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <div class="flex items-center gap-1.5">
+          <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+          <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
         </div>
-      `).join('')}
+        <p class="text-[10px] font-mono" style="color:rgba(255,255,255,.55)">
+          <span data-pipe-run data-testid="pipe-run">Run #1</span> · <span data-pipe-step data-testid="pipe-step">Step 1/${n}</span>
+        </p>
+      </div>
+      <div class="h-1 rounded-full overflow-hidden mb-3" style="background:rgba(255,255,255,.08)">
+        <div data-pipe-progress data-testid="pipe-progress" class="h-full rounded-full transition-[width] duration-700 ease-out" style="width:0%;background:linear-gradient(90deg,#38bdf8,#34d399)"></div>
+      </div>
+      <div data-pipe-row class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pt-1 pb-1 carousel-track">
+        ${AI_PIPELINE_DEMO_NODES.map((node, i, arr) => `
+          <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
+            <div data-pipe-node="${i}" data-state="queued" data-testid="pipe-node" class="pipe-node ai-demo-node flex flex-col gap-2 rounded-xl p-3 w-32 sm:w-36" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)">
+              <div class="flex items-center justify-between gap-1">
+                <div class="pipe-icon ${AI_PIPELINE_NODE_COLORS[i % AI_PIPELINE_NODE_COLORS.length]} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg flex-shrink-0">${node.icon}</div>
+                <span data-pipe-status class="pipe-status text-[8px] font-bold uppercase tracking-wider rounded-full px-1.5 py-0.5">Queued</span>
+              </div>
+              <div>
+                <p class="text-white text-xs font-bold leading-tight">${node.title}</p>
+                ${node.model ? `<p class="text-[8px] font-bold uppercase tracking-wider mt-0.5" style="color:rgba(199,210,254,.85)">${node.model}</p>` : ''}
+                <p class="text-[10px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
+              </div>
+            </div>
+            ${i < arr.length - 1 ? `<div data-pipe-link data-state="idle" data-testid="pipe-link" class="pipe-link self-center relative w-5 sm:w-7 h-0.5 rounded-full flex-shrink-0" aria-hidden="true"><span class="pipe-packet"></span></div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+      <p class="text-[10px] mt-3 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
+        Every node above is a real file in this repo — see the cards above for the exact path, or
+        <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
+      </p>
     </div>
-    <p class="text-[10px] mt-3 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
-      Every node above is a real file in this repo — see the cards above for the exact path, or
-      <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
-    </p>
   `;
 }
 
 const AI_PIPELINE_DEMO_KEYFRAMES = `
   <style>
     @keyframes aiDemoIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-    .ai-demo-pulse { animation: aiDemoPulse 2.4s ease-in-out infinite; }
-    @keyframes aiDemoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,.15)} 50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(255,255,255,0)} }
+    @keyframes aiDemoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,.25)} 50%{transform:scale(1.1);box-shadow:0 0 0 8px rgba(255,255,255,0)} }
+    @keyframes pipePacket { from{left:-40%} to{left:100%} }
+    @keyframes pipeSpin { to{transform:rotate(360deg)} }
+    .pipe-node { transition: opacity .45s ease, transform .45s ease, box-shadow .45s ease, border-color .45s ease, background-color .45s ease; }
+    .pipe-node[data-state="queued"] { opacity: .5; }
+    .pipe-node[data-state="active"] { opacity: 1; transform: translateY(-3px); background: rgba(56,189,248,.14) !important; border-color: rgba(125,211,252,.75) !important; box-shadow: 0 0 0 1px rgba(125,211,252,.35), 0 10px 28px -8px rgba(56,189,248,.6); }
+    .pipe-node[data-state="done"] { opacity: 1; border-color: rgba(52,211,153,.45) !important; }
+    .pipe-node[data-state="active"] .pipe-icon { animation: aiDemoPulse 1.6s ease-in-out infinite; }
+    .pipe-status { color: rgba(255,255,255,.45); background: rgba(255,255,255,.06); }
+    .pipe-node[data-state="active"] .pipe-status { color: #bae6fd; background: rgba(56,189,248,.2); }
+    .pipe-node[data-state="active"] .pipe-status::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 3px; vertical-align: -1px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: pipeSpin .8s linear infinite; }
+    .pipe-node[data-state="done"] .pipe-status { color: #a7f3d0; background: rgba(52,211,153,.18); }
+    .pipe-link { background: rgba(255,255,255,.15); overflow: hidden; transition: background-color .45s ease; }
+    .pipe-link .pipe-packet { position: absolute; top: -2px; left: -40%; width: 40%; height: 6px; border-radius: 9999px; background: linear-gradient(90deg, transparent, #7dd3fc, transparent); opacity: 0; }
+    .pipe-link[data-state="flowing"] .pipe-packet { opacity: 1; animation: pipePacket .8s linear infinite; }
+    .pipe-link[data-state="done"] { background: rgba(52,211,153,.55); }
   </style>`;
+
+// The Live Demo replays one pipeline run on a loop: each stage goes queued ->
+// running -> done while a pulse flows along the link into it, then the run
+// finishes green and starts over. It pauses off-screen and in a hidden tab;
+// reduced-motion visitors get the finished run, still. One instance per
+// rendered timeline (the home section and the "See the pipeline" modal).
+const PIPE_STEP_MS = 1600;
+const PIPE_RESULT_MS = 2600;
+const PIPE_STATUS = { queued: "Queued", active: "Running", done: "✓ Done" };
+
+function initAiPipelineDemo(container) {
+  const root = container?.querySelector("[data-pipe-root]");
+  if (!root) return;
+  root._pipeAbort?.abort();
+  const abort = new AbortController();
+  root._pipeAbort = abort;
+  const { signal } = abort;
+
+  const nodes = [...root.querySelectorAll("[data-pipe-node]")];
+  const links = [...root.querySelectorAll("[data-pipe-link]")];
+  const row = root.querySelector("[data-pipe-row]");
+  const runEl = root.querySelector("[data-pipe-run]");
+  const stepEl = root.querySelector("[data-pipe-step]");
+  const progress = root.querySelector("[data-pipe-progress]");
+  const n = nodes.length;
+  let step = 0; // 0..n-1 running that stage; n = finished
+  let run = 1;
+  let timer = null;
+  let inView = true;
+
+  const paint = () => {
+    nodes.forEach((el, i) => {
+      const state = i < step ? "done" : i === step ? "active" : "queued";
+      el.dataset.state = state;
+      el.querySelector("[data-pipe-status]").textContent = PIPE_STATUS[state];
+    });
+    // Link i joins node i to node i+1: it flows while node i+1 runs.
+    links.forEach((el, i) => { el.dataset.state = i < step - 1 ? "done" : i === step - 1 ? "flowing" : "idle"; });
+    const finished = step >= n;
+    progress.style.width = `${Math.round((Math.min(step + 1, n) / n) * 100)}%`;
+    runEl.textContent = `Run #${run}`;
+    stepEl.textContent = finished ? "✓ Pipeline green — merged" : `Step ${step + 1}/${n} · ${AI_PIPELINE_DEMO_NODES[step].title}`;
+    root.dataset.pipeStep = String(step);
+    root.dataset.pipeRun = String(run);
+    // Keep the running stage in view inside the row, without scrolling the page.
+    const active = nodes[Math.min(step, n - 1)];
+    if (row.scrollWidth > row.clientWidth) {
+      // An absolute target from layout (scrollLeft + on-screen offset is the
+      // node's position in the row's content), so ticks arriving mid-scroll
+      // still land on the right stage; a relative scrollBy would compound.
+      const r = row.getBoundingClientRect(), a = active.getBoundingClientRect();
+      row.scrollTo({ left: row.scrollLeft + a.left - r.left - (row.clientWidth - a.width) / 2, behavior: "smooth" });
+    }
+  };
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    step = n;
+    paint();
+    root.dataset.pipeMode = "static";
+    return;
+  }
+  root.dataset.pipeMode = "live";
+
+  const tick = () => {
+    timer = null;
+    if (!document.body.contains(root)) { abort.abort(); return; } // section re-rendered or modal closed
+    if (step < n) step += 1;
+    else { step = 0; run += 1; }
+    paint();
+    schedule();
+  };
+  const schedule = () => {
+    const running = inView && !document.hidden;
+    root.dataset.pipeLive = running ? "running" : "paused";
+    if (running && !timer) timer = setTimeout(tick, step >= n ? PIPE_RESULT_MS : PIPE_STEP_MS);
+    if (!running && timer) { clearTimeout(timer); timer = null; }
+  };
+
+  document.addEventListener("visibilitychange", schedule, { signal });
+  const io = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; schedule(); });
+  io.observe(root);
+  signal.addEventListener("abort", () => { io.disconnect(); if (timer) clearTimeout(timer); });
+  paint();
+  schedule();
+}
 
 function buildAiPipelineDemoModal(title, body) {
   title.textContent = 'AI Agents in This Repo’s CI/CD';
@@ -436,6 +549,7 @@ function buildAiPipelineDemoModal(title, body) {
       </div>
     </div>
     ${AI_PIPELINE_DEMO_KEYFRAMES}`;
+  initAiPipelineDemo(body);
 }
 
 function selectResultStatus(s) {
@@ -2414,6 +2528,7 @@ async function renderProjects() {
       </div>`;
     hydrateLiveKpis();
     initHomeCarousels();
+    initAiPipelineDemo(document.querySelector('[data-testid="ai-live-demo-section"]'));
     return;
   }
 
@@ -2492,6 +2607,7 @@ async function renderProjects() {
   filterProjectTable();
   hydrateLiveKpis();
   initHomeCarousels();
+  initAiPipelineDemo(document.querySelector('[data-testid="ai-live-demo-section"]'));
 }
 
 async function loadProjectStats(projects) {
