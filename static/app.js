@@ -959,19 +959,30 @@ function _nearestStory(track) {
 
 function _storiesAtEnd(track) { return track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; }
 
+// The last story the track can scroll to the start of: when several slides
+// fit on screen, the final few share one end position. Navigation is
+// clamped to it, so the index never runs past what the track can show.
+function _lastReachableStory(track) {
+  const max = track.scrollWidth - track.clientWidth;
+  let last = 0;
+  [...track.children].forEach((_, i) => { if (_storyOffset(track, i) <= max + 2) last = i; });
+  return last;
+}
+
 function goToSuccessStory(i, behavior = _storyScrollBehavior()) {
   const track = _storiesTrack();
   if (!track?.children[i]) return;
-  _storyIndex = i;
-  track.scrollTo({ left: _storyOffset(track, i), behavior });
+  const last = _lastReachableStory(track);
+  _storyIndex = Math.min(i, last);
+  const left = _storyIndex === last ? track.scrollWidth - track.clientWidth : _storyOffset(track, _storyIndex);
+  track.scrollTo({ left, behavior });
 }
 
 function scrollSuccessStories(dir) {
   const track = _storiesTrack();
   if (!track?.firstElementChild) return;
-  // From the end, Previous steps back from the first fully visible story.
-  const from = dir < 0 && _storiesAtEnd(track) ? _nearestStory(track) : _storyIndex;
-  goToSuccessStory(Math.min(Math.max(from + dir, 0), track.children.length - 1));
+  const last = _lastReachableStory(track);
+  goToSuccessStory(Math.min(Math.max(Math.min(_storyIndex, last) + dir, 0), last));
 }
 
 // Auto-advance, WCAG 2.2.2-style: a visible Pause/Play control, paused
@@ -994,7 +1005,11 @@ function _startStoriesAutoplay(track, section, signal) {
   btn.classList.add("flex");
 
   const ap = { userPaused: false, hovered: false, focused: false, inView: true, timer: null };
-  const advance = () => { if (_storiesAtEnd(track)) goToSuccessStory(0); else scrollSuccessStories(1); };
+  // Index-based, not scroll-position-based: a tick can land while the
+  // previous smooth scroll is still moving.
+  const advance = () => {
+    if (_storyIndex >= _lastReachableStory(track)) goToSuccessStory(0); else scrollSuccessStories(1);
+  };
   ap.sync = () => {
     const running = !ap.userPaused && !ap.hovered && !ap.focused && ap.inView && !document.hidden;
     if (running && !ap.timer) ap.timer = setInterval(advance, STORIES_INTERVAL_MS);
@@ -1038,7 +1053,7 @@ function initSuccessStories() {
     if (!document.body.contains(track)) return;
     const slides = [...track.children];
     const atEnd = _storiesAtEnd(track);
-    if (userScrolling) _storyIndex = _nearestStory(track);
+    if (userScrolling) _storyIndex = atEnd ? _lastReachableStory(track) : _nearestStory(track);
     const current = atEnd ? slides.length - 1 : _nearestStory(track);
     document.querySelectorAll(".story-dot").forEach((d, i) => {
       d.firstElementChild.classList.toggle("bg-white", i === current);
@@ -1058,7 +1073,12 @@ function initSuccessStories() {
     track.addEventListener(ev, () => setTimeout(() => { userScrolling = false; }, 600), { passive: true, signal });
   }
   const resnap = () => {
-    if (!userScrolling && Math.abs(track.scrollLeft - _storyOffset(track, _storyIndex)) > 2) goToSuccessStory(_storyIndex, "auto");
+    if (!userScrolling) {
+      const last = _lastReachableStory(track);
+      const i = Math.min(_storyIndex, last);
+      const want = i === last ? track.scrollWidth - track.clientWidth : _storyOffset(track, i);
+      if (Math.abs(track.scrollLeft - want) > 2) goToSuccessStory(i, "auto");
+    }
     update();
   };
   track.addEventListener("keydown", (e) => {

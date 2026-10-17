@@ -103,10 +103,30 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
     await page.waitForLoadState('networkidle');
     await guestExpect(page.getByTestId('success-stories-section')).toBeVisible();
     await page.mouse.move(0, 0); // keep the pointer off the carousel
+    // install() leaves fake time flowing at real speed, so a slow run could
+    // fire a tick on its own; pause it so only runFor() moves time. The target
+    // must still be in the future when pauseAt runs, and fast-forwarding to it
+    // must not reach the first 5 s tick: a short margin, retried if too short.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await page.clock.pauseAt(await page.evaluate(() => Date.now() + 300));
+        break;
+      } catch (e) {
+        if (attempt >= 4 || !String(e).includes('past')) throw e;
+      }
+    }
   });
 
   const scrollLeft = (page: import('@playwright/test').Page) =>
     page.getByTestId('stories-track').evaluate((t) => t.scrollLeft);
+  // The scroll position once a smooth scroll has stopped moving (NaN while it
+  // still is, which fails any numeric poll and makes it retry).
+  const settledScrollLeft = async (page: import('@playwright/test').Page) => {
+    const a = await scrollLeft(page);
+    await page.waitForTimeout(150);
+    const b = await scrollLeft(page);
+    return a === b ? b : NaN;
+  };
   const atEnd = (page: import('@playwright/test').Page) =>
     page.getByTestId('stories-track').evaluate((t) => t.scrollLeft + t.clientWidth >= t.scrollWidth - 2);
 
@@ -115,18 +135,25 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
     await guestExpect(section).toHaveAttribute('data-autoplay', 'running');
     guestExpect(await scrollLeft(page)).toBe(0);
 
-    await page.clock.runFor(INTERVAL + 100);
-    await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(0);
+    // Ticks to reach the end = stories whose start the track can scroll to,
+    // minus the first (when several fit on screen, the last few share one end).
+    const ticksToEnd = await page.getByTestId('stories-track').evaluate((t) => {
+      const max = t.scrollWidth - t.clientWidth;
+      const base = (t.children[0] as HTMLElement).offsetLeft;
+      return [...t.children].filter((c) => (c as HTMLElement).offsetLeft - base <= max + 2).length - 1;
+    });
+    guestExpect(ticksToEnd).toBeGreaterThan(0);
 
-    // Keep advancing until the last story is in view, then one more tick wraps.
-    for (let i = 0; i < 6 && !(await atEnd(page)); i++) {
+    for (let i = 1; i <= ticksToEnd; i++) {
       const before = await scrollLeft(page);
-      await page.clock.runFor(INTERVAL);
-      await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(before);
+      await page.clock.runFor(i === 1 ? INTERVAL + 100 : INTERVAL);
+      // Settled, not just started: the next tick must not race this scroll.
+      await guestExpect.poll(() => settledScrollLeft(page)).toBeGreaterThan(before);
     }
     guestExpect(await atEnd(page)).toBe(true);
+
     await page.clock.runFor(INTERVAL);
-    await guestExpect.poll(() => scrollLeft(page)).toBe(0);
+    await guestExpect.poll(() => settledScrollLeft(page)).toBe(0);
   });
 
   guestTest('pauses while the pointer is over the carousel, and resumes after', async ({ page }) => {
