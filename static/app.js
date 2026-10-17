@@ -113,6 +113,18 @@ function closeModal(e) {
   if (e.target === document.getElementById("modal-overlay")) hideModal();
 }
 
+// Escape closes the open dialog, as keyboard users expect of any dialog. The
+// sign-in dialog only when it can be closed at all: the first-run "create the
+// admin account" form has no Close button and must stay up. The Recruiter
+// Tour handles its own Escape (and marks the event handled).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  const overlay = document.getElementById("modal-overlay");
+  if (overlay && !overlay.classList.contains("hidden")) { hideModal(); return; }
+  const auth = document.getElementById("auth-modal");
+  if (auth && !auth.classList.contains("hidden") && auth.querySelector('button[aria-label="Close"]')) hideAuthModal();
+});
+
 const inputCls    = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 const textareaCls = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none";
 

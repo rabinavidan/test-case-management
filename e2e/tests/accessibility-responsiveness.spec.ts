@@ -129,3 +129,27 @@ for (const width of [375, 768, 1024, 1440]) {
     guestExpect(overflow).toBeLessThanOrEqual(20);
   });
 }
+
+
+guestTest.describe('Dialogs close with Escape', () => {
+  guestTest('the sign-in dialog', async ({ page }) => {
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('signin-btn').click();
+    await guestExpect(page.locator('#auth-modal')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await guestExpect(page.locator('#auth-modal')).toBeHidden();
+  });
+});
+
+authTest.describe('Dialogs close with Escape — signed in', () => {
+  authTest('the New Project dialog', async ({ page, authToken }) => {
+    await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('nav-new-btn').click();
+    await authExpect(page.getByTestId('modal-overlay')).not.toHaveClass(/hidden/);
+    await page.keyboard.press('Escape');
+    await authExpect(page.getByTestId('modal-overlay')).toHaveClass(/hidden/);
+  });
+});
