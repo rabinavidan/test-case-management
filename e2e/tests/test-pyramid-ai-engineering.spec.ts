@@ -35,9 +35,11 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
 
     await guestExpect(demoSection.getByText(/Live Demo/)).toBeVisible();
     await guestExpect(demoSection.getByText('Static walkthrough — not a live AI call')).toBeVisible();
-    await guestExpect(demoSection.getByText('AI PR Steward')).toBeVisible();
-    await guestExpect(demoSection.getByText('Playwright Healer')).toBeVisible();
-    await guestExpect(demoSection.getByText('CI green → merged')).toBeVisible();
+    // Exact: the replay's step label ("Step 2/7 · AI PR Steward") repeats the
+    // running stage's title, so a substring match can find two elements.
+    await guestExpect(demoSection.getByText('AI PR Steward', { exact: true })).toBeVisible();
+    await guestExpect(demoSection.getByText('Playwright Healer', { exact: true })).toBeVisible();
+    await guestExpect(demoSection.getByText('CI green → merged', { exact: true })).toBeVisible();
   });
 
   guestTest('the Test Pyramid section shows all four levels with real counts', async ({ page }) => {
@@ -98,9 +100,10 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     const demo = page.getByTestId('ai-pipeline-demo');
     await guestExpect(demo).toBeVisible();
     await guestExpect(demo.getByText('Static walkthrough — not a live AI call')).toBeVisible();
-    await guestExpect(demo.getByText('AI PR Steward')).toBeVisible();
-    await guestExpect(demo.getByText('Playwright Healer')).toBeVisible();
-    await guestExpect(demo.getByText('CI green → merged')).toBeVisible();
+    // Exact, as above: the step label repeats the running stage's title.
+    await guestExpect(demo.getByText('AI PR Steward', { exact: true })).toBeVisible();
+    await guestExpect(demo.getByText('Playwright Healer', { exact: true })).toBeVisible();
+    await guestExpect(demo.getByText('CI green → merged', { exact: true })).toBeVisible();
 
     await page.getByTestId('modal-close-btn').click();
     await guestExpect(page.getByTestId('modal-overlay')).toHaveClass(/hidden/);
