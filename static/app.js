@@ -1093,6 +1093,96 @@ function initSuccessStories() {
   _startStoriesAutoplay(track, track.closest('[data-testid="success-stories-section"]'), signal);
 }
 
+// ─── Open-Source Repositories ────────────────────────────────────────────────
+// The owner's top public GitHub repos. Summaries, headline facts and stacks
+// come from each repo's README (GitHub's own language/topic metadata is too
+// sparse to describe them).
+const TOP_REPOS = [
+  { name: "test-case-management", title: "TestFlow",
+    summary: "This site: AI-assisted test case management with real-time runs, five services and four test stacks.",
+    fact: "706 tests across 4 layers",
+    live: "https://test-case-management-omega.vercel.app",
+    tech: ["Python", "FastAPI", "PostgreSQL", "Redis", "Playwright", "TypeScript", "Java", "Docker", "Kubernetes", "Terraform"] },
+  { name: "automation-failure-orchestrator", title: "Agentic SOC Automation Orchestrator",
+    summary: "SIEM alerts deduplicated, enriched, triaged and investigated, with human-approved responses. Deterministic code decides; AI agents only advise.",
+    fact: "320 automated tests",
+    tech: ["TypeScript", "Python", "AI Agents", "AWS SQS", "Terraform", "Docker", "Splunk", "Shuffle SOAR"] },
+  { name: "playwright-kafka-microservices", title: "Playwright · Kafka · Microservices",
+    summary: "E2E framework for an event-driven stack: REST APIs, Kafka flows, PostgreSQL and a React UI, with a Kubernetes deploy.",
+    fact: "239 tests across 7 layers",
+    live: "https://rabinavidan.github.io/playwright-kafka-microservices/reports/", liveLabel: "Live report",
+    tech: ["Playwright", "TypeScript", "Kafka", "PostgreSQL", "React", "Docker", "Kubernetes"] },
+  { name: "storguard-distributed-storage-testing", title: "StorGuard",
+    summary: "Reliability, chaos and performance testing for a 4-node MinIO cluster: node loss, network faults and disk pressure.",
+    fact: "190 tests across 11 layers",
+    tech: ["Python", "pytest", "MinIO / S3", "Chaos Testing", "Jenkins", "Docker", "Prometheus", "Grafana", "Allure", "Local LLMs"] },
+  { name: "appium-iOS-task-manager", title: "iOS Task Manager + Appium",
+    summary: "A SwiftUI task manager built together with its Appium Java framework, run on a real iPhone in CI.",
+    fact: "Real-device CI via WebDriverAgent",
+    tech: ["Swift", "SwiftUI", "Java", "Appium", "XCUITest", "JUnit 5", "Allure", "GitHub Actions"] },
+  { name: "TradeFlow", title: "TradeFlow Lite",
+    summary: "Full-stack trade-finance workflow with a role-based review pipeline driven by a single state machine.",
+    fact: "73 tests across the pyramid",
+    tech: ["TypeScript", "React", "Express", "MongoDB", "Zod", "Vitest", "Playwright", "Docker", "Allure"] },
+];
+
+function renderTopReposSection() {
+  // Every technology, ranked by how many repos use it (ties keep first-seen order).
+  const counts = new Map();
+  TOP_REPOS.forEach((r) => r.tech.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1)));
+  const ranked = [...counts.entries()].filter(([, c]) => c > 1).sort((a, b) => b[1] - a[1]);
+  const ghIcon = `<svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 007.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 015.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0023.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>`;
+  const arrow = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M9 7h8v8"/></svg>`;
+  return `
+    <section class="mb-6" data-testid="top-repos-section" aria-labelledby="top-repos-heading">
+      <div class="flex items-end justify-between gap-3 mb-3 flex-wrap">
+        <div>
+          <h2 id="top-repos-heading" class="text-sm font-bold text-slate-700 uppercase tracking-wide">Open-Source Repositories</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Public projects on GitHub, and the stack behind each one.</p>
+        </div>
+        <a href="https://github.com/rabinavidan?tab=repositories" target="_blank" rel="noopener noreferrer"
+          class="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">All repositories${arrow}</a>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-3" data-testid="repos-tech-summary">
+        <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Technologies across these repos</p>
+        <ul class="flex flex-wrap gap-1.5">
+          ${ranked.map(([t, c]) => `
+            <li data-testid="repos-tech" data-tech="${escHtml(t)}" data-count="${c}"
+              class="text-[11px] font-medium text-slate-700 bg-slate-100 rounded-full pl-2.5 pr-1 py-0.5 inline-flex items-center gap-1">
+              ${escHtml(t)}<span class="text-[10px] font-bold text-slate-500 bg-white rounded-full px-1.5" aria-label="in ${c} repos">${c}</span>
+            </li>`).join("")}
+        </ul>
+      </div>
+      <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        ${TOP_REPOS.map((r) => {
+          const url = `https://github.com/rabinavidan/${r.name}`;
+          return `
+          <li data-testid="repo-card" data-repo="${escHtml(r.name)}"
+            class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-200">
+            <div class="flex items-center gap-2 text-slate-800 min-w-0">
+              ${ghIcon}
+              <h3 class="text-sm font-bold truncate" title="${escHtml(r.title)}">${escHtml(r.title)}</h3>
+            </div>
+            <p class="text-[11px] font-mono text-slate-400 truncate -mt-1">rabinavidan/${escHtml(r.name)}</p>
+            <p class="text-xs text-slate-600 leading-relaxed">${escHtml(r.summary)}</p>
+            <p class="text-xs font-semibold text-emerald-700" data-testid="repo-fact">${escHtml(r.fact)}</p>
+            <ul class="flex flex-wrap gap-1" aria-label="Technologies">
+              ${r.tech.map((t) => `<li class="text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-1.5 py-0.5">${escHtml(t)}</li>`).join("")}
+            </ul>
+            <div class="mt-auto pt-2 flex items-center gap-3 text-xs font-semibold">
+              <a href="${url}" target="_blank" rel="noopener noreferrer" data-testid="repo-code-link"
+                aria-label="${escHtml(r.title)} source code on GitHub (opens in a new tab)"
+                class="text-slate-700 hover:text-blue-700 inline-flex items-center gap-1">Code${arrow}</a>
+              ${r.live ? `<a href="${r.live}" target="_blank" rel="noopener noreferrer" data-testid="repo-live-link"
+                aria-label="${escHtml(r.title)} ${escHtml(r.liveLabel || "live demo")} (opens in a new tab)"
+                class="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">${escHtml(r.liveLabel || "Live")}${arrow}</a>` : ""}
+            </div>
+          </li>`;
+        }).join("")}
+      </ul>
+    </section>`;
+}
+
 // ─── Projects View ───────────────────────────────────────────────────────────
 async function renderProjects() {
   state.currentProject = null;
@@ -1887,6 +1977,7 @@ async function renderProjects() {
   // animation (renderAiPipelineTimelineInner), just a different, persistent
   // home instead of a click-to-open modal.
   const successStoriesSection = !getToken() ? renderSuccessStoriesSection() : "";
+  const topReposSection = !getToken() ? renderTopReposSection() : "";
 
   const aiLiveDemoSection = !getToken() ? `
     <div class="relative rounded-2xl overflow-hidden mb-6 px-5 py-6" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)" data-testid="ai-live-demo-section">
@@ -2271,6 +2362,7 @@ async function renderProjects() {
       <div class="fade-in">
         ${ownerCard}
         ${successStoriesSection}
+        ${topReposSection}
         ${aiLiveDemoSection}
         ${recruiterTourBanner}
         ${leadershipImpactSection}
@@ -2302,6 +2394,7 @@ async function renderProjects() {
     <div class="fade-in">
       ${ownerCard}
       ${successStoriesSection}
+      ${topReposSection}
       ${aiLiveDemoSection}
       ${recruiterTourBanner}
       ${leadershipImpactSection}
