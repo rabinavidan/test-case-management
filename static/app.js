@@ -622,7 +622,7 @@ async function router() {
 
   // Tear down WebSocket if we navigated away from a run
   if (parts[0] !== "run" && _activeRunWs) {
-    _activeRunWs.close();
+    closeRunWebSocket(_activeRunWs);
     _activeRunWs = null;
   }
 }
@@ -4797,9 +4797,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ─── WebSocket: Live Run Collaboration ────────────────────────────────────────
 let _activeRunWs = null;
 
+// Closing a socket that is still connecting makes the browser log "WebSocket
+// is closed before the connection is established"; leaving a run page quickly
+// did exactly that. A connecting socket is closed as soon as it opens instead.
+function closeRunWebSocket(ws) {
+  if (ws.readyState === WebSocket.CONNECTING) ws.onopen = () => ws.close();
+  else ws.close();
+}
+
 function connectRunWebSocket(runId) {
   if (_activeRunWs) {
-    _activeRunWs.close();
+    closeRunWebSocket(_activeRunWs);
     _activeRunWs = null;
   }
 
@@ -4843,6 +4851,10 @@ function connectRunWebSocket(runId) {
     if (evt.code === 4401 || evt.code === 4404) {
       console.warn(`Live updates unavailable for run ${runId} (close ${evt.code}: ${evt.reason})`);
     }
+    // Only if this is still the active socket: an older one closing after a
+    // newer one opened must not hide its indicator or drop the reference
+    // (which would leave the newer socket open after leaving the page).
+    if (_activeRunWs !== ws) return;
     const ind = document.getElementById("ws-indicator");
     if (ind) ind.classList.add("hidden");
     _activeRunWs = null;
