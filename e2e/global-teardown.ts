@@ -13,6 +13,7 @@ const TEST_NAME_PREFIXES = [
   'Journey_',
   'ListProj_',
   'Lookup_',
+  'Resp_',
   'No Auth',       // leaked by test_api_pw.py when auth check regresses
   'PW Suite Parent', // leaked by test_api_pw.py project fixture on non-empty DBs
   'API PW Project',  // leaked by test_create_and_delete_project if delete step fails

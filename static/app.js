@@ -628,17 +628,26 @@ async function router() {
 }
 
 // ─── Breadcrumb ──────────────────────────────────────────────────────────────
+let _breadcrumbObserver = null;
 function setBreadcrumb(items) {
   const el = document.getElementById("breadcrumb");
   el.innerHTML = items.map((item, i) => {
     const sep = i > 0
-      ? `<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`
+      ? `<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`
       : "";
     if (i === items.length - 1) {
-      return `${sep}<span class="text-slate-600 font-medium truncate max-w-[160px]">${escHtml(item.label)}</span>`;
+      return `${sep}<span class="text-slate-600 font-medium truncate max-w-[160px] flex-shrink-0">${escHtml(item.label)}</span>`;
     }
-    return `${sep}<button onclick="navigate('${item.href}')" class="text-blue-600 hover:text-blue-700 transition-colors truncate max-w-[120px]">${escHtml(item.label)}</button>`;
+    return `${sep}<button onclick="navigate('${item.href}')" class="text-blue-600 hover:text-blue-700 transition-colors truncate max-w-[120px] flex-shrink-0">${escHtml(item.label)}</button>`;
   }).join("");
+  // On narrow screens the breadcrumb scrolls sideways; show its end, the current
+  // page. Watched, not set once: the Tailwind CDN's CSS can land after this
+  // markup and widen the items after the first measurement.
+  _breadcrumbObserver?.disconnect();
+  _breadcrumbObserver = new ResizeObserver(() => { el.scrollLeft = el.scrollWidth; });
+  _breadcrumbObserver.observe(el);
+  [...el.children].forEach((child) => _breadcrumbObserver.observe(child));
+  el.scrollLeft = el.scrollWidth;
 }
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -2890,7 +2899,7 @@ async function renderProject(projectId) {
           <h1 class="text-2xl font-bold text-slate-800">${escHtml(project.name)}</h1>
           ${project.description ? `<p class="text-slate-500 text-sm mt-1">${escHtml(project.description)}</p>` : ""}
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <button onclick="renderAnalytics(${projectId})"
             class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -2932,12 +2941,12 @@ async function renderProject(projectId) {
       <!-- Last run progress bar (non-demo projects only) -->
       ${total && !project.name.startsWith("Alerts Microservice") && !project.name.startsWith("TestFlow") ? `
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
           <div>
             <h3 class="font-semibold text-slate-800 text-sm">Latest Run</h3>
             <p class="text-xs text-slate-400 mt-0.5">${escHtml(stats.last_run_name || "")}</p>
           </div>
-          <div class="flex items-center gap-3 text-xs font-medium">
+          <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
             <span class="flex items-center gap-1.5 text-emerald-600">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>${stats.last_run_pass} pass
             </span>
@@ -3100,7 +3109,7 @@ async function loadTestReport(suites) {
               <span class="font-semibold text-slate-700 text-sm">${escHtml(suite.name)}</span>
               <span class="text-xs text-slate-400">${escHtml(run.name)}</span>
             </div>
-            <div class="flex items-center gap-3 text-xs font-medium">
+            <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
               <span class="text-emerald-700">${pass}✓</span>
               <span class="text-red-700">${fail}✗</span>
               <span class="text-amber-700">${skip}↷</span>
@@ -3320,7 +3329,7 @@ async function renderSuite(suiteId) {
           <h1 class="text-2xl font-bold text-slate-800">${escHtml(suite.name)}</h1>
           ${suite.description ? `<p class="text-slate-500 text-sm mt-1">${escHtml(suite.description)}</p>` : ""}
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <button onclick="showModal('run', {suiteId: ${suiteId}})"
             class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -4597,7 +4606,7 @@ function renderUserBadge(user) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
         </svg>
-        <span class="hidden sm:inline">Environments</span>
+        <span class="hidden lg:inline">Environments</span>
       </button>
       ${user.role === "admin" ? `
       <button onclick="navigate('users')" title="User Management" data-testid="users-btn"
@@ -4606,7 +4615,7 @@ function renderUserBadge(user) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
-        <span class="hidden sm:inline">Users</span>
+        <span class="hidden lg:inline">Users</span>
       </button>
       <button onclick="navigate('logs')" title="Log Center" data-testid="logs-btn"
         class="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors text-xs font-medium">
@@ -4614,12 +4623,12 @@ function renderUserBadge(user) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
-        <span class="hidden sm:inline">Logs</span>
+        <span class="hidden lg:inline">Logs</span>
       </button>` : ""}
       <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
         ${escHtml(user.username[0].toUpperCase())}
       </div>
-      <div class="hidden sm:flex flex-col leading-none">
+      <div class="hidden lg:flex flex-col leading-none">
         <span class="text-sm font-medium text-slate-700">${escHtml(user.username)}</span>
         <span class="text-[10px] font-semibold border rounded px-1 mt-0.5 uppercase tracking-wide ${roleCls}">${escHtml(user.role)}</span>
       </div>
