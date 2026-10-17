@@ -1,13 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { ProjectsPage } from '../pages/projects.page';
 import { mockProject, mockProjectList, mockSuite } from '../mocks/factories';
-import { fulfillJson, mockAuthSession, byPath } from '../mocks/route-helpers';
+import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mocks/route-helpers';
 
-// static/app.js's renderSuite/renderProject have no per-ID GET endpoint:
-// they fetch the full /api/projects list (and, for a suite, every
-// project's /api/projects/{id}/suites) to find the target client-side —
-// mirrored below, see mocked-serverless-crud.spec.ts's note on the same
-// pattern.
+// The suite and run pages fetch their suite and project by id
+// (GET /api/suites/{id}, GET /api/projects/{id}) — mockParentLookups answers
+// those from the same fixtures as the list and child endpoints.
 
 /**
  * Fully serverless (mocked) coverage of backend error/edge responses —
@@ -18,9 +16,9 @@ import { fulfillJson, mockAuthSession, byPath } from '../mocks/route-helpers';
  */
 
 test.describe('Generic error responses — serverless', () => {
-  test('a 500 from the project list shows the real error message, not a blank page', async ({ page }) => {
+  test('a 500 loading the project shows the real error message, not a blank page', async ({ page }) => {
     await mockAuthSession(page);
-    await page.route(byPath('/api/projects'), (route) =>
+    await page.route(byPath('/api/projects/999999'), (route) =>
       fulfillJson(route, 500, { detail: 'Internal server error' }),
     );
 
@@ -31,7 +29,7 @@ test.describe('Generic error responses — serverless', () => {
 
   test('a dropped connection surfaces an error quickly', async ({ page }) => {
     await mockAuthSession(page);
-    await page.route(byPath('/api/projects'), (route) => route.abort('failed'));
+    await page.route(byPath('/api/projects/1'), (route) => route.abort('failed'));
 
     const start = Date.now();
     await page.goto('/#project/1');
@@ -45,6 +43,7 @@ test.describe('Generic error responses — serverless', () => {
     const project = mockProject({ name: 'Rate Limited Project' });
     const suite = mockSuite({ project_id: project.id, name: 'Rate Limited Suite' });
     await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await mockParentLookups(page, [project], [suite]);
     await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
     await page.route(byPath(`/api/suites/${suite.id}/testcases`), (route) => fulfillJson(route, 200, []));
     await page.route(byPath(`/api/suites/${suite.id}/runs`), (route) => fulfillJson(route, 200, []));
@@ -61,9 +60,9 @@ test.describe('Generic error responses — serverless', () => {
     await expect(page.locator('#ai-error')).toContainText('Rate limit exceeded');
   });
 
-  test('a deep link to a project absent from the mocked list shows "Project not found"', async ({ page }) => {
+  test('a deep link to a project that does not exist shows "Project not found"', async ({ page }) => {
     await mockAuthSession(page);
-    await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([])));
+    await mockParentLookups(page, []);
 
     await page.goto('/#project/424242');
 
@@ -74,7 +73,7 @@ test.describe('Generic error responses — serverless', () => {
 test.describe('Auth edge cases — serverless', () => {
   test('a 401 mid-session reopens the sign-in modal instead of leaving a dead screen', async ({ page }) => {
     await mockAuthSession(page);
-    await page.route(byPath('/api/projects'), (route) =>
+    await page.route(byPath('/api/projects/1'), (route) =>
       fulfillJson(route, 401, { detail: 'Invalid or expired token' }),
     );
 
@@ -103,6 +102,7 @@ test.describe('Malformed/partial data — serverless', () => {
     await mockAuthSession(page);
     const project = mockProject({ name: 'Stats Project' });
     await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await mockParentLookups(page, [project]);
     await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, []));
     await page.route(byPath(`/api/projects/${project.id}/stats`), (route) => fulfillJson(route, 200, {}));
 

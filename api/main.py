@@ -634,6 +634,14 @@ def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)
     return project
 
 
+@app.get("/api/projects/{project_id}", response_model=schemas.ProjectResponse)
+def get_project(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
 @app.delete("/api/projects/{project_id}", status_code=204)
 def delete_project(project_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -664,6 +672,14 @@ def create_suite(project_id: int, payload: schemas.TestSuiteCreate, db: Session 
     db.add(suite)
     db.commit()
     db.refresh(suite)
+    return suite
+
+
+@app.get("/api/suites/{suite_id}", response_model=schemas.TestSuiteResponse)
+def get_suite(suite_id: int, db: Session = Depends(get_db)):
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
     return suite
 
 

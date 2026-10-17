@@ -4,7 +4,7 @@
  * for the response shapes these fulfil.
  */
 import type { Page, Route } from '@playwright/test';
-import { mockUser, mockTokenResponse, type UserResponse } from './factories';
+import { mockUser, mockTokenResponse, type Project, type TestSuite, type UserResponse } from './factories';
 
 /** Fulfils a page.route() handler with a JSON body — the one-liner every mocked spec repeats. */
 export async function fulfillJson(route: Route, status: number, body: unknown): Promise<void> {
@@ -37,4 +37,22 @@ export async function mockAuthSession(page: Page, user: UserResponse = mockUser(
  * `/api/projects/123/suites`. */
 export function byPath(pathname: string) {
   return (url: URL) => url.pathname === pathname;
+}
+
+/**
+ * Answers GET /api/projects/{id} and GET /api/suites/{id} — the by-id
+ * lookups the project, suite, test-case, run-history and run pages make —
+ * from the given fixtures, and 404s anything else the way the real API does.
+ * Other methods fall through to any more specific route a spec registers
+ * (e.g. its own DELETE /api/projects/{id} handler).
+ */
+export async function mockParentLookups(page: Page, projects: Project[], suites: TestSuite[] = []): Promise<void> {
+  const byId = <T extends { id: number }>(items: T[], kind: string) => async (route: Route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const id = Number(new URL(route.request().url()).pathname.split('/').pop());
+    const found = items.find((x) => x.id === id);
+    await (found ? fulfillJson(route, 200, found) : fulfillJson(route, 404, { detail: `${kind} not found` }));
+  };
+  await page.route((url) => /^\/api\/projects\/\d+$/.test(url.pathname), byId(projects, 'Project'));
+  await page.route((url) => /^\/api\/suites\/\d+$/.test(url.pathname), byId(suites, 'Suite'));
 }

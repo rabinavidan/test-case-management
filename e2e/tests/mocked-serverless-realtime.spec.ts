@@ -1,6 +1,6 @@
 import { test, expect, Page, WebSocketRoute } from '@playwright/test';
 import { mockProject, mockProjectList, mockRun, mockSuite, mockTestCase, mockTestResult } from '../mocks/factories';
-import { fulfillJson, mockAuthSession, byPath } from '../mocks/route-helpers';
+import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mocks/route-helpers';
 
 /**
  * The run page's live-update client (static/app.js connectRunWebSocket)
@@ -21,6 +21,7 @@ async function openMockedRun(page: Page) {
 
   await page.route(byPath(`/api/runs/${run.id}`), (route) => fulfillJson(route, 200, run));
   await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+  await mockParentLookups(page, [project], [suite]);
   await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
 
   let resolveSocket: (ws: WebSocketRoute) => void;

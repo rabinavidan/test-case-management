@@ -2343,6 +2343,16 @@ async function deleteProject(id) {
   } catch (e) { toast(e.message, "error"); }
 }
 
+// A suite and its project by ID. These views used to scan every project's
+// suites to find a parent: that only saw the 20 newest projects, cost a
+// request per project, and failed outright if another user deleted any
+// project mid-scan.
+async function getSuiteWithProject(suiteId) {
+  const suite = await GET(`/api/suites/${suiteId}`);
+  const project = await GET(`/api/projects/${suite.project_id}`);
+  return { suite, project };
+}
+
 // ─── Project View ─────────────────────────────────────────────────────────────
 async function renderProject(projectId) {
   const el = document.getElementById("view-project");
@@ -2351,9 +2361,7 @@ async function renderProject(projectId) {
 
   let project, suites, stats;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    project = projects.find(p => p.id === projectId);
-    if (!project) throw new Error("Project not found");
+    project = await GET(`/api/projects/${projectId}`);
     [suites, stats] = await Promise.all([
       GET(`/api/projects/${projectId}/suites`),
       GET(`/api/projects/${projectId}/stats`),
@@ -2790,13 +2798,7 @@ async function renderSuite(suiteId) {
 
   let suite, testcases, project, runs;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === suiteId);
-      if (found) { suite = found; project = p; break; }
-    }
-    if (!suite) throw new Error("Suite not found");
+    ({ suite, project } = await getSuiteWithProject(suiteId));
     [testcases, runs] = await Promise.all([
       GET(`/api/suites/${suiteId}/testcases`),
       GET(`/api/suites/${suiteId}/runs`),
@@ -3016,13 +3018,7 @@ async function renderSuiteTestCases(suiteId) {
 
   let suite, project, testcases;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === suiteId);
-      if (found) { suite = found; project = p; break; }
-    }
-    if (!suite) throw new Error("Suite not found");
+    ({ suite, project } = await getSuiteWithProject(suiteId));
     testcases = await GET(`/api/suites/${suiteId}/testcases`);
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
@@ -3100,13 +3096,7 @@ async function renderSuiteRuns(suiteId) {
 
   let suite, project, runs;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === suiteId);
-      if (found) { suite = found; project = p; break; }
-    }
-    if (!suite) throw new Error("Suite not found");
+    ({ suite, project } = await getSuiteWithProject(suiteId));
     runs = await GET(`/api/suites/${suiteId}/runs`);
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
@@ -3158,15 +3148,15 @@ async function renderRun(runId) {
   let run, suite = null, project = null;
   try {
     run = await GET(`/api/runs/${runId}`);
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === run.suite_id);
-      if (found) { suite = found; project = p; break; }
-    }
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
     return;
+  }
+
+  try {
+    ({ suite, project } = await getSuiteWithProject(run.suite_id));
+  } catch {
+    // Only the breadcrumb and Back button need the parents - render the run without them.
   }
 
   state.currentRun = run;

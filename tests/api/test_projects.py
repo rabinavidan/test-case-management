@@ -83,3 +83,31 @@ def test_list_projects_pagination(auth_client):
     body2 = r2.json()
     assert len(body2["items"]) == 2
     assert {i["id"] for i in body["items"]}.isdisjoint({i["id"] for i in body2["items"]})
+
+
+def test_get_project(auth_client):
+    client, headers = auth_client
+    pid = client.post("/api/projects", json={"name": "Single", "description": "d"}, headers=headers).json()["id"]
+    # Public, like the list: a guest browses projects read-only.
+    r = client.get(f"/api/projects/{pid}")
+    assert r.status_code == 200
+    assert r.json()["id"] == pid
+    assert r.json()["name"] == "Single"
+    assert r.json()["description"] == "d"
+
+
+def test_get_project_beyond_the_first_list_page(auth_client):
+    # The UI used to find a project by scanning GET /api/projects, whose
+    # default page is the 20 newest — so older projects were "not found".
+    client, headers = auth_client
+    oldest = client.post("/api/projects", json={"name": "Oldest"}, headers=headers).json()["id"]
+    for i in range(21):
+        client.post("/api/projects", json={"name": f"Newer {i}"}, headers=headers)
+    assert all(p["id"] != oldest for p in client.get("/api/projects").json()["items"])
+    assert client.get(f"/api/projects/{oldest}").json()["name"] == "Oldest"
+
+
+def test_get_project_not_found(client):
+    r = client.get("/api/projects/999")
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Project not found"

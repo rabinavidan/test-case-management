@@ -8,7 +8,7 @@ import {
   mockAIGenerateResponse,
   mockTriageResponse,
 } from '../mocks/factories';
-import { fulfillJson, mockAuthSession, byPath } from '../mocks/route-helpers';
+import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mocks/route-helpers';
 
 /**
  * Fully serverless (mocked) coverage of the AI-assisted features — test
@@ -20,10 +20,9 @@ import { fulfillJson, mockAuthSession, byPath } from '../mocks/route-helpers';
  * trigger reliably against a live provider.
  */
 
-// static/app.js's renderSuite has no per-ID GET endpoint: it fetches the
-// full /api/projects list, then each project's /api/projects/{id}/suites,
-// to find the target suite client-side — mirrored below, see
-// mocked-serverless-crud.spec.ts's note on the same pattern.
+// The suite and run pages fetch their suite and project by id
+// (GET /api/suites/{id}, GET /api/projects/{id}) — mockParentLookups answers
+// those from the same fixtures as the list and child endpoints.
 
 test.describe('AI test case generation — serverless', () => {
   test('generating test cases shows the mocked results', async ({ page }) => {
@@ -31,6 +30,7 @@ test.describe('AI test case generation — serverless', () => {
     const project = mockProject({ name: 'AI Project' });
     const suite = mockSuite({ project_id: project.id, name: 'AI Suite' });
     await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await mockParentLookups(page, [project], [suite]);
     await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
     await page.route(byPath(`/api/suites/${suite.id}/testcases`), (route) => fulfillJson(route, 200, []));
     await page.route(byPath(`/api/suites/${suite.id}/runs`), (route) => fulfillJson(route, 200, []));
@@ -66,6 +66,7 @@ test.describe('AI test case generation — serverless', () => {
     const project = mockProject({ name: 'AI Project' });
     const suite = mockSuite({ project_id: project.id, name: 'AI Suite' });
     await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await mockParentLookups(page, [project], [suite]);
     await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
     await page.route(byPath(`/api/suites/${suite.id}/testcases`), (route) => fulfillJson(route, 200, []));
     await page.route(byPath(`/api/suites/${suite.id}/runs`), (route) => fulfillJson(route, 200, []));
@@ -90,6 +91,7 @@ test.describe('AI test case generation — serverless', () => {
     const project = mockProject({ name: 'AI Project' });
     const suite = mockSuite({ project_id: project.id, name: 'AI Suite' });
     await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await mockParentLookups(page, [project], [suite]);
     await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
     await page.route(byPath(`/api/suites/${suite.id}/testcases`), (route) => fulfillJson(route, 200, []));
     await page.route(byPath(`/api/suites/${suite.id}/runs`), (route) => fulfillJson(route, 200, []));
@@ -117,6 +119,7 @@ test.describe('AI failure triage — serverless', () => {
 
     await page.route(byPath(`/api/runs/${run.id}`), (route) => fulfillJson(route, 200, run));
     await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await mockParentLookups(page, [project], [suite]);
     await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
 
     const triage = mockTriageResponse({
@@ -142,6 +145,7 @@ test.describe('AI failure triage — serverless', () => {
 
     await page.route(byPath(`/api/runs/${run.id}`), (route) => fulfillJson(route, 200, run));
     await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
+    await mockParentLookups(page, [project], [suite]);
     await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
 
     const triage = mockTriageResponse({
