@@ -864,8 +864,7 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
     return run
 
 
-@app.put("/api/runs/{run_id}/results/{tc_id}")
-async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), current: models.User = Depends(get_current_user)):
+def _apply_result_update(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session):
     result = db.query(models.TestResult).filter(
         models.TestResult.run_id == run_id,
         models.TestResult.testcase_id == tc_id
@@ -885,6 +884,16 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
 
     db.commit()
     db.refresh(result)
+    return result, run_completed
+
+
+# The handler is async only to await the broadcast; its DB work runs in the
+# threadpool. Blocking DB calls on the event loop deadlock the server when the
+# pool is busy: they wait for a connection that the requests holding them
+# need this same loop to give back (tests/api/test_event_loop_db.py).
+@app.put("/api/runs/{run_id}/results/{tc_id}")
+async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), current: models.User = Depends(get_current_user)):
+    result, run_completed = await run_in_threadpool(_apply_result_update, run_id, tc_id, payload, db)
 
     # Broadcast live update to all WebSocket subscribers on this run
     await ws_manager.broadcast(run_id, {
@@ -900,7 +909,7 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
 
 
 @app.post("/api/runs/{run_id}/triage", response_model=schemas.TriageResponse)
-async def triage_run(
+def triage_run(
     run_id: int,
     agentic: bool = False,
     db: Session = Depends(get_db),
@@ -1044,21 +1053,28 @@ async def run_websocket(
 ):
     # Protocol, close codes and why we accept-then-close: shared/ws_protocol.py
     await ws.accept()
-    user = None
-    if token:
-        try:
-            data = _decode_token(token)
-            user = db.query(models.User).filter(models.User.id == int(data["sub"])).first()
-        except HTTPException:
-            user = None
-    if user is None:
-        await ws.close(code=ws_protocol.CLOSE_UNAUTHORIZED, reason="Not authenticated")
+
+    def admit():
+        # In the threadpool, not on the event loop (see update_result).
+        user = None
+        if token:
+            try:
+                data = _decode_token(token)
+                user = db.query(models.User).filter(models.User.id == int(data["sub"])).first()
+            except HTTPException:
+                user = None
+        if user is None:
+            return ws_protocol.CLOSE_UNAUTHORIZED, "Not authenticated"
+        if not db.query(models.TestRun).filter(models.TestRun.id == run_id).first():
+            return ws_protocol.CLOSE_RUN_NOT_FOUND, "Run not found"
+        # Don't pin a pooled DB connection for the socket's whole lifetime.
+        db.close()
+        return None
+
+    refused = await run_in_threadpool(admit)
+    if refused:
+        await ws.close(code=refused[0], reason=refused[1])
         return
-    if not db.query(models.TestRun).filter(models.TestRun.id == run_id).first():
-        await ws.close(code=ws_protocol.CLOSE_RUN_NOT_FOUND, reason="Run not found")
-        return
-    # Don't pin a pooled DB connection for the socket's whole lifetime.
-    db.close()
 
     ws_manager.join(run_id, ws)
     try:
@@ -1074,7 +1090,7 @@ async def run_websocket(
 # ─── AI Test Case Generation ──────────────────────────────────────────────────
 
 @app.post("/api/suites/{suite_id}/testcases/generate", response_model=schemas.AIGenerateResponse)
-async def generate_testcases(
+def generate_testcases(
     suite_id: int,
     payload: schemas.AIGenerateRequest,
     db: Session = Depends(get_db),
@@ -1130,7 +1146,7 @@ async def generate_testcases(
 
 
 @app.post("/api/suites/{suite_id}/testcases/generate/save")
-async def save_generated_testcases(
+def save_generated_testcases(
     suite_id: int,
     payload: List[schemas.AIGeneratedTestCase],
     db: Session = Depends(get_db),

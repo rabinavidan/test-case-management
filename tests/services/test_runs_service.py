@@ -249,3 +249,35 @@ def test_ws_receives_result_update_broadcast(client, monkeypatch):
         assert msg["type"] == "result_updated"
         assert msg["testcase_id"] == 10
         assert msg["status"] == "pass"
+
+
+def test_result_update_and_ws_admission_never_check_out_a_connection_on_the_event_loop(client, monkeypatch):
+    # Blocking DB calls in an async handler wait for a pooled connection on
+    # the event loop, which deadlocks the service when the pool is busy; see
+    # tests/api/test_event_loop_db.py for the monolith's version.
+    import asyncio
+    from sqlalchemy import event
+    from sqlalchemy.pool import Pool
+
+    run = _create_run(client, monkeypatch)
+    seen = []
+
+    def on_checkout(*_):
+        try:
+            asyncio.get_running_loop()
+            seen.append("event loop")
+        except RuntimeError:
+            seen.append("worker thread")
+
+    event.listen(Pool, "checkout", on_checkout)
+    try:
+        # "pass", not "fail": a fail also publishes a Kafka alert, which with no
+        # broker spends ~40 s trying to connect (now off the event loop too).
+        assert client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN).status_code == 200
+        with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+            ws.send_text('{"type":"ping"}')
+            assert "pong" in ws.receive_text()
+    finally:
+        event.remove(Pool, "checkout", on_checkout)
+    assert seen, "the calls above should have used the database"
+    assert "event loop" not in seen, seen
