@@ -866,16 +866,6 @@ async function renderProjects() {
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
 
-  if (!getToken()) {
-    el.insertAdjacentHTML("afterbegin", `
-      <div class="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-        <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
-        </svg>
-        <p class="text-sm text-blue-700 flex-1">You're browsing as a guest. <button onclick="showAuthModal('login')" class="font-semibold underline hover:text-blue-900">Sign in</button> or <button onclick="showAuthModal('register')" class="font-semibold underline hover:text-blue-900">create an account</button> to add and manage projects.</p>
-      </div>`);
-  }
-
   await loadSidebar();
 
   // Real architecture content, not admin-only tooling - visible to every
@@ -2014,11 +2004,16 @@ async function renderProjects() {
   // Recruiter Tour — a 5-step, read-only, no-auth guided path through
   // sections already on this page (see RECRUITER_TOUR_STEPS / startRecruiterTour
   // below). Skippable at any point; never creates or modifies data.
+  // Also the only guest-facing prompt to sign in: it's built into the final
+  // innerHTML below, unlike a banner inserted before the render, which that
+  // innerHTML assignment would wipe.
   const recruiterTourBanner = !getToken() ? `
     <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl px-5 py-3.5" data-testid="recruiter-tour-banner">
       <div class="flex items-start gap-2.5 text-sm text-blue-900">
         <span class="text-lg flex-shrink-0" aria-hidden="true">🧭</span>
-        <span><strong class="font-bold">New here?</strong> Take a 5-step guided tour — leadership, architecture, test strategy, quality gates, and AI engineering. Under 3 minutes, no sign-in, nothing is created.</span>
+        <span><strong class="font-bold">New here?</strong> Take a 5-step guided tour — leadership, architecture, test strategy, quality gates, and AI engineering. Under 3 minutes, no sign-in, nothing is created.
+          <span class="block mt-1 text-xs text-blue-700" data-testid="guest-signin-prompt">You're browsing as a guest. <button type="button" onclick="showAuthModal('login')" data-testid="guest-signin-link" class="font-semibold underline hover:text-blue-900">Sign in</button> to add and manage projects.</span>
+        </span>
       </div>
       <button type="button" onclick="startRecruiterTour()" data-testid="start-tour-btn"
         class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap">
