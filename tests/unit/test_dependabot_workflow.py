@@ -13,7 +13,7 @@ WORKFLOW_PATH = REPO_ROOT / ".github/workflows/dependabot-auto-merge.yml"
 
 
 def _load_workflow():
-    return yaml.safe_load(WORKFLOW_PATH.read_text())
+    return yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
 
 
 def _triage_job():

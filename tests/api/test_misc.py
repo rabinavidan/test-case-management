@@ -55,7 +55,9 @@ def test_static_app_js_is_gzipped(client):
     r = client.get("/static/app.js", headers={"Accept-Encoding": "gzip"})
     assert r.status_code == 200
     assert r.headers.get("content-encoding") == "gzip"
-    assert r.text == app_js.read_text(encoding="utf-8")
+    # Bytes, not text: read_text() normalizes CRLF while the server sends the
+    # file as-is, so a text comparison fails on an autocrlf (Windows) checkout.
+    assert r.content == app_js.read_bytes()
 
 
 def test_small_json_response_not_gzipped(client):

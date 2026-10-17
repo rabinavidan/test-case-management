@@ -12,7 +12,7 @@ WORKFLOW_PATH = REPO_ROOT / ".github/workflows/coverage-gap-agent.yml"
 
 
 def _load_workflow():
-    return yaml.safe_load(WORKFLOW_PATH.read_text())
+    return yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
 
 
 def test_workflow_parses_and_triggers_on_pr_events():

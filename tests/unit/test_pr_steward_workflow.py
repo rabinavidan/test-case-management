@@ -12,7 +12,7 @@ SKILL_PATH = REPO_ROOT / ".claude/skills/steward/SKILL.md"
 
 
 def _load_workflow():
-    return yaml.safe_load(WORKFLOW_PATH.read_text())
+    return yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
 
 
 def test_workflow_parses_as_valid_yaml():
@@ -71,7 +71,7 @@ def test_steward_prompt_points_at_the_skill_file():
 
 def test_referenced_skill_file_exists():
     assert SKILL_PATH.exists()
-    content = SKILL_PATH.read_text()
+    content = SKILL_PATH.read_text(encoding="utf-8")
     # The workflow's job description promises these; keep them honest.
     assert "Required checks" in content
     assert "Known flake" in content

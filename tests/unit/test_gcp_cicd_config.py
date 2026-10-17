@@ -12,15 +12,15 @@ SERVICES = ["gateway", "auth", "projects", "runs", "ai"]
 
 
 def _load_cloudbuild():
-    return yaml.safe_load((REPO_ROOT / "cloudbuild.yaml").read_text())
+    return yaml.safe_load((REPO_ROOT / "cloudbuild.yaml").read_text(encoding="utf-8"))
 
 
 def _load_clouddeploy():
-    return list(yaml.safe_load_all((REPO_ROOT / "deploy/gcp/clouddeploy.yaml").read_text()))
+    return list(yaml.safe_load_all((REPO_ROOT / "deploy/gcp/clouddeploy.yaml").read_text(encoding="utf-8")))
 
 
 def _load_skaffold():
-    return yaml.safe_load((REPO_ROOT / "deploy/gcp/skaffold.yaml").read_text())
+    return yaml.safe_load((REPO_ROOT / "deploy/gcp/skaffold.yaml").read_text(encoding="utf-8"))
 
 
 def test_cloudbuild_enforces_the_85_percent_coverage_floor():

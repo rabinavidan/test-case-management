@@ -15,7 +15,7 @@ import pytest
 from api import triage_agent
 from evals import triage_trajectory_eval as traj
 
-DATASET = json.loads(traj.DEFAULT_DATASET.read_text())
+DATASET = json.loads(traj.DEFAULT_DATASET.read_text(encoding="utf-8"))
 LABELS = {c["title"]: c.get("expected_verdict") for s in DATASET["scenarios"] for c in s["cases"]}
 
 

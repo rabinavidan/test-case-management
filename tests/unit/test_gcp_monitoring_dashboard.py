@@ -11,7 +11,7 @@ DASHBOARD_PATH = REPO_ROOT / "terraform/modules/monitoring/dashboard.json"
 
 
 def _load_dashboard():
-    return json.loads(DASHBOARD_PATH.read_text())
+    return json.loads(DASHBOARD_PATH.read_text(encoding="utf-8"))
 
 
 def _widget_titles(dashboard):

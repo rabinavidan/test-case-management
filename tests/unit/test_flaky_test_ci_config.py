@@ -13,7 +13,7 @@ WORKFLOW_PATH = REPO_ROOT / ".github/workflows/test.yml"
 
 
 def _load_workflow():
-    return yaml.safe_load(WORKFLOW_PATH.read_text())
+    return yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
 
 
 def _api_tests_job():
@@ -63,7 +63,7 @@ def test_failure_classifier_step_runs_after_pytest_and_never_gates():
 
 
 def test_playwright_merge_job_classifies_failures():
-    workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/pw-ts.yml").read_text())
+    workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/pw-ts.yml").read_text(encoding="utf-8"))
     steps = [s for job in workflow["jobs"].values() for s in job.get("steps", [])]
     step = next(s for s in steps if s.get("name") == "Classify failures (product / test-code / infra)")
     assert step["if"] == "always()"
