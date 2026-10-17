@@ -15,37 +15,27 @@ const linkStates = (root: Locator) =>
 const progress = (root: Locator) =>
   root.getByTestId('pipe-progress').evaluate((e) => parseFloat((e as HTMLElement).style.width));
 
-async function pauseClock(page: Page) {
-  // install() leaves fake time flowing at real speed; pause it so only
-  // runFor() moves the pipeline (a short margin, retried if already past).
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await page.clock.pauseAt(await page.evaluate(() => Date.now() + 300));
-      return;
-    } catch (e) {
-      if (attempt >= 4 || !String(e).includes('past')) throw e;
-    }
-  }
-}
 
 test.describe('Guest home page — Live Demo pipeline motion', () => {
   let root: Locator;
 
   test.beforeEach(async ({ page }) => {
+    // Paused before the page loads, so no tick can fire during setup however
+    // slow it is; only runFor() moves time. (install() alone lets fake time
+    // flow at real speed.)
     await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
     root = page.getByTestId('ai-live-demo-section').getByTestId('pipe-root');
     await root.scrollIntoViewIfNeeded();
     await expect(root).toHaveAttribute('data-pipe-live', 'running');
-    await pauseClock(page);
   });
 
   test('starts on the first stage, then advances stage by stage with the link flowing into it', async ({ page }) => {
     const step = root.getByTestId('pipe-step');
-    // Up to one stage may already have passed during setup; start from where it is.
     const start = Number(await root.getAttribute('data-pipe-step'));
-    expect(start).toBeLessThan(STAGES - 1);
+    expect(start).toBe(0); // the clock was paused before load, so nothing has advanced
 
     for (let i = start; i < start + 2; i++) {
       await expect(step).toHaveText(new RegExp(`^Step ${i + 1}/${STAGES} · `));

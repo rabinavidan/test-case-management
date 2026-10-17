@@ -56,7 +56,7 @@ guestTest.describe('Guest home page — Open-Source Repositories', () => {
     const fromCards = await page.getByTestId('repo-card').evaluateAll((cards) => {
       const counts: Record<string, number> = {};
       for (const c of cards) {
-        for (const li of c.querySelectorAll('[aria-label="Technologies"] li')) {
+        for (const li of Array.from(c.querySelectorAll('[aria-label="Technologies"] li'))) {
           const t = li.textContent!.trim();
           counts[t] = (counts[t] || 0) + 1;
         }
@@ -128,7 +128,11 @@ guestTest.describe('Guest home page — repositories carousel', () => {
   guestTest('auto-advances on its own clock, and pausing it leaves Success Stories running', async ({ page }) => {
     // Tall enough that both carousels are on screen, so neither is paused for being out of view.
     await page.setViewportSize({ width: 1280, height: 2200 });
+    // Paused before the page loads, so no tick can fire during setup however
+    // slow it is; only runFor() moves time. (install() alone lets fake time
+    // flow at real speed.)
     await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
     await page.mouse.move(0, 0);

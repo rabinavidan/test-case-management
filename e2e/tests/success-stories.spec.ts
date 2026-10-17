@@ -98,23 +98,15 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
   const INTERVAL = 5000;
 
   guestTest.beforeEach(async ({ page }) => {
+    // Paused before the page loads, so no tick can fire during setup however
+    // slow it is; only runFor() moves time. (install() alone lets fake time
+    // flow at real speed.)
     await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
     await guestExpect(page.getByTestId('success-stories-section')).toBeVisible();
     await page.mouse.move(0, 0); // keep the pointer off the carousel
-    // install() leaves fake time flowing at real speed, so a slow run could
-    // fire a tick on its own; pause it so only runFor() moves time. The target
-    // must still be in the future when pauseAt runs, and fast-forwarding to it
-    // must not reach the first 5 s tick: a short margin, retried if too short.
-    for (let attempt = 0; ; attempt++) {
-      try {
-        await page.clock.pauseAt(await page.evaluate(() => Date.now() + 300));
-        break;
-      } catch (e) {
-        if (attempt >= 4 || !String(e).includes('past')) throw e;
-      }
-    }
   });
 
   const scrollLeft = (page: import('@playwright/test').Page) =>
@@ -140,7 +132,7 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
     const ticksToEnd = await page.getByTestId('stories-track').evaluate((t) => {
       const max = t.scrollWidth - t.clientWidth;
       const base = (t.children[0] as HTMLElement).offsetLeft;
-      return [...t.children].filter((c) => (c as HTMLElement).offsetLeft - base <= max + 2).length - 1;
+      return Array.from(t.children).filter((c) => (c as HTMLElement).offsetLeft - base <= max + 2).length - 1;
     });
     guestExpect(ticksToEnd).toBeGreaterThan(0);
 
