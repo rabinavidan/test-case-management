@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -241,6 +242,10 @@ def _record_log(**fields):
 
 
 # ─── Request/Response logging middleware ──────────────────────────────────────
+# _record_log blocks on the DB, so it runs in the threadpool: on the event
+# loop it waited for a pooled connection while the requests holding every
+# connection needed that same loop to release them (a deadlock that only the
+# 30s pool timeout broke).
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.perf_counter()
@@ -249,7 +254,8 @@ async def log_requests(request: Request, call_next):
     except Exception as exc:
         duration_ms = round((time.perf_counter() - start) * 1000, 1)
         logger.exception(f'{request.method} {request.url.path} 500 {duration_ms}ms')
-        _record_log(
+        await run_in_threadpool(
+            _record_log,
             level="error", source="server", message=f"{type(exc).__name__}: {exc}"[:500],
             method=request.method, path=request.url.path, status_code=500,
             duration_ms=int(duration_ms), extra=traceback.format_exc()[-2000:],
@@ -259,7 +265,8 @@ async def log_requests(request: Request, call_next):
     if not request.url.path.startswith("/static"):
         logger.info(f'{request.method} {request.url.path} {response.status_code} {duration_ms}ms')
         level = "error" if response.status_code >= 500 else "warning" if response.status_code >= 400 else "info"
-        _record_log(
+        await run_in_threadpool(
+            _record_log,
             level=level, source="server", message=f"{request.method} {request.url.path}"[:500],
             method=request.method, path=request.url.path, status_code=response.status_code,
             duration_ms=int(duration_ms),
