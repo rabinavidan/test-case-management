@@ -1,3 +1,4 @@
+import pytest
 import pathlib
 
 
@@ -41,11 +42,35 @@ def test_unknown_path_falls_back_to_spa_index(client):
 
 
 def test_static_assets_served(client):
-    static_dir = pathlib.Path(__file__).parent.parent / "static"
-    if not (static_dir / "app.js").exists():
-        return
+    # parents[2] is the repo root; this used to look for tests/static, which
+    # never exists, so the test returned early and checked nothing.
+    assert (pathlib.Path(__file__).resolve().parents[2] / "static" / "app.js").exists()
     r = client.get("/static/app.js")
     assert r.status_code == 200
+    assert "javascript" in r.headers["content-type"]
+
+
+@pytest.mark.parametrize("path", ["/api/does-not-exist", "/api/projects/1/nope"])
+def test_unknown_api_route_is_a_json_404_not_the_spa(client, path):
+    r = client.get(path)
+    assert r.status_code == 404
+    assert r.json() == {"detail": "Not Found"}
+
+
+@pytest.mark.parametrize("path", ["/missing.js", "/favicon.ico", "/_vercel/insights/script.js", "/static/missing.js"])
+def test_missing_file_is_a_404_not_the_spa(client, path):
+    r = client.get(path)
+    assert r.status_code == 404
+    assert "<html" not in r.text.lower()
+
+
+def test_vercel_analytics_tags_only_on_vercel(client, monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    assert "/_vercel/" not in client.get("/").text
+    monkeypatch.setenv("VERCEL", "1")
+    page = client.get("/").text
+    assert '<script defer src="/_vercel/insights/script.js"></script>' in page
+    assert '<script defer src="/_vercel/speed-insights/script.js"></script>' in page
 
 
 def test_static_app_js_is_gzipped(client):

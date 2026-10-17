@@ -29,6 +29,7 @@ from .database import engine, get_db, Base
 from . import ai_gateway, models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin, _decode_token
 from shared import ws_protocol
+from shared.spa import is_page_path
 from .ai_prompts import (
     TESTCASE_GENERATION_SYSTEM_PROMPT,
     TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT,
@@ -1695,10 +1696,16 @@ app.include_router(graphql_router, prefix="/graphql")
 # ─── Static files (must be last) ─────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+VERCEL_ANALYTICS_TAGS = (
+    '<script defer src="/_vercel/speed-insights/script.js"></script>\n'
+    '  <script defer src="/_vercel/insights/script.js"></script>'
+)
 
-# StaticFiles takes types from the OS registry, which lacks WebP on many
-# Windows machines (served as text/plain); register it explicitly.
-mimetypes.add_type("image/webp", ".webp")
+# StaticFiles takes types from the OS registry, which on many Windows machines
+# lacks these, serving them as text/plain - fine only until a nosniff header
+# makes the browser refuse them. Register the ones static/ uses explicitly.
+for _type, _ext in (("text/javascript", ".js"), ("text/css", ".css"), ("image/svg+xml", ".svg"), ("image/webp", ".webp")):
+    mimetypes.add_type(_type, _ext)
 
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -1715,12 +1722,22 @@ if os.path.exists(static_dir):
         """
         with open(os.path.join(static_dir, "index.html"), "r", encoding="utf-8") as f:
             content = f.read()
+        # Vercel serves its analytics scripts itself; anywhere else (local, CI,
+        # Docker) the tags could only 404, so they're added on Vercel only.
+        if os.getenv("VERCEL"):
+            content = content.replace("<!-- vercel-analytics -->", VERCEL_ANALYTICS_TAGS)
         return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
 
     @app.get("/", include_in_schema=False)
-    async def serve_root():
+    def serve_root():
         return _serve_index()
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_spa(full_path: str):
+    def serve_spa(full_path: str):
+        # A missing API route, file or platform path is a real 404, not the
+        # SPA's index.html with a 200 (see shared/spa.py).
+        if not is_page_path(full_path):
+            if full_path.startswith("api"):
+                return JSONResponse(status_code=404, content={"detail": "Not Found"})
+            return HTMLResponse(status_code=404, content="Not Found")
         return _serve_index()

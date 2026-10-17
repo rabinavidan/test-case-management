@@ -1,0 +1,102 @@
+import { test, expect } from '../fixtures/auth.fixture';
+import type { Page } from '@playwright/test';
+
+// The home page and the main signed-in pages load cleanly: no uncaught
+// script error, no console error, no request that fails or returns 4xx/5xx,
+// and nothing reported to the app's own client-error log. These used to be
+// silently broken - the SPA fallback answered missing scripts with the HTML
+// home page, so every load threw "Unexpected token '<'" twice and posted it
+// to /api/logs/client.
+
+type Problems = { errors: string[]; badResponses: string[]; clientLogs: number };
+
+function watch(page: Page): Problems {
+  const p: Problems = { errors: [], badResponses: [], clientLogs: 0 };
+  page.on('pageerror', (e) => p.errors.push(`pageerror: ${e.message}`));
+  page.on('console', (m) => { if (m.type() === 'error') p.errors.push(`console: ${m.text()}`); });
+  page.on('requestfailed', (r) => p.badResponses.push(`failed: ${r.url()} (${r.failure()?.errorText})`));
+  page.on('response', (r) => { if (r.status() >= 400) p.badResponses.push(`${r.status()}: ${r.url()}`); });
+  page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/logs/client') p.clientLogs++; });
+  return p;
+}
+
+async function expectClean(page: Page, p: Problems, label: string) {
+  await page.waitForLoadState('networkidle');
+  expect(p.errors, `${label}: script/console errors`).toEqual([]);
+  expect(p.badResponses, `${label}: failed or 4xx/5xx requests`).toEqual([]);
+  expect(p.clientLogs, `${label}: client-error reports`).toBe(0);
+}
+
+test.describe('Home page smoke — guest', () => {
+  test('loads cleanly, with every section rendered', async ({ page }) => {
+    const p = watch(page);
+    await page.goto('/#projects');
+    for (const id of ['success-stories-section', 'top-repos-section', 'ai-live-demo-section', 'recruiter-tour-banner']) {
+      await expect(page.getByTestId(id), id).toBeVisible();
+    }
+    await expect(page.locator('.owner-banner')).toBeVisible();
+    await expectClean(page, p, 'guest home');
+  });
+
+  test('the footer shows the version the API reports', async ({ page }) => {
+    const { version } = await (await page.request.get('/api/version')).json();
+    await page.goto('/#projects');
+    await expect(page.locator('#app-version')).toHaveText(`v${version}`);
+  });
+
+  test('the architecture showcase panel opens and closes, and says so to assistive tech', async ({ page }) => {
+    await page.addInitScript(() => localStorage.removeItem('tf_showcase_expanded'));
+    await page.goto('/#projects');
+    const toggle = page.locator('#showcase-toggle-btn');
+    const panel = page.locator('#showcase-content');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(panel).toBeHidden();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText('Live Architecture')).toBeVisible();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(panel).toBeHidden();
+  });
+
+  test('a missing file or API route is a real 404, while page paths still load the app', async ({ page }) => {
+    const api = await page.request.get('/api/does-not-exist');
+    expect(api.status()).toBe(404);
+    expect(await api.json()).toEqual({ detail: 'Not Found' });
+    for (const path of ['/missing.js', '/_vercel/insights/script.js', '/static/missing.css']) {
+      expect((await page.request.get(path)).status(), path).toBe(404);
+    }
+    const deep = await page.request.get('/some/client-side/route');
+    expect(deep.status()).toBe(200);
+    expect(deep.headers()['content-type']).toContain('text/html');
+  });
+});
+
+test.describe('Home page smoke — signed in', () => {
+  test('the home page and the main pages load cleanly', async ({ page, authToken, authedRequest }) => {
+    const tag = `Smoke_${Date.now()}_${test.info().workerIndex}_${test.info().repeatEachIndex}`;
+    const project = await (await authedRequest.post('/api/projects', { data: { name: `${tag} project` } })).json();
+    try {
+      const suite = await (await authedRequest.post(`/api/projects/${project.id}/suites`, { data: { name: `${tag} suite` } })).json();
+      await authedRequest.post(`/api/suites/${suite.id}/testcases`, { data: { title: `${tag} case`, priority: 'medium', status: 'active' } });
+      const run = await (await authedRequest.post(`/api/suites/${suite.id}/runs`, { data: { name: `${tag} run` } })).json();
+      await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
+
+      for (const [label, url] of [
+        ['home', '/#projects'], ['project', `/#project/${project.id}`], ['suite', `/#suite/${suite.id}`],
+        ['run', `/#run/${run.id}`], ['environments', '/#environments'], ['users', '/#users'], ['log center', '/#logs'],
+      ]) {
+        const p = watch(page);
+        await page.goto(url);
+        await expect(page.locator('.view:not(.hidden) h1').first(), label).toBeVisible({ timeout: 15_000 });
+        await expectClean(page, p, label);
+        page.removeAllListeners();
+      }
+    } finally {
+      await authedRequest.delete(`/api/projects/${project.id}`);
+    }
+  });
+});

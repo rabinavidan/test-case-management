@@ -17,6 +17,7 @@ import httpx
 import websockets
 
 from services.gateway.routes import resolve_service
+from shared.spa import is_page_path
 from services.common.logging_config import configure_json_logging
 from services.common.request_id import RequestIDMiddleware, current_request_id, REQUEST_ID_HEADER
 
@@ -145,4 +146,9 @@ if os.path.exists(static_dir):
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa(full_path: str):
+        # A missing API route, file or platform path is a real 404 (shared/spa.py).
+        if not is_page_path(full_path):
+            if full_path.startswith("api"):
+                return JSONResponse(status_code=404, content={"detail": "Not Found"})
+            return Response(status_code=404, content="Not Found")
         return FileResponse(os.path.join(static_dir, "index.html"))
