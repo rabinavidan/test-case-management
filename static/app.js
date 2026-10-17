@@ -851,6 +851,228 @@ function renderShowcaseSection(sections) {
     </div>`;
 }
 
+// ─── Success Stories ─────────────────────────────────────────────────────────
+// The owner's LinkedIn posts, newest first. Images are self-hosted copies
+// (static/img/success-stories/) so the section never depends on LinkedIn's CDN.
+const SUCCESS_STORIES = [
+  { slug: "ai-agents-in-automation", activity: "7511122582864203777", date: "2026-09-30",
+    title: "AI Agents in Automation",
+    summary: "Lessons from ZoomInfo: five challenges in evaluating agentic workflows.",
+    alt: "Infographic: AI Agents in Automation. Five challenges in evaluating agentic workflows: failure investigation, test generation, self-healing, agent orchestration and workflow evaluation." },
+  { slug: "pytest-fixture-factory", activity: "7480988116976254977", date: "2026-07-09",
+    title: "Pytest Fixtures: the Factory Pattern",
+    summary: "Replacing hardcoded test data with dynamic, reusable factory fixtures.",
+    alt: "Infographic: Pytest fixtures with the factory pattern. The problem with hardcoded test data, how factory fixtures work, a code example and best practices." },
+  { slug: "bug-aware-playwright", activity: "7479141849790701568", date: "2026-07-04",
+    title: "Bug-Aware Playwright Test Management",
+    summary: "A CI agent checks Jira so a test failing on a known product bug carries that context.",
+    alt: "Infographic: Bug-aware Playwright test management. A CI agent checks the linked Jira bug's status during the pipeline and enriches the Allure report with it." },
+  { slug: "shared-logger-infrastructure", activity: "7475895553185308672", date: "2026-06-25",
+    title: "Shared Logger Infrastructure",
+    summary: "One logging layer for UI E2E and API flows, used across ZoomInfo's automation teams.",
+    alt: "Infographic: Shared logger infrastructure, built once and used across automation teams, logging UI E2E steps and API calls for faster root-cause analysis." },
+  { slug: "common-backend-library", activity: "7474467230747877376", date: "2026-06-21",
+    title: "Common Backend Automation Library",
+    summary: "A shared backend testing layer for stable, fast automation across microservices.",
+    alt: "Infographic: Common Backend Automation Library, a shared backend testing layer of API clients, test steps and data builders that improves coverage, stability and speed." },
+  { slug: "cucumber-to-playwright-mocks", activity: "7474123893595877376", date: "2026-06-20",
+    title: "From Cucumber Java to Playwright Mocks",
+    summary: "A three-year automation transformation for Angular micro frontends at ZoomInfo.",
+    alt: "Infographic: From Cucumber Java to Playwright mocks. Before and after of a three-year automation transformation for Angular micro frontends, with its impact on stability and release speed." },
+];
+
+function renderSuccessStoriesSection() {
+  const fmt = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  const postUrl = (s) => `https://www.linkedin.com/feed/update/urn:li:activity:${s.activity}/`;
+  const n = SUCCESS_STORIES.length;
+  return `
+    <section class="relative rounded-2xl overflow-hidden mb-6 px-4 sm:px-5 py-5" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)"
+      data-testid="success-stories-section" aria-roledescription="carousel" aria-labelledby="success-stories-heading">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div class="min-w-0">
+          <h2 id="success-stories-heading" class="text-sm font-bold text-white uppercase tracking-wide">Success Stories</h2>
+          <p class="text-[11px] mt-1" style="color:rgba(255,255,255,.5)">Automation work I've shipped, as I shared it on LinkedIn.</p>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button type="button" data-testid="stories-autoplay" onclick="toggleSuccessStoriesAutoplay()" aria-label="Pause auto-advance"
+            class="hidden w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 transition-colors items-center justify-center">
+            <svg data-icon="pause" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+            <svg data-icon="play" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button type="button" data-testid="stories-prev" onclick="scrollSuccessStories(-1)" aria-label="Previous story"
+            class="w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <button type="button" data-testid="stories-next" onclick="scrollSuccessStories(1)" aria-label="Next story"
+            class="w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="stories-track" data-testid="stories-track" tabindex="0" aria-label="Success stories. Use the arrow keys to browse."
+        class="stories-track flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1">
+        ${SUCCESS_STORIES.map((s, i) => `
+          <article role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}: ${escHtml(s.title)}" data-testid="story-slide"
+            class="group snap-start shrink-0 w-[85%] sm:w-[calc(50%-0.5rem)] lg:w-[calc((100%-2rem)/3)] rounded-xl overflow-hidden border border-white/10 bg-white/[.03] flex flex-col transition-all duration-300 hover:-translate-y-1 hover:border-sky-400/40 hover:shadow-lg hover:shadow-sky-500/10">
+            <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true" class="block bg-slate-950">
+              <img src="/static/img/success-stories/${s.slug}.webp" alt="${escHtml(s.alt)}" width="800" height="1000"
+                ${i < 3 ? "" : 'loading="lazy"'} decoding="async" class="w-full aspect-[4/5] object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
+            </a>
+            <div class="p-3 flex flex-col gap-1 flex-1">
+              <time datetime="${s.date}" class="text-[10px] uppercase tracking-wider" style="color:rgba(255,255,255,.45)">${fmt(s.date)}</time>
+              <h3 class="text-sm font-semibold text-white leading-snug">${escHtml(s.title)}</h3>
+              <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.6)">${escHtml(s.summary)}</p>
+              <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" data-testid="story-link"
+                aria-label="View ${escHtml(s.title)} on LinkedIn (opens in a new tab)"
+                class="mt-auto pt-2 text-xs font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">View on LinkedIn<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M9 7h8v8"/></svg></a>
+            </div>
+          </article>`).join("")}
+      </div>
+      <div class="flex justify-center gap-1 mt-3" data-testid="stories-dots">
+        ${SUCCESS_STORIES.map((s, i) => `
+          <button type="button" onclick="goToSuccessStory(${i})" aria-label="Go to story ${i + 1}: ${escHtml(s.title)}"
+            class="story-dot p-1.5 group"><span class="block w-2 h-2 rounded-full bg-white/25 transition-colors"></span></button>`).join("")}
+      </div>
+    </section>`;
+}
+
+function _storiesTrack() { return document.getElementById("stories-track"); }
+function _storyScrollBehavior() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+
+// The story the carousel means to show. Only navigation (buttons, dots, keys,
+// auto-advance, the user's own swipe) changes it - never layout: when the
+// slide widths change (the Tailwind CDN's CSS lands after this markup), WebKit
+// re-snaps a mandatory scroll-snap track to its *last* slide.
+let _storyIndex = 0;
+
+function _storyOffset(track, i) {
+  return track.children[i].offsetLeft - track.firstElementChild.offsetLeft;
+}
+
+function _nearestStory(track) {
+  let best = 0;
+  [...track.children].forEach((_, i) => {
+    if (Math.abs(_storyOffset(track, i) - track.scrollLeft) < Math.abs(_storyOffset(track, best) - track.scrollLeft)) best = i;
+  });
+  return best;
+}
+
+function _storiesAtEnd(track) { return track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; }
+
+function goToSuccessStory(i, behavior = _storyScrollBehavior()) {
+  const track = _storiesTrack();
+  if (!track?.children[i]) return;
+  _storyIndex = i;
+  track.scrollTo({ left: _storyOffset(track, i), behavior });
+}
+
+function scrollSuccessStories(dir) {
+  const track = _storiesTrack();
+  if (!track?.firstElementChild) return;
+  // From the end, Previous steps back from the first fully visible story.
+  const from = dir < 0 && _storiesAtEnd(track) ? _nearestStory(track) : _storyIndex;
+  goToSuccessStory(Math.min(Math.max(from + dir, 0), track.children.length - 1));
+}
+
+// Auto-advance, WCAG 2.2.2-style: a visible Pause/Play control, paused
+// while the pointer or keyboard focus is inside the carousel, while it is
+// off-screen or the tab is hidden, and never on for reduced-motion users.
+const STORIES_INTERVAL_MS = 5000;
+let _storiesAutoplay = null;
+
+function toggleSuccessStoriesAutoplay() {
+  if (!_storiesAutoplay) return;
+  _storiesAutoplay.userPaused = !_storiesAutoplay.userPaused;
+  _storiesAutoplay.sync();
+}
+
+function _startStoriesAutoplay(track, section, signal) {
+  const btn = section.querySelector('[data-testid="stories-autoplay"]');
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced) return; // the control stays hidden: nothing moves on its own
+  btn.classList.remove("hidden");
+  btn.classList.add("flex");
+
+  const ap = { userPaused: false, hovered: false, focused: false, inView: true, timer: null };
+  const advance = () => { if (_storiesAtEnd(track)) goToSuccessStory(0); else scrollSuccessStories(1); };
+  ap.sync = () => {
+    const running = !ap.userPaused && !ap.hovered && !ap.focused && ap.inView && !document.hidden;
+    if (running && !ap.timer) ap.timer = setInterval(advance, STORIES_INTERVAL_MS);
+    if (!running && ap.timer) { clearInterval(ap.timer); ap.timer = null; }
+    btn.setAttribute("aria-label", ap.userPaused ? "Play auto-advance" : "Pause auto-advance");
+    btn.querySelector('[data-icon="pause"]').classList.toggle("hidden", ap.userPaused);
+    btn.querySelector('[data-icon="play"]').classList.toggle("hidden", !ap.userPaused);
+    section.dataset.autoplay = running ? "running" : "paused";
+  };
+
+  section.addEventListener("pointerenter", () => { ap.hovered = true; ap.sync(); }, { signal });
+  section.addEventListener("pointerleave", () => { ap.hovered = false; ap.sync(); }, { signal });
+  // The Pause/Play button itself doesn't count as "focus inside": a keyboard
+  // user who just pressed Play would otherwise keep it paused.
+  section.addEventListener("focusin", (e) => { ap.focused = e.target !== btn; ap.sync(); }, { signal });
+  section.addEventListener("focusout", (e) => { if (!section.contains(e.relatedTarget)) { ap.focused = false; ap.sync(); } }, { signal });
+  document.addEventListener("visibilitychange", ap.sync, { signal });
+  const io = new IntersectionObserver(([entry]) => { ap.inView = entry.isIntersecting; ap.sync(); });
+  io.observe(section);
+  signal.addEventListener("abort", () => { io.disconnect(); if (ap.timer) clearInterval(ap.timer); });
+
+  _storiesAutoplay = ap;
+  ap.sync();
+}
+
+// Keeps the dots and the Previous/Next disabled state in step with the
+// scroll position: swipe, arrow keys and the buttons all move the same track.
+let _storiesAbort = null;
+function initSuccessStories() {
+  // The home page re-renders on every visit; drop the previous render's
+  // timer and document-level listeners first.
+  _storiesAbort?.abort();
+  _storiesAutoplay = null;
+  const track = _storiesTrack();
+  if (!track) return;
+  _storiesAbort = new AbortController();
+  const { signal } = _storiesAbort;
+  _storyIndex = 0;
+  let userScrolling = false;
+  const update = () => {
+    if (!document.body.contains(track)) return;
+    const slides = [...track.children];
+    const atEnd = _storiesAtEnd(track);
+    if (userScrolling) _storyIndex = _nearestStory(track);
+    const current = atEnd ? slides.length - 1 : _nearestStory(track);
+    document.querySelectorAll(".story-dot").forEach((d, i) => {
+      d.firstElementChild.classList.toggle("bg-white", i === current);
+      d.firstElementChild.classList.toggle("bg-white/25", i !== current);
+      if (i === current) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current");
+    });
+    document.querySelector('[data-testid="stories-prev"]').disabled = track.scrollLeft <= 2;
+    document.querySelector('[data-testid="stories-next"]').disabled = atEnd;
+  };
+  track.addEventListener("scroll", update, { passive: true });
+  // A swipe, drag or wheel is the user choosing a story; anything else that
+  // scrolls the track (a layout re-snap) must not change _storyIndex.
+  for (const ev of ["pointerdown", "touchstart", "wheel"]) {
+    track.addEventListener(ev, () => { userScrolling = true; }, { passive: true, signal });
+  }
+  for (const ev of ["pointerup", "touchend"]) {
+    track.addEventListener(ev, () => setTimeout(() => { userScrolling = false; }, 600), { passive: true, signal });
+  }
+  const resnap = () => {
+    if (!userScrolling && Math.abs(track.scrollLeft - _storyOffset(track, _storyIndex)) > 2) goToSuccessStory(_storyIndex, "auto");
+    update();
+  };
+  track.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") { e.preventDefault(); scrollSuccessStories(1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); scrollSuccessStories(-1); }
+  });
+  // Not just window resize: the Tailwind CDN generates the slide-width CSS
+  // after this markup is inserted, so the first measurement can predate it.
+  new ResizeObserver(resnap).observe(track);
+  [...track.children].forEach((slide) => new ResizeObserver(resnap).observe(slide));
+  update();
+  _startStoriesAutoplay(track, track.closest('[data-testid="success-stories-section"]'), signal);
+}
+
 // ─── Projects View ───────────────────────────────────────────────────────────
 async function renderProjects() {
   state.currentProject = null;
@@ -1644,6 +1866,8 @@ async function renderProjects() {
   // recruiter sees it without hunting for a button. Same node data and
   // animation (renderAiPipelineTimelineInner), just a different, persistent
   // home instead of a click-to-open modal.
+  const successStoriesSection = !getToken() ? renderSuccessStoriesSection() : "";
+
   const aiLiveDemoSection = !getToken() ? `
     <div class="relative rounded-2xl overflow-hidden mb-6 px-5 py-6" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)" data-testid="ai-live-demo-section">
       <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
@@ -2026,6 +2250,7 @@ async function renderProjects() {
     el.innerHTML = `
       <div class="fade-in">
         ${ownerCard}
+        ${successStoriesSection}
         ${aiLiveDemoSection}
         ${recruiterTourBanner}
         ${leadershipImpactSection}
@@ -2049,12 +2274,14 @@ async function renderProjects() {
         </div>
       </div>`;
     hydrateLiveKpis();
+    initSuccessStories();
     return;
   }
 
   el.innerHTML = `
     <div class="fade-in">
       ${ownerCard}
+      ${successStoriesSection}
       ${aiLiveDemoSection}
       ${recruiterTourBanner}
       ${leadershipImpactSection}
@@ -2124,6 +2351,7 @@ async function renderProjects() {
     </div>`;
   filterProjectTable();
   hydrateLiveKpis();
+  initSuccessStories();
 }
 
 async function loadProjectStats(projects) {

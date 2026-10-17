@@ -37,6 +37,7 @@ class SPAHandler(http.server.BaseHTTPRequestHandler):
             ".html": "text/html; charset=utf-8",
             ".js": "application/javascript; charset=utf-8",
             ".css": "text/css; charset=utf-8",
+            ".webp": "image/webp",
         }.get(os.path.splitext(filepath)[1], "application/octet-stream")
         with open(filepath, "rb") as f:
             body = f.read()

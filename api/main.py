@@ -17,6 +17,7 @@ import os
 import random
 import pathlib
 import json
+import mimetypes
 import time
 import logging
 import traceback
@@ -1678,6 +1679,10 @@ app.include_router(graphql_router, prefix="/graphql")
 # ─── Static files (must be last) ─────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+
+# StaticFiles takes types from the OS registry, which lacks WebP on many
+# Windows machines (served as text/plain); register it explicitly.
+mimetypes.add_type("image/webp", ".webp")
 
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
