@@ -52,7 +52,10 @@ class SPAHandler(http.server.BaseHTTPRequestHandler):
 
 def main() -> int:
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8010
-    server = http.server.HTTPServer(("127.0.0.1", port), SPAHandler)
+    # Threading: a plain HTTPServer answers one request at a time, so with
+    # several Playwright workers loading the ~300 KB app.js at once, requests
+    # queued until tests timed out.
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), SPAHandler)
     server.serve_forever()
     return 0
 

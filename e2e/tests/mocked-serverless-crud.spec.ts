@@ -14,6 +14,9 @@ import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mock
  * real backend.
  */
 
+// Flags set inside a route handler are polled, not read once: the form
+// helpers wait for networkidle, which can already hold before the click's
+// request is sent, so a single read could run before the request does.
 test.describe('Projects list — serverless', () => {
   test('lists projects returned by the mocked API', async ({ page }) => {
     await mockAuthSession(page);
@@ -45,7 +48,7 @@ test.describe('Projects list — serverless', () => {
     await projectsPage.fillProjectForm('New Mocked Project', 'created against a mocked backend');
     await projectsPage.submitProjectForm();
 
-    expect(created).toBeTruthy();
+    await expect.poll(() => created).toBe(true);
   });
 
   test('deleting a project calls DELETE and the row disappears from the mocked list', async ({ page }) => {
@@ -69,7 +72,7 @@ test.describe('Projects list — serverless', () => {
     await expect(projectsPage.getProjectCards().filter({ hasText: 'Doomed Project' })).toBeVisible();
     await projectsPage.deleteProject('Doomed Project');
 
-    expect(deleted).toBeTruthy();
+    await expect.poll(() => deleted).toBe(true);
     await expect(projectsPage.getProjectCards().filter({ hasText: 'Doomed Project' })).toHaveCount(0);
   });
 });
@@ -120,7 +123,7 @@ test.describe('Project detail — suites — serverless', () => {
     await projectPage.fillSuiteForm('Fresh Suite', 'created against a mocked backend');
     await projectPage.submitSuiteForm();
 
-    expect(created).toBeTruthy();
+    await expect.poll(() => created).toBe(true);
   });
 });
 
@@ -171,6 +174,6 @@ test.describe('Suite detail — test cases — serverless', () => {
     });
     await suitePage.submitTestCaseForm();
 
-    expect(created).toBeTruthy();
+    await expect.poll(() => created).toBe(true);
   });
 });
