@@ -57,6 +57,10 @@ test.describe('Sidebar Progress Bar', () => {
     await page.waitForLoadState('networkidle');
 
     const bar = page.locator(`#sidebar-pbar-${projectId}`);
+    // A row's bar loads when the row scrolls into view in the sidebar list
+    // (other specs' newer projects can push this one below the fold).
+    await bar.waitFor({ state: 'attached', timeout: 8000 });
+    await bar.scrollIntoViewIfNeeded();
     await bar.waitFor({ state: 'visible', timeout: 8000 });
 
     // At least one colored segment must be present (pass = emerald, fail = red)
@@ -71,13 +75,21 @@ test.describe('Sidebar Progress Bar', () => {
   });
 
   test('progress bar shows no bar when project has no runs', async ({ page, authToken }) => {
+    // The bar is empty both before and after its stats load, so check the
+    // load happened: record this project's stats responses from the start.
+    const statuses: number[] = [];
+    page.on('response', (r) => {
+      if (new URL(r.url()).pathname === `/api/projects/${projectId}/stats`) statuses.push(r.status());
+    });
     await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
     const bar = page.locator(`#sidebar-pbar-${projectId}`);
-    // Container exists but should be empty (no run data)
     await bar.waitFor({ state: 'attached', timeout: 8000 });
+    await bar.scrollIntoViewIfNeeded(); // bars load when their row comes into view
+    await expect.poll(() => statuses.length).toBeGreaterThan(0);
+    expect(statuses.every((s) => s === 200)).toBe(true);
     await expect(bar).toBeEmpty();
   });
 
@@ -99,6 +111,10 @@ test.describe('Sidebar Progress Bar', () => {
     await page.waitForLoadState('networkidle');
 
     const bar = page.locator(`#sidebar-pbar-${projectId}`);
+    // A row's bar loads when the row scrolls into view in the sidebar list
+    // (other specs' newer projects can push this one below the fold).
+    await bar.waitFor({ state: 'attached', timeout: 8000 });
+    await bar.scrollIntoViewIfNeeded();
     await bar.waitFor({ state: 'visible', timeout: 8000 });
 
     // Only pass (emerald) segments — no red or amber

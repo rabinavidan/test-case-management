@@ -81,6 +81,39 @@ test.describe('Parent lookup — pages find their project and suite by id', () =
     expect(foreignSuiteFetches).toEqual([]);
   });
 
+  test('the sidebar fetches last-run stats only for the projects in view', async ({ page }) => {
+    // It used to request every listed project's stats at once (up to 100),
+    // queuing the page's own requests behind them in the browser.
+    const statsFor = new Set<number>();
+    page.on('request', (r) => {
+      const m = new URL(r.url()).pathname.match(/^\/api\/projects\/(\d+)\/stats$/);
+      if (m) statsFor.add(Number(m[1]));
+    });
+    await page.goto(`/#project/${projectId}`);
+    await expect(page.locator('#view-project h1')).toHaveText(`${tag} target`);
+    const list = page.getByTestId('sidebar-projects');
+    const rows = await list.locator(':scope > li').count();
+    expect(rows).toBeGreaterThanOrEqual(22);
+    await page.waitForLoadState('networkidle');
+    // The rows in view, plus the 120px pre-load margin below the list.
+    const nearView = await list.evaluate((el) => {
+      const bottom = el.getBoundingClientRect().bottom + 120;
+      return Array.from(el.querySelectorAll('[id^="sidebar-pbar-"]')).filter((b) => b.getBoundingClientRect().top < bottom).length;
+    });
+    expect(nearView).toBeLessThan(rows);
+    // The sidebar renders twice on a project page (on load, then with the
+    // active project expanded), each fetching its own rows in view: at most
+    // two views' worth, +1 for the page's own stats - not one per project.
+    expect(statsFor.size, `stats requested for ${statsFor.size} of ${rows} projects (${nearView} near view)`).toBeLessThanOrEqual(2 * nearView + 1);
+
+    // Scrolling the list loads the rest as they come into view.
+    const lastBar = list.locator('[id^="sidebar-pbar-"]').last();
+    const lastId = Number((await lastBar.getAttribute('id'))!.replace('sidebar-pbar-', ''));
+    expect(statsFor.has(lastId)).toBe(false);
+    await list.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    await expect.poll(() => statsFor.has(lastId)).toBe(true);
+  });
+
   test('a run page still renders when its parent lookups fail', async ({ page }) => {
     await page.route((url) => url.pathname === `/api/suites/${suiteId}`, (route) =>
       route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"boom"}' }),

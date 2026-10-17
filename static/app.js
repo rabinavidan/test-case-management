@@ -783,30 +783,54 @@ async function _loadSidebar() {
   }
 }
 
-async function loadSidebarProjectStats(projects) {
-  await Promise.all(projects.map(async p => {
+// Each sidebar row's last-run bar is fetched when the row first scrolls into
+// view, not all at once: the list holds up to 100 projects but shows about
+// five, and firing one stats request per project queued the page's own
+// requests behind them in the browser's per-host connection limit (a project
+// page took 7 s to load with ~80 projects). On phones the sidebar is hidden,
+// so nothing is fetched at all.
+let _sidebarStatsObserver = null;
+
+function loadSidebarProjectStats(projects) {
+  _sidebarStatsObserver?.disconnect();
+  const list = document.getElementById("sidebar-projects");
+  if (!list) return;
+  const byBar = new Map();
+  _sidebarStatsObserver = new IntersectionObserver((entries, observer) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      observer.unobserve(entry.target);
+      loadSidebarBar(entry.target, byBar.get(entry.target));
+    }
+  }, { root: list, rootMargin: "120px 0px" });
+  for (const p of projects) {
     const bar = document.getElementById(`sidebar-pbar-${p.id}`);
-    if (!bar) return;
-    try {
-      const s = await GET(`/api/projects/${p.id}/stats`);
-      const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
-      if (!total) { bar.innerHTML = ""; return; }
-      const pct = v => Math.round((v / total) * 100);
-      const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
-      const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
-      const labelCls = overall === "fail" ? "text-red-500" : overall === "pending" ? "text-amber-500" : "text-emerald-600";
-      bar.innerHTML = `
-        <div class="flex items-center gap-1.5 mb-0.5">
-          <div class="flex h-1 rounded-full overflow-hidden flex-1 bg-slate-100 gap-px">
-            ${passW ? `<div class="bg-emerald-500 h-full" style="width:${passW}%"></div>` : ""}
-            ${failW ? `<div class="bg-red-500 h-full" style="width:${failW}%"></div>` : ""}
-            ${skipW ? `<div class="bg-amber-400 h-full" style="width:${skipW}%"></div>` : ""}
-            ${pendW ? `<div class="bg-slate-300 h-full" style="width:${pendW}%"></div>` : ""}
-          </div>
-          <span class="text-[9px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
-        </div>`;
-    } catch { bar.innerHTML = ""; }
-  }));
+    if (!bar) continue;
+    byBar.set(bar, p);
+    _sidebarStatsObserver.observe(bar);
+  }
+}
+
+async function loadSidebarBar(bar, p) {
+  try {
+    const s = await GET(`/api/projects/${p.id}/stats`);
+    const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
+    if (!total) { bar.innerHTML = ""; return; }
+    const pct = v => Math.round((v / total) * 100);
+    const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
+    const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
+    const labelCls = overall === "fail" ? "text-red-500" : overall === "pending" ? "text-amber-500" : "text-emerald-600";
+    bar.innerHTML = `
+      <div class="flex items-center gap-1.5 mb-0.5">
+        <div class="flex h-1 rounded-full overflow-hidden flex-1 bg-slate-100 gap-px">
+          ${passW ? `<div class="bg-emerald-500 h-full" style="width:${passW}%"></div>` : ""}
+          ${failW ? `<div class="bg-red-500 h-full" style="width:${failW}%"></div>` : ""}
+          ${skipW ? `<div class="bg-amber-400 h-full" style="width:${skipW}%"></div>` : ""}
+          ${pendW ? `<div class="bg-slate-300 h-full" style="width:${pendW}%"></div>` : ""}
+        </div>
+        <span class="text-[9px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
+      </div>`;
+  } catch { bar.innerHTML = ""; }
 }
 
 // ─── Collapsible showcase section (architecture / tech-stack / demo banners) ──
