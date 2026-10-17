@@ -805,8 +805,11 @@ function goToTourStep(i) {
   }, 100);
 }
 
-function startRecruiterTour() {
-  tourTriggerEl = document.activeElement;
+// `trigger` is the element focus returns to on exit. Passed in rather than
+// read from document.activeElement: Safari doesn't focus a button on click,
+// so activeElement is <body> and focus would be lost when the tour closes.
+function startRecruiterTour(trigger) {
+  tourTriggerEl = trigger || document.activeElement;
   const go = () => goToTourStep(0);
   if (window.location.hash.replace("#", "") !== "projects") {
     window.location.hash = "projects";
@@ -2350,7 +2353,7 @@ async function renderProjects() {
           <span class="block mt-1 text-xs text-blue-700" data-testid="guest-signin-prompt">You're browsing as a guest. <button type="button" onclick="showAuthModal('login')" data-testid="guest-signin-link" class="font-semibold underline hover:text-blue-900">Sign in</button> to add and manage projects.</span>
         </span>
       </div>
-      <button type="button" onclick="startRecruiterTour()" data-testid="start-tour-btn"
+      <button type="button" onclick="startRecruiterTour(this)" data-testid="start-tour-btn"
         class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap">
         Start Recruiter Tour
       </button>
