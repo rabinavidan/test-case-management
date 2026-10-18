@@ -107,8 +107,11 @@ test.describe('Parent lookup — pages find their project and suite by id', () =
     expect(statsFor.size, `stats requested for ${statsFor.size} of ${rows} projects (${nearView} near view)`).toBeLessThanOrEqual(2 * nearView + 1);
 
     // Scrolling the list loads the rest as they come into view.
-    const lastBar = list.locator('[id^="sidebar-pbar-"]').last();
-    const lastId = Number((await lastBar.getAttribute('id'))!.replace('sidebar-pbar-', ''));
+    // The last row that isn't this page's own project, whose stats the page
+    // itself fetches (it can be the last row when it's the oldest project).
+    const barIds = await list.locator('[id^="sidebar-pbar-"]').evaluateAll((bars) =>
+      bars.map((b) => Number(b.id.replace('sidebar-pbar-', ''))));
+    const lastId = barIds.filter((id) => id !== projectId).at(-1)!;
     expect(statsFor.has(lastId)).toBe(false);
     await list.evaluate((el) => { el.scrollTop = el.scrollHeight; });
     await expect.poll(() => statsFor.has(lastId)).toBe(true);

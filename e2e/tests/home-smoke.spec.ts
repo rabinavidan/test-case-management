@@ -8,10 +8,10 @@ import type { Page } from '@playwright/test';
 // home page, so every load threw "Unexpected token '<'" twice and posted it
 // to /api/logs/client.
 
-type Problems = { errors: string[]; badResponses: string[]; clientLogs: number };
+type Problems = { errors: string[]; badResponses: string[]; clientLogs: number; since: number };
 
 function watch(page: Page): Problems {
-  const p: Problems = { errors: [], badResponses: [], clientLogs: 0 };
+  const p: Problems = { errors: [], badResponses: [], clientLogs: 0, since: Date.now() };
   page.on('pageerror', (e) => p.errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') p.errors.push(`console: ${m.text()}`); });
   page.on('requestfailed', (r) => p.badResponses.push(`failed: ${r.url()} (${r.failure()?.errorText})`));
@@ -28,10 +28,15 @@ function watch(page: Page): Problems {
 // suppressed from script, so one such line is excused per excused 404.
 const RESOURCE = /^\/api\/(projects|suites|runs)\/(\d+)(?:\/|$)/;
 
-async function isGone(page: Page, url: string) {
+async function isGone(page: Page, url: string, since: number) {
   const m = new URL(url).pathname.match(RESOURCE);
   if (!m) return false;
-  return (await page.request.get(`/api/${m[1]}/${m[2]}`, { failOnStatusCode: false })).status() === 404;
+  const res = await page.request.get(`/api/${m[1]}/${m[2]}`, { failOnStatusCode: false });
+  if (res.status() === 404) return true;
+  // SQLite reuses a deleted row's id: if what's at that id now was created
+  // after this page started loading, the one the page asked about is gone.
+  const createdAt = Date.parse((await res.json()).created_at ?? '');
+  return res.ok() && createdAt > since;
 }
 
 async function expectClean(page: Page, p: Problems, label: string) {
@@ -40,7 +45,7 @@ async function expectClean(page: Page, p: Problems, label: string) {
   const bad: string[] = [];
   for (const entry of p.badResponses) {
     const [status, url] = entry.split(': ', 2);
-    if (status === '404' && (await isGone(page, url))) excused++;
+    if (status === '404' && (await isGone(page, url, p.since))) excused++;
     else bad.push(entry);
   }
   const errors = p.errors.filter((e) => {
