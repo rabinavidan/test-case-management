@@ -306,6 +306,7 @@ async def run_websocket(
         return
 
     ws_manager.join(run_id, ws)
+    await ws.send_text(ws_protocol.subscribed_message(run_id))
     try:
         while True:
             reply = ws_protocol.reply_to(await ws.receive_text())

@@ -266,6 +266,7 @@ def test_update_result_broadcasts_to_the_runs_websocket_room(auth_client):
     run_id = gql(client, CREATE_RUN, {"sid": sid}, headers)["data"]["createRun"]["id"]
     token = headers["Authorization"].removeprefix("Bearer ")
     with client.websocket_connect(f"/ws/runs/{run_id}?token={token}") as ws:
+        assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
         gql(client, UPDATE_RESULT, {"rid": run_id, "tid": tc1, "status": "PASS"}, headers)
         msg = ws.receive_json()
     assert msg["type"] == "result_updated"

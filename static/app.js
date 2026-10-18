@@ -4858,8 +4858,8 @@ function connectRunWebSocket(runId) {
   _activeRunWs = ws;
 
   ws.onopen = () => {
-    const ind = document.getElementById("ws-indicator");
-    if (ind) ind.classList.remove("hidden"), ind.classList.add("flex");
+    // Open is not live yet: the server accepts first, then checks the token
+    // and run, then joins the room and says "subscribed" (shared/ws_protocol.py).
     // Keepalive ping every 25s
     ws._ping = setInterval(() => { if (ws.readyState === 1) ws.send("ping"); }, 25000);
   };
@@ -4869,6 +4869,14 @@ function connectRunWebSocket(runId) {
     try {
       const msg = JSON.parse(evt.data);
       if (msg.type === "pong" || msg.type === "error") return;
+      if (msg.type === "subscribed") {
+        const ind = document.getElementById("ws-indicator");
+        if (ind) ind.classList.remove("hidden"), ind.classList.add("flex");
+        // Catch up on anything recorded between this page's fetch and the
+        // subscription - those updates were broadcast before we were listening.
+        reconcileRunResults(runId);
+        return;
+      }
       if (msg.type === "result_updated") {
         applyLiveResultUpdate(msg);
         if (msg.run_completed) {
@@ -4901,7 +4909,18 @@ function connectRunWebSocket(runId) {
   ws.onerror = () => ws.close();
 }
 
-function applyLiveResultUpdate(msg) {
+async function reconcileRunResults(runId) {
+  let run;
+  try { run = await GET(`/api/runs/${runId}`); } catch { return; }
+  for (const r of run?.results || []) {
+    const badge = document.querySelector(`[data-tc-id="${r.testcase_id}"] [data-status-badge]`);
+    if (badge && badge.getAttribute("data-status-badge") !== r.status) {
+      applyLiveResultUpdate({ testcase_id: r.testcase_id, status: r.status }, { quiet: true });
+    }
+  }
+}
+
+function applyLiveResultUpdate(msg, { quiet = false } = {}) {
   // Find the result row for this testcase and update its badge
   const row = document.querySelector(`[data-tc-id="${msg.testcase_id}"]`);
   if (!row) return;
@@ -4921,7 +4940,7 @@ function applyLiveResultUpdate(msg) {
   // Flash the row
   row.classList.add("ring-2", "ring-blue-400");
   setTimeout(() => row.classList.remove("ring-2", "ring-blue-400"), 1500);
-  toast(`${msg.updated_by} marked a test as ${msg.status}`, "info");
+  if (!quiet) toast(`${msg.updated_by} marked a test as ${msg.status}`, "info");
 }
 
 

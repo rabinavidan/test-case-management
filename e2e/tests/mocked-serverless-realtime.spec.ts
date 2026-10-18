@@ -11,7 +11,7 @@ import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mock
  * docs/asyncapi.yaml.
  */
 
-async function openMockedRun(page: Page) {
+async function openMockedRun(page: Page, { subscribe = true } = {}) {
   await mockAuthSession(page);
   const project = mockProject({ name: 'Realtime Project' });
   const suite = mockSuite({ project_id: project.id, name: 'Realtime Suite' });
@@ -29,6 +29,8 @@ async function openMockedRun(page: Page) {
   await page.routeWebSocket(new RegExp(`/ws/runs/${run.id}(\\?|$)`), (ws) => {
     // No connectToServer(): the handler *is* the server.
     ws.onMessage((message) => { if (message === 'ping') ws.send('pong'); });
+    // Like the real server, once it has "joined the room" (shared/ws_protocol.py).
+    if (subscribe) ws.send(JSON.stringify({ type: 'subscribed', run_id: run.id }));
     resolveSocket(ws);
   });
 
@@ -39,6 +41,27 @@ async function openMockedRun(page: Page) {
 const badge = (page: Page, testCaseId: number) => page.locator(`[data-tc-id="${testCaseId}"] [data-status-badge]`);
 
 test.describe('Run page live updates — mocked WebSocket', () => {
+  test('shows Live only once the server says the socket is subscribed, not when it opens', async ({ page }) => {
+    const { run, socket } = await openMockedRun(page, { subscribe: false });
+    await expect(page.locator('#view-run h1')).toHaveText(run.name);
+    await expect(page.locator('#ws-indicator')).toBeHidden();
+    socket.send(JSON.stringify({ type: 'subscribed', run_id: run.id }));
+    await expect(page.locator('#ws-indicator')).toBeVisible();
+  });
+
+  test('on subscribing, the page catches up on a result recorded before it was listening', async ({ page }) => {
+    const { run, cases, socket } = await openMockedRun(page, { subscribe: false });
+    await expect(badge(page, cases[0].id)).toHaveText('Pending');
+    // Someone records a result after this page fetched the run but before its
+    // socket joined the room: the broadcast went out to nobody.
+    run.results[0].status = 'fail';
+    socket.send(JSON.stringify({ type: 'subscribed', run_id: run.id }));
+    await expect(badge(page, cases[0].id)).toHaveText('Fail');
+    await expect(badge(page, cases[1].id)).toHaveText('Pending');
+    // A quiet catch-up, not a "someone marked a test" announcement.
+    await expect(page.locator('#toast')).toBeHidden();
+  });
+
   test('connects with the session token and shows the Live indicator', async ({ page }) => {
     const { socket } = await openMockedRun(page);
     expect(new URL(socket.url()).searchParams.get('token')).toBeTruthy();

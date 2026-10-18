@@ -205,6 +205,7 @@ def _create_run(client, monkeypatch):
 def test_ws_ping_pong_legacy_and_json(client, monkeypatch):
     run = _create_run(client, monkeypatch)
     with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+        assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
         ws.send_text("ping")
         assert ws.receive_text() == "pong"
         ws.send_text('{"type": "ping"}')
@@ -244,6 +245,7 @@ def test_ws_receives_result_update_broadcast(client, monkeypatch):
     # No Redis here: publish_ws_broadcast fails, so the replica broadcasts locally.
     monkeypatch.setattr(runs_main, "publish_ws_broadcast", lambda run_id, payload: False)
     with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+        assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
         client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN)
         msg = ws.receive_json()
         assert msg["type"] == "result_updated"
@@ -275,6 +277,7 @@ def test_result_update_and_ws_admission_never_check_out_a_connection_on_the_even
         # broker spends ~40 s trying to connect (now off the event loop too).
         assert client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN).status_code == 200
         with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+            assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
             ws.send_text('{"type":"ping"}')
             assert "pong" in ws.receive_text()
     finally:

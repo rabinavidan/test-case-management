@@ -45,6 +45,8 @@ channels:
         $ref: '#/components/messages/error'
       resultUpdated:
         $ref: '#/components/messages/resultUpdated'
+      subscribed:
+        $ref: '#/components/messages/subscribed'
       resultsPopulated:
         $ref: '#/components/messages/resultsPopulated'
 
@@ -68,6 +70,7 @@ operations:
     channel:
       $ref: '#/channels/run'
     messages:
+      - $ref: '#/channels/run/messages/subscribed'
       - $ref: '#/channels/run/messages/resultUpdated'
       - $ref: '#/channels/run/messages/resultsPopulated'
 
@@ -104,6 +107,18 @@ components:
         properties:
           type: {const: error}
           detail: {type: string}
+    subscribed:
+      summary: >-
+        Sent once, after the token and run checks pass and the socket has
+        joined the run's room. The socket is open before this (it is accepted
+        first), so only from this message on does it receive broadcasts.
+      payload:
+        type: object
+        required: [type, run_id]
+        additionalProperties: false
+        properties:
+          type: {const: subscribed}
+          run_id: {type: integer}
     resultUpdated:
       summary: A tester changed one result in this run.
       payload:

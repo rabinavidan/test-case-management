@@ -54,6 +54,7 @@ def test_async_handlers_never_check_out_a_connection_on_the_event_loop(auth_clie
 
     # WebSocket admission: token check and run lookup.
     with client.websocket_connect(f"/ws/runs/{rid}?token={token}") as ws:
+        assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
         ws.send_text('{"type":"ping"}')
         assert "pong" in ws.receive_text()
 
