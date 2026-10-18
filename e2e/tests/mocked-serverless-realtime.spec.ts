@@ -62,6 +62,29 @@ test.describe('Run page live updates — mocked WebSocket', () => {
     await expect(page.locator('#toast')).toBeHidden();
   });
 
+  test('a live update that lands while the catch-up fetch is in flight is not overwritten by it', async ({ page }) => {
+    const { run, cases, socket } = await openMockedRun(page, { subscribe: false });
+    await expect(badge(page, cases[0].id)).toHaveText('Pending');
+    // Hold the catch-up fetch: its response was read before the update below,
+    // so it still says Pending. (Added last, so it takes precedence.)
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    const stale = structuredClone(run);
+    await page.route(byPath(`/api/runs/${run.id}`), async (route) => { await held; await fulfillJson(route, 200, stale); });
+    const isRun = byPath(`/api/runs/${run.id}`);
+    const catchUp = page.waitForRequest((r) => isRun(new URL(r.url())));
+    socket.send(JSON.stringify({ type: 'subscribed', run_id: run.id }));
+    await catchUp;
+
+    socket.send(JSON.stringify({ type: 'result_updated', testcase_id: cases[0].id, status: 'skip', updated_by: 'kim' }));
+    await expect(badge(page, cases[0].id)).toHaveText('Skip');
+    const done = page.waitForResponse((r) => isRun(new URL(r.url())));
+    release();
+    await done;
+    await expect(badge(page, cases[0].id)).toHaveText('Skip');
+    await expect(badge(page, cases[1].id)).toHaveText('Pending');
+  });
+
   test('connects with the session token and shows the Live indicator', async ({ page }) => {
     const { socket } = await openMockedRun(page);
     expect(new URL(socket.url()).searchParams.get('token')).toBeTruthy();

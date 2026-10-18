@@ -4877,6 +4877,7 @@ function connectRunWebSocket(runId) {
         return;
       }
       if (msg.type === "result_updated") {
+        _reconcileTouched?.add(msg.testcase_id);
         applyLiveResultUpdate(msg);
         if (msg.run_completed) {
           toast(`Run completed by ${msg.updated_by}`, "info");
@@ -4908,10 +4909,17 @@ function connectRunWebSocket(runId) {
   ws.onerror = () => ws.close();
 }
 
+// Test cases a live update reached while a catch-up fetch was in flight: that
+// fetch's response can predate the update, so it must not overwrite them.
+let _reconcileTouched = null;
+
 async function reconcileRunResults(runId) {
+  const touched = _reconcileTouched = new Set();
   let run;
   try { run = await GET(`/api/runs/${runId}`); } catch { return; }
+  finally { if (_reconcileTouched === touched) _reconcileTouched = null; }
   for (const r of run?.results || []) {
+    if (touched.has(r.testcase_id)) continue;
     const badge = document.querySelector(`[data-tc-id="${r.testcase_id}"] [data-status-badge]`);
     if (badge && badge.getAttribute("data-status-badge") !== r.status) {
       applyLiveResultUpdate({ testcase_id: r.testcase_id, status: r.status }, { quiet: true });

@@ -136,6 +136,9 @@ test.describe('Projects list — search, sort, bulk delete', () => {
     const left = items.filter((p: { name: string }) => p.name.startsWith(tag));
     expect(left.map((p: { id: number }) => p.id)).toEqual([keepId]);
 
+    // The toast fires before the list re-renders, and the re-render resets the
+    // search box - wait for that, or it can wipe out the fill below.
+    await expect(search(page)).toHaveValue('');
     await search(page).fill(tag);
     await expect(names(page)).toHaveText([`${tag} keep`]);
     await expect(page.locator('#bulk-toolbar')).toBeHidden();

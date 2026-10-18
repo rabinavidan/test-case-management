@@ -85,28 +85,33 @@ authTest.describe('Pass Rate KPI — live data from the flagship project', () =>
   });
 
   authTest('reflects the flagship project\'s real, live stats — not a fixture', async ({ page, authedRequest }) => {
-    let flagshipId: number;
-    let expectedPassRate: number;
-
     await authTest.step('Seed the TestFlow demo project (produces a real completed run)', async () => {
       const res = await authedRequest.post('/api/demo/testflow');
       guestExpect(res.ok()).toBeTruthy();
-      flagshipId = (await res.json()).id;
-      createdProjectIds.push(flagshipId);
+      createdProjectIds.push((await res.json()).id);
     });
 
-    await authTest.step('Read the real stats via the API to know what to expect', async () => {
-      const res = await authedRequest.get(`/api/projects/${flagshipId}/stats`);
-      const stats = await res.json();
+    // Other specs seed TestFlow demo projects in parallel, so the flagship is
+    // whichever one the page picks - the first match in the same list it
+    // loads - not necessarily the one seeded above.
+    const flagshipPassRate = async () => {
+      const { items } = await (await authedRequest.get('/api/projects', { params: { page_size: 100 } })).json();
+      const flagship = items.find((p: { name: string }) => /^TestFlow \d{4}-\d{2}-\d{2}/.test(p.name));
+      const stats = await (await authedRequest.get(`/api/projects/${flagship.id}/stats`)).json();
       const total = stats.last_run_pass + stats.last_run_fail + stats.last_run_skip + stats.last_run_pending;
-      expectedPassRate = total ? Math.round((stats.last_run_pass / total) * 100) : 0;
-    });
+      return total ? Math.round((stats.last_run_pass / total) * 100) : 0;
+    };
 
-    await authTest.step('Visit as a guest and check the KPI card matches exactly', async () => {
-      await page.goto('/#projects');
-      await page.waitForLoadState('networkidle');
+    await authTest.step('Visit as a guest and check the KPI card matches the flagship\'s real stats exactly', async () => {
       const card = page.getByTestId('kpi-card-pass-rate-live');
-      await guestExpect(card.getByText(`${expectedPassRate}%`)).toBeVisible({ timeout: 10000 });
+      // Retried as a whole: a project seeded between the API read and the page
+      // load would change which project is the flagship.
+      await guestExpect(async () => {
+        const expected = await flagshipPassRate();
+        await page.goto('/#projects');
+        await page.waitForLoadState('networkidle');
+        await guestExpect(card.getByText(`${expected}%`)).toBeVisible({ timeout: 5000 });
+      }).toPass({ timeout: 30000 });
     });
   });
 });
