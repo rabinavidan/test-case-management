@@ -101,6 +101,27 @@ test.describe('Home page smoke — guest', () => {
     expect(icon.headers()['content-type']).toBe('image/svg+xml');
   });
 
+  test('the page describes itself to search engines and link previews, with an image that loads', async ({ page }) => {
+    await page.goto('/#projects');
+    const meta = (sel: string) => page.locator(sel).getAttribute('content');
+    expect((await meta('meta[name="description"]'))?.length).toBeGreaterThan(50);
+    expect(await meta('meta[property="og:title"]')).toContain('TestFlow');
+    expect(await meta('meta[property="og:description"]')).toBeTruthy();
+    expect(await meta('meta[property="og:type"]')).toBe('website');
+    expect(await meta('meta[name="twitter:card"]')).toBe('summary_large_image');
+    // Crawlers resolve nothing relative: both URLs must be absolute.
+    expect(await meta('meta[property="og:url"]')).toMatch(/^https:\/\//);
+    const image = (await meta('meta[property="og:image"]'))!;
+    expect(image).toMatch(/^https:\/\/.+\/static\/og-image\.png$/);
+    // Served by this build (the absolute URL points at production).
+    const res = await page.request.get(new URL(image).pathname);
+    expect(res.status()).toBe(200);
+    expect(res.headers()['content-type']).toBe('image/png');
+    const body = await res.body();
+    expect(body.readUInt32BE(16)).toBe(1200); // PNG IHDR width
+    expect(body.readUInt32BE(20)).toBe(630); // and height
+  });
+
   test('a missing file or API route is a real 404, while page paths still load the app', async ({ page }) => {
     const api = await page.request.get('/api/does-not-exist');
     expect(api.status()).toBe(404);

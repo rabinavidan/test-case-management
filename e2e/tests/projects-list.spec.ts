@@ -21,6 +21,32 @@ async function createProjects(api: APIRequestContext, specs: Array<{ name: strin
   return ids;
 }
 
+test.describe('Projects list — signed-in home layout', () => {
+  test('the projects list comes before the product walkthrough and architecture showcase', async ({ page, authToken, authedRequest }, testInfo) => {
+    // Its own project, so the list renders whatever else the database holds.
+    const name = `ListProj_${Date.now()}_${testInfo.workerIndex}_${testInfo.repeatEachIndex} layout`;
+    const { id } = await (await authedRequest.post('/api/projects', { data: { name } })).json();
+    try {
+    await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
+    await page.goto('/');
+    const heading = page.locator('#view-projects h1', { hasText: 'Projects' });
+    const walkthrough = page.locator('#view-projects').getByText('How TestFlow works');
+    await expect(heading).toBeVisible();
+    await expect(walkthrough).toBeAttached();
+    const order = await page.evaluate(() => {
+      const h = Array.from(document.querySelectorAll('#view-projects h1')).find((e) => e.textContent?.trim() === 'Projects')!;
+      const w = Array.from(document.querySelectorAll('#view-projects p')).find((e) => e.textContent?.trim() === 'How TestFlow works')!;
+      const toggle = document.getElementById('showcase-toggle-btn')!;
+      const after = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return { walkthroughAfterList: after(h, w), showcaseAfterList: after(h, toggle) };
+    });
+    expect(order).toEqual({ walkthroughAfterList: true, showcaseAfterList: true });
+    } finally {
+      await authedRequest.delete(`/api/projects/${id}`);
+    }
+  });
+});
+
 test.describe('Projects list — search, sort, bulk delete', () => {
   let tag: string;
 

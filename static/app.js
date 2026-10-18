@@ -1924,7 +1924,7 @@ async function renderProjects() {
           ].map(s => `
             <div class="flex flex-col items-center gap-0.5 relative">
               <div class="w-px h-3" style="background:${s.color}"></div>
-              <div class="w-1.5 h-1.5 rounded-full sys-fanpkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-fanpkt" style="background:${s.color};animation-delay:${s.delay + 'ms'}"></div>
               <div class="w-px h-3" style="background:${s.color}"></div>
             </div>
           `).join('')}
@@ -1963,7 +1963,7 @@ async function renderProjects() {
           ].map(s => `
             <div class="flex flex-col items-center gap-0.5 relative">
               <div class="w-px h-3" style="background:${s.color}"></div>
-              <div class="w-1.5 h-1.5 rounded-full sys-storepkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-storepkt" style="background:${s.color};animation-delay:${s.delay + 'ms'}"></div>
               <div class="w-px h-3" style="background:${s.color}"></div>
             </div>
           `).join('')}
@@ -2207,8 +2207,8 @@ async function renderProjects() {
   const deliveryWorkflowSection = !getToken() ? `
     <div class="mb-6" data-testid="delivery-workflow-section">
       <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">How I Lead Engineering Delivery</h2>
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 overflow-x-auto">
-        <div class="flex items-stretch gap-2 min-w-max">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <ol class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           ${[
             { step: 'Product Requirements', desc: 'A written plan with acceptance criteria — before any code changes.' },
             { step: 'Technical Roadmap',     desc: 'Broken into scoped, tracked milestones, planned before implementation.' },
@@ -2217,14 +2217,13 @@ async function renderProjects() {
             { step: 'Quality Gates',         desc: 'Lint, coverage floor, contract tests, and a live boot smoke test must pass.' },
             { step: 'KPI Review',            desc: 'Each PR reports what changed, what was tested, and what remains open.' },
           ].map((s, i, arr) => `
-            <div class="flex items-center flex-shrink-0">
-              <div class="w-36 bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <li class="flex" data-testid="delivery-step">
+              <div class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3">
                 <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wide mb-1">${i + 1}. ${s.step}</p>
                 <p class="text-[11px] text-slate-500 leading-snug">${s.desc}</p>
               </div>
-              ${i < arr.length - 1 ? `<svg class="w-5 h-5 text-slate-300 flex-shrink-0 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>` : ""}
-            </div>`).join('')}
-        </div>
+            </li>`).join('')}
+        </ol>
       </div>
     </div>
   ` : "";
@@ -2556,8 +2555,7 @@ async function renderProjects() {
         ${testPyramidSection}
         ${aiFirstEngineeringSection}
         ${kpiDashboardSection}
-        ${demoBanner}
-        ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
+        ${getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2570,6 +2568,7 @@ async function renderProjects() {
             Create First Project
           </button>` : ""}
         </div>
+        ${getToken() ? `<div class="mt-8">${demoBanner}${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
       </div>`;
     hydrateLiveKpis();
     initHomeCarousels();
@@ -2589,8 +2588,7 @@ async function renderProjects() {
       ${testPyramidSection}
       ${aiFirstEngineeringSection}
       ${kpiDashboardSection}
-      ${demoBanner}
-      ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
+      ${getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
@@ -2648,6 +2646,7 @@ async function renderProjects() {
         <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-400 text-sm">No projects match your filter.</div>
       </div>
       <div id="proj-pagination" class="flex items-center justify-between flex-wrap gap-3 mt-3"></div>
+      ${getToken() ? `<div class="mt-8">${demoBanner}${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
     </div>`;
   filterProjectTable();
   hydrateLiveKpis();
@@ -3880,7 +3879,7 @@ function alertsArchDiagram() {
   // Coloured component box
   const box = (bg, border, tc, label, sub, d = 0) =>
     `<div class="aad-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
-        style="animation:aadIn .35s ease forwards;animation-delay:${d}ms">
+        style="animation:aadIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
       ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
@@ -3924,7 +3923,7 @@ function alertsArchDiagram() {
   // Small tag chip (used for annotations like JWT / Rate limit / node-pod groups)
   const tag = (lbl, bg, tc, d = 0) =>
     `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
-        style="animation:aadIn .3s ease forwards;animation-delay:${d}ms">${lbl}</span>`;
+        style="animation:aadIn .3s ease forwards;animation-delay:${d + 'ms'}">${lbl}</span>`;
 
   return `
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
@@ -4328,13 +4327,13 @@ function testflowArchDiagram() {
   };
   const box = (bg, border, tc, label, sub, d = 0) =>
     `<div class="tf-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
-        style="animation:tfIn .35s ease forwards;animation-delay:${d}ms">
+        style="animation:tfIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
       ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
   const tag = (lbl, bg, tc, d = 0) =>
     `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
-        style="animation:tfIn .3s ease forwards;animation-delay:${d}ms">${lbl}</span>`;
+        style="animation:tfIn .3s ease forwards;animation-delay:${d + 'ms'}">${lbl}</span>`;
   const arrow = (lbl, d, dir = 'right', clr = 'blue', len = 36) => {
     const [dash, head] = FLOW[clr] || FLOW.blue;
     const anim = {right:'tfFlowR',left:'tfFlowL',down:'tfFlowD'}[dir]||'tfFlowR';
