@@ -1,0 +1,18 @@
+# Local practice cluster: 1 control plane + 4 workers, one worker per
+# environment — the same "each environment on its own node" topology the GKE
+# overlays (k8s/overlays/{staging,regression,preprod,prod}) pin with
+# nodeSelector. kind can't rename a node's kubernetes.io/hostname, so the lab
+# overlays (k8s/overlays/lab/*) select on the testflow.io/env label instead.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: testflow-lab
+nodes:
+  - role: control-plane
+  - role: worker
+    labels: { testflow.io/env: staging }
+  - role: worker
+    labels: { testflow.io/env: regression }
+  - role: worker
+    labels: { testflow.io/env: preprod }
+  - role: worker
+    labels: { testflow.io/env: prod }

@@ -50,6 +50,13 @@ fires for a loop that has wedged without crashing. Details in
 `tests/infra/test_k8s_gcp_overlays.py` checks every rendered overlay keeps
 this wiring.
 
+## Local lab (kind)
+
+`k8s/overlays/lab/*` + `k8s/components/lab-infra` run the same four
+environments on a local 4-worker [kind](https://kind.sigs.k8s.io/) cluster, one
+node per environment, with in-cluster Kafka and MongoDB — see
+[`lab/README.md`](../lab/README.md).
+
 ## Building / applying
 
 ```bash

@@ -1,0 +1,17 @@
+# In-cluster Kafka + MongoDB for the local kind lab (lab/README.md). base/
+# already runs Postgres (db) and Redis in-cluster; GKE swaps those for Cloud
+# SQL + Memorystore via components/gcp-cloudsql-memorystore instead, so this
+# component is for the lab overlays only.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - kafka.yaml
+  - mongo.yaml
+
+configMapGenerator:
+  - name: testflow-config
+    behavior: merge
+    literals:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MONGO_URL=mongodb://mongo:27017
