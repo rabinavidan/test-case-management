@@ -112,3 +112,13 @@ def aggregate_score(test_cases: list[dict], expected_count: int, required_keywor
         "keyword_coverage_score": keyword_coverage_score(test_cases, required_keywords),
         "duplicate_rate": duplicate_rate(test_cases),
     }
+
+
+def rejected_repeat_rate(test_cases: list[dict], rejected_titles: list[str]) -> float:
+    """Course milestone M9: fraction of generated test cases that are a
+    near-duplicate of a draft a human reviewer already *rejected* for the
+    same feature — i.e. the model making the same mistake again. Same
+    embedding near-duplicate test as cross_duplicate_rate, against the
+    rejected titles instead of the suite's existing cases. 0.0 when nothing
+    was rejected or nothing was generated."""
+    return cross_duplicate_rate(test_cases, rejected_titles)

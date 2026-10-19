@@ -1,0 +1,38 @@
+{
+  "cases": [
+    {
+      "id": "seed-password-reset",
+      "source": "seed",
+      "suite_name": "Authentication",
+      "feature_description": "Password reset by email link, including expired and already-used links.",
+      "count": 4,
+      "model": "seed",
+      "prompt_version": "seed",
+      "accepted_titles": [
+        "Reset link expires after 30 minutes",
+        "A used reset link cannot be reused"
+      ],
+      "rejected": [
+        {"title": "Verify the reset page loads", "reason": "Too vague: no observable outcome beyond the page rendering"},
+        {"title": "Reset password with a valid link", "reason": "Duplicates TC-AUTH-7, already in the suite"}
+      ],
+      "edits": []
+    },
+    {
+      "id": "seed-checkout-coupon",
+      "source": "seed",
+      "suite_name": "Checkout",
+      "feature_description": "Applying a coupon code at checkout: valid, expired, and below-minimum-order coupons.",
+      "count": 3,
+      "model": "seed",
+      "prompt_version": "seed",
+      "accepted_titles": [
+        "Expired coupon is rejected with a clear message"
+      ],
+      "rejected": [
+        {"title": "Test coupon functionality", "reason": "Not a single scenario: covers everything, asserts nothing"}
+      ],
+      "edits": []
+    }
+  ]
+}

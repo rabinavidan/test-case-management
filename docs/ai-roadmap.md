@@ -10,7 +10,7 @@ production code *and* a test that proves it — not a README claim.
 |---|-----------|----------------|---------------|--------|
 | M7 | Agentic failure triage (tool use) | Tool use | Product LLM calls were single-shot; tool use only existed in authoring-time Claude Code agents | ✅ Done |
 | M8 | Real embeddings behind `get_embedding()` | RAG | Retrieval used a hashed bag-of-words vector, not a learned embedding model | ✅ Done |
-| M9 | In-app human review of AI drafts + feedback loop | Human-in-the-loop · Evals | HITL existed only in the headless LangGraph illustration; human decisions never fed back into evals | 🟡 Planned |
+| M9 | In-app human review of AI drafts + feedback loop | Human-in-the-loop · Evals | HITL existed only in the headless LangGraph illustration; human decisions never fed back into evals | ✅ Done |
 | M10 | Trajectory evals for the triage agent | Evaluations · Tool use | The eval harness scores final text only, not *which tools* an agent chose to call | ✅ Done |
 
 ---
@@ -164,16 +164,37 @@ it flagged exactly one — a commit that inverted an assertion because the
 product behaviour was intentionally removed. That is the case the human
 approval exists for.
 
-## M9 — In-app human review of AI drafts + feedback loop 🟡
+## M9 — In-app human review of AI drafts + feedback loop ✅
 
-**What:** AI-generated test cases already land as `draft`. Add an explicit
-review step — accept / edit / reject-with-reason — recorded per case, and a
-script that exports reviewed pairs (prompt, model output, human verdict,
-human edit) into `evals/datasets/` as new eval cases.
+**What:** every draft AI Test Generation saves now gets a pending review on
+the suite page — **Accept**, **Edit** (the changed fields are recorded as a
+before/after pair) or **Reject**, which requires a reason. The verdict is
+stored per draft ([`api/ai_review.py`](../api/ai_review.py): tables
+`ai_generations` — the prompt inputs, model and prompt version of each
+generate call — and `ai_draft_reviews`). Human judgement then flows two ways:
 
-**Done when:** a rejection in the UI shows up as a failing-then-fixed eval
-case, closing the loop *human judgement → eval dataset → prompt change →
-regression check*.
+| Path | How |
+|------|-----|
+| **Into the product** | The suite's most recent rejections (title + reason) are added to its next generation prompt — `build_testcase_generation_user_prompt(..., rejections=…)` in [`api/ai_prompts.py`](../api/ai_prompts.py), grounded or not. With no rejections the prompt text is unchanged. |
+| **Into the evals** | `GET /api/ai-reviews/export` groups reviewed drafts into one eval case per generation call; [`scripts/export_review_dataset.py`](../scripts/export_review_dataset.py) merges them by id into [`evals/datasets/test_generation_reviewed.json`](../evals/datasets/test_generation_reviewed.json). The new `rejected_repeat_rate` scorer (a near-duplicate of a human-rejected draft, same embedding test as `cross_duplicate_rate`) is gated at ≤ 0.2 by the `test_generation_reviewed` target; `test_generation_reviewed_no_feedback` runs the same cases without the reviewer block, for the before/after comparison on a real model. |
+
+Rejected drafts leave the suite together with their retrieval embedding, so
+they can't ground a later generation. Reviews are stored without foreign keys
+to the suite and test case on purpose: the human judgement is eval data and
+outlives both.
+
+**Done when — met:** [`tests/api/test_ai_review_loop.py`](../tests/api/test_ai_review_loop.py)
+walks the whole loop through the real code: a reviewer rejects a draft via the
+API → export → the script writes the dataset → the eval harness runs it with a
+model that repeats itself unless told otherwise. Without the reviewer feedback
+in the prompt the case **fails** its gate (`rejected_repeat_rate` 0.5); with
+the production prompt it **passes** (0.0) — *human judgement → eval dataset →
+prompt change → regression check*.
+
+**Not yet:** a real-model measurement of the before/after on the reviewed
+dataset (the dataset starts with two seed cases until real reviews are
+exported), and the microservices `services/ai` path, which — like M5 grounding
+and the AI gateway — stays monolith-only for now.
 
 ## M10 — Trajectory evals for the triage agent ✅
 

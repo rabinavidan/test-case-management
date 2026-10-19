@@ -74,15 +74,14 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     await guestExpect(section.getByText('Evals & Human-in-the-Loop')).toBeVisible();
   });
 
-  guestTest('the AI roadmap lists M7, M8, M10 and reliability guards R1–R2 as done, M9 as planned', async ({ page }) => {
+  guestTest('the AI roadmap lists M7–M10 and reliability guards R1–R2 as done', async ({ page }) => {
     const roadmap = page.getByTestId('ai-first-engineering-section').getByTestId('ai-roadmap');
     await guestExpect(roadmap).toBeVisible();
-    for (const id of ['M7', 'M8', 'M10', 'R1', 'R2']) {
+    for (const id of ['M7', 'M8', 'M9', 'M10', 'R1', 'R2']) {
       await guestExpect(roadmap.locator('li', { hasText: id })).toContainText('Done');
     }
-    for (const id of ['M9']) {
-      await guestExpect(roadmap.locator('li', { hasText: id })).toContainText('Planned');
-    }
+    // Nothing left planned: every roadmap item carries the Done badge.
+    await guestExpect(roadmap.getByText('Planned', { exact: true })).toHaveCount(0);
   });
 
   guestTest('the "See the pipeline" button opens a static AI-pipeline walkthrough modal', async ({ page }) => {
