@@ -46,7 +46,7 @@ jobs:
           for i in $(seq 1 30); do curl -sf localhost:18000/api/version && exit 0; sleep 1; done
           cat "$RUNNER_TEMP/port-forward.log"; exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: env.FULL_E2E == 'true'
         with:
           node-version: 20
