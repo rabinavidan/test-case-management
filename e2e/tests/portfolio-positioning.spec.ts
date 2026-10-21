@@ -78,7 +78,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     const card = (await section.locator('ol').boundingBox())!;
     for (const box of await items.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()))) {
       guestExpect(box.right).toBeLessThanOrEqual(card.x + card.width + 1);
-      guestExpect(box.left).toBeGreaterThanOrEqual(card.x - 1);
+      guestExpect(card.x - box.left).toBeLessThanOrEqual(1);
     }
   });
 
