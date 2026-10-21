@@ -19,6 +19,7 @@ import pathlib
 import json
 import mimetypes
 import time
+import uuid
 import logging
 import traceback
 import csv
@@ -26,11 +27,12 @@ import io
 import re
 
 from .database import engine, get_db, Base
-from . import ai_gateway, models, schemas
+from . import ai_gateway, ai_review, models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin, _decode_token
 from shared import ws_protocol
 from shared.spa import is_page_path
 from .ai_prompts import (
+    prompt_version,
     TESTCASE_GENERATION_SYSTEM_PROMPT,
     TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT,
     TRIAGE_SYSTEM_PROMPT,
@@ -1110,6 +1112,8 @@ def generate_testcases(
             detail=f"AI generation unavailable: {provider} not configured",
         )
 
+    # M9 feedback loop: drafts reviewers rejected in this suite, with reasons.
+    rejections = ai_review.recent_rejections(db, suite_id)
     if payload.grounded:
         similar_cases = nearest_test_cases(db, suite_id=suite_id, query_text=payload.feature_description)
         system_prompt = TESTCASE_GENERATION_GROUNDED_SYSTEM_PROMPT
@@ -1118,6 +1122,7 @@ def generate_testcases(
             feature_description=payload.feature_description,
             count=payload.count,
             similar_cases=[{"title": tc.title, "description": tc.description} for tc in similar_cases],
+            rejections=rejections,
         )
     else:
         system_prompt = TESTCASE_GENERATION_SYSTEM_PROMPT
@@ -1125,6 +1130,7 @@ def generate_testcases(
             suite_name=suite.name,
             feature_description=payload.feature_description,
             count=payload.count,
+            rejections=rejections,
         )
 
     result = ai_gateway.complete(
@@ -1141,9 +1147,16 @@ def generate_testcases(
         raise HTTPException(status_code=502, detail="AI returned invalid JSON; try again")
 
     logger.info(f"AI generated {len(test_cases)} test cases for suite={suite_id}")
+    generation_id = uuid.uuid4().hex
+    ai_review.record_generation(
+        db, generation_id=generation_id, suite=suite, feature_description=payload.feature_description,
+        count=payload.count, grounded=bool(payload.grounded), model=result.model,
+        prompt_version=prompt_version(system_prompt),
+    )
     return schemas.AIGenerateResponse(
         test_cases=[schemas.AIGeneratedTestCase(**tc) for tc in test_cases],
         model=result.model,
+        generation_id=generation_id,
     )
 
 
@@ -1151,10 +1164,13 @@ def generate_testcases(
 def save_generated_testcases(
     suite_id: int,
     payload: List[schemas.AIGeneratedTestCase],
+    generation_id: Optional[str] = Query(None, max_length=36),
     db: Session = Depends(get_db),
     _: models.User = Depends(require_admin),
 ):
-    """Bulk-save AI-generated test cases to a suite."""
+    """Bulk-save AI-generated test cases to a suite as drafts, each with a
+    pending human review (M9 — see api/ai_review.py). Pass the generate
+    call's generation_id so the reviews can be exported as eval cases."""
     suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
     if not suite:
         raise HTTPException(status_code=404, detail="Suite not found")
@@ -1167,8 +1183,9 @@ def save_generated_testcases(
     for obj in created:
         db.refresh(obj)
         store_test_case_embedding(db, obj)
+    review_ids = ai_review.record_drafts(db, suite_id, generation_id, created)
     logger.info(f"Saved {len(created)} AI-generated test cases to suite={suite_id}")
-    return {"saved": len(created)}
+    return {"saved": len(created), "review_ids": review_ids}
 
 
 # ─── Analytics ────────────────────────────────────────────────────────────────
@@ -1684,6 +1701,11 @@ def seed_demo_playwright(db: Session = Depends(get_db), _: models.User = Depends
     db.commit()
     db.refresh(project)
     return project
+
+
+# ─── Human review of AI drafts (M9) ──────────────────────────────────────────
+# Before the SPA catch-all below; see api/ai_review.py.
+app.include_router(ai_review.router)
 
 
 # ─── GraphQL ──────────────────────────────────────────────────────────────────

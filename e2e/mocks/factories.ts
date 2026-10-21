@@ -174,12 +174,50 @@ export function mockAIGeneratedTestCase(overrides: Partial<AIGeneratedTestCase> 
 export interface AIGenerateResponse {
   test_cases: AIGeneratedTestCase[];
   model: string;
+  generation_id: string | null;
 }
 
 export function mockAIGenerateResponse(overrides: Partial<AIGenerateResponse> = {}): AIGenerateResponse {
   return {
     test_cases: [mockAIGeneratedTestCase()],
     model: 'claude-haiku-4-5-20251001',
+    generation_id: '0123456789abcdef0123456789abcdef',
+    ...overrides,
+  };
+}
+
+/** A pending human review of one AI draft (course milestone M9, api/ai_review.py). */
+export interface AIDraftReviewResponse {
+  id: number;
+  suite_id: number;
+  test_case_id: number | null;
+  generation_id: string | null;
+  feature_description: string | null;
+  model: string | null;
+  original: AIGeneratedTestCase;
+  edited: AIGeneratedTestCase | null;
+  verdict: string;
+  reason: string | null;
+  reviewed_by_username: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export function mockAIDraftReview(overrides: Partial<AIDraftReviewResponse> = {}): AIDraftReviewResponse {
+  return {
+    id: nextId(),
+    suite_id: overrides.suite_id ?? nextId(),
+    test_case_id: nextId(),
+    generation_id: '0123456789abcdef0123456789abcdef',
+    feature_description: 'User login with email and password',
+    model: 'claude-haiku-4-5-20251001',
+    original: mockAIGeneratedTestCase(),
+    edited: null,
+    verdict: 'pending',
+    reason: null,
+    reviewed_by_username: null,
+    reviewed_at: null,
+    created_at: NOW_ISO,
     ...overrides,
   };
 }

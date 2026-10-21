@@ -34,6 +34,7 @@ class _ScriptedClient:
 def test_targets_registry_has_every_feature():
     assert set(TARGETS) == {
         "test_generation", "triage", "test_generation_ungrounded", "test_generation_grounded",
+        "test_generation_reviewed", "test_generation_reviewed_no_feedback",
     }
     assert TARGETS["test_generation"].TARGET is TEST_GENERATION_TARGET
     assert TARGETS["triage"].TARGET is TRIAGE_TARGET

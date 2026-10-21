@@ -2313,7 +2313,7 @@ async function renderProjects() {
           ${[
             { id: 'M7', title: 'Agentic failure triage — tool use', done: true },
             { id: 'M8', title: 'Real embedding model behind RAG retrieval', done: true },
-            { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: false },
+            { id: 'M9', title: 'In-app human review of AI drafts → eval dataset', done: true },
             { id: 'M10', title: 'Trajectory evals — score which tools the agent chose', done: true },
             { id: 'R1', title: 'Triage verdicts: bug vs flaky vs environment, with a labelled eval', done: true },
             { id: 'R2', title: 'Assertion guard: a heal can’t change what a test verifies', done: true },
@@ -3324,12 +3324,13 @@ async function renderSuite(suiteId) {
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
 
-  let suite, testcases, project, runs;
+  let suite, testcases, project, runs, aiReviews;
   try {
     ({ suite, project } = await getSuiteWithProject(suiteId));
-    [testcases, runs] = await Promise.all([
+    [testcases, runs, aiReviews] = await Promise.all([
       GET(`/api/suites/${suiteId}/testcases`),
       GET(`/api/suites/${suiteId}/runs`),
+      loadPendingAIReviews(suiteId),
     ]);
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
@@ -3400,6 +3401,8 @@ async function renderSuite(suiteId) {
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${counts.draft} draft</span>
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">${counts.deprecated} deprecated</span>
       </div>
+
+      ${aiReviewPanel(suiteId, aiReviews)}
 
       <!-- Test cases -->
       ${!testcases.length ? `
@@ -5036,6 +5039,7 @@ async function runAIGenerate(suiteId) {
     // Store generated cases for bulk save
     window._aiGeneratedCases = tcs;
     window._aiTargetSuiteId  = suiteId;
+    window._aiGenerationId   = data.generation_id || null;
 
     btn.disabled = false;
     btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Regenerate`;
@@ -5051,13 +5055,164 @@ async function saveAllAITestCases(suiteId) {
   const cases = window._aiGeneratedCases;
   if (!cases || !cases.length) return;
   try {
-    const result = await api("POST", `/api/suites/${suiteId}/testcases/generate/save`, cases);
-    toast(`${result.saved} test cases saved!`, "success");
+    // generation_id links each saved draft to the call that produced it, so
+    // its human review can be exported as an eval case (see api/ai_review.py).
+    const gen = window._aiGenerationId ? `?generation_id=${encodeURIComponent(window._aiGenerationId)}` : "";
+    const result = await api("POST", `/api/suites/${suiteId}/testcases/generate/save${gen}`, cases);
+    toast(`${result.saved} drafts saved — review them below`, "success");
     hideModal();
     await renderSuite(suiteId);
   } catch (e) {
     toast(e.message, "error");
   }
+}
+
+
+// ─── Human review of AI drafts (M9, see api/ai_review.py) ──────────────────
+// Every saved AI draft gets a pending review: accept, edit, or reject with a
+// reason. Verdicts are exported as eval cases, and rejections are fed into
+// the suite's next generation prompt.
+let _aiPendingReviews = {};
+
+async function loadPendingAIReviews(suiteId) {
+  try {
+    const reviews = (await GET(`/api/suites/${suiteId}/ai-reviews?verdict=pending`)) || [];
+    _aiPendingReviews = Object.fromEntries(reviews.map(r => [r.id, r]));
+    return reviews;
+  } catch {
+    // Review is an add-on to the suite page: if it can't load, the page still renders.
+    _aiPendingReviews = {};
+    return [];
+  }
+}
+
+function aiReviewPanel(suiteId, reviews) {
+  if (!reviews || !reviews.length) return "";
+  const admin = isAdmin();
+  return `
+    <div id="ai-review-panel" data-testid="ai-review-panel" class="bg-violet-50/60 border border-violet-200 rounded-2xl p-4 space-y-3">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-violet-800">${reviews.length} AI draft${reviews.length !== 1 ? "s" : ""} awaiting review</h2>
+          <p class="text-xs text-violet-700/80">Accept, edit, or reject with a reason. Rejections teach the next generation and become eval cases.</p>
+        </div>
+      </div>
+      ${reviews.map(r => `
+        <div data-testid="ai-review-${r.id}" class="bg-white border border-violet-100 rounded-xl p-3">
+          <div class="flex items-start justify-between gap-3 flex-wrap">
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-slate-800">${escHtml(r.original.title)}</p>
+              ${r.original.description ? `<p class="text-xs text-slate-500 mt-0.5">${escHtml(r.original.description)}</p>` : ""}
+              ${r.feature_description ? `<p class="text-[11px] text-slate-400 mt-1">From: “${escHtml(r.feature_description)}”${r.model ? ` · ${escHtml(r.model)}` : ""}</p>` : ""}
+            </div>
+            ${admin ? `<div class="flex items-center gap-1.5 flex-shrink-0">
+              <button data-testid="ai-review-accept-${r.id}" onclick="reviewAIDraft(${suiteId}, ${r.id}, {verdict: 'accepted'})"
+                class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">Accept</button>
+              <button data-testid="ai-review-edit-${r.id}" onclick="showAIDraftEditModal(${suiteId}, ${r.id})"
+                class="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Edit</button>
+              <button data-testid="ai-review-reject-${r.id}" onclick="showAIDraftRejectModal(${suiteId}, ${r.id})"
+                class="text-xs font-semibold px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50">Reject</button>
+            </div>` : ""}
+          </div>
+        </div>`).join("")}
+    </div>`;
+}
+
+async function reviewAIDraft(suiteId, reviewId, decision) {
+  try {
+    await POST(`/api/ai-reviews/${reviewId}`, decision);
+    const verb = { accepted: "accepted", edited: "saved with your edits", rejected: "rejected" }[decision.verdict];
+    toast(`Draft ${verb}`, "success");
+    hideModal();
+    await renderSuite(suiteId);
+  } catch (e) {
+    const err = document.getElementById("ai-review-error");
+    if (err) { err.textContent = e.message; err.classList.remove("hidden"); }
+    else toast(e.message, "error");
+  }
+}
+
+function _openReviewModal(titleText, bodyHtml) {
+  document.getElementById("modal-title").textContent = titleText;
+  document.getElementById("modal-body").innerHTML = bodyHtml;
+  document.getElementById("modal-overlay").classList.remove("hidden");
+}
+
+function showAIDraftRejectModal(suiteId, reviewId) {
+  const r = _aiPendingReviews[reviewId];
+  if (!r) return;
+  _openReviewModal("Reject AI draft", `
+    <div class="space-y-3">
+      <p class="text-sm text-slate-700"><strong>${escHtml(r.original.title)}</strong></p>
+      <label class="block text-sm font-medium text-slate-700" for="ai-reject-reason">Why is it wrong? <span class="text-red-500">*</span></label>
+      <textarea id="ai-reject-reason" rows="3" maxlength="1000" placeholder="e.g. Duplicates an existing case; too vague to execute; out of scope"
+        class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"></textarea>
+      <p class="text-xs text-slate-500">The reason is shown to the model on this suite's next generation, and the draft becomes an eval case.</p>
+      <div id="ai-review-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"></div>
+      <div class="flex gap-2 pt-1">
+        <button data-testid="ai-reject-confirm" onclick="submitAIDraftReject(${suiteId}, ${reviewId})"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2 rounded-xl">Reject draft</button>
+        <button onclick="hideModal()" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function submitAIDraftReject(suiteId, reviewId) {
+  const reason = document.getElementById("ai-reject-reason")?.value.trim();
+  if (!reason) {
+    const err = document.getElementById("ai-review-error");
+    err.textContent = "Please say why — the reason is what the model and the eval learn from.";
+    err.classList.remove("hidden");
+    return;
+  }
+  reviewAIDraft(suiteId, reviewId, { verdict: "rejected", reason });
+}
+
+function showAIDraftEditModal(suiteId, reviewId) {
+  const r = _aiPendingReviews[reviewId];
+  if (!r) return;
+  const o = r.original;
+  const field = (id, label, value, rows) => `
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1" for="${id}">${label}</label>
+      ${rows ? `<textarea id="${id}" rows="${rows}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">${escHtml(value || "")}</textarea>`
+             : `<input id="${id}" value="${escHtml(value || "")}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">`}
+    </div>`;
+  _openReviewModal("Edit AI draft", `
+    <div class="space-y-3">
+      ${field("ai-edit-title", "Title", o.title)}
+      ${field("ai-edit-description", "Description", o.description, 2)}
+      ${field("ai-edit-steps", "Steps", o.steps, 3)}
+      ${field("ai-edit-expected", "Expected result", o.expected_result, 2)}
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1" for="ai-edit-priority">Priority</label>
+        <select id="ai-edit-priority" class="border border-slate-200 rounded-xl px-3 py-2 text-sm">
+          ${["low", "medium", "high", "critical"].map(p => `<option value="${p}" ${p === o.priority ? "selected" : ""}>${p}</option>`).join("")}
+        </select>
+      </div>
+      <div id="ai-review-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"></div>
+      <div class="flex gap-2 pt-1">
+        <button data-testid="ai-edit-confirm" onclick="submitAIDraftEdit(${suiteId}, ${reviewId})"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 rounded-xl">Save & accept</button>
+        <button onclick="hideModal()" class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function submitAIDraftEdit(suiteId, reviewId) {
+  const o = _aiPendingReviews[reviewId]?.original || {};
+  const now = {
+    title: document.getElementById("ai-edit-title").value.trim(),
+    description: document.getElementById("ai-edit-description").value,
+    steps: document.getElementById("ai-edit-steps").value,
+    expected_result: document.getElementById("ai-edit-expected").value,
+    priority: document.getElementById("ai-edit-priority").value,
+  };
+  // Send only what changed, so the eval export records exactly what the reviewer fixed.
+  const edits = Object.fromEntries(Object.entries(now).filter(([k, v]) => v !== (o[k] ?? "")));
+  if (!now.title) { const err = document.getElementById("ai-review-error"); err.textContent = "Title can't be empty."; err.classList.remove("hidden"); return; }
+  if (!Object.keys(edits).length) { reviewAIDraft(suiteId, reviewId, { verdict: "accepted" }); return; }
+  reviewAIDraft(suiteId, reviewId, { verdict: "edited", edits });
 }
 
 

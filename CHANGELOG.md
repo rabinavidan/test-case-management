@@ -16,7 +16,21 @@ but isn't retroactively cataloged here.
   `ENABLE_CLAUDE_STEWARD` repository variable is `true`, so a missing `ANTHROPIC_API_KEY` no longer
   turns every PR red and no API tokens are spent by default.
 
-### Added
+- **M9 — in-app human review of AI drafts, feeding the evals.** Every saved AI-generated
+  draft gets a pending review on the suite page: accept, edit (before/after recorded), or
+  reject with a required reason (`api/ai_review.py`; `GET /api/suites/{id}/ai-reviews`,
+  `POST /api/ai-reviews/{id}`). A suite's recent rejections are added to its next generation
+  prompt, and `GET /api/ai-reviews/export` + `scripts/export_review_dataset.py` turn reviews into
+  `evals/datasets/test_generation_reviewed.json`, scored by the new `rejected_repeat_rate` in the
+  `test_generation_reviewed` / `test_generation_reviewed_no_feedback` eval targets.
+  `tests/api/test_ai_review_loop.py` shows a rejection becoming a failing-then-fixed eval case.
+  Generate responses now carry a `generation_id`; save accepts it as `?generation_id=`.
+- **Local Kubernetes lab** (`lab/`) — a 4-worker kind cluster with one node per environment
+  (staging, regression, preprod, prod), each running the full stack plus in-cluster Postgres, Redis,
+  Kafka and MongoDB (`k8s/overlays/lab/*`, `k8s/components/lab-infra`). `lab/up.sh` / `lab/health.sh` /
+  `lab/down.sh`, and a self-hosted `lab-deploy.yml` workflow that deploys one environment and, for
+  staging/regression, runs Playwright E2E into an Allure report. Rendered overlays are covered by
+  `tests/infra/test_k8s_lab_overlays.py`.
 - **Liveness / readiness health checks** — every HTTP microservice exposes `/health/live` (no
   dependency checks) and `/health/ready` (checks its database, 503 when down), wired to separate
   `startupProbe` / `livenessProbe` / `readinessProbe` in `k8s/base/` instead of readiness polling

@@ -193,3 +193,48 @@ class LogEntry(Base):
     status_code = Column(Integer, nullable=True)
     duration_ms = Column(Integer, nullable=True)
     extra = Column(Text, nullable=True)
+
+
+class AIGeneration(Base):
+    """One AI Test Generation call (course milestone M9): the inputs and the
+    model that produced a batch of drafts, so a human's later verdict on any
+    of those drafts can be exported as a self-contained eval case (see
+    AIDraftReview and scripts/export_review_dataset.py)."""
+    __tablename__ = "ai_generations"
+
+    id = Column(String(36), primary_key=True)  # uuid4 hex string
+    suite_id = Column(Integer, nullable=False, index=True)
+    suite_name = Column(String(255), nullable=False)
+    feature_description = Column(Text, nullable=False)
+    requested_count = Column(Integer, nullable=False)
+    grounded = Column(Boolean, nullable=False, default=False)
+    model = Column(String(100), nullable=False)
+    prompt_version = Column(String(16), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AIDraftReview(Base):
+    """A human verdict on one AI-generated draft test case (M9).
+
+    suite_id/test_case_id are deliberately plain columns, not foreign keys:
+    a rejected draft's test case is deleted, and a suite can be deleted
+    later, but the human judgement is the valuable part and must outlive
+    both — it is what feeds evals/datasets/test_generation_reviewed.json.
+    original_json is the draft exactly as the model produced it, so an edit
+    can always be shown as before/after."""
+    __tablename__ = "ai_draft_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    generation_id = Column(String(36), ForeignKey("ai_generations.id"), nullable=True, index=True)
+    suite_id = Column(Integer, nullable=False, index=True)
+    test_case_id = Column(Integer, nullable=True, index=True)
+    original_json = Column(Text, nullable=False)
+    verdict = Column(String(20), nullable=False, default="pending", index=True)  # pending|accepted|edited|rejected
+    reason = Column(Text, nullable=True)
+    edited_json = Column(Text, nullable=True)
+    reviewed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    generation = relationship("AIGeneration")
+    reviewed_by = relationship("User")

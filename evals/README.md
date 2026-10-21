@@ -336,6 +336,30 @@ figure. `cross_duplicate_rate` above deliberately keeps using the hashed
 `get_embedding()` — a scorer's yardstick must not move when production's
 retrieval model does.
 
+## Human-reviewed drafts (course milestone M9)
+
+`test_generation_reviewed` and `test_generation_reviewed_no_feedback` run
+[`datasets/test_generation_reviewed.json`](datasets/test_generation_reviewed.json),
+which is built from **in-app human reviews** of AI drafts rather than written
+by hand: `python scripts/export_review_dataset.py --base-url … --token …`
+pulls `GET /api/ai-reviews/export` and merges it by case id (re-running is
+idempotent; the two `seed-*` cases are kept). Each case carries the drafts a
+reviewer rejected, with their reasons; `rejected_repeat_rate` scores how many
+generated cases are near-duplicates of those. The `reviewed` target sends the
+production prompt — which, like the live endpoint, includes the rejections —
+and gates `rejected_repeat_rate ≤ 0.2`; the `no_feedback` target sends the
+same prompt without them, so running both on one model measures what the
+feedback loop buys:
+
+```bash
+python -m evals.cli --target test_generation_reviewed_no_feedback --model qwen2.5:0.5b --runs 5
+python -m evals.cli --target test_generation_reviewed --model qwen2.5:0.5b --runs 5 --gate
+```
+
+[`tests/api/test_ai_review_loop.py`](../tests/api/test_ai_review_loop.py)
+pins the loop end to end with a scripted model: failing without the feedback,
+passing with it.
+
 ## Layout
 
 | File | Purpose |
