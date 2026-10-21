@@ -59,7 +59,7 @@ jobs:
 
       - name: Publish test results summary
         if: always()
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3
         continue-on-error: true
         with:
           name: Cucumber BDD results
