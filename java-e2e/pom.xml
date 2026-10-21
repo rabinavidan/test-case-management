@@ -22,7 +22,7 @@
 
     <junit.version>5.10.2</junit.version>
     <playwright.version>1.49.0</playwright.version>
-    <assertj.version>3.25.3</assertj.version>
+    <assertj.version>3.27.7</assertj.version>
     <allure.version>2.25.0</allure.version>
   </properties>
 
