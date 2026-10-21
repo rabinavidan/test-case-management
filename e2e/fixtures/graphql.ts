@@ -51,7 +51,16 @@ export async function seedRun(request: APIRequestContext, label: string, cases =
 }
 
 export async function deleteProject(request: APIRequestContext, projectId: string) {
-  await request.delete(`/api/projects/${projectId}`, { headers: { Authorization: `Bearer ${readToken()}` } });
+  const del = () => request.delete(`/api/projects/${projectId}`, { headers: { Authorization: `Bearer ${readToken()}` } });
+  try {
+    await del();
+  } catch (e) {
+    // Cleanup only: the client can reuse a keep-alive connection the server
+    // just closed for idling (ECONNRESET). One retry on a fresh connection;
+    // a real failure still fails.
+    if (!/ECONNRESET|socket hang up/.test(String(e))) throw e;
+    await del();
+  }
 }
 
 export const UPDATE_RESULT = `

@@ -47,5 +47,8 @@
       "Bash(E2E_USERNAME=\"\" E2E_PASSWORD=\"\" E2E_EMAIL=\"\" .venv/bin/python3 *)",
       "Skill(artifact-design)"
     ]
-  }
+  },
+  "disabledMcpjsonServers": [
+    "playwright-test"
+  ]
 }

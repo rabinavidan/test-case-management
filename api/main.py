@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -16,6 +17,7 @@ import os
 import random
 import pathlib
 import json
+import mimetypes
 import time
 import uuid
 import logging
@@ -28,6 +30,7 @@ from .database import engine, get_db, Base
 from . import ai_gateway, ai_review, models, schemas
 from .auth import hash_password, verify_password, create_access_token, get_current_user, require_admin, _decode_token
 from shared import ws_protocol
+from shared.spa import is_page_path
 from .ai_prompts import (
     prompt_version,
     TESTCASE_GENERATION_SYSTEM_PROMPT,
@@ -243,6 +246,10 @@ def _record_log(**fields):
 
 
 # ─── Request/Response logging middleware ──────────────────────────────────────
+# _record_log blocks on the DB, so it runs in the threadpool: on the event
+# loop it waited for a pooled connection while the requests holding every
+# connection needed that same loop to release them (a deadlock that only the
+# 30s pool timeout broke).
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.perf_counter()
@@ -251,7 +258,8 @@ async def log_requests(request: Request, call_next):
     except Exception as exc:
         duration_ms = round((time.perf_counter() - start) * 1000, 1)
         logger.exception(f'{request.method} {request.url.path} 500 {duration_ms}ms')
-        _record_log(
+        await run_in_threadpool(
+            _record_log,
             level="error", source="server", message=f"{type(exc).__name__}: {exc}"[:500],
             method=request.method, path=request.url.path, status_code=500,
             duration_ms=int(duration_ms), extra=traceback.format_exc()[-2000:],
@@ -261,7 +269,8 @@ async def log_requests(request: Request, call_next):
     if not request.url.path.startswith("/static"):
         logger.info(f'{request.method} {request.url.path} {response.status_code} {duration_ms}ms')
         level = "error" if response.status_code >= 500 else "warning" if response.status_code >= 400 else "info"
-        _record_log(
+        await run_in_threadpool(
+            _record_log,
             level=level, source="server", message=f"{request.method} {request.url.path}"[:500],
             method=request.method, path=request.url.path, status_code=response.status_code,
             duration_ms=int(duration_ms),
@@ -629,6 +638,14 @@ def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)
     return project
 
 
+@app.get("/api/projects/{project_id}", response_model=schemas.ProjectResponse)
+def get_project(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
 @app.delete("/api/projects/{project_id}", status_code=204)
 def delete_project(project_id: int, db: Session = Depends(get_db), _: models.User = Depends(require_admin)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -659,6 +676,14 @@ def create_suite(project_id: int, payload: schemas.TestSuiteCreate, db: Session 
     db.add(suite)
     db.commit()
     db.refresh(suite)
+    return suite
+
+
+@app.get("/api/suites/{suite_id}", response_model=schemas.TestSuiteResponse)
+def get_suite(suite_id: int, db: Session = Depends(get_db)):
+    suite = db.query(models.TestSuite).filter(models.TestSuite.id == suite_id).first()
+    if not suite:
+        raise HTTPException(status_code=404, detail="Suite not found")
     return suite
 
 
@@ -842,8 +867,7 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
     return run
 
 
-@app.put("/api/runs/{run_id}/results/{tc_id}")
-async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), current: models.User = Depends(get_current_user)):
+def _apply_result_update(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session):
     result = db.query(models.TestResult).filter(
         models.TestResult.run_id == run_id,
         models.TestResult.testcase_id == tc_id
@@ -863,6 +887,16 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
 
     db.commit()
     db.refresh(result)
+    return result, run_completed
+
+
+# The handler is async only to await the broadcast; its DB work runs in the
+# threadpool. Blocking DB calls on the event loop deadlock the server when the
+# pool is busy: they wait for a connection that the requests holding them
+# need this same loop to give back (tests/api/test_event_loop_db.py).
+@app.put("/api/runs/{run_id}/results/{tc_id}")
+async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), current: models.User = Depends(get_current_user)):
+    result, run_completed = await run_in_threadpool(_apply_result_update, run_id, tc_id, payload, db)
 
     # Broadcast live update to all WebSocket subscribers on this run
     await ws_manager.broadcast(run_id, {
@@ -878,7 +912,7 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
 
 
 @app.post("/api/runs/{run_id}/triage", response_model=schemas.TriageResponse)
-async def triage_run(
+def triage_run(
     run_id: int,
     agentic: bool = False,
     db: Session = Depends(get_db),
@@ -1022,23 +1056,31 @@ async def run_websocket(
 ):
     # Protocol, close codes and why we accept-then-close: shared/ws_protocol.py
     await ws.accept()
-    user = None
-    if token:
-        try:
-            data = _decode_token(token)
-            user = db.query(models.User).filter(models.User.id == int(data["sub"])).first()
-        except HTTPException:
-            user = None
-    if user is None:
-        await ws.close(code=ws_protocol.CLOSE_UNAUTHORIZED, reason="Not authenticated")
+
+    def admit():
+        # In the threadpool, not on the event loop (see update_result).
+        user = None
+        if token:
+            try:
+                data = _decode_token(token)
+                user = db.query(models.User).filter(models.User.id == int(data["sub"])).first()
+            except HTTPException:
+                user = None
+        if user is None:
+            return ws_protocol.CLOSE_UNAUTHORIZED, "Not authenticated"
+        if not db.query(models.TestRun).filter(models.TestRun.id == run_id).first():
+            return ws_protocol.CLOSE_RUN_NOT_FOUND, "Run not found"
+        # Don't pin a pooled DB connection for the socket's whole lifetime.
+        db.close()
+        return None
+
+    refused = await run_in_threadpool(admit)
+    if refused:
+        await ws.close(code=refused[0], reason=refused[1])
         return
-    if not db.query(models.TestRun).filter(models.TestRun.id == run_id).first():
-        await ws.close(code=ws_protocol.CLOSE_RUN_NOT_FOUND, reason="Run not found")
-        return
-    # Don't pin a pooled DB connection for the socket's whole lifetime.
-    db.close()
 
     ws_manager.join(run_id, ws)
+    await ws.send_text(ws_protocol.subscribed_message(run_id))
     try:
         while True:
             reply = ws_protocol.reply_to(await ws.receive_text())
@@ -1052,7 +1094,7 @@ async def run_websocket(
 # ─── AI Test Case Generation ──────────────────────────────────────────────────
 
 @app.post("/api/suites/{suite_id}/testcases/generate", response_model=schemas.AIGenerateResponse)
-async def generate_testcases(
+def generate_testcases(
     suite_id: int,
     payload: schemas.AIGenerateRequest,
     db: Session = Depends(get_db),
@@ -1119,7 +1161,7 @@ async def generate_testcases(
 
 
 @app.post("/api/suites/{suite_id}/testcases/generate/save")
-async def save_generated_testcases(
+def save_generated_testcases(
     suite_id: int,
     payload: List[schemas.AIGeneratedTestCase],
     generation_id: Optional[str] = Query(None, max_length=36),
@@ -1677,6 +1719,16 @@ app.include_router(graphql_router, prefix="/graphql")
 # ─── Static files (must be last) ─────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+VERCEL_ANALYTICS_TAGS = (
+    '<script defer src="/_vercel/speed-insights/script.js"></script>\n'
+    '  <script defer src="/_vercel/insights/script.js"></script>'
+)
+
+# StaticFiles takes types from the OS registry, which on many Windows machines
+# lacks these, serving them as text/plain - fine only until a nosniff header
+# makes the browser refuse them. Register the ones static/ uses explicitly.
+for _type, _ext in (("text/javascript", ".js"), ("text/css", ".css"), ("image/svg+xml", ".svg"), ("image/webp", ".webp")):
+    mimetypes.add_type(_type, _ext)
 
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -1693,12 +1745,22 @@ if os.path.exists(static_dir):
         """
         with open(os.path.join(static_dir, "index.html"), "r", encoding="utf-8") as f:
             content = f.read()
+        # Vercel serves its analytics scripts itself; anywhere else (local, CI,
+        # Docker) the tags could only 404, so they're added on Vercel only.
+        if os.getenv("VERCEL"):
+            content = content.replace("<!-- vercel-analytics -->", VERCEL_ANALYTICS_TAGS)
         return HTMLResponse(content=content, headers={"Cache-Control": "no-cache"})
 
     @app.get("/", include_in_schema=False)
-    async def serve_root():
+    def serve_root():
         return _serve_index()
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_spa(full_path: str):
+    def serve_spa(full_path: str):
+        # A missing API route, file or platform path is a real 404, not the
+        # SPA's index.html with a 200 (see shared/spa.py).
+        if not is_page_path(full_path):
+            if full_path.startswith("api"):
+                return JSONResponse(status_code=404, content={"detail": "Not Found"})
+            return HTMLResponse(status_code=404, content="Not Found")
         return _serve_index()

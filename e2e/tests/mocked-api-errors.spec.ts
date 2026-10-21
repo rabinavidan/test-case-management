@@ -12,9 +12,9 @@ import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture
 // these are explicit failures, not stalls.
 
 guestTest.describe('renderProject — explicit backend error shapes', () => {
-  guestTest('a 500 from the project list shows the real error message, not a blank page', async ({ page }) => {
+  guestTest('a 500 loading the project shows the real error message, not a blank page', async ({ page }) => {
     await page.route(
-      (url) => url.pathname === '/api/projects' && url.search === '',
+      (url) => url.pathname === '/api/projects/999999',
       (route) => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Internal server error' }) }),
     );
 
@@ -26,7 +26,7 @@ guestTest.describe('renderProject — explicit backend error shapes', () => {
 
   guestTest('a dropped connection surfaces an error quickly, distinct from the 15s timeout path', async ({ page }) => {
     await page.route(
-      (url) => url.pathname === '/api/projects' && url.search === '',
+      (url) => url.pathname === '/api/projects/1',
       (route) => route.abort('failed'),
     );
 
@@ -38,12 +38,8 @@ guestTest.describe('renderProject — explicit backend error shapes', () => {
     guestExpect(Date.now() - start).toBeLessThan(5000);
   });
 
-  guestTest('a deep link to a project absent from the list shows "Project not found", not a crash', async ({ page }) => {
-    await page.route(
-      (url) => url.pathname === '/api/projects' && url.search === '',
-      (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], total: 0 }) }),
-    );
-
+  guestTest('a deep link to a project that does not exist shows "Project not found", not a crash', async ({ page }) => {
+    // Real backend, no mock: GET /api/projects/424242 is a genuine 404.
     await page.goto('/#project/424242');
 
     await guestExpect(page.locator('#view-project')).toContainText('Project not found', { timeout: 10000 });
@@ -54,7 +50,7 @@ authTest.describe('renderProject — session and data edge cases', () => {
   authTest('a 401 mid-session reopens the sign-in modal instead of leaving a dead screen', async ({ page, authToken }) => {
     await page.addInitScript((token) => localStorage.setItem('tf_token', token), authToken);
     await page.route(
-      (url) => url.pathname === '/api/projects' && url.search === '',
+      (url) => url.pathname === '/api/projects/1',
       (route) => route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'Invalid or expired token' }) }),
     );
 

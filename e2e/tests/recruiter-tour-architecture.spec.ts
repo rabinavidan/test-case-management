@@ -38,6 +38,16 @@ guestTest.describe('Guest recruiter view — Recruiter Tour', () => {
     await guestExpect(page.getByTestId('start-tour-btn')).toBeVisible();
   });
 
+  guestTest('the banner prompts a guest to sign in, and the link opens the sign-in form', async ({ page }) => {
+    const prompt = page.getByTestId('guest-signin-prompt');
+    await guestExpect(prompt).toBeVisible();
+    await guestExpect(prompt).toContainText("You're browsing as a guest");
+
+    await page.getByTestId('guest-signin-link').click();
+    await guestExpect(page.locator('#auth-modal')).toBeVisible();
+    await guestExpect(page.locator('#auth-modal h2')).toHaveText('Sign in');
+  });
+
   guestTest('starting the tour opens on step 1 of 5 — Leadership Profile', async ({ page }) => {
     await page.getByTestId('start-tour-btn').click();
     const card = page.getByTestId('recruiter-tour-card');

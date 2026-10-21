@@ -113,6 +113,18 @@ function closeModal(e) {
   if (e.target === document.getElementById("modal-overlay")) hideModal();
 }
 
+// Escape closes the open dialog, as keyboard users expect of any dialog. The
+// sign-in dialog only when it can be closed at all: the first-run "create the
+// admin account" form has no Close button and must stay up. The Recruiter
+// Tour handles its own Escape (and marks the event handled).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  const overlay = document.getElementById("modal-overlay");
+  if (overlay && !overlay.classList.contains("hidden")) { hideModal(); return; }
+  const auth = document.getElementById("auth-modal");
+  if (auth && !auth.classList.contains("hidden") && auth.querySelector('button[aria-label="Close"]')) hideAuthModal();
+});
+
 const inputCls    = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 const textareaCls = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none";
 
@@ -392,39 +404,152 @@ const AI_PIPELINE_NODE_COLORS = [
 ];
 
 function renderAiPipelineTimelineInner() {
+  const n = AI_PIPELINE_DEMO_NODES.length;
   return `
-    <div class="flex items-center gap-1.5 mb-3">
-      <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-      <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
-    </div>
-    <div class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pb-1">
-      ${AI_PIPELINE_DEMO_NODES.map((node, i, arr) => `
-        <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
-          <div class="ai-demo-node opacity-0 flex flex-col gap-2 rounded-xl p-3 w-32 sm:w-36" style="animation:aiDemoIn .4s ease ${i * 150}ms forwards;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)">
-            <div class="${AI_PIPELINE_NODE_COLORS[i % AI_PIPELINE_NODE_COLORS.length]} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg ai-demo-pulse flex-shrink-0" style="animation-delay:${i * 150}ms">${node.icon}</div>
-            <div>
-              <p class="text-white text-xs font-bold leading-tight">${node.title}</p>
-              ${node.model ? `<p class="text-[8px] font-bold uppercase tracking-wider mt-0.5" style="color:rgba(199,210,254,.85)">${node.model}</p>` : ''}
-              <p class="text-[10px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
-            </div>
-          </div>
-          ${i < arr.length - 1 ? `<div class="self-center text-indigo-300/60 text-lg font-bold opacity-0 flex-shrink-0" style="animation:aiDemoIn .3s ease ${i * 150 + 100}ms forwards">→</div>` : ''}
+    <div data-pipe-root data-testid="pipe-root">
+      <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <div class="flex items-center gap-1.5">
+          <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
+          <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
         </div>
-      `).join('')}
+        <p class="text-[10px] font-mono" style="color:rgba(255,255,255,.55)">
+          <span data-pipe-run data-testid="pipe-run">Run #1</span> · <span data-pipe-step data-testid="pipe-step">Step 1/${n}</span>
+        </p>
+      </div>
+      <div class="h-1 rounded-full overflow-hidden mb-3" style="background:rgba(255,255,255,.08)">
+        <div data-pipe-progress data-testid="pipe-progress" class="h-full rounded-full transition-[width] duration-700 ease-out" style="width:0%;background:linear-gradient(90deg,#38bdf8,#34d399)"></div>
+      </div>
+      <div data-pipe-row class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pt-1 pb-1 carousel-track">
+        ${AI_PIPELINE_DEMO_NODES.map((node, i, arr) => `
+          <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
+            <div data-pipe-node="${i}" data-state="queued" data-testid="pipe-node" class="pipe-node ai-demo-node flex flex-col gap-2 rounded-xl p-3 w-32 sm:w-36" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)">
+              <div class="flex items-center justify-between gap-1">
+                <div class="pipe-icon ${AI_PIPELINE_NODE_COLORS[i % AI_PIPELINE_NODE_COLORS.length]} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg flex-shrink-0">${node.icon}</div>
+                <span data-pipe-status class="pipe-status text-[8px] font-bold uppercase tracking-wider rounded-full px-1.5 py-0.5">Queued</span>
+              </div>
+              <div>
+                <p class="text-white text-xs font-bold leading-tight">${node.title}</p>
+                ${node.model ? `<p class="text-[8px] font-bold uppercase tracking-wider mt-0.5" style="color:rgba(199,210,254,.85)">${node.model}</p>` : ''}
+                <p class="text-[10px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
+              </div>
+            </div>
+            ${i < arr.length - 1 ? `<div data-pipe-link data-state="idle" data-testid="pipe-link" class="pipe-link self-center relative w-5 sm:w-7 h-0.5 rounded-full flex-shrink-0" aria-hidden="true"><span class="pipe-packet"></span></div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+      <p class="text-[10px] mt-3 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
+        Every node above is a real file in this repo — see the cards above for the exact path, or
+        <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
+      </p>
     </div>
-    <p class="text-[10px] mt-3 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
-      Every node above is a real file in this repo — see the cards above for the exact path, or
-      <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
-    </p>
   `;
 }
 
 const AI_PIPELINE_DEMO_KEYFRAMES = `
   <style>
     @keyframes aiDemoIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-    .ai-demo-pulse { animation: aiDemoPulse 2.4s ease-in-out infinite; }
-    @keyframes aiDemoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,.15)} 50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(255,255,255,0)} }
+    @keyframes aiDemoPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,.25)} 50%{transform:scale(1.1);box-shadow:0 0 0 8px rgba(255,255,255,0)} }
+    @keyframes pipePacket { from{left:-40%} to{left:100%} }
+    @keyframes pipeSpin { to{transform:rotate(360deg)} }
+    .pipe-node { transition: opacity .45s ease, transform .45s ease, box-shadow .45s ease, border-color .45s ease, background-color .45s ease; }
+    .pipe-node[data-state="queued"] { opacity: .5; }
+    .pipe-node[data-state="active"] { opacity: 1; transform: translateY(-3px); background: rgba(56,189,248,.14) !important; border-color: rgba(125,211,252,.75) !important; box-shadow: 0 0 0 1px rgba(125,211,252,.35), 0 10px 28px -8px rgba(56,189,248,.6); }
+    .pipe-node[data-state="done"] { opacity: 1; border-color: rgba(52,211,153,.45) !important; }
+    .pipe-node[data-state="active"] .pipe-icon { animation: aiDemoPulse 1.6s ease-in-out infinite; }
+    .pipe-status { color: rgba(255,255,255,.45); background: rgba(255,255,255,.06); }
+    .pipe-node[data-state="active"] .pipe-status { color: #bae6fd; background: rgba(56,189,248,.2); }
+    .pipe-node[data-state="active"] .pipe-status::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 3px; vertical-align: -1px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: pipeSpin .8s linear infinite; }
+    .pipe-node[data-state="done"] .pipe-status { color: #a7f3d0; background: rgba(52,211,153,.18); }
+    .pipe-link { background: rgba(255,255,255,.15); overflow: hidden; transition: background-color .45s ease; }
+    .pipe-link .pipe-packet { position: absolute; top: -2px; left: -40%; width: 40%; height: 6px; border-radius: 9999px; background: linear-gradient(90deg, transparent, #7dd3fc, transparent); opacity: 0; }
+    .pipe-link[data-state="flowing"] .pipe-packet { opacity: 1; animation: pipePacket .8s linear infinite; }
+    .pipe-link[data-state="done"] { background: rgba(52,211,153,.55); }
   </style>`;
+
+// The Live Demo replays one pipeline run on a loop: each stage goes queued ->
+// running -> done while a pulse flows along the link into it, then the run
+// finishes green and starts over. It pauses off-screen and in a hidden tab;
+// reduced-motion visitors get the finished run, still. One instance per
+// rendered timeline (the home section and the "See the pipeline" modal).
+const PIPE_STEP_MS = 1600;
+const PIPE_RESULT_MS = 2600;
+const PIPE_STATUS = { queued: "Queued", active: "Running", done: "✓ Done" };
+
+function initAiPipelineDemo(container) {
+  const root = container?.querySelector("[data-pipe-root]");
+  if (!root) return;
+  root._pipeAbort?.abort();
+  const abort = new AbortController();
+  root._pipeAbort = abort;
+  const { signal } = abort;
+
+  const nodes = [...root.querySelectorAll("[data-pipe-node]")];
+  const links = [...root.querySelectorAll("[data-pipe-link]")];
+  const row = root.querySelector("[data-pipe-row]");
+  const runEl = root.querySelector("[data-pipe-run]");
+  const stepEl = root.querySelector("[data-pipe-step]");
+  const progress = root.querySelector("[data-pipe-progress]");
+  const n = nodes.length;
+  let step = 0; // 0..n-1 running that stage; n = finished
+  let run = 1;
+  let timer = null;
+  let inView = true;
+
+  const paint = () => {
+    nodes.forEach((el, i) => {
+      const state = i < step ? "done" : i === step ? "active" : "queued";
+      el.dataset.state = state;
+      el.querySelector("[data-pipe-status]").textContent = PIPE_STATUS[state];
+    });
+    // Link i joins node i to node i+1: it flows while node i+1 runs.
+    links.forEach((el, i) => { el.dataset.state = i < step - 1 ? "done" : i === step - 1 ? "flowing" : "idle"; });
+    const finished = step >= n;
+    progress.style.width = `${Math.round((Math.min(step + 1, n) / n) * 100)}%`;
+    runEl.textContent = `Run #${run}`;
+    stepEl.textContent = finished ? "✓ Pipeline green — merged" : `Step ${step + 1}/${n} · ${AI_PIPELINE_DEMO_NODES[step].title}`;
+    root.dataset.pipeStep = String(step);
+    root.dataset.pipeRun = String(run);
+    // Keep the running stage in view inside the row, without scrolling the page.
+    const active = nodes[Math.min(step, n - 1)];
+    if (row.scrollWidth > row.clientWidth) {
+      // An absolute target from layout (scrollLeft + on-screen offset is the
+      // node's position in the row's content), so ticks arriving mid-scroll
+      // still land on the right stage; a relative scrollBy would compound.
+      const r = row.getBoundingClientRect(), a = active.getBoundingClientRect();
+      row.scrollTo({ left: row.scrollLeft + a.left - r.left - (row.clientWidth - a.width) / 2, behavior: "smooth" });
+    }
+  };
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    step = n;
+    paint();
+    root.dataset.pipeMode = "static";
+    return;
+  }
+  root.dataset.pipeMode = "live";
+
+  const tick = () => {
+    timer = null;
+    if (!document.body.contains(root)) { abort.abort(); return; } // section re-rendered or modal closed
+    if (step < n) step += 1;
+    else { step = 0; run += 1; }
+    paint();
+    schedule();
+  };
+  const schedule = () => {
+    const running = inView && !document.hidden;
+    root.dataset.pipeLive = running ? "running" : "paused";
+    if (running && !timer) timer = setTimeout(tick, step >= n ? PIPE_RESULT_MS : PIPE_STEP_MS);
+    if (!running && timer) { clearTimeout(timer); timer = null; }
+  };
+
+  document.addEventListener("visibilitychange", schedule, { signal });
+  const io = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; schedule(); });
+  io.observe(root);
+  signal.addEventListener("abort", () => { io.disconnect(); if (timer) clearTimeout(timer); });
+  paint();
+  schedule();
+}
 
 function buildAiPipelineDemoModal(title, body) {
   title.textContent = 'AI Agents in This Repo’s CI/CD';
@@ -436,6 +561,7 @@ function buildAiPipelineDemoModal(title, body) {
       </div>
     </div>
     ${AI_PIPELINE_DEMO_KEYFRAMES}`;
+  initAiPipelineDemo(body);
 }
 
 function selectResultStatus(s) {
@@ -508,23 +634,32 @@ async function router() {
 
   // Tear down WebSocket if we navigated away from a run
   if (parts[0] !== "run" && _activeRunWs) {
-    _activeRunWs.close();
+    closeRunWebSocket(_activeRunWs);
     _activeRunWs = null;
   }
 }
 
 // ─── Breadcrumb ──────────────────────────────────────────────────────────────
+let _breadcrumbObserver = null;
 function setBreadcrumb(items) {
   const el = document.getElementById("breadcrumb");
   el.innerHTML = items.map((item, i) => {
     const sep = i > 0
-      ? `<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`
+      ? `<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`
       : "";
     if (i === items.length - 1) {
-      return `${sep}<span class="text-slate-600 font-medium truncate max-w-[160px]">${escHtml(item.label)}</span>`;
+      return `${sep}<span class="text-slate-600 font-medium truncate max-w-[160px] flex-shrink-0">${escHtml(item.label)}</span>`;
     }
-    return `${sep}<button onclick="navigate('${item.href}')" class="text-blue-600 hover:text-blue-700 transition-colors truncate max-w-[120px]">${escHtml(item.label)}</button>`;
+    return `${sep}<button onclick="navigate('${item.href}')" class="text-blue-600 hover:text-blue-700 transition-colors truncate max-w-[120px] flex-shrink-0">${escHtml(item.label)}</button>`;
   }).join("");
+  // On narrow screens the breadcrumb scrolls sideways; show its end, the current
+  // page. Watched, not set once: the Tailwind CDN's CSS can land after this
+  // markup and widen the items after the first measurement.
+  _breadcrumbObserver?.disconnect();
+  _breadcrumbObserver = new ResizeObserver(() => { el.scrollLeft = el.scrollWidth; });
+  _breadcrumbObserver.observe(el);
+  [...el.children].forEach((child) => _breadcrumbObserver.observe(child));
+  el.scrollLeft = el.scrollWidth;
 }
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -648,30 +783,54 @@ async function _loadSidebar() {
   }
 }
 
-async function loadSidebarProjectStats(projects) {
-  await Promise.all(projects.map(async p => {
+// Each sidebar row's last-run bar is fetched when the row first scrolls into
+// view, not all at once: the list holds up to 100 projects but shows about
+// five, and firing one stats request per project queued the page's own
+// requests behind them in the browser's per-host connection limit (a project
+// page took 7 s to load with ~80 projects). On phones the sidebar is hidden,
+// so nothing is fetched at all.
+let _sidebarStatsObserver = null;
+
+function loadSidebarProjectStats(projects) {
+  _sidebarStatsObserver?.disconnect();
+  const list = document.getElementById("sidebar-projects");
+  if (!list) return;
+  const byBar = new Map();
+  _sidebarStatsObserver = new IntersectionObserver((entries, observer) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      observer.unobserve(entry.target);
+      loadSidebarBar(entry.target, byBar.get(entry.target));
+    }
+  }, { root: list, rootMargin: "120px 0px" });
+  for (const p of projects) {
     const bar = document.getElementById(`sidebar-pbar-${p.id}`);
-    if (!bar) return;
-    try {
-      const s = await GET(`/api/projects/${p.id}/stats`);
-      const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
-      if (!total) { bar.innerHTML = ""; return; }
-      const pct = v => Math.round((v / total) * 100);
-      const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
-      const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
-      const labelCls = overall === "fail" ? "text-red-500" : overall === "pending" ? "text-amber-500" : "text-emerald-600";
-      bar.innerHTML = `
-        <div class="flex items-center gap-1.5 mb-0.5">
-          <div class="flex h-1 rounded-full overflow-hidden flex-1 bg-slate-100 gap-px">
-            ${passW ? `<div class="bg-emerald-500 h-full" style="width:${passW}%"></div>` : ""}
-            ${failW ? `<div class="bg-red-500 h-full" style="width:${failW}%"></div>` : ""}
-            ${skipW ? `<div class="bg-amber-400 h-full" style="width:${skipW}%"></div>` : ""}
-            ${pendW ? `<div class="bg-slate-300 h-full" style="width:${pendW}%"></div>` : ""}
-          </div>
-          <span class="text-[9px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
-        </div>`;
-    } catch { bar.innerHTML = ""; }
-  }));
+    if (!bar) continue;
+    byBar.set(bar, p);
+    _sidebarStatsObserver.observe(bar);
+  }
+}
+
+async function loadSidebarBar(bar, p) {
+  try {
+    const s = await GET(`/api/projects/${p.id}/stats`);
+    const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
+    if (!total) { bar.innerHTML = ""; return; }
+    const pct = v => Math.round((v / total) * 100);
+    const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
+    const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
+    const labelCls = overall === "fail" ? "text-red-500" : overall === "pending" ? "text-amber-500" : "text-emerald-600";
+    bar.innerHTML = `
+      <div class="flex items-center gap-1.5 mb-0.5">
+        <div class="flex h-1 rounded-full overflow-hidden flex-1 bg-slate-100 gap-px">
+          ${passW ? `<div class="bg-emerald-500 h-full" style="width:${passW}%"></div>` : ""}
+          ${failW ? `<div class="bg-red-500 h-full" style="width:${failW}%"></div>` : ""}
+          ${skipW ? `<div class="bg-amber-400 h-full" style="width:${skipW}%"></div>` : ""}
+          ${pendW ? `<div class="bg-slate-300 h-full" style="width:${pendW}%"></div>` : ""}
+        </div>
+        <span class="text-[9px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
+      </div>`;
+  } catch { bar.innerHTML = ""; }
 }
 
 // ─── Collapsible showcase section (architecture / tech-stack / demo banners) ──
@@ -805,8 +964,11 @@ function goToTourStep(i) {
   }, 100);
 }
 
-function startRecruiterTour() {
-  tourTriggerEl = document.activeElement;
+// `trigger` is the element focus returns to on exit. Passed in rather than
+// read from document.activeElement: Safari doesn't focus a button on click,
+// so activeElement is <body> and focus would be lost when the tour closes.
+function startRecruiterTour(trigger) {
+  tourTriggerEl = trigger || document.activeElement;
   const go = () => goToTourStep(0);
   if (window.location.hash.replace("#", "") !== "projects") {
     window.location.hash = "projects";
@@ -851,6 +1013,362 @@ function renderShowcaseSection(sections) {
     </div>`;
 }
 
+// ─── Success Stories ─────────────────────────────────────────────────────────
+// The owner's LinkedIn posts, newest first. Images are self-hosted copies
+// (static/img/success-stories/) so the section never depends on LinkedIn's CDN.
+const SUCCESS_STORIES = [
+  { slug: "ai-agents-in-automation", activity: "7511122582864203777", date: "2026-09-30",
+    title: "AI Agents in Automation",
+    summary: "Lessons from ZoomInfo: five challenges in evaluating agentic workflows.",
+    alt: "Infographic: AI Agents in Automation. Five challenges in evaluating agentic workflows: failure investigation, test generation, self-healing, agent orchestration and workflow evaluation." },
+  { slug: "pytest-fixture-factory", activity: "7480988116976254977", date: "2026-07-09",
+    title: "Pytest Fixtures: the Factory Pattern",
+    summary: "Replacing hardcoded test data with dynamic, reusable factory fixtures.",
+    alt: "Infographic: Pytest fixtures with the factory pattern. The problem with hardcoded test data, how factory fixtures work, a code example and best practices." },
+  { slug: "bug-aware-playwright", activity: "7479141849790701568", date: "2026-07-04",
+    title: "Bug-Aware Playwright Test Management",
+    summary: "A CI agent checks Jira so a test failing on a known product bug carries that context.",
+    alt: "Infographic: Bug-aware Playwright test management. A CI agent checks the linked Jira bug's status during the pipeline and enriches the Allure report with it." },
+  { slug: "shared-logger-infrastructure", activity: "7475895553185308672", date: "2026-06-25",
+    title: "Shared Logger Infrastructure",
+    summary: "One logging layer for UI E2E and API flows, used across ZoomInfo's automation teams.",
+    alt: "Infographic: Shared logger infrastructure, built once and used across automation teams, logging UI E2E steps and API calls for faster root-cause analysis." },
+  { slug: "common-backend-library", activity: "7474467230747877376", date: "2026-06-21",
+    title: "Common Backend Automation Library",
+    summary: "A shared backend testing layer for stable, fast automation across microservices.",
+    alt: "Infographic: Common Backend Automation Library, a shared backend testing layer of API clients, test steps and data builders that improves coverage, stability and speed." },
+  { slug: "cucumber-to-playwright-mocks", activity: "7474123893595877376", date: "2026-06-20",
+    title: "From Cucumber Java to Playwright Mocks",
+    summary: "A three-year automation transformation for Angular micro frontends at ZoomInfo.",
+    alt: "Infographic: From Cucumber Java to Playwright mocks. Before and after of a three-year automation transformation for Angular micro frontends, with its impact on stability and release speed." },
+];
+
+// ─── Carousel ────────────────────────────────────────────────────────────────
+// One scroll-snap carousel, shared by Success Stories and the repositories
+// section. Swipe, Previous/Next, dots and arrow keys all drive the same
+// track; auto-advance runs every 5 s with a Pause/Play control, pausing on
+// hover, on focus inside, off-screen or in a hidden tab, and never for
+// reduced-motion users. `prefix` names its test ids (`${prefix}-track` ...).
+const CAROUSEL_INTERVAL_MS = 5000;
+const _carousels = new Map(); // id -> { index, autoplay, abort }
+
+function renderCarousel({ id, prefix, noun, heading, subtitle, slides, slideTestId, headerLink = "", beforeTrack = "" }) {
+  const n = slides.length;
+  const btn = "w-9 h-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 transition-colors items-center justify-center";
+  return `
+    <section class="relative rounded-2xl overflow-hidden mb-6 px-4 sm:px-5 py-5" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)"
+      data-carousel="${id}" data-testid="${id}-section" aria-roledescription="carousel" aria-labelledby="${id}-heading">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div class="min-w-0">
+          <h2 id="${id}-heading" class="text-sm font-bold text-white uppercase tracking-wide">${escHtml(heading)}</h2>
+          <p class="text-[11px] mt-1" style="color:rgba(255,255,255,.5)">${escHtml(subtitle)}${headerLink}</p>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button type="button" data-carousel-autoplay data-testid="${prefix}-autoplay" onclick="toggleCarouselAutoplay('${id}')" aria-label="Pause auto-advance" class="hidden ${btn}">
+            <svg data-icon="pause" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+            <svg data-icon="play" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button type="button" data-carousel-prev data-testid="${prefix}-prev" onclick="stepCarousel('${id}', -1)" aria-label="Previous ${noun}" class="flex ${btn} disabled:opacity-30 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <button type="button" data-carousel-next data-testid="${prefix}-next" onclick="stepCarousel('${id}', 1)" aria-label="Next ${noun}" class="flex ${btn} disabled:opacity-30 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+      ${beforeTrack}
+      <div data-carousel-track data-testid="${prefix}-track" tabindex="0" aria-label="${escHtml(heading)}. Use the arrow keys to browse."
+        class="carousel-track flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1">
+        ${slides.map((s, i) => `
+          <article role="group" aria-roledescription="slide" aria-label="${i + 1} of ${n}: ${escHtml(s.label)}" data-testid="${slideTestId}" ${s.attrs || ""}
+            class="group snap-start shrink-0 w-[85%] sm:w-[calc(50%-0.5rem)] lg:w-[calc((100%-2rem)/3)] rounded-xl overflow-hidden border border-white/10 bg-white/[.03] flex flex-col transition-all duration-300 hover:-translate-y-1 hover:border-sky-400/40 hover:shadow-lg hover:shadow-sky-500/10">
+            ${s.html}
+          </article>`).join("")}
+      </div>
+      <div class="flex justify-center gap-1 mt-3" data-testid="${prefix}-dots">
+        ${slides.map((s, i) => `
+          <button type="button" data-carousel-dot onclick="goToCarousel('${id}', ${i})" aria-label="Go to ${noun} ${i + 1}: ${escHtml(s.label)}"
+            class="p-1.5"><span class="block w-2 h-2 rounded-full bg-white/25 transition-colors"></span></button>`).join("")}
+      </div>
+    </section>`;
+}
+
+function _carouselEl(id) { return document.querySelector(`[data-carousel="${id}"]`); }
+function _carouselTrack(id) { return _carouselEl(id)?.querySelector("[data-carousel-track]"); }
+function _carouselScrollBehavior() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+function _slideOffset(track, i) { return track.children[i].offsetLeft - track.firstElementChild.offsetLeft; }
+function _carouselAtEnd(track) { return track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; }
+
+function _nearestSlide(track) {
+  let best = 0;
+  [...track.children].forEach((_, i) => {
+    if (Math.abs(_slideOffset(track, i) - track.scrollLeft) < Math.abs(_slideOffset(track, best) - track.scrollLeft)) best = i;
+  });
+  return best;
+}
+
+// The last slide the track can scroll to the start of: when several fit on
+// screen, the final few share one end position. Navigation clamps to it, so
+// the index never runs past what the track can show.
+function _lastReachableSlide(track) {
+  const max = track.scrollWidth - track.clientWidth;
+  let last = 0;
+  [...track.children].forEach((_, i) => { if (_slideOffset(track, i) <= max + 2) last = i; });
+  return last;
+}
+
+function goToCarousel(id, i, behavior = _carouselScrollBehavior()) {
+  const track = _carouselTrack(id);
+  const c = _carousels.get(id);
+  if (!track?.children[i] || !c) return;
+  const last = _lastReachableSlide(track);
+  c.index = Math.min(i, last);
+  const left = c.index === last ? track.scrollWidth - track.clientWidth : _slideOffset(track, c.index);
+  track.scrollTo({ left, behavior });
+}
+
+function stepCarousel(id, dir) {
+  const track = _carouselTrack(id);
+  const c = _carousels.get(id);
+  if (!track?.firstElementChild || !c) return;
+  const last = _lastReachableSlide(track);
+  goToCarousel(id, Math.min(Math.max(Math.min(c.index, last) + dir, 0), last));
+}
+
+function toggleCarouselAutoplay(id) {
+  const ap = _carousels.get(id)?.autoplay;
+  if (!ap) return;
+  ap.userPaused = !ap.userPaused;
+  ap.sync();
+}
+
+function _startCarouselAutoplay(id, section, track, signal) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; // control stays hidden
+  const btn = section.querySelector("[data-carousel-autoplay]");
+  btn.classList.remove("hidden");
+  btn.classList.add("flex");
+
+  const ap = { userPaused: false, hovered: false, focused: false, inView: true, timer: null };
+  // Index-based, not scroll-position-based: a tick can land while the
+  // previous smooth scroll is still moving.
+  const advance = () => {
+    if (_carousels.get(id).index >= _lastReachableSlide(track)) goToCarousel(id, 0); else stepCarousel(id, 1);
+  };
+  ap.sync = () => {
+    const running = !ap.userPaused && !ap.hovered && !ap.focused && ap.inView && !document.hidden;
+    if (running && !ap.timer) ap.timer = setInterval(advance, CAROUSEL_INTERVAL_MS);
+    if (!running && ap.timer) { clearInterval(ap.timer); ap.timer = null; }
+    btn.setAttribute("aria-label", ap.userPaused ? "Play auto-advance" : "Pause auto-advance");
+    btn.querySelector('[data-icon="pause"]').classList.toggle("hidden", ap.userPaused);
+    btn.querySelector('[data-icon="play"]').classList.toggle("hidden", !ap.userPaused);
+    section.dataset.autoplay = running ? "running" : "paused";
+  };
+
+  section.addEventListener("pointerenter", () => { ap.hovered = true; ap.sync(); }, { signal });
+  section.addEventListener("pointerleave", () => { ap.hovered = false; ap.sync(); }, { signal });
+  // The Pause/Play button itself doesn't count as "focus inside": a keyboard
+  // user who just pressed Play would otherwise keep it paused.
+  section.addEventListener("focusin", (e) => { ap.focused = e.target !== btn; ap.sync(); }, { signal });
+  section.addEventListener("focusout", (e) => { if (!section.contains(e.relatedTarget)) { ap.focused = false; ap.sync(); } }, { signal });
+  document.addEventListener("visibilitychange", ap.sync, { signal });
+  const io = new IntersectionObserver(([entry]) => { ap.inView = entry.isIntersecting; ap.sync(); });
+  io.observe(section);
+  signal.addEventListener("abort", () => { io.disconnect(); if (ap.timer) clearInterval(ap.timer); });
+
+  _carousels.get(id).autoplay = ap;
+  ap.sync();
+}
+
+function initCarousel(id) {
+  // The home page re-renders on every visit; drop the previous render's
+  // timer and document-level listeners first.
+  _carousels.get(id)?.abort.abort();
+  _carousels.delete(id);
+  const section = _carouselEl(id);
+  const track = section?.querySelector("[data-carousel-track]");
+  if (!track?.firstElementChild) return;
+  const abort = new AbortController();
+  const { signal } = abort;
+  // `index` is the slide the carousel means to show. Only navigation changes
+  // it - never layout: when slide widths change (the Tailwind CDN's CSS lands
+  // after this markup), WebKit re-snaps a scroll-snap track to its last slide.
+  const c = { index: 0, autoplay: null, abort };
+  _carousels.set(id, c);
+
+  const prev = section.querySelector("[data-carousel-prev]");
+  const next = section.querySelector("[data-carousel-next]");
+  const dots = section.querySelectorAll("[data-carousel-dot]");
+  let userScrolling = false;
+
+  const update = () => {
+    if (!document.body.contains(track)) return;
+    const atEnd = _carouselAtEnd(track);
+    if (userScrolling) c.index = atEnd ? _lastReachableSlide(track) : _nearestSlide(track);
+    const current = atEnd ? track.children.length - 1 : _nearestSlide(track);
+    dots.forEach((d, i) => {
+      d.firstElementChild.classList.toggle("bg-white", i === current);
+      d.firstElementChild.classList.toggle("bg-white/25", i !== current);
+      if (i === current) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current");
+    });
+    prev.disabled = track.scrollLeft <= 2;
+    next.disabled = atEnd;
+  };
+  const resnap = () => {
+    if (!userScrolling) {
+      const last = _lastReachableSlide(track);
+      const i = Math.min(c.index, last);
+      const want = i === last ? track.scrollWidth - track.clientWidth : _slideOffset(track, i);
+      if (Math.abs(track.scrollLeft - want) > 2) goToCarousel(id, i, "auto");
+    }
+    update();
+  };
+
+  track.addEventListener("scroll", update, { passive: true, signal });
+  // A swipe, drag or wheel is the user choosing a slide; anything else that
+  // scrolls the track (a layout re-snap) must not change the index.
+  for (const ev of ["pointerdown", "touchstart", "wheel"]) {
+    track.addEventListener(ev, () => { userScrolling = true; }, { passive: true, signal });
+  }
+  for (const ev of ["pointerup", "touchend"]) {
+    track.addEventListener(ev, () => setTimeout(() => { userScrolling = false; }, 600), { passive: true, signal });
+  }
+  track.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") { e.preventDefault(); stepCarousel(id, 1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); stepCarousel(id, -1); }
+  }, { signal });
+  // Not just window resize: the Tailwind CDN generates the slide-width CSS
+  // after this markup is inserted, so the first measurement can predate it.
+  const ro = new ResizeObserver(resnap);
+  ro.observe(track);
+  [...track.children].forEach((slide) => ro.observe(slide));
+  signal.addEventListener("abort", () => ro.disconnect());
+  update();
+  _startCarouselAutoplay(id, section, track, signal);
+}
+
+function initHomeCarousels() {
+  initCarousel("success-stories");
+  initCarousel("top-repos");
+}
+
+const _extLinkIcon = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M9 7h8v8"/></svg>`;
+
+function renderSuccessStoriesSection() {
+  const fmt = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  const postUrl = (s) => `https://www.linkedin.com/feed/update/urn:li:activity:${s.activity}/`;
+  return renderCarousel({
+    id: "success-stories", prefix: "stories", noun: "story", slideTestId: "story-slide",
+    heading: "Success Stories", subtitle: "Automation work I've shipped, as I shared it on LinkedIn.",
+    slides: SUCCESS_STORIES.map((s, i) => ({
+      label: s.title,
+      html: `
+        <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true" class="block bg-slate-950 overflow-hidden">
+          <img src="/static/img/success-stories/${s.slug}.webp" alt="${escHtml(s.alt)}" width="800" height="1000"
+            ${i < 3 ? "" : 'loading="lazy"'} decoding="async" class="w-full aspect-[4/5] object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
+        </a>
+        <div class="p-3 flex flex-col gap-1 flex-1">
+          <time datetime="${s.date}" class="text-[10px] uppercase tracking-wider" style="color:rgba(255,255,255,.45)">${fmt(s.date)}</time>
+          <h3 class="text-sm font-semibold text-white leading-snug">${escHtml(s.title)}</h3>
+          <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.6)">${escHtml(s.summary)}</p>
+          <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" data-testid="story-link"
+            aria-label="View ${escHtml(s.title)} on LinkedIn (opens in a new tab)"
+            class="mt-auto pt-2 text-xs font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">View on LinkedIn${_extLinkIcon}</a>
+        </div>`,
+    })),
+  });
+}
+
+// ─── Open-Source Repositories ────────────────────────────────────────────────
+// The owner's top public GitHub repos. Summaries, headline facts and stacks
+// come from each repo's README (GitHub's own language/topic metadata is too
+// sparse to describe them).
+const TOP_REPOS = [
+  { name: "test-case-management", title: "TestFlow",
+    summary: "This site: AI-assisted test case management with real-time runs, five services and four test stacks.",
+    fact: "706 tests across 4 layers",
+    live: "https://test-case-management-omega.vercel.app",
+    tech: ["Python", "FastAPI", "PostgreSQL", "Redis", "Playwright", "TypeScript", "Java", "Docker", "Kubernetes", "Terraform"] },
+  { name: "automation-failure-orchestrator", title: "Agentic SOC Automation Orchestrator",
+    summary: "SIEM alerts deduplicated, enriched, triaged and investigated, with human-approved responses. Deterministic code decides; AI agents only advise.",
+    fact: "320 automated tests",
+    tech: ["TypeScript", "Python", "AI Agents", "AWS SQS", "Terraform", "Docker", "Splunk", "Shuffle SOAR"] },
+  { name: "playwright-kafka-microservices", title: "Playwright · Kafka · Microservices",
+    summary: "E2E framework for an event-driven stack: REST APIs, Kafka flows, PostgreSQL and a React UI, with a Kubernetes deploy.",
+    fact: "239 tests across 7 layers",
+    live: "https://rabinavidan.github.io/playwright-kafka-microservices/reports/", liveLabel: "Live report",
+    tech: ["Playwright", "TypeScript", "Kafka", "PostgreSQL", "React", "Docker", "Kubernetes"] },
+  { name: "storguard-distributed-storage-testing", title: "StorGuard",
+    summary: "Reliability, chaos and performance testing for a 4-node MinIO cluster: node loss, network faults and disk pressure.",
+    fact: "190 tests across 11 layers",
+    tech: ["Python", "pytest", "MinIO / S3", "Chaos Testing", "Jenkins", "Docker", "Prometheus", "Grafana", "Allure", "Local LLMs"] },
+  { name: "appium-iOS-task-manager", title: "iOS Task Manager + Appium",
+    summary: "A SwiftUI task manager built together with its Appium Java framework, run on a real iPhone in CI.",
+    fact: "Real-device CI via WebDriverAgent",
+    tech: ["Swift", "SwiftUI", "Java", "Appium", "XCUITest", "JUnit 5", "Allure", "GitHub Actions"] },
+  { name: "TradeFlow", title: "TradeFlow Lite",
+    summary: "Full-stack trade-finance workflow with a role-based review pipeline driven by a single state machine.",
+    fact: "73 tests across the pyramid",
+    tech: ["TypeScript", "React", "Express", "MongoDB", "Zod", "Vitest", "Playwright", "Docker", "Allure"] },
+];
+
+function renderTopReposSection() {
+  // Every technology shared by two or more repos, ranked by how many use it
+  // (ties keep first-seen order) - computed from the cards so they can't disagree.
+  const counts = new Map();
+  TOP_REPOS.forEach((r) => r.tech.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1)));
+  const ranked = [...counts.entries()].filter(([, c]) => c > 1).sort((a, b) => b[1] - a[1]);
+  const ghIcon = `<svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 007.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 015.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0023.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>`;
+
+  const techSummary = `
+    <div class="mb-4" data-testid="repos-tech-summary">
+      <p class="text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:rgba(255,255,255,.45)">Technologies across these repos</p>
+      <ul class="flex flex-wrap gap-1.5">
+        ${ranked.map(([t, c]) => `
+          <li data-testid="repos-tech" data-tech="${escHtml(t)}" data-count="${c}"
+            class="text-[11px] font-medium text-white/85 bg-white/10 rounded-full pl-2.5 pr-1 py-0.5 inline-flex items-center gap-1">
+            ${escHtml(t)}<span class="text-[10px] font-bold text-sky-200 bg-white/10 rounded-full px-1.5" aria-label="in ${c} repos">${c}</span>
+          </li>`).join("")}
+      </ul>
+    </div>`;
+
+  return renderCarousel({
+    id: "top-repos", prefix: "repos", noun: "repository", slideTestId: "repo-card",
+    heading: "Open-Source Repositories",
+    subtitle: "Public projects on GitHub, and the stack behind each one. ",
+    headerLink: `<a href="https://github.com/rabinavidan?tab=repositories" target="_blank" rel="noopener noreferrer"
+      class="font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1 whitespace-nowrap">All repositories${_extLinkIcon}</a>`,
+    beforeTrack: techSummary,
+    slides: TOP_REPOS.map((r) => {
+      const url = `https://github.com/rabinavidan/${r.name}`;
+      return {
+        label: r.title,
+        attrs: `data-repo="${escHtml(r.name)}"`,
+        html: `
+          <div class="p-4 flex flex-col gap-2 flex-1">
+            <div class="flex items-start gap-2 text-white min-w-0">
+              ${ghIcon}
+              <h3 class="text-sm font-bold leading-snug">${escHtml(r.title)}</h3>
+            </div>
+            <p class="text-[11px] font-mono truncate -mt-1" style="color:rgba(255,255,255,.4)">rabinavidan/${escHtml(r.name)}</p>
+            <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.65)">${escHtml(r.summary)}</p>
+            <p class="text-xs font-semibold text-emerald-300" data-testid="repo-fact">${escHtml(r.fact)}</p>
+            <ul class="flex flex-wrap gap-1" aria-label="Technologies">
+              ${r.tech.map((t) => `<li class="text-[10px] font-medium text-sky-200 bg-sky-400/10 border border-sky-300/20 rounded-md px-1.5 py-0.5">${escHtml(t)}</li>`).join("")}
+            </ul>
+            <div class="mt-auto pt-2 flex items-center gap-3 text-xs font-semibold">
+              <a href="${url}" target="_blank" rel="noopener noreferrer" data-testid="repo-code-link"
+                aria-label="${escHtml(r.title)} source code on GitHub (opens in a new tab)"
+                class="text-white/85 hover:text-white inline-flex items-center gap-1">Code${_extLinkIcon}</a>
+              ${r.live ? `<a href="${r.live}" target="_blank" rel="noopener noreferrer" data-testid="repo-live-link"
+                aria-label="${escHtml(r.title)} ${escHtml(r.liveLabel || "live demo")} (opens in a new tab)"
+                class="text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">${escHtml(r.liveLabel || "Live")}${_extLinkIcon}</a>` : ""}
+            </div>
+          </div>`,
+      };
+    }),
+  });
+}
+
 // ─── Projects View ───────────────────────────────────────────────────────────
 async function renderProjects() {
   state.currentProject = null;
@@ -865,16 +1383,6 @@ async function renderProjects() {
   const el = document.getElementById("view-projects");
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
-
-  if (!getToken()) {
-    el.insertAdjacentHTML("afterbegin", `
-      <div class="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-        <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
-        </svg>
-        <p class="text-sm text-blue-700 flex-1">You're browsing as a guest. <button onclick="showAuthModal('login')" class="font-semibold underline hover:text-blue-900">Sign in</button> or <button onclick="showAuthModal('register')" class="font-semibold underline hover:text-blue-900">create an account</button> to add and manage projects.</p>
-      </div>`);
-  }
 
   await loadSidebar();
 
@@ -1416,7 +1924,7 @@ async function renderProjects() {
           ].map(s => `
             <div class="flex flex-col items-center gap-0.5 relative">
               <div class="w-px h-3" style="background:${s.color}"></div>
-              <div class="w-1.5 h-1.5 rounded-full sys-fanpkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-fanpkt" style="background:${s.color};animation-delay:${s.delay + 'ms'}"></div>
               <div class="w-px h-3" style="background:${s.color}"></div>
             </div>
           `).join('')}
@@ -1455,7 +1963,7 @@ async function renderProjects() {
           ].map(s => `
             <div class="flex flex-col items-center gap-0.5 relative">
               <div class="w-px h-3" style="background:${s.color}"></div>
-              <div class="w-1.5 h-1.5 rounded-full sys-storepkt" style="background:${s.color};animation-delay:${s.delay}ms"></div>
+              <div class="w-1.5 h-1.5 rounded-full sys-storepkt" style="background:${s.color};animation-delay:${s.delay + 'ms'}"></div>
               <div class="w-px h-3" style="background:${s.color}"></div>
             </div>
           `).join('')}
@@ -1654,6 +2162,9 @@ async function renderProjects() {
   // recruiter sees it without hunting for a button. Same node data and
   // animation (renderAiPipelineTimelineInner), just a different, persistent
   // home instead of a click-to-open modal.
+  const successStoriesSection = !getToken() ? renderSuccessStoriesSection() : "";
+  const topReposSection = !getToken() ? renderTopReposSection() : "";
+
   const aiLiveDemoSection = !getToken() ? `
     <div class="relative rounded-2xl overflow-hidden mb-6 px-5 py-6" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)" data-testid="ai-live-demo-section">
       <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
@@ -1696,8 +2207,8 @@ async function renderProjects() {
   const deliveryWorkflowSection = !getToken() ? `
     <div class="mb-6" data-testid="delivery-workflow-section">
       <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">How I Lead Engineering Delivery</h2>
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 overflow-x-auto">
-        <div class="flex items-stretch gap-2 min-w-max">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <ol class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           ${[
             { step: 'Product Requirements', desc: 'A written plan with acceptance criteria — before any code changes.' },
             { step: 'Technical Roadmap',     desc: 'Broken into scoped, tracked milestones, planned before implementation.' },
@@ -1706,14 +2217,13 @@ async function renderProjects() {
             { step: 'Quality Gates',         desc: 'Lint, coverage floor, contract tests, and a live boot smoke test must pass.' },
             { step: 'KPI Review',            desc: 'Each PR reports what changed, what was tested, and what remains open.' },
           ].map((s, i, arr) => `
-            <div class="flex items-center flex-shrink-0">
-              <div class="w-36 bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <li class="flex" data-testid="delivery-step">
+              <div class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3">
                 <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wide mb-1">${i + 1}. ${s.step}</p>
                 <p class="text-[11px] text-slate-500 leading-snug">${s.desc}</p>
               </div>
-              ${i < arr.length - 1 ? `<svg class="w-5 h-5 text-slate-300 flex-shrink-0 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>` : ""}
-            </div>`).join('')}
-        </div>
+            </li>`).join('')}
+        </ol>
       </div>
     </div>
   ` : "";
@@ -2014,13 +2524,18 @@ async function renderProjects() {
   // Recruiter Tour — a 5-step, read-only, no-auth guided path through
   // sections already on this page (see RECRUITER_TOUR_STEPS / startRecruiterTour
   // below). Skippable at any point; never creates or modifies data.
+  // Also the only guest-facing prompt to sign in: it's built into the final
+  // innerHTML below, unlike a banner inserted before the render, which that
+  // innerHTML assignment would wipe.
   const recruiterTourBanner = !getToken() ? `
     <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl px-5 py-3.5" data-testid="recruiter-tour-banner">
       <div class="flex items-start gap-2.5 text-sm text-blue-900">
         <span class="text-lg flex-shrink-0" aria-hidden="true">🧭</span>
-        <span><strong class="font-bold">New here?</strong> Take a 5-step guided tour — leadership, architecture, test strategy, quality gates, and AI engineering. Under 3 minutes, no sign-in, nothing is created.</span>
+        <span><strong class="font-bold">New here?</strong> Take a 5-step guided tour — leadership, architecture, test strategy, quality gates, and AI engineering. Under 3 minutes, no sign-in, nothing is created.
+          <span class="block mt-1 text-xs text-blue-700" data-testid="guest-signin-prompt">You're browsing as a guest. <button type="button" onclick="showAuthModal('login')" data-testid="guest-signin-link" class="font-semibold underline hover:text-blue-900">Sign in</button> to add and manage projects.</span>
+        </span>
       </div>
-      <button type="button" onclick="startRecruiterTour()" data-testid="start-tour-btn"
+      <button type="button" onclick="startRecruiterTour(this)" data-testid="start-tour-btn"
         class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap">
         Start Recruiter Tour
       </button>
@@ -2031,6 +2546,8 @@ async function renderProjects() {
     el.innerHTML = `
       <div class="fade-in">
         ${ownerCard}
+        ${successStoriesSection}
+        ${topReposSection}
         ${aiLiveDemoSection}
         ${recruiterTourBanner}
         ${leadershipImpactSection}
@@ -2038,8 +2555,7 @@ async function renderProjects() {
         ${testPyramidSection}
         ${aiFirstEngineeringSection}
         ${kpiDashboardSection}
-        ${demoBanner}
-        ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
+        ${getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2052,14 +2568,19 @@ async function renderProjects() {
             Create First Project
           </button>` : ""}
         </div>
+        ${getToken() ? `<div class="mt-8">${demoBanner}${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
       </div>`;
     hydrateLiveKpis();
+    initHomeCarousels();
+    initAiPipelineDemo(document.querySelector('[data-testid="ai-live-demo-section"]'));
     return;
   }
 
   el.innerHTML = `
     <div class="fade-in">
       ${ownerCard}
+      ${successStoriesSection}
+      ${topReposSection}
       ${aiLiveDemoSection}
       ${recruiterTourBanner}
       ${leadershipImpactSection}
@@ -2067,8 +2588,7 @@ async function renderProjects() {
       ${testPyramidSection}
       ${aiFirstEngineeringSection}
       ${kpiDashboardSection}
-      ${demoBanner}
-      ${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
+      ${getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
@@ -2126,9 +2646,12 @@ async function renderProjects() {
         <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-400 text-sm">No projects match your filter.</div>
       </div>
       <div id="proj-pagination" class="flex items-center justify-between flex-wrap gap-3 mt-3"></div>
+      ${getToken() ? `<div class="mt-8">${demoBanner}${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
     </div>`;
   filterProjectTable();
   hydrateLiveKpis();
+  initHomeCarousels();
+  initAiPipelineDemo(document.querySelector('[data-testid="ai-live-demo-section"]'));
 }
 
 async function loadProjectStats(projects) {
@@ -2348,6 +2871,16 @@ async function deleteProject(id) {
   } catch (e) { toast(e.message, "error"); }
 }
 
+// A suite and its project by ID. These views used to scan every project's
+// suites to find a parent: that only saw the 20 newest projects, cost a
+// request per project, and failed outright if another user deleted any
+// project mid-scan.
+async function getSuiteWithProject(suiteId) {
+  const suite = await GET(`/api/suites/${suiteId}`);
+  const project = await GET(`/api/projects/${suite.project_id}`);
+  return { suite, project };
+}
+
 // ─── Project View ─────────────────────────────────────────────────────────────
 async function renderProject(projectId) {
   const el = document.getElementById("view-project");
@@ -2356,9 +2889,7 @@ async function renderProject(projectId) {
 
   let project, suites, stats;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    project = projects.find(p => p.id === projectId);
-    if (!project) throw new Error("Project not found");
+    project = await GET(`/api/projects/${projectId}`);
     [suites, stats] = await Promise.all([
       GET(`/api/projects/${projectId}/suites`),
       GET(`/api/projects/${projectId}/stats`),
@@ -2403,7 +2934,7 @@ async function renderProject(projectId) {
           <h1 class="text-2xl font-bold text-slate-800">${escHtml(project.name)}</h1>
           ${project.description ? `<p class="text-slate-500 text-sm mt-1">${escHtml(project.description)}</p>` : ""}
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <button onclick="renderAnalytics(${projectId})"
             class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -2445,12 +2976,12 @@ async function renderProject(projectId) {
       <!-- Last run progress bar (non-demo projects only) -->
       ${total && !project.name.startsWith("Alerts Microservice") && !project.name.startsWith("TestFlow") ? `
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
           <div>
             <h3 class="font-semibold text-slate-800 text-sm">Latest Run</h3>
             <p class="text-xs text-slate-400 mt-0.5">${escHtml(stats.last_run_name || "")}</p>
           </div>
-          <div class="flex items-center gap-3 text-xs font-medium">
+          <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
             <span class="flex items-center gap-1.5 text-emerald-600">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>${stats.last_run_pass} pass
             </span>
@@ -2613,7 +3144,7 @@ async function loadTestReport(suites) {
               <span class="font-semibold text-slate-700 text-sm">${escHtml(suite.name)}</span>
               <span class="text-xs text-slate-400">${escHtml(run.name)}</span>
             </div>
-            <div class="flex items-center gap-3 text-xs font-medium">
+            <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
               <span class="text-emerald-700">${pass}✓</span>
               <span class="text-red-700">${fail}✗</span>
               <span class="text-amber-700">${skip}↷</span>
@@ -2795,13 +3326,7 @@ async function renderSuite(suiteId) {
 
   let suite, testcases, project, runs, aiReviews;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === suiteId);
-      if (found) { suite = found; project = p; break; }
-    }
-    if (!suite) throw new Error("Suite not found");
+    ({ suite, project } = await getSuiteWithProject(suiteId));
     [testcases, runs, aiReviews] = await Promise.all([
       GET(`/api/suites/${suiteId}/testcases`),
       GET(`/api/suites/${suiteId}/runs`),
@@ -2840,7 +3365,7 @@ async function renderSuite(suiteId) {
           <h1 class="text-2xl font-bold text-slate-800">${escHtml(suite.name)}</h1>
           ${suite.description ? `<p class="text-slate-500 text-sm mt-1">${escHtml(suite.description)}</p>` : ""}
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <button onclick="showModal('run', {suiteId: ${suiteId}})"
             class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -3024,13 +3549,7 @@ async function renderSuiteTestCases(suiteId) {
 
   let suite, project, testcases;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === suiteId);
-      if (found) { suite = found; project = p; break; }
-    }
-    if (!suite) throw new Error("Suite not found");
+    ({ suite, project } = await getSuiteWithProject(suiteId));
     testcases = await GET(`/api/suites/${suiteId}/testcases`);
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
@@ -3108,13 +3627,7 @@ async function renderSuiteRuns(suiteId) {
 
   let suite, project, runs;
   try {
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === suiteId);
-      if (found) { suite = found; project = p; break; }
-    }
-    if (!suite) throw new Error("Suite not found");
+    ({ suite, project } = await getSuiteWithProject(suiteId));
     runs = await GET(`/api/suites/${suiteId}/runs`);
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
@@ -3166,15 +3679,15 @@ async function renderRun(runId) {
   let run, suite = null, project = null;
   try {
     run = await GET(`/api/runs/${runId}`);
-    const _resp = await GET("/api/projects"); const projects = _resp?.items ?? _resp ?? [];
-    for (const p of projects) {
-      const suites = await GET(`/api/projects/${p.id}/suites`);
-      const found = suites.find(s => s.id === run.suite_id);
-      if (found) { suite = found; project = p; break; }
-    }
   } catch (e) {
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
     return;
+  }
+
+  try {
+    ({ suite, project } = await getSuiteWithProject(run.suite_id));
+  } catch {
+    // Only the breadcrumb and Back button need the parents - render the run without them.
   }
 
   state.currentRun = run;
@@ -3369,7 +3882,7 @@ function alertsArchDiagram() {
   // Coloured component box
   const box = (bg, border, tc, label, sub, d = 0) =>
     `<div class="aad-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
-        style="animation:aadIn .35s ease forwards;animation-delay:${d}ms">
+        style="animation:aadIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
       ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
@@ -3413,7 +3926,7 @@ function alertsArchDiagram() {
   // Small tag chip (used for annotations like JWT / Rate limit / node-pod groups)
   const tag = (lbl, bg, tc, d = 0) =>
     `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
-        style="animation:aadIn .3s ease forwards;animation-delay:${d}ms">${lbl}</span>`;
+        style="animation:aadIn .3s ease forwards;animation-delay:${d + 'ms'}">${lbl}</span>`;
 
   return `
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
@@ -3817,13 +4330,13 @@ function testflowArchDiagram() {
   };
   const box = (bg, border, tc, label, sub, d = 0) =>
     `<div class="tf-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
-        style="animation:tfIn .35s ease forwards;animation-delay:${d}ms">
+        style="animation:tfIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
       ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
   const tag = (lbl, bg, tc, d = 0) =>
     `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
-        style="animation:tfIn .3s ease forwards;animation-delay:${d}ms">${lbl}</span>`;
+        style="animation:tfIn .3s ease forwards;animation-delay:${d + 'ms'}">${lbl}</span>`;
   const arrow = (lbl, d, dir = 'right', clr = 'blue', len = 36) => {
     const [dash, head] = FLOW[clr] || FLOW.blue;
     const anim = {right:'tfFlowR',left:'tfFlowL',down:'tfFlowD'}[dir]||'tfFlowR';
@@ -4024,14 +4537,16 @@ async function renderUsers() {
                   <div class="flex items-center justify-end gap-1">
                   ${u.role !== "admin" ? `
                   <button onclick="toggleUserStatus(${u.id}, '${escHtml(u.username)}', ${u.is_active !== false})"
-                    class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-all ${u.is_active !== false ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}"
+                    aria-label="${u.is_active !== false ? 'Deactivate' : 'Activate'} ${escHtml(u.username)}"
+                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-all ${u.is_active !== false ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}"
                     title="${u.is_active !== false ? 'Deactivate' : 'Activate'}">
                     ${u.is_active !== false
                       ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>`
                       : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`}
                   </button>
                   <button onclick="deleteUser(${u.id}, '${escHtml(u.username)}')"
-                    class="opacity-0 group-hover:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
+                    aria-label="Remove ${escHtml(u.username)}"
+                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>` : ""}
                   </div>
@@ -4131,7 +4646,7 @@ function renderUserBadge(user) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
         </svg>
-        <span class="hidden sm:inline">Environments</span>
+        <span class="hidden lg:inline">Environments</span>
       </button>
       ${user.role === "admin" ? `
       <button onclick="navigate('users')" title="User Management" data-testid="users-btn"
@@ -4140,7 +4655,7 @@ function renderUserBadge(user) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
-        <span class="hidden sm:inline">Users</span>
+        <span class="hidden lg:inline">Users</span>
       </button>
       <button onclick="navigate('logs')" title="Log Center" data-testid="logs-btn"
         class="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors text-xs font-medium">
@@ -4148,12 +4663,12 @@ function renderUserBadge(user) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
-        <span class="hidden sm:inline">Logs</span>
+        <span class="hidden lg:inline">Logs</span>
       </button>` : ""}
       <div class="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
         ${escHtml(user.username[0].toUpperCase())}
       </div>
-      <div class="hidden sm:flex flex-col leading-none">
+      <div class="hidden lg:flex flex-col leading-none">
         <span class="text-sm font-medium text-slate-700">${escHtml(user.username)}</span>
         <span class="text-[10px] font-semibold border rounded px-1 mt-0.5 uppercase tracking-wide ${roleCls}">${escHtml(user.role)}</span>
       </div>
@@ -4322,9 +4837,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ─── WebSocket: Live Run Collaboration ────────────────────────────────────────
 let _activeRunWs = null;
 
+// Closing a socket that is still connecting makes the browser log "WebSocket
+// is closed before the connection is established"; leaving a run page quickly
+// did exactly that. A connecting socket is closed as soon as it opens instead.
+function closeRunWebSocket(ws) {
+  if (ws.readyState === WebSocket.CONNECTING) ws.onopen = () => ws.close();
+  else ws.close();
+}
+
 function connectRunWebSocket(runId) {
   if (_activeRunWs) {
-    _activeRunWs.close();
+    closeRunWebSocket(_activeRunWs);
     _activeRunWs = null;
   }
 
@@ -4337,8 +4860,8 @@ function connectRunWebSocket(runId) {
   _activeRunWs = ws;
 
   ws.onopen = () => {
-    const ind = document.getElementById("ws-indicator");
-    if (ind) ind.classList.remove("hidden"), ind.classList.add("flex");
+    // Open is not live yet: the server accepts first, then checks the token
+    // and run, then joins the room and says "subscribed" (shared/ws_protocol.py).
     // Keepalive ping every 25s
     ws._ping = setInterval(() => { if (ws.readyState === 1) ws.send("ping"); }, 25000);
   };
@@ -4348,7 +4871,16 @@ function connectRunWebSocket(runId) {
     try {
       const msg = JSON.parse(evt.data);
       if (msg.type === "pong" || msg.type === "error") return;
+      if (msg.type === "subscribed") {
+        const ind = document.getElementById("ws-indicator");
+        if (ind) ind.classList.remove("hidden"), ind.classList.add("flex");
+        // Catch up on anything recorded between this page's fetch and the
+        // subscription - those updates were broadcast before we were listening.
+        reconcileRunResults(runId);
+        return;
+      }
       if (msg.type === "result_updated") {
+        _reconcileTouched?.add(msg.testcase_id);
         applyLiveResultUpdate(msg);
         if (msg.run_completed) {
           toast(`Run completed by ${msg.updated_by}`, "info");
@@ -4368,6 +4900,10 @@ function connectRunWebSocket(runId) {
     if (evt.code === 4401 || evt.code === 4404) {
       console.warn(`Live updates unavailable for run ${runId} (close ${evt.code}: ${evt.reason})`);
     }
+    // Only if this is still the active socket: an older one closing after a
+    // newer one opened must not hide its indicator or drop the reference
+    // (which would leave the newer socket open after leaving the page).
+    if (_activeRunWs !== ws) return;
     const ind = document.getElementById("ws-indicator");
     if (ind) ind.classList.add("hidden");
     _activeRunWs = null;
@@ -4376,7 +4912,25 @@ function connectRunWebSocket(runId) {
   ws.onerror = () => ws.close();
 }
 
-function applyLiveResultUpdate(msg) {
+// Test cases a live update reached while a catch-up fetch was in flight: that
+// fetch's response can predate the update, so it must not overwrite them.
+let _reconcileTouched = null;
+
+async function reconcileRunResults(runId) {
+  const touched = _reconcileTouched = new Set();
+  let run;
+  try { run = await GET(`/api/runs/${runId}`); } catch { return; }
+  finally { if (_reconcileTouched === touched) _reconcileTouched = null; }
+  for (const r of run?.results || []) {
+    if (touched.has(r.testcase_id)) continue;
+    const badge = document.querySelector(`[data-tc-id="${r.testcase_id}"] [data-status-badge]`);
+    if (badge && badge.getAttribute("data-status-badge") !== r.status) {
+      applyLiveResultUpdate({ testcase_id: r.testcase_id, status: r.status }, { quiet: true });
+    }
+  }
+}
+
+function applyLiveResultUpdate(msg, { quiet = false } = {}) {
   // Find the result row for this testcase and update its badge
   const row = document.querySelector(`[data-tc-id="${msg.testcase_id}"]`);
   if (!row) return;
@@ -4396,7 +4950,7 @@ function applyLiveResultUpdate(msg) {
   // Flash the row
   row.classList.add("ring-2", "ring-blue-400");
   setTimeout(() => row.classList.remove("ring-2", "ring-blue-400"), 1500);
-  toast(`${msg.updated_by} marked a test as ${msg.status}`, "info");
+  if (!quiet) toast(`${msg.updated_by} marked a test as ${msg.status}`, "info");
 }
 
 
@@ -4912,7 +5466,12 @@ async function renderLogs() {
   await loadLogs();
 }
 
+// Each filter change starts a load; only the latest may render, or a slower
+// earlier response would replace newer results with stale ones.
+let _logsLoadSeq = 0;
+
 async function loadLogs() {
+  const seq = ++_logsLoadSeq;
   const el = document.getElementById("view-logs");
   const params = new URLSearchParams({ page: String(logFilters.page), page_size: String(LOG_PAGE_SIZE) });
   if (logFilters.level) params.set("level", logFilters.level);
@@ -4923,9 +5482,11 @@ async function loadLogs() {
   try {
     resp = await GET(`/api/logs?${params.toString()}`);
   } catch (e) {
+    if (seq !== _logsLoadSeq) return;
     el.innerHTML = `<div class="text-red-500 text-center py-16">${escHtml(e.message)}</div>`;
     return;
   }
+  if (seq !== _logsLoadSeq) return;
   if (!resp) return;
   const entries = resp.items ?? resp ?? [];
   const total = resp.total ?? entries.length;

@@ -10,5 +10,6 @@ COPY services/gateway/requirements.txt services/gateway/requirements.txt
 RUN pip install --no-cache-dir -r services/gateway/requirements.txt
 COPY services/gateway services/gateway
 COPY services/common services/common
+COPY shared shared
 COPY static services/gateway/static
 CMD ["uvicorn", "services.gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]

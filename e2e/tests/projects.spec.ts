@@ -2,8 +2,9 @@ import { test, expect } from '../fixtures/auth.fixture';
 import { ProjectsPage } from '../pages/projects.page';
 import { ProjectPage } from '../pages/project.page';
 
+// Date.now() alone can repeat across workers that start in the same ms.
 function uniqueName(base: string): string {
-  return `${base}_${Date.now()}`;
+  return `${base}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
 test.describe('Projects', () => {
@@ -57,7 +58,10 @@ test.describe('Projects', () => {
     });
 
     await test.step('Verify project appears in the list', async () => {
-      await expect(page.getByText(projectName).first()).toBeVisible({ timeout: 10000 });
+      // Filtered to this project: other specs add newer projects in parallel,
+      // which can push it off the first page of the shared list.
+      await page.locator('#proj-search').fill(projectName);
+      await expect(projectsPage.getProjectCards().filter({ hasText: projectName })).toBeVisible({ timeout: 10000 });
     });
 
     await test.step('Register project for cleanup', async () => {
@@ -124,8 +128,11 @@ test.describe('Projects', () => {
     // search would always find a "hidden" row there too.
     const rowFor = (name: string) => projectsPage.getProjectCards().filter({ hasText: name });
 
-    await test.step('Navigate to projects list', async () => {
+    await test.step('Navigate to projects list, filtered to these 6', async () => {
       await projectsPage.goto();
+      // Other specs add projects in parallel; filtering to this test's six
+      // keeps the page contents deterministic (the search resets to page 1).
+      await page.locator('#proj-search').fill(base);
     });
 
     await test.step('Page 1 shows at most 5 rows, and the oldest of the 6 is not on it', async () => {

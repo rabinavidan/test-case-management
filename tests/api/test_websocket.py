@@ -2,6 +2,7 @@
 shared/ws_protocol.py, contract in docs/asyncapi.yaml."""
 import json
 import time
+from contextlib import contextmanager
 
 import pytest
 from starlette.websockets import WebSocketDisconnect
@@ -25,10 +26,19 @@ def _ws_url(run_id, headers):
     return f"/ws/runs/{run_id}?token={_token(headers)}"
 
 
+@contextmanager
+def _live(client, run_id, headers):
+    """An admitted socket, once the server says it has joined the room - only
+    from then on does it receive broadcasts (shared/ws_protocol.py)."""
+    with client.websocket_connect(_ws_url(run_id, headers)) as ws:
+        assert ws.receive_json() == {"type": "subscribed", "run_id": run_id}
+        yield ws
+
+
 def test_websocket_legacy_ping_pong(auth_client):
     client, headers = auth_client
     _, _, run = _make_run(client, headers)
-    with client.websocket_connect(_ws_url(run["id"], headers)) as ws:
+    with _live(client, run["id"], headers) as ws:
         ws.send_text("ping")
         assert ws.receive_text() == "pong"
 
@@ -36,7 +46,7 @@ def test_websocket_legacy_ping_pong(auth_client):
 def test_websocket_json_ping_pong(auth_client):
     client, headers = auth_client
     _, _, run = _make_run(client, headers)
-    with client.websocket_connect(_ws_url(run["id"], headers)) as ws:
+    with _live(client, run["id"], headers) as ws:
         before = int(time.time())
         ws.send_text(json.dumps({"type": "ping"}))
         msg = ws.receive_json()
@@ -53,7 +63,7 @@ def test_websocket_json_ping_pong(auth_client):
 def test_websocket_bad_frame_gets_error_and_keeps_socket_open(auth_client, frame, detail_fragment):
     client, headers = auth_client
     _, _, run = _make_run(client, headers)
-    with client.websocket_connect(_ws_url(run["id"], headers)) as ws:
+    with _live(client, run["id"], headers) as ws:
         ws.send_text(frame)
         msg = ws.receive_json()
         assert msg["type"] == "error"
@@ -111,7 +121,7 @@ def test_websocket_broadcasts_result_update(auth_client):
     tc = client.post(f"/api/suites/{s['id']}/testcases", json={"title": "TC", "status": "active"}, headers=headers).json()
     run = client.post(f"/api/suites/{s['id']}/runs", json={"name": "WS Run"}, headers=headers).json()
 
-    with client.websocket_connect(_ws_url(run["id"], headers)) as ws:
+    with _live(client, run["id"], headers) as ws:
         r = client.put(
             f"/api/runs/{run['id']}/results/{tc['id']}",
             json={"status": "pass", "notes": "looks good"},
@@ -136,7 +146,7 @@ def test_websocket_only_broadcasts_to_matching_run(auth_client):
     run_a = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run A"}, headers=headers).json()
     run_b = client.post(f"/api/suites/{s['id']}/runs", json={"name": "Run B"}, headers=headers).json()
 
-    with client.websocket_connect(_ws_url(run_b["id"], headers)) as ws_b:
+    with _live(client, run_b["id"], headers) as ws_b:
         client.put(
             f"/api/runs/{run_a['id']}/results/{tc['id']}",
             json={"status": "fail"},
@@ -155,7 +165,7 @@ def test_websocket_disconnect_leaves_the_room(auth_client):
 
     client, headers = auth_client
     _, _, run = _make_run(client, headers)
-    with client.websocket_connect(_ws_url(run["id"], headers)) as ws:
+    with _live(client, run["id"], headers) as ws:
         ws.send_text("ping")
         assert ws.receive_text() == "pong"
         assert run["id"] in ws_manager._rooms
@@ -170,10 +180,29 @@ def test_websocket_disconnect_leaves_the_room(auth_client):
 def test_websocket_broadcasts_to_every_socket_in_the_room(auth_client):
     client, headers = auth_client
     _, tc, run = _make_run(client, headers)
-    with client.websocket_connect(_ws_url(run["id"], headers)) as ws1, \
-            client.websocket_connect(_ws_url(run["id"], headers)) as ws2:
+    with _live(client, run["id"], headers) as ws1, _live(client, run["id"], headers) as ws2:
         client.put(f"/api/runs/{run['id']}/results/{tc['id']}", json={"status": "fail"}, headers=headers)
         for ws in (ws1, ws2):
             msg = ws.receive_json()
             assert msg["type"] == "result_updated"
             assert msg["status"] == "fail"
+
+
+def test_subscribed_is_sent_only_once_the_socket_has_joined_the_room(auth_client):
+    """The socket is open (accepted) before the token and run checks, so
+    "open" doesn't mean "receiving broadcasts" - "subscribed" does."""
+    from api.main import ws_manager
+
+    client, headers = auth_client
+    _, _, run = _make_run(client, headers)
+    with client.websocket_connect(_ws_url(run["id"], headers)) as ws:
+        assert ws.receive_json() == {"type": "subscribed", "run_id": run["id"]}
+        assert run["id"] in ws_manager._rooms
+
+
+def test_a_rejected_socket_is_never_told_it_is_subscribed(auth_client):
+    client, headers = auth_client
+    _, _, run = _make_run(client, headers)
+    with client.websocket_connect(f"/ws/runs/{run['id']}?token=a.b.c") as ws:
+        with pytest.raises(WebSocketDisconnect):
+            ws.receive_text()  # the close, not a subscribed frame

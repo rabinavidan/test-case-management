@@ -96,3 +96,26 @@ def test_client_log_appears_in_log_list(auth_client):
 def test_submit_client_log_rejects_missing_message(client):
     r = client.post("/api/logs/client", json={"url": "https://x/"})
     assert r.status_code == 422
+
+
+def test_request_logging_never_blocks_the_event_loop(client, monkeypatch):
+    # _record_log does a blocking DB write. Run on the event loop, it froze the
+    # loop whenever the connection pool was busy — while the requests holding
+    # those connections needed that same loop to release them, a deadlock
+    # that cleared only on the 30s pool timeout. It must run in a worker
+    # thread, where there is no running event loop.
+    import asyncio
+    from api import main
+
+    calls = []
+
+    def spy(**fields):
+        try:
+            asyncio.get_running_loop()
+            calls.append("event loop")
+        except RuntimeError:
+            calls.append("worker thread")
+
+    monkeypatch.setattr(main, "_record_log", spy)
+    client.get("/api/version")
+    assert calls == ["worker thread"]

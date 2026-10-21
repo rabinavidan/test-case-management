@@ -1,12 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// seed.spec.ts is the Playwright agents' authoring seed (e2e/README.md#playwright-agents),
+// not a real assertion-bearing test. mocked-serverless-*.spec.ts run under
+// playwright.mocked.config.ts instead (no globalSetup — they never hit a
+// real backend), so both are excluded here to avoid duplicate runs.
+const IGNORED = ['**/seed.spec.ts', '**/mocked-serverless-*.spec.ts'];
+// responsive.spec.ts runs only on the phone/tablet projects below, and they
+// run only it: the rest of the suite assumes a desktop layout (the sidebar).
+const RESPONSIVE = '**/responsive.spec.ts';
+
 export default defineConfig({
   testDir: './tests',
-  // seed.spec.ts is the Playwright agents' authoring seed (e2e/README.md#playwright-agents),
-  // not a real assertion-bearing test. mocked-serverless-*.spec.ts run under
-  // playwright.mocked.config.ts instead (no globalSetup — they never hit a
-  // real backend), so both are excluded here to avoid duplicate runs.
-  testIgnore: ['**/seed.spec.ts', '**/mocked-serverless-*.spec.ts'],
+  testIgnore: IGNORED,
   timeout: 30000,
   retries: process.env.CI ? 1 : 0,
   reporter: [
@@ -32,6 +37,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: [...IGNORED, RESPONSIVE],
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
@@ -39,12 +45,18 @@ export default defineConfig({
     },
     {
       name: 'firefox',
+      testIgnore: [...IGNORED, RESPONSIVE],
       use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
+      testIgnore: [...IGNORED, RESPONSIVE],
       use: { ...devices['Desktop Safari'] },
-      // off by default; run with --project=webkit to enable
     },
+    // Real device emulation (viewport, touch, isMobile, user agent). Firefox
+    // has no isMobile support, so phones run on Chromium and WebKit.
+    { name: 'mobile-chrome', testMatch: RESPONSIVE, use: { ...devices['Pixel 7'] } },
+    { name: 'mobile-safari', testMatch: RESPONSIVE, use: { ...devices['iPhone 13'] } },
+    { name: 'tablet', testMatch: RESPONSIVE, use: { ...devices['iPad (gen 7)'] } },
   ],
 });

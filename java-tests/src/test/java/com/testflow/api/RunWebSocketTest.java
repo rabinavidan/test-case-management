@@ -51,9 +51,23 @@ class RunWebSocketTest extends BaseApiTest {
         return "/ws/runs/" + run + "?token=" + adminToken;
     }
 
+    /** Connects and waits for "subscribed": sent once the socket has joined the run's room. */
+    private WsClient connectSubscribed(int run) throws Exception {
+        WsClient ws = WsClient.connect(url(run));
+        try {
+            JsonNode subscribed = JSON.readTree(ws.nextFrame(TIMEOUT));
+            assertThat(subscribed.get("type").asText()).isEqualTo("subscribed");
+            assertThat(subscribed.get("run_id").asInt()).isEqualTo(run);
+            return ws;
+        } catch (Exception | AssertionError e) {
+            ws.close();
+            throw e;
+        }
+    }
+
     @Test
     void jsonPingGetsATimestampedPong() throws Exception {
-        try (WsClient ws = WsClient.connect(url(runId))) {
+        try (WsClient ws = connectSubscribed(runId)) {
             long before = System.currentTimeMillis() / 1000;
             ws.send("{\"type\":\"ping\"}");
             JsonNode pong = JSON.readTree(ws.nextFrame(TIMEOUT));
@@ -63,8 +77,8 @@ class RunWebSocketTest extends BaseApiTest {
     }
 
     @Test
-    void legacyTextPingStillGetsPong() {
-        try (WsClient ws = WsClient.connect(url(runId))) {
+    void legacyTextPingStillGetsPong() throws Exception {
+        try (WsClient ws = connectSubscribed(runId)) {
             ws.send("ping");
             assertThat(ws.nextFrame(TIMEOUT)).isEqualTo("pong");
         }
@@ -72,7 +86,7 @@ class RunWebSocketTest extends BaseApiTest {
 
     @Test
     void aMalformedFrameGetsAnErrorAndTheSocketStaysOpen() throws Exception {
-        try (WsClient ws = WsClient.connect(url(runId))) {
+        try (WsClient ws = connectSubscribed(runId)) {
             ws.send("{not json");
             JsonNode error = JSON.readTree(ws.nextFrame(TIMEOUT));
             assertThat(error.get("type").asText()).isEqualTo("error");
@@ -100,11 +114,8 @@ class RunWebSocketTest extends BaseApiTest {
 
     @Test
     void aRestResultUpdateIsBroadcastToTheRunsRoom() throws Exception {
-        try (WsClient ws = WsClient.connect(url(runId))) {
-            // Round-trip first so the socket is certainly in the room before the write.
-            ws.send("ping");
-            assertThat(ws.nextFrame(TIMEOUT)).isEqualTo("pong");
-
+        try (WsClient ws = connectSubscribed(runId)) {
+            // "subscribed" has arrived, so the socket is certainly in the room before the write.
             given()
                     .header("Authorization", authHeader(adminToken))
                     .body(Map.of("status", "fail", "notes", "seen from Java"))

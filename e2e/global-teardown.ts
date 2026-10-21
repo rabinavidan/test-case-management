@@ -10,6 +10,12 @@ const TEST_NAME_PREFIXES = [
   'RunProj-',
   'Suite Test Project_',
   'TC Project_',
+  'Journey_',
+  'ListProj_',
+  'Lookup_',
+  'Resp_',
+  'Smoke_',
+  'EnvRun_',
   'No Auth',       // leaked by test_api_pw.py when auth check regresses
   'PW Suite Parent', // leaked by test_api_pw.py project fixture on non-empty DBs
   'API PW Project',  // leaked by test_create_and_delete_project if delete step fails
@@ -33,7 +39,7 @@ async function globalTeardown() {
   });
 
   try {
-    const res = await ctx.get('/api/projects');
+    const res = await ctx.get('/api/projects', { params: { page_size: 100 } });
     if (!res.ok()) {
       console.warn(`[teardown] GET /api/projects failed: ${res.status()}`);
       return;

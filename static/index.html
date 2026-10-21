@@ -4,12 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TestFlow — Test Case Management</title>
+  <meta name="description" content="TestFlow is a test case management app: organize projects, suites and cases, run them with live updates, and track results, with AI-drafted cases reviewed by humans." />
+  <!-- Link previews (LinkedIn, Slack, X). Crawlers need absolute URLs. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="TestFlow" />
+  <meta property="og:title" content="TestFlow — Test Case Management" />
+  <meta property="og:description" content="Organize, run and track test cases, with live run updates and AI-drafted cases reviewed by humans." />
+  <meta property="og:url" content="https://test-case-management-rabinavidans-projects.vercel.app/" />
+  <meta property="og:image" content="https://test-case-management-rabinavidans-projects.vercel.app/static/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="preconnect" href="https://cdn.tailwindcss.com" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script defer src="/_vercel/speed-insights/script.js"></script>
-  <script defer src="/_vercel/insights/script.js"></script>
+  <!-- vercel-analytics -->
   <script>
     tailwind.config = {
       theme: {
@@ -40,6 +51,9 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    /* Carousels: swipe/arrow-key/button driven, so their own scrollbar is hidden. */
+    .carousel-track, .no-scrollbar { scrollbar-width: none; }
+    .carousel-track::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar { display: none; }
     /* Consistent keyboard-focus visibility across every button/link/input, without
        having to add a focus: utility to each of the app's hundreds of elements. */
     button:focus-visible, a:focus-visible, input:focus-visible,
@@ -71,14 +85,14 @@
 <!-- Top nav -->
 <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30">
   <div class="max-w-screen-xl mx-auto px-4 flex items-center h-14 gap-3">
-    <button data-testid="logo-btn" onclick="navigate('projects')" class="flex items-center gap-2 font-bold text-brand-700 text-lg hover:text-brand-600 transition-colors">
+    <button data-testid="logo-btn" onclick="navigate('projects')" aria-label="TestFlow home" class="flex items-center gap-2 font-bold text-brand-700 text-lg hover:text-brand-600 transition-colors flex-shrink-0">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
       </svg>
-      TestFlow
+      <span class="hidden sm:inline">TestFlow</span>
     </button>
-    <div id="breadcrumb" data-testid="breadcrumb" class="flex items-center gap-1 text-sm text-slate-500 ml-2"></div>
-    <div class="ml-auto flex items-center gap-2">
+    <div id="breadcrumb" data-testid="breadcrumb" class="no-scrollbar flex items-center gap-1 text-sm text-slate-500 ml-1 sm:ml-2 min-w-0 flex-1 overflow-x-auto whitespace-nowrap"></div>
+    <div class="ml-auto flex items-center gap-2 flex-shrink-0">
       <button id="nav-new-btn" data-testid="nav-new-btn" onclick="handleNewBtn()" class="hidden bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         <span id="nav-new-label" data-testid="nav-new-label" class="hidden sm:inline">New</span>
@@ -105,7 +119,10 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         </button>
       </div>
-      <ul id="sidebar-projects" data-testid="sidebar-projects" class="divide-y divide-slate-100 max-h-[280px] overflow-y-auto">
+      <!-- Height cap inline as well as in the class: rows' stats load as they
+           scroll into this list's view, and the Tailwind CDN's CSS can land
+           after the first render, when the list would briefly be full height. -->
+      <ul id="sidebar-projects" data-testid="sidebar-projects" class="divide-y divide-slate-100 max-h-[280px] overflow-y-auto" style="max-height:280px;overflow-y:auto">
         <li class="px-4 py-3 text-sm text-slate-400 italic">Loading…</li>
       </ul>
     </div>
@@ -154,6 +171,6 @@
   <div id="toast-inner" data-testid="toast-inner" class="px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-xs"></div>
 </div>
 
-<script src="/static/app.js?v=49"></script>
+<script src="/static/app.js?v=74"></script>
 </body>
 </html>

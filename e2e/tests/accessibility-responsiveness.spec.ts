@@ -73,6 +73,19 @@ guestTest.describe('Guest recruiter view — Recruiter Tour keyboard operation',
     await guestExpect(startBtn).toBeFocused();
   });
 
+  guestTest('focus returns to Start Tour even when the click never focused it, as in Safari', async ({ page }) => {
+    // Safari doesn't focus a button on click, so document.activeElement stays
+    // <body>. element.click() does the same in every browser, so this guards
+    // the fix on Chromium and Firefox too, not only on WebKit.
+    const startBtn = page.getByTestId('start-tour-btn');
+    await startBtn.evaluate((b) => (b as HTMLButtonElement).click());
+    await guestExpect(page.getByTestId('recruiter-tour-card')).toBeVisible();
+
+    await page.getByTestId('tour-exit-btn').click();
+    await guestExpect(page.getByTestId('recruiter-tour-card')).toHaveCount(0);
+    await guestExpect(startBtn).toBeFocused();
+  });
+
   guestTest('Tab from the last control wraps back to the first, keeping focus inside the dialog', async ({ page }) => {
     await page.getByTestId('start-tour-btn').click();
     await page.getByTestId('tour-next-btn').click(); // step 2 - now has a Back button too
@@ -116,3 +129,27 @@ for (const width of [375, 768, 1024, 1440]) {
     guestExpect(overflow).toBeLessThanOrEqual(20);
   });
 }
+
+
+guestTest.describe('Dialogs close with Escape', () => {
+  guestTest('the sign-in dialog', async ({ page }) => {
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('signin-btn').click();
+    await guestExpect(page.locator('#auth-modal')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await guestExpect(page.locator('#auth-modal')).toBeHidden();
+  });
+});
+
+authTest.describe('Dialogs close with Escape — signed in', () => {
+  authTest('the New Project dialog', async ({ page, authToken }) => {
+    await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
+    await page.goto('/#projects');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('nav-new-btn').click();
+    await authExpect(page.getByTestId('modal-overlay')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await authExpect(page.getByTestId('modal-overlay')).toHaveClass(/hidden/);
+  });
+});

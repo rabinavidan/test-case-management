@@ -69,6 +69,17 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     for (const step of steps) {
       await guestExpect(section.getByText(step, { exact: false })).toBeVisible();
     }
+    // In order, and every step whole inside the card - none cut off behind a
+    // sideways scroll, as the last one used to be on desktop.
+    const items = section.getByTestId('delivery-step');
+    await guestExpect(items).toHaveCount(6);
+    const texts = await items.allTextContents();
+    steps.forEach((step, i) => guestExpect(texts[i]).toContain(`${i + 1}. ${step}`));
+    const card = (await section.locator('ol').boundingBox())!;
+    for (const box of await items.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()))) {
+      guestExpect(box.right).toBeLessThanOrEqual(card.x + card.width + 1);
+      guestExpect(card.x - box.left).toBeLessThanOrEqual(1);
+    }
   });
 
   guestTest('Sign in is present but styled as a secondary action, and still opens the auth modal', async ({ page }) => {

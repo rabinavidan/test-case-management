@@ -17,8 +17,15 @@ Client -> server messages:
   - anything else -> `{"type": "error", "detail": ...}`; the socket stays
     open, a malformed frame from one tab shouldn't drop it from the room.
 
-Server -> client broadcasts (`result_updated`, `results_populated`) are
-flat JSON objects discriminated by `type`, unchanged from before.
+Server -> client:
+  - `{"type": "subscribed", "run_id": <id>}` once, after the token and run
+    checks pass and the socket has joined the run's room. Only from then on
+    is it receiving broadcasts: the socket is *open* before that (it is
+    accepted first, see above), so a client that treated "open" as "live"
+    could miss an update made in between - static/app.js shows its Live
+    indicator, and re-reads the run to catch up, on this message.
+  - broadcasts (`result_updated`, `results_populated`): flat JSON objects
+    discriminated by `type`, unchanged from before.
 """
 import json
 import time
@@ -31,6 +38,11 @@ CLOSE_RUN_NOT_FOUND = 4404
 
 LEGACY_PING = "ping"
 LEGACY_PONG = "pong"
+
+
+def subscribed_message(run_id: int) -> str:
+    """Sent once a socket has joined `run_id`'s room (see the module docstring)."""
+    return json.dumps({"type": "subscribed", "run_id": run_id})
 
 
 def reply_to(message: str) -> Optional[str]:

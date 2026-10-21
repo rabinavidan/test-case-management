@@ -119,7 +119,7 @@ def test_main_passes_a_selector_heal(repo):
 def test_workflow_runs_guard_on_spec_changes_and_honours_label():
     import yaml
     from pathlib import Path
-    wf = yaml.safe_load((Path(__file__).resolve().parents[2] / ".github/workflows/assertion-guard.yml").read_text())
+    wf = yaml.safe_load((Path(__file__).resolve().parents[2] / ".github/workflows/assertion-guard.yml").read_text(encoding="utf-8"))
     trigger = wf[True]["pull_request"]  # PyYAML reads the bare `on:` key as True
     assert "e2e/**/*.spec.ts" in trigger["paths"]
     assert {"labeled", "unlabeled"} <= set(trigger["types"])

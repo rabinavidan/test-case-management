@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set
 from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from .database import engine, get_db, Base
@@ -226,9 +227,7 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
     return run
 
 
-@app.put("/api/runs/{run_id}/results/{tc_id}")
-async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate,
-                        db: Session = Depends(get_db), current: UserClaims = Depends(get_current_user)):
+def _apply_result_update(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session):
     result = db.query(models.TestResult).filter(
         models.TestResult.run_id == run_id,
         models.TestResult.testcase_id == tc_id,
@@ -255,6 +254,17 @@ async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpda
     if run_completed:
         counts = {s: sum(1 for r in all_results if r.status == s) for s in ("pass", "fail", "skip")}
         publish_run_completed(run_id, run.suite_id, counts["pass"], counts["fail"], counts["skip"])
+    return result, run_completed
+
+
+# Async only to await the broadcast: the DB work and the event publishing
+# block, so they run in the threadpool. On the event loop they deadlock the
+# service when the pool is busy - waiting for a connection that the requests
+# holding them need this same loop to give back.
+@app.put("/api/runs/{run_id}/results/{tc_id}")
+async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate,
+                        db: Session = Depends(get_db), current: UserClaims = Depends(get_current_user)):
+    result, run_completed = await run_in_threadpool(_apply_result_update, run_id, tc_id, payload, db)
 
     await broadcast_result_update(run_id, {
         "type": "result_updated",
@@ -284,13 +294,19 @@ async def run_websocket(
     except HTTPException:
         await ws.close(code=ws_protocol.CLOSE_UNAUTHORIZED, reason="Not authenticated")
         return
-    if not db.query(models.TestRun).filter(models.TestRun.id == run_id).first():
+    def run_exists():
+        # In the threadpool, not on the event loop (see update_result). Then
+        # release the connection rather than pin it for the socket's lifetime.
+        found = db.query(models.TestRun).filter(models.TestRun.id == run_id).first() is not None
+        db.close()
+        return found
+
+    if not await run_in_threadpool(run_exists):
         await ws.close(code=ws_protocol.CLOSE_RUN_NOT_FOUND, reason="Run not found")
         return
-    # Don't pin a pooled DB connection for the socket's whole lifetime.
-    db.close()
 
     ws_manager.join(run_id, ws)
+    await ws.send_text(ws_protocol.subscribed_message(run_id))
     try:
         while True:
             reply = ws_protocol.reply_to(await ws.receive_text())

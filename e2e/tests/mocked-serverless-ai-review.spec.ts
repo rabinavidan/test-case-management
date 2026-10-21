@@ -8,7 +8,7 @@ import {
   mockProjectList,
   mockSuite,
 } from '../mocks/factories';
-import { fulfillJson, mockAuthSession, byPath } from '../mocks/route-helpers';
+import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mocks/route-helpers';
 
 /**
  * Human review of AI drafts (course milestone M9) on the suite page, against
@@ -24,6 +24,7 @@ async function mockSuitePage(page: Page, reviews: ReturnType<typeof mockAIDraftR
   const suite = mockSuite({ project_id: project.id, name: 'Checkout' });
   await page.route(byPath('/api/projects'), (route) => fulfillJson(route, 200, mockProjectList([project])));
   await page.route(byPath(`/api/projects/${project.id}/suites`), (route) => fulfillJson(route, 200, [suite]));
+  await mockParentLookups(page, [project], [suite]);
   await page.route(byPath(`/api/suites/${suite.id}/testcases`), (route) => fulfillJson(route, 200, []));
   await page.route(byPath(`/api/suites/${suite.id}/runs`), (route) => fulfillJson(route, 200, []));
 

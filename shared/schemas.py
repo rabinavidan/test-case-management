@@ -33,7 +33,7 @@ and a resolved `created_by_username` that the runs service alone can't
 produce (that data lives in the projects/auth services in microservices
 mode). Those stay defined per-stack rather than forced into one shape.
 """
-from pydantic import BaseModel, Field, PlainSerializer, WithJsonSchema
+from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, WithJsonSchema
 from typing import Annotated, Optional, List
 from datetime import datetime, timezone
 
@@ -61,15 +61,28 @@ UTCDatetime = Annotated[
 
 # ─── Auth ───────────────────────────────────────────────────────────────────
 
+def _no_nul(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("must not contain NUL characters")
+    return value
+
+
+# Credentials with a NUL byte crashed the server (500) instead of failing
+# validation: passlib refuses to hash or verify one, and Postgres can't store
+# one in a text column. The contract fuzz test generated them now and then,
+# which is why test_openapi_contract's POST /api/users case looked flaky.
+NoNulStr = Annotated[str, AfterValidator(_no_nul)]
+
+
 class UserRegister(BaseModel):
-    username: str
-    email: str
-    password: str
+    username: NoNulStr
+    email: NoNulStr
+    password: NoNulStr
 
 
 class UserLogin(BaseModel):
-    username: str
-    password: str
+    username: NoNulStr
+    password: NoNulStr
 
 
 class UserResponse(BaseModel):

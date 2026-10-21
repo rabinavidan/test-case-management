@@ -50,7 +50,7 @@ def test_cli_reports_provider_failure_and_threshold(tmp_path, monkeypatch, capsy
 
 
 def test_bundled_dataset_is_well_formed():
-    data = json.loads(retrieval_eval.DEFAULT_DATASET.read_text())
+    data = json.loads(retrieval_eval.DEFAULT_DATASET.read_text(encoding="utf-8"))
     for suite in data["suites"]:
         ids = {d["id"] for d in suite["corpus"]}
         for q in suite["queries"]:

@@ -20,12 +20,18 @@ async function signedInPage(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-/** Opens /ws/runs/{id} in the page and resolves with the first frame, or the close code. */
+/** Opens /ws/runs/{id} in the page and resolves with the first frame after
+ * the server's "subscribed" (which says the socket has joined the room), or
+ * the close code. `subscribed` reports whether that message came first. */
 function socketExchange(page: Page, path: string, send?: string) {
-  return page.evaluate(({ path, send }) => new Promise<{ frame?: string; closeCode?: number }>((resolve) => {
+  return page.evaluate(({ path, send }) => new Promise<{ frame?: string; closeCode?: number; subscribed?: boolean }>((resolve) => {
     const ws = new WebSocket(`${location.origin.replace(/^http/, 'ws')}${path}`);
+    let subscribed = false;
     ws.onopen = () => { if (send !== undefined) ws.send(send); };
-    ws.onmessage = (e) => { resolve({ frame: String(e.data) }); ws.close(); };
+    ws.onmessage = (e) => {
+      if (!subscribed && String(e.data).includes('"subscribed"')) { subscribed = true; return; }
+      resolve({ frame: String(e.data), subscribed }); ws.close();
+    };
     ws.onclose = (e) => resolve({ closeCode: e.code });
   }), { path, send });
 }
@@ -34,6 +40,16 @@ test.describe('Run WebSocket protocol', () => {
   let seeded: Awaited<ReturnType<typeof seedRun>>;
   test.beforeEach(async ({ request }) => { seeded = await seedRun(request, 'ws-proto', 1); });
   test.afterEach(async ({ request }) => { await deleteProject(request, seeded.projectId); });
+
+  test('an admitted socket is first told it is subscribed', async ({ page }) => {
+    await page.goto('/');
+    const url = `/ws/runs/${seeded.runId}?token=${readToken()}`;
+    const first = await page.evaluate((url) => new Promise<string>((resolve) => {
+      const ws = new WebSocket(`${location.origin.replace(/^http/, 'ws')}${url}`);
+      ws.onmessage = (e) => { resolve(String(e.data)); ws.close(); };
+    }), url);
+    expect(JSON.parse(first)).toEqual({ type: 'subscribed', run_id: Number(seeded.runId) });
+  });
 
   test('JSON ping gets a timestamped pong; legacy text ping still works', async ({ page }) => {
     await page.goto('/');

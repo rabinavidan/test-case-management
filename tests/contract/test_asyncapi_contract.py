@@ -19,7 +19,7 @@ from api.database import Base, get_db
 from api.main import app
 
 SPEC_PATH = pathlib.Path(__file__).resolve().parents[2] / "docs" / "asyncapi.yaml"
-SPEC = yaml.safe_load(SPEC_PATH.read_text())
+SPEC = yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
 MESSAGES = SPEC["components"]["messages"]
 
 _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
@@ -72,6 +72,7 @@ def test_spec_is_asyncapi_3_and_every_message_has_a_schema():
 def test_pong_matches_contract(ctx):
     client, token, run_id, _ = ctx
     with client.websocket_connect(f"/ws/runs/{run_id}?token={token}") as ws:
+        _assert_matches("subscribed", ws.receive_json())
         ws.send_text(json.dumps({"type": "ping"}))
         _assert_matches("pong", ws.receive_json())
         ws.send_text("ping")
@@ -81,6 +82,7 @@ def test_pong_matches_contract(ctx):
 def test_error_matches_contract(ctx):
     client, token, run_id, _ = ctx
     with client.websocket_connect(f"/ws/runs/{run_id}?token={token}") as ws:
+        _assert_matches("subscribed", ws.receive_json())
         ws.send_text("{not json")
         _assert_matches("error", ws.receive_json())
 
@@ -92,6 +94,7 @@ def test_error_matches_contract(ctx):
 def test_result_updated_matches_contract(ctx, body):
     client, token, run_id, tc_id = ctx
     with client.websocket_connect(f"/ws/runs/{run_id}?token={token}") as ws:
+        _assert_matches("subscribed", ws.receive_json())
         client.put(f"/api/runs/{run_id}/results/{tc_id}", json=body,
                    headers={"Authorization": f"Bearer {token}"})
         _assert_matches("resultUpdated", ws.receive_json())

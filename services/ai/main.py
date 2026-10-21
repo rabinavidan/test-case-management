@@ -27,8 +27,10 @@ def health():
     return health_response("ai")
 
 
+# Plain def, not async: the projects lookup and the LLM call both block, and
+# FastAPI runs sync handlers in its threadpool instead of on the event loop.
 @app.post("/api/suites/{suite_id}/testcases/generate", response_model=AIGenerateResponse)
-async def generate(suite_id: int, payload: AIGenerateRequest,
+def generate(suite_id: int, payload: AIGenerateRequest,
                    _: UserClaims = Depends(require_admin)):
     # Get suite name from projects service
     suite_name = f"Suite {suite_id}"

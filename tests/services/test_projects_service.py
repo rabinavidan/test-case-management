@@ -78,6 +78,22 @@ def test_delete_missing_project_404(client):
     assert client.delete("/api/projects/999", headers=ADMIN).status_code == 404
 
 
+def test_get_project_and_suite_by_id(client):
+    project = client.post("/api/projects", json={"name": "P"}, headers=ADMIN).json()
+    suite = client.post(f"/api/projects/{project['id']}/suites", json={"name": "S"}, headers=ADMIN).json()
+
+    got = client.get(f"/api/projects/{project['id']}")
+    assert got.status_code == 200
+    assert got.json()["name"] == "P"
+
+    got = client.get(f"/api/suites/{suite['id']}")
+    assert got.status_code == 200
+    assert got.json()["project_id"] == project["id"]
+
+    assert client.get("/api/projects/999").status_code == 404
+    assert client.get("/api/suites/999").status_code == 404
+
+
 def test_suite_and_testcase_crud(client):
     project = client.post("/api/projects", json={"name": "P"}, headers=ADMIN).json()
 

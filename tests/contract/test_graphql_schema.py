@@ -17,7 +17,7 @@ SDL_PATH = pathlib.Path(__file__).resolve().parents[2] / "docs" / "schema.graphq
 
 
 def test_schema_matches_committed_sdl():
-    committed = SDL_PATH.read_text().strip()
+    committed = SDL_PATH.read_text(encoding="utf-8").strip()
     assert schema.as_str().strip() == committed, (
         "GraphQL schema drifted from docs/schema.graphql — regenerate it (see this module's docstring)"
     )
@@ -26,5 +26,5 @@ def test_schema_matches_committed_sdl():
 def test_committed_sdl_is_valid_and_has_no_breaking_changes_vs_itself():
     """Sanity: the SDL parses, and graphql-core's breaking-change detector
     (the tool a CI gate against the previous release would use) runs on it."""
-    committed = build_schema(SDL_PATH.read_text())
+    committed = build_schema(SDL_PATH.read_text(encoding="utf-8"))
     assert find_breaking_changes(committed, build_schema(schema.as_str())) == []

@@ -171,3 +171,19 @@ def test_export_suite_csv_neutralizes_formula_injection(auth_client, project):
     r = client.get(f"/api/suites/{s['id']}/export/csv", headers=headers)
     rows = _parse_csv_rows(r.text)
     assert rows[1][1] == "'=SUM(A1:A9)"
+
+
+def test_get_suite_names_its_project(project):
+    proj, headers, client = project
+    sid = client.post(f"/api/projects/{proj['id']}/suites", json={"name": "Checkout"}, headers=headers).json()["id"]
+    r = client.get(f"/api/suites/{sid}")
+    assert r.status_code == 200
+    assert r.json()["id"] == sid
+    assert r.json()["name"] == "Checkout"
+    assert r.json()["project_id"] == proj["id"]
+
+
+def test_get_suite_not_found(client):
+    r = client.get("/api/suites/999")
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Suite not found"

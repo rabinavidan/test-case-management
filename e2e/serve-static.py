@@ -8,7 +8,9 @@ a database, or `pip install` at all:
     index.html's <script src="/static/app.js"> resolves to)
   - every other GET      -> serves static/index.html's content (the SPA
     itself does all routing client-side via the URL hash, so any path
-    just needs to return the same shell)
+    just needs to return the same shell) - except a missing API route, a
+    file or a platform path, which 404 like the real app's (shared/spa.py's
+    is_page_path, mirrored below to keep this file dependency-free)
 
 Usage: python3 serve-static.py [port]  (default port 8010)
 """
@@ -17,6 +19,15 @@ import os
 import sys
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static")
+NON_PAGE_PREFIXES = ("api/", "ws/", "static/", "_vercel/")
+
+
+def is_page_path(path: str) -> bool:
+    """Mirror of shared/spa.py's is_page_path."""
+    path = path.lstrip("/")
+    if path == "api" or path.startswith(NON_PAGE_PREFIXES):
+        return False
+    return "." not in path.rsplit("/", 1)[-1]
 
 
 class SPAHandler(http.server.BaseHTTPRequestHandler):
@@ -24,8 +35,11 @@ class SPAHandler(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path.startswith("/static/"):
             self._serve_file(os.path.join(STATIC_DIR, path[len("/static/") :]))
-        else:
+        elif is_page_path(path):
             self._serve_file(os.path.join(STATIC_DIR, "index.html"))
+        else:
+            self.send_response(404)
+            self.end_headers()
 
     def _serve_file(self, filepath: str) -> None:
         filepath = os.path.normpath(filepath)
@@ -37,6 +51,7 @@ class SPAHandler(http.server.BaseHTTPRequestHandler):
             ".html": "text/html; charset=utf-8",
             ".js": "application/javascript; charset=utf-8",
             ".css": "text/css; charset=utf-8",
+            ".webp": "image/webp",
         }.get(os.path.splitext(filepath)[1], "application/octet-stream")
         with open(filepath, "rb") as f:
             body = f.read()
@@ -52,7 +67,10 @@ class SPAHandler(http.server.BaseHTTPRequestHandler):
 
 def main() -> int:
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8010
-    server = http.server.HTTPServer(("127.0.0.1", port), SPAHandler)
+    # Threading: a plain HTTPServer answers one request at a time, so with
+    # several Playwright workers loading the ~300 KB app.js at once, requests
+    # queued until tests timed out.
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), SPAHandler)
     server.serve_forever()
     return 0
 
