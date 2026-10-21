@@ -14,10 +14,6 @@ from shared.schemas import (
     RunDataPoint,
     ProjectAnalytics,
     AIGeneratedTestCase,
-    AIDraftDecision,
-    AIDraftReviewSubmit,
-    AIDraftReviewResult,
-    AIDraftReviewResponse,
 )
 
 __all__ = [
@@ -26,5 +22,4 @@ __all__ = [
     "TestCaseCreate", "TestCaseUpdate", "TestCaseResponse",
     "ProjectStats", "RunDataPoint", "ProjectAnalytics",
     "AIGeneratedTestCase",
-    "AIDraftDecision", "AIDraftReviewSubmit", "AIDraftReviewResult", "AIDraftReviewResponse",
 ]
