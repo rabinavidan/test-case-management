@@ -23,12 +23,15 @@ class BasePage:
         return self.page.get_by_test_id("breadcrumb")
 
     @property
-    def nav_new_btn(self) -> Locator:
-        return self.page.get_by_test_id("nav-new-btn")
+    def page_new_btn(self) -> Locator:
+        """The current page's primary "New ..." button, next to its heading."""
+        return self.page.locator(
+            "[data-testid='new-project-btn'], [data-testid='new-suite-btn'], [data-testid='new-testcase-btn']"
+        ).locator("visible=true")
 
     @property
-    def nav_new_label(self) -> Locator:
-        return self.page.get_by_test_id("nav-new-label")
+    def page_new_label(self) -> Locator:
+        return self.page_new_btn
 
     # ── Sidebar ─────────────────────────────────────────────────────────────
     @property

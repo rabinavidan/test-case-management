@@ -57,7 +57,7 @@ test.describe('User Management', () => {
       await expect(exec.getByTestId('environments-btn')).toBeVisible();
       await expect(exec.getByTestId('users-btn')).toHaveCount(0);
       await expect(exec.getByTestId('logs-btn')).toHaveCount(0);
-      await expect(exec.getByTestId('nav-new-btn')).toBeHidden();
+      await expect(exec.getByTestId('new-project-btn')).toBeHidden();
       // The admin pages fall back to the projects list.
       for (const hash of ['#users', '#logs']) {
         await exec.goto(`/${hash}`);

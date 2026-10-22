@@ -74,7 +74,7 @@ function toast(msg, type = "success") {
   const el = document.getElementById("toast");
   const inner = document.getElementById("toast-inner");
   const colors = {
-    success: "bg-emerald-600 text-white",
+    success: "bg-emerald-700 text-white",
     error:   "bg-red-600 text-white",
     info:    "bg-blue-600 text-white",
   };
@@ -290,7 +290,7 @@ function buildRunModal(title, body, { suiteId }) {
     <p class="text-sm text-slate-500 mb-4">Creates a new test run for all <strong>active</strong> test cases in this suite.</p>
     <div class="flex justify-end gap-2">
       <button onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
-      <button onclick="submitRun(${suiteId})" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">Start Run</button>
+      <button onclick="submitRun(${suiteId})" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium rounded-lg transition-colors">Start Run</button>
     </div>`;
 }
 
@@ -348,7 +348,7 @@ function buildContactModal(title, body) {
       <label class="block text-sm font-medium text-slate-700 mb-1">Message *</label>
       <textarea id="f-description" data-testid="f-description" class="${textareaCls}" rows="4" maxlength="500"
         placeholder="How can we help?" oninput="document.getElementById('f-desc-count').textContent = 500 - this.value.length"></textarea>
-      <p class="text-xs text-slate-400 mt-1 text-right"><span id="f-desc-count">500</span> characters left</p>
+      <p class="text-xs text-slate-500 mt-1 text-right"><span id="f-desc-count">500</span> characters left</p>
     </div>
     <div class="flex justify-end gap-2 mt-2">
       <button data-testid="modal-cancel-btn" onclick="hideModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</button>
@@ -410,16 +410,16 @@ function renderAiPipelineTimelineInner() {
       <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
         <div class="flex items-center gap-1.5">
           <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-          <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
         </div>
-        <p class="text-[10px] font-mono" style="color:rgba(255,255,255,.55)">
+        <p class="text-[11px] font-mono" style="color:rgba(255,255,255,.55)">
           <span data-pipe-run data-testid="pipe-run">Run #1</span> · <span data-pipe-step data-testid="pipe-step">Step 1/${n}</span>
         </p>
       </div>
       <div class="h-1 rounded-full overflow-hidden mb-3" style="background:rgba(255,255,255,.08)">
         <div data-pipe-progress data-testid="pipe-progress" class="h-full rounded-full transition-[width] duration-700 ease-out" style="width:0%;background:linear-gradient(90deg,#38bdf8,#34d399)"></div>
       </div>
-      <div data-pipe-row class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pt-1 pb-1 carousel-track">
+      <div data-pipe-row tabindex="0" role="region" aria-label="AI pipeline stages" class="flex items-stretch gap-1.5 sm:gap-2 overflow-x-auto pt-1 pb-1 carousel-track focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded-xl">
         ${AI_PIPELINE_DEMO_NODES.map((node, i, arr) => `
           <div class="flex items-stretch gap-1.5 sm:gap-2 flex-shrink-0">
             <div data-pipe-node="${i}" data-state="queued" data-testid="pipe-node" class="pipe-node ai-demo-node flex flex-col gap-2 rounded-xl p-3 w-32 sm:w-36" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15)">
@@ -430,16 +430,16 @@ function renderAiPipelineTimelineInner() {
               <div>
                 <p class="text-white text-xs font-bold leading-tight">${node.title}</p>
                 ${node.model ? `<p class="text-[8px] font-bold uppercase tracking-wider mt-0.5" style="color:rgba(199,210,254,.85)">${node.model}</p>` : ''}
-                <p class="text-[10px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
+                <p class="text-[11px] leading-relaxed mt-0.5" style="color:rgba(255,255,255,.5)">${node.desc}</p>
               </div>
             </div>
             ${i < arr.length - 1 ? `<div data-pipe-link data-state="idle" data-testid="pipe-link" class="pipe-link self-center relative w-5 sm:w-7 h-0.5 rounded-full flex-shrink-0" aria-hidden="true"><span class="pipe-packet"></span></div>` : ''}
           </div>
         `).join('')}
       </div>
-      <p class="text-[10px] mt-3 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
+      <p class="text-[11px] mt-3 pt-3" style="color:rgba(255,255,255,.3);border-top:1px solid rgba(255,255,255,.08)">
         Every node above is a real file in this repo — see the cards above for the exact path, or
-        <code class="text-[9px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
+        <code class="text-[11px]" style="color:rgba(165,180,252,.7)">docs/agent-governance.md</code> for why nothing here runs unattended without a human checkpoint.
       </p>
     </div>
   `;
@@ -582,10 +582,17 @@ async function submitResult(runId, tcId) {
   if (!status) { toast("Please select a result", "error"); return; }
   const notes = document.getElementById("f-notes").value.trim();
   try {
-    await PUT(`/api/runs/${runId}/results/${tcId}`, { status, notes: notes || null });
+    const saved = await PUT(`/api/runs/${runId}/results/${tcId}`, { status, notes: notes || null });
     hideModal();
     toast(`Marked as ${status}`);
-    navigate(`run/${runId}`);
+    // Update the open run page in place, keeping its filter and order.
+    const r = _runView?.runId === runId ? runResult(tcId) : null;
+    if (r) {
+      Object.assign(r, { status: saved.status, notes: saved.notes, executed_at: new Date().toISOString() });
+      onRunResultChanged(tcId);
+    } else {
+      navigate(`run/${runId}`);
+    }
   } catch (e) { toast(e.message, "error"); }
 }
 
@@ -603,7 +610,9 @@ async function router() {
   const parts = hash.split("/");
 
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
-  document.getElementById("nav-new-btn").classList.add("hidden");
+  // A guest has no projects of their own to navigate, so the sidebar would
+  // only take a quarter of the width from the showcase.
+  document.getElementById("app-sidebar").classList.toggle("md:block", !!state.user);
 
   // Navigating away from the projects list (e.g. clicking into a project)
   // while the Recruiter Tour is active must not leave its floating card
@@ -645,7 +654,7 @@ function setBreadcrumb(items) {
   const el = document.getElementById("breadcrumb");
   el.innerHTML = items.map((item, i) => {
     const sep = i > 0
-      ? `<svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`
+      ? `<svg class="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`
       : "";
     if (i === items.length - 1) {
       return `${sep}<span class="text-slate-600 font-medium truncate max-w-[160px] flex-shrink-0">${escHtml(item.label)}</span>`;
@@ -686,7 +695,7 @@ async function _loadSidebar() {
     const _pr = await GET("/api/projects?page_size=100");
     state.projects = _pr?.items ?? _pr ?? [];
     if (!state.projects.length) {
-      ul.innerHTML = `<li class="px-4 py-3 text-sm text-slate-400 italic">No projects yet</li>`;
+      ul.innerHTML = `<li class="px-4 py-3 text-sm text-slate-500 italic">No projects yet</li>`;
       return;
     }
 
@@ -713,7 +722,7 @@ async function _loadSidebar() {
                     <li>
                       <button onclick="navigate('suite/${s.id}/testcases')"
                         class="w-full text-left pl-3 pr-4 py-1 text-xs transition-colors truncate flex items-center gap-1
-                          ${casesActive ? "text-blue-700 font-semibold" : "text-slate-400 hover:text-blue-600"}">
+                          ${casesActive ? "text-blue-700 font-semibold" : "text-slate-500 hover:text-blue-600"}">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                         Test Cases
                       </button>
@@ -721,7 +730,7 @@ async function _loadSidebar() {
                     <li>
                       <button onclick="navigate('suite/${s.id}/runs')"
                         class="w-full text-left pl-3 pr-4 py-1 text-xs transition-colors truncate flex items-center gap-1
-                          ${runsActive ? "text-blue-700 font-semibold" : "text-slate-400 hover:text-blue-600"}">
+                          ${runsActive ? "text-blue-700 font-semibold" : "text-slate-500 hover:text-blue-600"}">
                         <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         Test Runs
                       </button>
@@ -742,7 +751,7 @@ async function _loadSidebar() {
           </button>
           ${isAdmin() ? `<button data-testid="sidebar-delete-project-${p.id}" onclick="event.stopPropagation(); deleteProject(${p.id})"
             title="Delete project" aria-label="Delete project ${escHtml(p.name)}"
-            class="flex-shrink-0 mr-2 p-1 rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 transition-opacity text-slate-400 hover:text-red-600 hover:bg-red-50">
+            class="flex-shrink-0 mr-2 p-1 rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 transition-opacity text-slate-500 hover:text-red-600 hover:bg-red-50">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
             </svg>
@@ -819,7 +828,7 @@ async function loadSidebarBar(bar, p) {
     const pct = v => Math.round((v / total) * 100);
     const passW = pct(s.last_run_pass), failW = pct(s.last_run_fail), skipW = pct(s.last_run_skip), pendW = pct(s.last_run_pending);
     const overall = s.last_run_fail > 0 ? "fail" : s.last_run_pending > 0 ? "pending" : "pass";
-    const labelCls = overall === "fail" ? "text-red-500" : overall === "pending" ? "text-amber-500" : "text-emerald-600";
+    const labelCls = overall === "fail" ? "text-red-600" : overall === "pending" ? "text-amber-700" : "text-emerald-700";
     bar.innerHTML = `
       <div class="flex items-center gap-1.5 mb-0.5">
         <div class="flex h-1 rounded-full overflow-hidden flex-1 bg-slate-100 gap-px">
@@ -828,7 +837,7 @@ async function loadSidebarBar(bar, p) {
           ${skipW ? `<div class="bg-amber-400 h-full" style="width:${skipW}%"></div>` : ""}
           ${pendW ? `<div class="bg-slate-300 h-full" style="width:${pendW}%"></div>` : ""}
         </div>
-        <span class="text-[9px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
+        <span class="text-[11px] font-bold ${labelCls} flex-shrink-0">${passW}%</span>
       </div>`;
   } catch { bar.innerHTML = ""; }
 }
@@ -924,8 +933,8 @@ function renderTourOverlay() {
     <div data-testid="recruiter-tour-card" role="dialog" aria-modal="true" aria-label="Recruiter Tour"
       class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 w-[calc(100%-2rem)] max-w-sm">
       <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wide" data-testid="tour-step-label">Recruiter Tour — Step ${i + 1} of ${RECRUITER_TOUR_STEPS.length}</span>
-        <button type="button" onclick="exitRecruiterTour()" data-testid="tour-exit-btn" aria-label="Exit tour" class="text-slate-400 hover:text-slate-600 flex-shrink-0">
+        <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wide" data-testid="tour-step-label">Recruiter Tour — Step ${i + 1} of ${RECRUITER_TOUR_STEPS.length}</span>
+        <button type="button" onclick="exitRecruiterTour()" data-testid="tour-exit-btn" aria-label="Exit tour" class="text-slate-500 hover:text-slate-600 flex-shrink-0">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -1000,9 +1009,9 @@ function renderShowcaseSection(sections) {
         <span class="flex items-center gap-2 text-sm font-semibold text-slate-700">
           <span class="text-base" aria-hidden="true">🏗️</span>
           Live architecture, tech stack &amp; demo pipeline
-          <span class="text-xs font-normal text-slate-400">— see how this project is built</span>
+          <span class="text-xs font-normal text-slate-500">— see how this project is built</span>
         </span>
-        <svg id="showcase-toggle-icon" class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}"
+        <svg id="showcase-toggle-icon" class="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}"
           fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
         </svg>
@@ -1267,7 +1276,7 @@ function renderSuccessStoriesSection() {
             ${i < 3 ? "" : 'loading="lazy"'} decoding="async" class="w-full aspect-[4/5] object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
         </a>
         <div class="p-3 flex flex-col gap-1 flex-1">
-          <time datetime="${s.date}" class="text-[10px] uppercase tracking-wider" style="color:rgba(255,255,255,.45)">${fmt(s.date)}</time>
+          <time datetime="${s.date}" class="text-[11px] uppercase tracking-wider" style="color:rgba(255,255,255,.45)">${fmt(s.date)}</time>
           <h3 class="text-sm font-semibold text-white leading-snug">${escHtml(s.title)}</h3>
           <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.6)">${escHtml(s.summary)}</p>
           <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" data-testid="story-link"
@@ -1321,12 +1330,12 @@ function renderTopReposSection() {
 
   const techSummary = `
     <div class="mb-4" data-testid="repos-tech-summary">
-      <p class="text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:rgba(255,255,255,.45)">Technologies across these repos</p>
+      <p class="text-[11px] font-semibold uppercase tracking-wider mb-2" style="color:rgba(255,255,255,.45)">Technologies across these repos</p>
       <ul class="flex flex-wrap gap-1.5">
         ${ranked.map(([t, c]) => `
           <li data-testid="repos-tech" data-tech="${escHtml(t)}" data-count="${c}"
             class="text-[11px] font-medium text-white/85 bg-white/10 rounded-full pl-2.5 pr-1 py-0.5 inline-flex items-center gap-1">
-            ${escHtml(t)}<span class="text-[10px] font-bold text-sky-200 bg-white/10 rounded-full px-1.5" aria-label="in ${c} repos">${c}</span>
+            ${escHtml(t)}<span class="text-[11px] font-bold text-sky-200 bg-white/10 rounded-full px-1.5" aria-label="in ${c} repos">${c}</span>
           </li>`).join("")}
       </ul>
     </div>`;
@@ -1353,7 +1362,7 @@ function renderTopReposSection() {
             <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.65)">${escHtml(r.summary)}</p>
             <p class="text-xs font-semibold text-emerald-300" data-testid="repo-fact">${escHtml(r.fact)}</p>
             <ul class="flex flex-wrap gap-1" aria-label="Technologies">
-              ${r.tech.map((t) => `<li class="text-[10px] font-medium text-sky-200 bg-sky-400/10 border border-sky-300/20 rounded-md px-1.5 py-0.5">${escHtml(t)}</li>`).join("")}
+              ${r.tech.map((t) => `<li class="text-[11px] font-medium text-sky-200 bg-sky-400/10 border border-sky-300/20 rounded-md px-1.5 py-0.5">${escHtml(t)}</li>`).join("")}
             </ul>
             <div class="mt-auto pt-2 flex items-center gap-3 text-xs font-semibold">
               <a href="${url}" target="_blank" rel="noopener noreferrer" data-testid="repo-code-link"
@@ -1375,11 +1384,6 @@ async function renderProjects() {
   state.currentSuite = null;
   setBreadcrumb([{ label: "Projects", href: "projects" }]);
 
-  const navBtn = document.getElementById("nav-new-btn");
-  document.getElementById("nav-new-label").textContent = "New Project";
-  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("project"); }
-  else { navBtn.classList.add("hidden"); }
-
   const el = document.getElementById("view-projects");
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
@@ -1393,10 +1397,10 @@ async function renderProjects() {
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6 overflow-hidden">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Live Architecture</p>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-0.5">Live Architecture</p>
           <h2 class="text-base font-bold text-slate-800">TestFlow — Microservice Overview</h2>
         </div>
-        <span class="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+        <span class="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 arch-live-dot"></span>Live
         </span>
       </div>
@@ -1404,13 +1408,13 @@ async function renderProjects() {
         <!-- Row 1: Browser -->
         <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:0ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Browser</span>
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Browser</span>
           </div>
           <div class="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-3">
             <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🖥️</div>
             <div class="flex-1 min-w-0">
               <p class="text-xs font-semibold text-blue-800">Vanilla JS SPA</p>
-              <p class="text-[10px] text-blue-500 truncate">static/index.html · static/app.js · Hash routing · Tailwind CSS · Chart.js</p>
+              <p class="text-[11px] text-blue-600 truncate">static/index.html · static/app.js · Hash routing · Tailwind CSS · Chart.js</p>
             </div>
             <div class="flex gap-1.5 flex-wrap justify-end">
               ${['index.html','app.js','TailwindCSS','Chart.js'].map(t=>`<span class="arch-tag bg-blue-100 text-blue-700">${t}</span>`).join('')}
@@ -1422,20 +1426,20 @@ async function renderProjects() {
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP / REST · WebSocket</span>
+            <span class="text-[11px] text-slate-500 font-medium arch-http-badge">HTTP / REST · WebSocket</span>
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
         <!-- Row 2: Gateway -->
         <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:140ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gateway</span>
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Gateway</span>
           </div>
           <div class="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-center gap-3">
             <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🔀</div>
             <div class="flex-1 min-w-0">
               <p class="text-xs font-semibold text-indigo-800">API Gateway — services/gateway :8000</p>
-              <p class="text-[10px] text-indigo-500 truncate">httpx proxy · WebSocket bridge · serves SPA · routes /api/* to downstream services</p>
+              <p class="text-[11px] text-indigo-500 truncate">httpx proxy · WebSocket bridge · serves SPA · routes /api/* to downstream services</p>
             </div>
             <div class="flex gap-1.5 flex-wrap justify-end">
               ${['FastAPI','httpx','WebSocket bridge','Static SPA'].map(t=>`<span class="arch-tag bg-indigo-100 text-indigo-700">${t}</span>`).join('')}
@@ -1447,14 +1451,14 @@ async function renderProjects() {
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">HTTP route fan-out</span>
+            <span class="text-[11px] text-slate-500 font-medium arch-http-badge">HTTP route fan-out</span>
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
         <!-- Row 3: Services -->
         <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:270ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Services</span>
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Services</span>
           </div>
           <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${[
@@ -1467,10 +1471,10 @@ async function renderProjects() {
                 <div class="flex items-center gap-1.5">
                   <span class="text-base">${s.icon}</span>
                   <div class="min-w-0">
-                    <p class="text-[11px] font-bold text-slate-800 truncate">${s.name} <span class="font-normal text-slate-400">${s.port}</span></p>
+                    <p class="text-[11px] font-bold text-slate-800 truncate">${s.name} <span class="font-normal text-slate-500">${s.port}</span></p>
                   </div>
                 </div>
-                <p class="text-[9px] text-slate-500 leading-relaxed">${s.desc}</p>
+                <p class="text-[11px] text-slate-500 leading-relaxed">${s.desc}</p>
               </div>`).join('')}
           </div>
         </div>
@@ -1479,35 +1483,35 @@ async function renderProjects() {
           <div class="w-24"></div>
           <div class="flex-1 flex items-center gap-2 pl-4">
             <div class="h-px flex-1 bg-slate-200"></div>
-            <span class="text-[10px] text-slate-400 font-medium arch-http-badge">ORM / SQL · Redis Pub/Sub</span>
+            <span class="text-[11px] text-slate-500 font-medium arch-http-badge">ORM / SQL · Redis Pub/Sub</span>
             <div class="h-px flex-1 bg-slate-200"></div>
           </div>
         </div>
         <!-- Row 4: Storage -->
         <div class="arch-row flex items-stretch gap-2 opacity-0" style="animation:archRowIn .35s ease forwards;animation-delay:410ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Storage</span>
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Storage</span>
           </div>
           <div class="flex-1 flex gap-2">
             <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🗄️</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-emerald-800">PostgreSQL 16</p>
-                <p class="text-[10px] text-emerald-600">Schemas: auth · projects · runs</p>
+                <p class="text-[11px] text-emerald-700">Schemas: auth · projects · runs</p>
               </div>
             </div>
             <div class="flex-1 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">⚡</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-red-800">Redis 7</p>
-                <p class="text-[10px] text-red-600">Pub/Sub · runs.completed events</p>
+                <p class="text-[11px] text-red-600">Pub/Sub · runs.completed events</p>
               </div>
             </div>
             <div class="flex-1 bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-fuchsia-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🤖</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-fuchsia-800">Anthropic Claude Haiku</p>
-                <p class="text-[10px] text-fuchsia-600">External AI API · test generation</p>
+                <p class="text-[11px] text-fuchsia-600">External AI API · test generation</p>
               </div>
             </div>
           </div>
@@ -1515,35 +1519,35 @@ async function renderProjects() {
         <!-- Row 5: CI/CD -->
         <div class="arch-row flex items-stretch gap-2 opacity-0 mt-1" style="animation:archRowIn .35s ease forwards;animation-delay:500ms">
           <div class="w-24 flex-shrink-0 flex items-center">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CI / Deploy</span>
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">CI / Deploy</span>
           </div>
           <div class="flex-1 flex gap-2">
             <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🔄</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">GitHub Actions</p>
-                <p class="text-[10px] text-slate-500">pytest API · Playwright E2E · Job summary</p>
+                <p class="text-[11px] text-slate-500">pytest API · Playwright E2E · Job summary</p>
               </div>
             </div>
             <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">▲</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Vercel</p>
-                <p class="text-[10px] text-slate-500">Monolith serverless · Preview per PR</p>
+                <p class="text-[11px] text-slate-500">Monolith serverless · Preview per PR</p>
               </div>
             </div>
             <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🐳</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Docker Compose</p>
-                <p class="text-[10px] text-slate-500">Microservice mode · 5 containers + Redis</p>
+                <p class="text-[11px] text-slate-500">Microservice mode · 5 containers + Redis</p>
               </div>
             </div>
             <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2">
               <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">🧪</div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700">Tests</p>
-                <p class="text-[10px] text-slate-500">pytest · Playwright POM · MCP tools</p>
+                <p class="text-[11px] text-slate-500">pytest · Playwright POM · MCP tools</p>
               </div>
             </div>
           </div>
@@ -1552,7 +1556,7 @@ async function renderProjects() {
     </div>
     <style>
       @keyframes archRowIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-      .arch-tag { font-size:9px; font-weight:600; padding:1px 6px; border-radius:999px; }
+      .arch-tag { font-size:11px; font-weight:600; padding:1px 6px; border-radius:999px; }
       .arch-live-dot { animation: archLivePulse 2s ease-in-out infinite; }
       @keyframes archLivePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.3)} }
       .arch-http-badge { animation: archBadgePulse 3s ease-in-out infinite; }
@@ -1580,7 +1584,7 @@ async function renderProjects() {
                 <div class="${n.color} w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-lg demo-pulse flex-shrink-0" style="animation-delay:${n.delay}ms">${n.icon}</div>
                 <div>
                   <p class="text-white text-xs font-bold mb-0.5">${n.label}</p>
-                  <p class="text-[10px] leading-relaxed" style="color:rgba(191,219,254,.75)">${n.desc}</p>
+                  <p class="text-[11px] leading-relaxed" style="color:rgba(191,219,254,.75)">${n.desc}</p>
                 </div>
               </div>
               ${i < arr.length-1 ? `<div class="demo-arrow self-center text-blue-300/60 text-lg font-bold opacity-0 flex-shrink-0" style="animation:demoNodeIn .3s ease forwards;animation-delay:${n.delay+100}ms">→</div>` : ''}
@@ -1603,8 +1607,8 @@ async function renderProjects() {
             <div class="flex items-center gap-2 rounded-xl p-2.5" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)">
               <span class="text-base flex-shrink-0">${f.icon}</span>
               <div class="min-w-0">
-                <p class="text-white text-[10px] font-bold truncate">${f.label}</p>
-                <p class="text-[9px] truncate" style="color:rgba(191,219,254,.6)">${f.desc}</p>
+                <p class="text-white text-[11px] font-bold truncate">${f.label}</p>
+                <p class="text-[11px] truncate" style="color:rgba(191,219,254,.6)">${f.desc}</p>
               </div>
             </div>
           `).join('')}
@@ -1696,15 +1700,15 @@ async function renderProjects() {
           <div class="flex gap-2 flex-wrap">
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.25)">
               <span class="text-sm font-black text-sky-300">16</span>
-              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(56,189,248,.6)">E2E</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider" style="color:rgba(56,189,248,.6)">E2E</span>
             </div>
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25)">
               <span class="text-sm font-black text-violet-300">20</span>
-              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(139,92,246,.6)">API</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider" style="color:rgba(139,92,246,.6)">API</span>
             </div>
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25)">
               <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-              <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Live CI</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-300/80">Live CI</span>
             </div>
           </div>
         </div>
@@ -1712,9 +1716,9 @@ async function renderProjects() {
         <!-- Layer 1: Test Specs -->
         <div class="mb-1">
           <div class="flex items-center gap-2 mb-2">
-            <span class="text-[9px] font-bold uppercase tracking-[.2em]" style="color:rgba(56,189,248,.5)">Test Specs</span>
+            <span class="text-[11px] font-bold uppercase tracking-[.2em]" style="color:rgba(56,189,248,.5)">Test Specs</span>
             <div class="flex-1 h-px" style="background:rgba(56,189,248,.12)"></div>
-            <span class="text-[9px] font-mono" style="color:rgba(255,255,255,.2)">e2e/tests/</span>
+            <span class="text-[11px] font-mono" style="color:rgba(255,255,255,.2)">e2e/tests/</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${[
@@ -1727,7 +1731,7 @@ async function renderProjects() {
                 <span class="text-base">${s.icon}</span>
                 <div class="min-w-0 flex-1">
                   <p class="text-[11px] font-semibold text-sky-200 truncate">${s.name}.spec.ts</p>
-                  <p class="text-[9px]" style="color:rgba(56,189,248,.45)">${s.count}</p>
+                  <p class="text-[11px]" style="color:rgba(56,189,248,.45)">${s.count}</p>
                 </div>
               </div>
             `).join('')}
@@ -1750,26 +1754,26 @@ async function renderProjects() {
           <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(139,92,246,.09);border:1px solid rgba(139,92,246,.22)">
             <div class="flex items-center gap-1.5 mb-0.5">
               <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(139,92,246,.25)">📄</div>
-              <p class="text-[10px] font-bold text-violet-300">Page Objects</p>
+              <p class="text-[11px] font-bold text-violet-300">Page Objects</p>
             </div>
-            <p class="text-[9px] leading-relaxed" style="color:rgba(139,92,246,.6)">BasePage · ProjectsPage · SuitePage · RunPage</p>
-            <p class="text-[9px]" style="color:rgba(139,92,246,.4)">locators · waitFor · POM pattern</p>
+            <p class="text-[11px] leading-relaxed" style="color:rgba(139,92,246,.6)">BasePage · ProjectsPage · SuitePage · RunPage</p>
+            <p class="text-[11px]" style="color:rgba(139,92,246,.4)">locators · waitFor · POM pattern</p>
           </div>
           <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(99,102,241,.09);border:1px solid rgba(99,102,241,.22)">
             <div class="flex items-center gap-1.5 mb-0.5">
               <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(99,102,241,.25)">🔑</div>
-              <p class="text-[10px] font-bold text-indigo-300">Auth Fixture</p>
+              <p class="text-[11px] font-bold text-indigo-300">Auth Fixture</p>
             </div>
-            <p class="text-[9px] leading-relaxed" style="color:rgba(99,102,241,.6)">authToken · authedRequest · JWT</p>
-            <p class="text-[9px]" style="color:rgba(99,102,241,.4)">beforeEach · afterEach cleanup</p>
+            <p class="text-[11px] leading-relaxed" style="color:rgba(99,102,241,.6)">authToken · authedRequest · JWT</p>
+            <p class="text-[11px]" style="color:rgba(99,102,241,.4)">beforeEach · afterEach cleanup</p>
           </div>
           <div class="rounded-xl p-3 flex flex-col gap-1.5" style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2)">
             <div class="flex items-center gap-1.5 mb-0.5">
               <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style="background:rgba(20,184,166,.2)">🌐</div>
-              <p class="text-[10px] font-bold text-teal-300">API Client</p>
+              <p class="text-[11px] font-bold text-teal-300">API Client</p>
             </div>
-            <p class="text-[9px] leading-relaxed" style="color:rgba(20,184,166,.55)">request fixture · REST calls</p>
-            <p class="text-[9px]" style="color:rgba(20,184,166,.35)">/api/projects · /api/runs</p>
+            <p class="text-[11px] leading-relaxed" style="color:rgba(20,184,166,.55)">request fixture · REST calls</p>
+            <p class="text-[11px]" style="color:rgba(20,184,166,.35)">/api/projects · /api/runs</p>
           </div>
         </div>
 
@@ -1790,14 +1794,14 @@ async function renderProjects() {
             <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(16,185,129,.2)">🎭</div>
             <div class="min-w-0">
               <p class="text-[11px] font-bold text-emerald-300">Playwright Browser</p>
-              <p class="text-[9px] truncate" style="color:rgba(16,185,129,.5)">Chromium · headless · locators · assertions</p>
+              <p class="text-[11px] truncate" style="color:rgba(16,185,129,.5)">Chromium · headless · locators · assertions</p>
             </div>
           </div>
           <div class="rounded-xl p-3 flex items-center gap-3" style="background:rgba(124,58,237,.09);border:1px solid rgba(124,58,237,.22)">
             <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(124,58,237,.2)">🤖</div>
             <div class="min-w-0">
               <p class="text-[11px] font-bold text-violet-300">MCP Browser Tools</p>
-              <p class="text-[9px] truncate" style="color:rgba(124,58,237,.55)">browser_navigate · snapshot · click · AI-assisted</p>
+              <p class="text-[11px] truncate" style="color:rgba(124,58,237,.55)">browser_navigate · snapshot · click · AI-assisted</p>
             </div>
           </div>
         </div>
@@ -1816,7 +1820,7 @@ async function renderProjects() {
           <div class="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(251,191,36,.15)">🧪</div>
           <div class="flex-1 min-w-0">
             <p class="text-[11px] font-bold text-yellow-200">TestFlow SPA — App Under Test</p>
-            <p class="text-[9px]" style="color:rgba(251,191,36,.5)">Projects · Suites · Test Cases · Runs · FastAPI · PostgreSQL</p>
+            <p class="text-[11px]" style="color:rgba(251,191,36,.5)">Projects · Suites · Test Cases · Runs · FastAPI · PostgreSQL</p>
           </div>
           <!-- Animated test result dots -->
           <div class="flex gap-1 flex-shrink-0">
@@ -1833,8 +1837,8 @@ async function renderProjects() {
             </p>
           </div>
           <div class="flex gap-2">
-            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">TypeScript</span>
-            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">GitHub Actions CI</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">TypeScript</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">GitHub Actions CI</span>
           </div>
         </div>
       </div>
@@ -1866,15 +1870,15 @@ async function renderProjects() {
           <div class="flex gap-2 flex-wrap">
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.28)">
               <span class="text-sm font-black text-indigo-300">5</span>
-              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(99,102,241,.6)">Services</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider" style="color:rgba(99,102,241,.6)">Services</span>
             </div>
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25)">
               <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-              <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-300/80">Live WS</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-300/80">Live WS</span>
             </div>
             <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2)">
               <span class="text-sm font-black text-yellow-300">Redis</span>
-              <span class="text-[9px] font-bold uppercase tracking-wider" style="color:rgba(251,191,36,.55)">Pub/Sub</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider" style="color:rgba(251,191,36,.55)">Pub/Sub</span>
             </div>
           </div>
         </div>
@@ -1885,7 +1889,7 @@ async function renderProjects() {
             <span class="text-lg">🌐</span>
             <div>
               <p class="text-[11px] font-bold text-white">Browser SPA</p>
-              <p class="text-[9px]" style="color:rgba(255,255,255,.35)">Vanilla JS · Hash routing · Chart.js · WebSocket</p>
+              <p class="text-[11px]" style="color:rgba(255,255,255,.35)">Vanilla JS · Hash routing · Chart.js · WebSocket</p>
             </div>
           </div>
         </div>
@@ -1905,8 +1909,8 @@ async function renderProjects() {
           <div class="rounded-xl px-5 py-2.5 flex items-center gap-3 w-full max-w-sm" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3)">
             <span class="text-lg">🔀</span>
             <div class="flex-1 min-w-0">
-              <p class="text-[11px] font-bold text-indigo-200">API Gateway <span class="text-[9px] font-mono text-indigo-400">:8000</span></p>
-              <p class="text-[9px]" style="color:rgba(99,102,241,.55)">httpx proxy · WebSocket bridge · Static SPA serving</p>
+              <p class="text-[11px] font-bold text-indigo-200">API Gateway <span class="text-[11px] font-mono text-indigo-400">:8000</span></p>
+              <p class="text-[11px]" style="color:rgba(99,102,241,.55)">httpx proxy · WebSocket bridge · Static SPA serving</p>
             </div>
             <div class="sys-scan-bar flex-shrink-0" style="width:36px;height:4px;border-radius:2px;background:rgba(99,102,241,.15);overflow:hidden">
               <div style="height:100%;width:30%;background:rgba(99,102,241,.8);border-radius:2px;animation:sysGwScan 1.4s ease-in-out infinite"></div>
@@ -1943,10 +1947,10 @@ async function renderProjects() {
                 <span class="text-base">${s.icon}</span>
                 <div class="min-w-0 flex-1">
                   <p class="text-[11px] font-bold ${s.title} leading-none">${s.name}</p>
-                  <p class="text-[9px] font-mono" style="color:rgba(255,255,255,.25)">${s.port}</p>
+                  <p class="text-[11px] font-mono" style="color:rgba(255,255,255,.25)">${s.port}</p>
                 </div>
               </div>
-              <p class="text-[9px] leading-relaxed" style="color:rgba(255,255,255,.35)">${s.desc}</p>
+              <p class="text-[11px] leading-relaxed" style="color:rgba(255,255,255,.35)">${s.desc}</p>
               <div class="h-0.5 rounded-full overflow-hidden" style="background:rgba(255,255,255,.06)">
                 <div class="h-full rounded-full sys-svc-bar" style="background:${s.border};animation-delay:${i*200}ms"></div>
               </div>
@@ -1974,13 +1978,13 @@ async function renderProjects() {
           <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.22)">
             <div class="flex items-center gap-1.5 mb-0.5">
               <span class="text-base">🐘</span>
-              <p class="text-[10px] font-bold text-purple-300">PostgreSQL 16</p>
+              <p class="text-[11px] font-bold text-purple-300">PostgreSQL 16</p>
             </div>
             <div class="flex flex-col gap-0.5">
               ${['auth','projects','runs'].map((s,i) => `
                 <div class="flex items-center gap-1.5">
                   <div class="w-1.5 h-1.5 rounded-sm flex-shrink-0" style="background:rgba(168,85,247,${.4+i*.2})"></div>
-                  <p class="text-[9px] font-mono" style="color:rgba(168,85,247,.6)">schema: ${s}</p>
+                  <p class="text-[11px] font-mono" style="color:rgba(168,85,247,.6)">schema: ${s}</p>
                 </div>
               `).join('')}
             </div>
@@ -1988,21 +1992,21 @@ async function renderProjects() {
           <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2)">
             <div class="flex items-center gap-1.5 mb-0.5">
               <span class="text-base">⚡</span>
-              <p class="text-[10px] font-bold text-yellow-300">Redis 7</p>
+              <p class="text-[11px] font-bold text-yellow-300">Redis 7</p>
             </div>
-            <p class="text-[9px]" style="color:rgba(251,191,36,.55)">Pub/Sub channel</p>
+            <p class="text-[11px]" style="color:rgba(251,191,36,.55)">Pub/Sub channel</p>
             <div class="flex items-center gap-1.5 mt-0.5">
               <div class="w-1.5 h-1.5 rounded-full sys-redis-dot"></div>
-              <p class="text-[9px] font-mono" style="color:rgba(251,191,36,.4)">runs.completed</p>
+              <p class="text-[11px] font-mono" style="color:rgba(251,191,36,.4)">runs.completed</p>
             </div>
           </div>
           <div class="rounded-xl p-2.5 flex flex-col gap-1" style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.18)">
             <div class="flex items-center gap-1.5 mb-0.5">
               <span class="text-base">🧠</span>
-              <p class="text-[10px] font-bold text-red-300">Anthropic</p>
+              <p class="text-[11px] font-bold text-red-300">Anthropic</p>
             </div>
-            <p class="text-[9px]" style="color:rgba(239,68,68,.5)">Claude Haiku</p>
-            <p class="text-[9px]" style="color:rgba(239,68,68,.35)">Test generation</p>
+            <p class="text-[11px]" style="color:rgba(239,68,68,.5)">Claude Haiku</p>
+            <p class="text-[11px]" style="color:rgba(239,68,68,.35)">Test generation</p>
           </div>
         </div>
 
@@ -2017,13 +2021,13 @@ async function renderProjects() {
             ].map(l => `
               <div class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${l.dot}"></span>
-                <span class="text-[9px]" style="color:rgba(255,255,255,.35)">${l.label}</span>
+                <span class="text-[11px]" style="color:rgba(255,255,255,.35)">${l.label}</span>
               </div>
             `).join('')}
           </div>
           <div class="flex gap-2">
-            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">Docker Compose</span>
-            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">FastAPI</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">Docker Compose</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded-md" style="background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.08)">FastAPI</span>
           </div>
         </div>
       </div>
@@ -2087,16 +2091,23 @@ async function renderProjects() {
             <div>
               <p class="text-sm font-bold text-white">Rabin Avidan</p>
               <div class="flex gap-1.5 mt-0.5 flex-wrap">
-                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.2);color:#93c5fd;border:1px solid rgba(59,130,246,.3)">Site Owner</span>
-                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full owner-open-badge" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(52,211,153,.3)">Open to Opportunities</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.2);color:#93c5fd;border:1px solid rgba(59,130,246,.3)">Site Owner</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full owner-open-badge" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(52,211,153,.3)">Open to Opportunities</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Primary hero actions, in order: Explore Live Demo, View Architecture, View GitHub, Connect on LinkedIn -->
+      <!-- Primary hero actions, in order: Take the Tour, Explore Live Demo, View Architecture, View GitHub, Connect on LinkedIn.
+           The tour leads: it is the shortest guided path for a first-time visitor. -->
       <div class="relative z-10 flex flex-wrap items-center gap-2 px-6 pb-6" data-testid="hero-cta-row">
+        <button type="button" data-testid="hero-tour-btn" onclick="startRecruiterTour(this)"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-900 text-xs font-bold transition-all hover:scale-105 hover:bg-blue-50"
+          style="box-shadow:0 4px 16px rgba(255,255,255,.18)">
+          <span aria-hidden="true">🧭</span>
+          Take the 3-min Tour
+        </button>
         <button type="button" id="hero-demo-btn" data-testid="hero-explore-demo-btn"
           onclick="viewOrCreateDemo('testflow', {btnId: 'hero-demo-btn', labelId: 'hero-demo-label'})"
           class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
@@ -2131,7 +2142,7 @@ async function renderProjects() {
       <!-- Skills strip -->
       <div class="relative z-10 border-t flex flex-wrap gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
         ${['Test Automation','AI Vibe Coding','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
-          `<span class="text-[10px] font-semibold px-3 py-1 rounded-full" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
+          `<span class="text-[11px] font-semibold px-3 py-1 rounded-full" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
       </div>
     </div>
@@ -2219,7 +2230,7 @@ async function renderProjects() {
           ].map((s, i, arr) => `
             <li class="flex" data-testid="delivery-step">
               <div class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wide mb-1">${i + 1}. ${s.step}</p>
+                <p class="text-[11px] font-bold text-blue-600 uppercase tracking-wide mb-1">${i + 1}. ${s.step}</p>
                 <p class="text-[11px] text-slate-500 leading-snug">${s.desc}</p>
               </div>
             </li>`).join('')}
@@ -2253,7 +2264,7 @@ async function renderProjects() {
             const pct = Math.round((l.count / maxCount) * 100);
             return `
             <div class="flex items-center gap-3">
-              <div class="w-6 text-[10px] font-bold text-slate-400 text-right flex-shrink-0">${i + 1}</div>
+              <div class="w-6 text-[11px] font-bold text-slate-500 text-right flex-shrink-0">${i + 1}</div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-baseline justify-between gap-2 mb-0.5">
                   <p class="text-xs font-bold text-slate-700">${l.level}</p>
@@ -2262,12 +2273,12 @@ async function renderProjects() {
                 <div class="h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
                   <div class="h-full bg-blue-500 rounded-full" style="width:${pct}%"></div>
                 </div>
-                <p class="text-[11px] text-slate-500 leading-snug">${l.desc} <span class="text-slate-400">— <code class="text-[10px]">${l.where}</code></span></p>
+                <p class="text-[11px] text-slate-500 leading-snug">${l.desc} <span class="text-slate-500">— <code class="text-[11px]">${l.where}</code></span></p>
               </div>
             </div>`;
           }).join('')}
         </div>
-        <p class="text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-100">
+        <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-100">
           <strong class="text-slate-500">Shift-Left strategy:</strong> quality validation moves earlier into
           development through unit, component, contract, and API testing, while E2E stays focused on
           critical customer journeys rather than re-testing everything through a browser.
@@ -2319,9 +2330,9 @@ async function renderProjects() {
             { id: 'R2', title: 'Assertion guard: a heal can’t change what a test verifies', done: true },
           ].map(m => `
             <li class="flex items-center gap-2 text-xs text-slate-600">
-              <span class="font-mono font-bold text-slate-400 w-8">${m.id}</span>
+              <span class="font-mono font-bold text-slate-500 w-8">${m.id}</span>
               <span class="flex-1">${m.title}</span>
-              <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${m.done ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}">${m.done ? 'Done' : 'Planned'}</span>
+              <span class="text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${m.done ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}">${m.done ? 'Done' : 'Planned'}</span>
             </li>`).join('')}
         </ul>
       </div>
@@ -2355,7 +2366,7 @@ async function renderProjects() {
       'Not yet measured': 'bg-slate-50 text-slate-500 border-slate-200',
     };
     // Status is always spelled out as text, never conveyed by color alone.
-    return `<span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${styles[status] || styles['Not yet measured']}">${status}</span>`;
+    return `<span class="text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${styles[status] || styles['Not yet measured']}">${status}</span>`;
   };
 
   const buildKpiCards = (flagshipStats, pipelineStats, pending) => {
@@ -2456,9 +2467,9 @@ async function renderProjects() {
               ${kpiBadge(k.status)}
             </div>
             <p class="text-lg font-black text-slate-800 mb-0.5">${k.current}</p>
-            <p class="text-[10px] text-slate-400 mb-2">Target: ${k.target}</p>
+            <p class="text-[11px] text-slate-500 mb-2">Target: ${k.target}</p>
             <p class="text-[11px] text-slate-500 leading-snug">${k.def}</p>
-            ${k.source !== '—' ? `<p class="text-[10px] text-slate-300 mt-1.5"><code>${k.source}</code></p>` : ''}
+            ${k.source !== '—' ? `<p class="text-[11px] text-slate-500 mt-1.5"><code>${k.source}</code></p>` : ''}
           </div>`;
   // Fetches the two live KPI sources in parallel and swaps in just those
   // cards. Same honest-fallback contract as before: a failed fetch leaves
@@ -2482,7 +2493,7 @@ async function renderProjects() {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         ${buildKpiCards(null, null, true).map(kpiCardHtml).join('')}
       </div>
-      <p class="text-[11px] text-slate-400 mt-3">
+      <p class="text-[11px] text-slate-500 mt-3">
         Test-inventory count, execution pass rate, requirement/risk coverage, and code coverage are
         tracked separately on purpose — an inventory of existing test cases is not the same claim as
         complete product coverage.
@@ -2497,7 +2508,7 @@ async function renderProjects() {
   // or terraform/modules/monitoring/ - not invented.
   const architectureStorySection = `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" data-testid="architecture-story-section">
-      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Architecture Decisions &amp; Trade-offs</h2>
+      <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Architecture Decisions &amp; Trade-offs</h2>
       <div class="space-y-3">
         ${[
           { icon: '🧩', title: 'Why five services', desc: 'gateway, auth, projects, runs, and ai split along domain boundaries so each is independently deployable and scalable; worker is a sixth process with no HTTP surface, draining async work off the request path.' },
@@ -2564,11 +2575,11 @@ async function renderProjects() {
           </div>
           <h2 class="text-xl font-bold text-slate-700 mb-2">No projects yet</h2>
           <p class="text-slate-500 mb-6 max-w-sm text-sm">Create your first project to start organizing test suites and cases.</p>
-          ${isAdmin() ? `<button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-sm">
+          ${isAdmin() ? `<button onclick="showModal('project')" data-testid="new-project-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-sm">
             Create First Project
           </button>` : ""}
         </div>
-        ${getToken() ? `<div class="mt-8">${demoBanner}${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
+        ${getToken() ? `<div class="mt-8">${renderShowcaseSection([demoBanner, archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
       </div>`;
     hydrateLiveKpis();
     initHomeCarousels();
@@ -2606,7 +2617,7 @@ async function renderProjects() {
             <button onclick="clearProjectSelection()" class="text-sm text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl transition-colors">Cancel</button>
             ` : ""}
           </div>
-          ${isAdmin() ? `<button onclick="showModal('project')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+          ${isAdmin() ? `<button onclick="showModal('project')" data-testid="new-project-btn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New Project
           </button>` : ""}
@@ -2614,10 +2625,10 @@ async function renderProjects() {
       </div>
       <!-- Filter / search bar -->
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-3 px-3 py-2 flex items-center gap-3">
-        <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z"/></svg>
+        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z"/></svg>
         <input id="proj-search" oninput="filterProjectTable()" type="text" placeholder="Filter by name or description…"
           class="flex-1 text-sm outline-none bg-transparent text-slate-700 placeholder-slate-400" />
-        <select id="proj-sort" onchange="filterProjectTable()"
+        <select id="proj-sort" aria-label="Sort projects" onchange="filterProjectTable()"
           class="text-xs text-slate-500 bg-transparent outline-none border-l border-slate-200 pl-3 cursor-pointer">
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
@@ -2631,7 +2642,7 @@ async function renderProjects() {
           <thead>
             <tr class="border-b border-slate-100 bg-slate-50">
               <th class="w-10 px-4 py-3">
-                ${isAdmin() ? `<input type="checkbox" id="proj-select-all" onchange="toggleSelectAllProjects(this.checked)"
+                ${isAdmin() ? `<input type="checkbox" id="proj-select-all" aria-label="Select all projects" onchange="toggleSelectAllProjects(this.checked)"
                   class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />` : ""}
               </th>
               <th class="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</th>
@@ -2643,10 +2654,10 @@ async function renderProjects() {
           </thead>
           <tbody id="proj-table-body"></tbody>
         </table>
-        <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-400 text-sm">No projects match your filter.</div>
+        <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-500 text-sm">No projects match your filter.</div>
       </div>
       <div id="proj-pagination" class="flex items-center justify-between flex-wrap gap-3 mt-3"></div>
-      ${getToken() ? `<div class="mt-8">${demoBanner}${renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
+      ${getToken() ? `<div class="mt-8">${renderShowcaseSection([demoBanner, archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
     </div>`;
   filterProjectTable();
   hydrateLiveKpis();
@@ -2663,7 +2674,7 @@ async function loadProjectStats(projects) {
       const s = await GET(`/api/projects/${p.id}/stats`);
       const total = s.last_run_pass + s.last_run_fail + s.last_run_skip + s.last_run_pending;
       if (!total) {
-        cell.innerHTML = `<span class="text-slate-300 text-xs italic">No runs</span>`;
+        cell.innerHTML = `<span class="text-slate-500 text-xs italic">No runs</span>`;
         return;
       }
       const pct = v => Math.round((v / total) * 100);
@@ -2674,7 +2685,7 @@ async function loadProjectStats(projects) {
         <div class="flex flex-col gap-1 min-w-[120px]">
           <div class="flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full ${dot} flex-shrink-0"></span>
-            <span class="text-[10px] text-slate-500 truncate max-w-[110px]" title="${escHtml(s.last_run_name||'')}">${escHtml(s.last_run_name||'Last run')}</span>
+            <span class="text-[11px] text-slate-500 truncate max-w-[110px]" title="${escHtml(s.last_run_name||'')}">${escHtml(s.last_run_name||'Last run')}</span>
           </div>
           <div class="flex h-1.5 rounded-full overflow-hidden w-full bg-slate-100 gap-px">
             ${passW ? `<div class="bg-emerald-500 h-full rounded-l-full transition-all" style="width:${passW}%"></div>` : ""}
@@ -2682,16 +2693,16 @@ async function loadProjectStats(projects) {
             ${skipW ? `<div class="bg-amber-400 h-full transition-all" style="width:${skipW}%"></div>` : ""}
             ${pendW ? `<div class="bg-slate-300 h-full rounded-r-full transition-all" style="width:${pendW}%"></div>` : ""}
           </div>
-          <div class="flex items-center gap-2 text-[9px] font-semibold">
-            ${s.last_run_pass ? `<span class="text-emerald-600">${s.last_run_pass}P</span>` : ""}
-            ${s.last_run_fail ? `<span class="text-red-500">${s.last_run_fail}F</span>` : ""}
-            ${s.last_run_skip ? `<span class="text-amber-500">${s.last_run_skip}S</span>` : ""}
-            <span class="ml-auto font-bold ${overall === 'pass' ? 'text-emerald-600' : overall === 'fail' ? 'text-red-500' : 'text-amber-500'}">${passW}%</span>
-            ${s.last_run_pending ? `<span class="text-slate-400">${s.last_run_pending}?</span>` : ""}
+          <div class="flex items-center gap-2 text-[11px] font-semibold">
+            ${s.last_run_pass ? `<span class="text-emerald-700">${s.last_run_pass}P</span>` : ""}
+            ${s.last_run_fail ? `<span class="text-red-600">${s.last_run_fail}F</span>` : ""}
+            ${s.last_run_skip ? `<span class="text-amber-700">${s.last_run_skip}S</span>` : ""}
+            <span class="ml-auto font-bold ${overall === 'pass' ? 'text-emerald-700' : overall === 'fail' ? 'text-red-600' : 'text-amber-700'}">${passW}%</span>
+            ${s.last_run_pending ? `<span class="text-slate-500">${s.last_run_pending}?</span>` : ""}
           </div>
         </div>`;
     } catch {
-      if (cell) cell.innerHTML = `<span class="text-slate-300 text-xs">—</span>`;
+      if (cell) cell.innerHTML = `<span class="text-slate-500 text-xs">—</span>`;
     }
   }));
 }
@@ -2701,7 +2712,7 @@ function projectRow(p) {
     <tr id="pcard-${p.id}" data-testid="project-row-${p.id}" onclick="handleProjectCardClick(event, ${p.id})"
       class="border-b border-slate-100 last:border-0 hover:bg-blue-50/40 transition-colors cursor-pointer group select-none">
       <td class="px-4 py-3" onclick="event.stopPropagation()">
-        ${isAdmin() ? `<input type="checkbox" id="pcheck-${p.id}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
+        ${isAdmin() ? `<input type="checkbox" id="pcheck-${p.id}" aria-label="Select project ${escHtml(p.name)}" onchange="toggleProjectSelectByCheckbox(${p.id}, this.checked)"
           class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600" />` : ""}
       </td>
       <td class="px-3 py-3">
@@ -2712,14 +2723,14 @@ function projectRow(p) {
       <td class="px-3 py-3 hidden md:table-cell text-slate-500 text-xs max-w-[260px]">
         <span class="line-clamp-1" title="${escHtml(p.description || "")}">${escHtml(p.description || "—")}</span>
       </td>
-      <td class="px-3 py-3 hidden sm:table-cell text-slate-400 text-xs whitespace-nowrap">${formatDate(p.created_at)}</td>
+      <td class="px-3 py-3 hidden sm:table-cell text-slate-500 text-xs whitespace-nowrap">${formatDate(p.created_at)}</td>
       <td id="pstats-${p.id}" class="px-3 py-3 hidden lg:table-cell">
         <div class="w-6 h-6 border-2 border-slate-200 border-t-transparent rounded-full animate-spin opacity-40"></div>
       </td>
       <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
         ${isAdmin() ? `<button data-testid="delete-project-${p.id}" onclick="deleteProject(${p.id})"
           title="Delete project" aria-label="Delete project ${escHtml(p.name)}"
-          class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+          class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>` : ""}
       </td>
@@ -2780,7 +2791,7 @@ function filterProjectTable(resetPage = true) {
     const rangeStart = rows.length === 0 ? 0 : (projectsPage - 1) * PROJECTS_PAGE_SIZE + 1;
     const rangeEnd = Math.min(projectsPage * PROJECTS_PAGE_SIZE, rows.length);
     pagination.innerHTML = !rows.length ? "" : `
-      <p class="text-xs text-slate-400">Showing ${rangeStart}–${rangeEnd} of ${rows.length} · Page ${projectsPage} of ${totalPages}</p>
+      <p class="text-xs text-slate-500">Showing ${rangeStart}–${rangeEnd} of ${rows.length} · Page ${projectsPage} of ${totalPages}</p>
       <div class="flex items-center gap-2">
         <button data-testid="proj-prev-btn" onclick="setProjectsPage(${projectsPage - 1})" ${projectsPage <= 1 ? "disabled" : ""}
           class="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Previous</button>
@@ -2916,11 +2927,6 @@ async function renderProject(projectId) {
     { label: project.name, href: `project/${projectId}` },
   ]);
 
-  const navBtn = document.getElementById("nav-new-btn");
-  document.getElementById("nav-new-label").textContent = "New Suite";
-  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("suite", { projectId }); }
-  else { navBtn.classList.add("hidden"); }
-
   const total  = stats.last_run_pass + stats.last_run_fail + stats.last_run_skip + stats.last_run_pending;
   const passP  = total ? Math.round(stats.last_run_pass / total * 100) : 0;
   const failP  = total ? Math.round(stats.last_run_fail / total * 100) : 0;
@@ -2940,7 +2946,7 @@ async function renderProject(projectId) {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             Analytics
           </button>
-          ${isAdmin() ? `<button onclick="showModal('suite', {projectId: ${projectId}})"
+          ${isAdmin() ? `<button onclick="showModal('suite', {projectId: ${projectId}})" data-testid="new-suite-btn"
             class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New Suite
@@ -2963,7 +2969,7 @@ async function renderProject(projectId) {
           <p class="text-xs font-medium text-slate-500 mt-1">Total Runs</p>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-2xl font-bold text-emerald-600">${passP}%</p>
+          <p class="text-2xl font-bold text-emerald-700">${passP}%</p>
           <p class="text-xs font-medium text-slate-500 mt-1">Pass Rate</p>
         </div>
       </div>
@@ -2979,19 +2985,19 @@ async function renderProject(projectId) {
         <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
           <div>
             <h3 class="font-semibold text-slate-800 text-sm">Latest Run</h3>
-            <p class="text-xs text-slate-400 mt-0.5">${escHtml(stats.last_run_name || "")}</p>
+            <p class="text-xs text-slate-500 mt-0.5">${escHtml(stats.last_run_name || "")}</p>
           </div>
           <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
-            <span class="flex items-center gap-1.5 text-emerald-600">
+            <span class="flex items-center gap-1.5 text-emerald-700">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>${stats.last_run_pass} pass
             </span>
             <span class="flex items-center gap-1.5 text-red-600">
               <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>${stats.last_run_fail} fail
             </span>
-            <span class="flex items-center gap-1.5 text-amber-600">
+            <span class="flex items-center gap-1.5 text-amber-700">
               <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>${stats.last_run_skip} skip
             </span>
-            ${stats.last_run_pending ? `<span class="flex items-center gap-1.5 text-slate-400">
+            ${stats.last_run_pending ? `<span class="flex items-center gap-1.5 text-slate-500">
               <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>${stats.last_run_pending} pending
             </span>` : ""}
           </div>
@@ -3001,7 +3007,7 @@ async function renderProject(projectId) {
           ${failP ? `<div class="bg-red-500 h-full transition-all" style="width:${failP}%"></div>` : ""}
           ${skipP ? `<div class="bg-amber-400 h-full transition-all" style="width:${skipP}%"></div>` : ""}
         </div>
-        <p class="text-xs text-slate-400 mt-2">${total} test${total !== 1 ? "s" : ""} · ${passP}% passing</p>
+        <p class="text-xs text-slate-500 mt-2">${total} test${total !== 1 ? "s" : ""} · ${passP}% passing</p>
       </div>` : ""}
 
       <!-- Test Report (demo projects with runs) -->
@@ -3009,7 +3015,7 @@ async function renderProject(projectId) {
       <div id="test-report-section">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-semibold text-slate-700">Test Report</h2>
-          <span class="text-xs text-slate-400">Last run per suite</span>
+          <span class="text-xs text-slate-500">Last run per suite</span>
         </div>
         <div id="test-report-body" class="space-y-4">
           <div class="flex items-center justify-center py-10 bg-white rounded-2xl border border-slate-200">
@@ -3034,7 +3040,7 @@ async function renderProject(projectId) {
         </div>
         ${!suites.length ? `
           <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
-            <p class="text-slate-400 mb-3">No test suites yet.</p>
+            <p class="text-slate-500 mb-3">No test suites yet.</p>
             <button onclick="showModal('suite', {projectId: ${projectId}})" class="text-blue-600 hover:underline text-sm font-semibold">
               Create your first suite
             </button>
@@ -3090,13 +3096,13 @@ async function loadTestReport(suites) {
         <div class="flex items-center justify-between mb-3">
           <div>
             <h3 class="font-semibold text-slate-800 text-sm">Overall Results</h3>
-            <p class="text-xs text-slate-400 mt-0.5">${totAll} test cases across ${suites.length} suites</p>
+            <p class="text-xs text-slate-500 mt-0.5">${totAll} test cases across ${suites.length} suites</p>
           </div>
           <div class="flex items-center gap-4 text-xs font-semibold">
             <span class="flex items-center gap-1.5 text-emerald-700"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>${totPass} pass</span>
             <span class="flex items-center gap-1.5 text-red-700"><span class="w-2 h-2 rounded-full bg-red-500"></span>${totFail} fail</span>
             <span class="flex items-center gap-1.5 text-amber-700"><span class="w-2 h-2 rounded-full bg-amber-400"></span>${totSkip} skip</span>
-            <span class="text-lg font-bold ${overallPct >= 80 ? 'text-emerald-600' : overallPct >= 50 ? 'text-amber-600' : 'text-red-600'}">${overallPct}%</span>
+            <span class="text-lg font-bold ${overallPct >= 80 ? 'text-emerald-700' : overallPct >= 50 ? 'text-amber-700' : 'text-red-600'}">${overallPct}%</span>
           </div>
         </div>
         <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
@@ -3112,7 +3118,7 @@ async function loadTestReport(suites) {
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <span class="font-semibold text-slate-700 text-sm">${escHtml(suite.name)}</span>
-            <span class="text-xs text-slate-400">No runs yet</span>
+            <span class="text-xs text-slate-500">No runs yet</span>
           </div>
         </div>`;
 
@@ -3131,10 +3137,10 @@ async function loadTestReport(suites) {
               ${r.status}
             </span>
           </td>
-          <td class="px-3 py-2.5 text-xs text-slate-400 hidden sm:table-cell">
-            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${r.test_case.priority === 'high' ? 'bg-red-50 text-red-600' : r.test_case.priority === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}">${r.test_case.priority}</span>
+          <td class="px-3 py-2.5 text-xs text-slate-500 hidden sm:table-cell">
+            <span class="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium ${r.test_case.priority === 'high' ? 'bg-red-50 text-red-600' : r.test_case.priority === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'}">${r.test_case.priority}</span>
           </td>
-          <td class="px-3 py-2.5 text-xs text-slate-400 hidden md:table-cell whitespace-nowrap">${r.executed_at ? new Date(r.executed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+          <td class="px-3 py-2.5 text-xs text-slate-500 hidden md:table-cell whitespace-nowrap">${r.executed_at ? new Date(r.executed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}</td>
         </tr>`).join('');
 
       return `
@@ -3142,13 +3148,13 @@ async function loadTestReport(suites) {
           <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-3">
               <span class="font-semibold text-slate-700 text-sm">${escHtml(suite.name)}</span>
-              <span class="text-xs text-slate-400">${escHtml(run.name)}</span>
+              <span class="text-xs text-slate-500">${escHtml(run.name)}</span>
             </div>
             <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
               <span class="text-emerald-700">${pass}✓</span>
               <span class="text-red-700">${fail}✗</span>
               <span class="text-amber-700">${skip}↷</span>
-              <span class="font-bold ${pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600'}">${pct}%</span>
+              <span class="font-bold ${pct >= 80 ? 'text-emerald-700' : pct >= 50 ? 'text-amber-700' : 'text-red-600'}">${pct}%</span>
             </div>
           </div>
           <div class="h-1 bg-slate-100 flex">
@@ -3159,10 +3165,10 @@ async function loadTestReport(suites) {
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-slate-100">
-                <th class="text-left px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Test Case</th>
-                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20">Status</th>
-                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20 hidden sm:table-cell">Priority</th>
-                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider w-20 hidden md:table-cell">Executed</th>
+                <th class="text-left px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Test Case</th>
+                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider w-20">Status</th>
+                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider w-20 hidden sm:table-cell">Priority</th>
+                <th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider w-20 hidden md:table-cell">Executed</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -3182,7 +3188,7 @@ function suiteCard(s, projectId) {
       class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group">
       <div class="p-4 flex items-center gap-4">
         ${isAdmin() ? `<div onclick="event.stopPropagation()" class="flex-shrink-0">
-          <input type="checkbox" id="scheck-${s.id}" onchange="toggleSuiteSelect(${s.id}, this.checked)"
+          <input type="checkbox" id="scheck-${s.id}" aria-label="Select suite ${escHtml(s.name)}" onchange="toggleSuiteSelect(${s.id}, this.checked)"
             class="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer accent-indigo-600" />
         </div>` : ""}
         <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -3195,9 +3201,10 @@ function suiteCard(s, projectId) {
           ${s.description ? `<p title="${escHtml(s.description)}" class="text-sm text-slate-500 truncate mt-0.5">${escHtml(s.description)}</p>` : ""}
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <span class="text-xs text-slate-400">${formatDate(s.created_at)}</span>
+          <span class="text-xs text-slate-500">${formatDate(s.created_at)}</span>
           ${isAdmin() ? `<button data-testid="delete-suite-${s.id}" onclick="event.stopPropagation(); deleteSuite(${s.id}, ${projectId})"
-            class="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+            title="Delete suite" aria-label="Delete suite ${escHtml(s.name)}"
+            class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           </button>` : ""}
           <svg class="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -3228,9 +3235,9 @@ function runCard(r, suiteName) {
           <span class="inline-block text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full font-medium">${escHtml(suiteName)}</span>
         </div>
         <div class="text-right flex-shrink-0">
-          <div class="text-xs text-slate-400">${formatDate(r.created_at)}</div>
+          <div class="text-xs text-slate-500">${formatDate(r.created_at)}</div>
           <div class="flex items-center justify-end gap-1 mt-0.5">
-            <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
             <span class="text-xs text-slate-500 font-medium">${r.created_by_username ? escHtml(r.created_by_username) : "—"}</span>
@@ -3244,11 +3251,11 @@ function runCard(r, suiteName) {
         </div>
         <div class="flex items-center justify-between">
           <div class="flex gap-3 text-xs text-slate-500">
-            <span class="text-emerald-600 font-medium">${pass} pass</span>
+            <span class="text-emerald-700 font-medium">${pass} pass</span>
             <span class="text-red-600 font-medium">${fail} fail</span>
-            ${pending ? `<span class="text-slate-400">${pending} pending</span>` : ""}
+            ${pending ? `<span class="text-slate-500">${pending} pending</span>` : ""}
           </div>
-          <span class="text-xs font-bold ${passP >= 80 ? "text-emerald-600" : passP >= 50 ? "text-amber-500" : "text-red-500"}">${passP}%</span>
+          <span class="text-xs font-bold ${passP >= 80 ? "text-emerald-700" : passP >= 50 ? "text-amber-700" : "text-red-600"}">${passP}%</span>
         </div>` : ""}
     </div>`;
 }
@@ -3349,11 +3356,6 @@ async function renderSuite(suiteId) {
     { label: suite.name, href: `suite/${suiteId}` },
   ]);
 
-  const navBtn = document.getElementById("nav-new-btn");
-  document.getElementById("nav-new-label").textContent = "New Test Case";
-  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("testcase", { suiteId }); }
-  else { navBtn.classList.add("hidden"); }
-
   const counts = { draft: 0, active: 0, deprecated: 0 };
   testcases.forEach(tc => { if (counts[tc.status] !== undefined) counts[tc.status]++; });
 
@@ -3367,7 +3369,7 @@ async function renderSuite(suiteId) {
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <button onclick="showModal('run', {suiteId: ${suiteId}})"
-            class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+            class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             Start Run
           </button>
@@ -3381,7 +3383,7 @@ async function renderSuite(suiteId) {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2-9a4 4 0 010 8H7a4 4 0 01-.99-7.88A5.5 5.5 0 0117 8a4 4 0 010 8"/></svg>
             Export CSV
           </a>
-          ${isAdmin() ? `<button onclick="showModal('testcase', {suiteId: ${suiteId}})"
+          ${isAdmin() ? `<button onclick="showModal('testcase', {suiteId: ${suiteId}})" data-testid="new-testcase-btn"
             class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New Test Case
@@ -3399,7 +3401,7 @@ async function renderSuite(suiteId) {
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${testcases.length} total</span>
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">${counts.active} active</span>
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${counts.draft} draft</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">${counts.deprecated} deprecated</span>
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${counts.deprecated} deprecated</span>
       </div>
 
       ${aiReviewPanel(suiteId, aiReviews)}
@@ -3407,7 +3409,7 @@ async function renderSuite(suiteId) {
       <!-- Test cases -->
       ${!testcases.length ? `
         <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
-          <p class="text-slate-400 mb-3">No test cases yet.</p>
+          <p class="text-slate-500 mb-3">No test cases yet.</p>
           <button onclick="showModal('testcase', {suiteId: ${suiteId}})" class="text-blue-600 hover:underline text-sm font-semibold">
             Add your first test case
           </button>
@@ -3430,7 +3432,7 @@ async function renderSuite(suiteId) {
       <div>
         <h2 class="text-lg font-semibold text-slate-700 mb-3">Test Runs</h2>
         ${!runs.length ? `
-          <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-400 text-sm">
+          <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-500 text-sm">
             No runs yet. Click <strong>Start Run</strong> to execute this suite.
           </div>` : `
           <div class="space-y-3">
@@ -3467,15 +3469,15 @@ function testCaseCard(tc) {
           </div>
           <div class="flex items-center gap-1 flex-shrink-0 ml-2">
             ${isAdmin() ? `
-            <input type="checkbox" id="tccheck-${tc.id}" onchange="toggleTestCaseSelect(${tc.id}, this.checked)"
+            <input type="checkbox" id="tccheck-${tc.id}" aria-label="Select test case ${escHtml(tc.title)}" onchange="toggleTestCaseSelect(${tc.id}, this.checked)"
               class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer accent-blue-600 mr-1" />
             <button data-testid="edit-testcase-${tc.id}" onclick='showModal("editTestCase", JSON.parse(this.dataset.tc))'
               data-tc="${tcJson}"
-              class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit" aria-label="Edit test case ${escHtml(tc.title)}">
+              class="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit" aria-label="Edit test case ${escHtml(tc.title)}">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </button>
             <button data-testid="delete-testcase-${tc.id}" onclick="deleteTestCase(${tc.id}, ${tc.suite_id})"
-              class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete" aria-label="Delete test case ${escHtml(tc.title)}">
+              class="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete" aria-label="Delete test case ${escHtml(tc.title)}">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>` : ""}
           </div>
@@ -3569,11 +3571,6 @@ async function renderSuiteTestCases(suiteId) {
     { label: "Test Cases", href: `suite/${suiteId}/testcases` },
   ]);
 
-  const navBtn = document.getElementById("nav-new-btn");
-  document.getElementById("nav-new-label").textContent = "New Test Case";
-  if (isAdmin()) { navBtn.classList.remove("hidden"); navBtn.onclick = () => showModal("testcase", { suiteId }); }
-  else { navBtn.classList.add("hidden"); }
-
   const counts = { draft: 0, active: 0, deprecated: 0 };
   testcases.forEach(tc => { if (counts[tc.status] !== undefined) counts[tc.status]++; });
 
@@ -3584,7 +3581,7 @@ async function renderSuiteTestCases(suiteId) {
           <h1 class="text-2xl font-bold text-slate-800">Test Cases</h1>
           <p class="text-slate-500 text-sm mt-1">${escHtml(suite.name)} · ${testcases.length} case${testcases.length !== 1 ? "s" : ""}</p>
         </div>
-        ${isAdmin() ? `<button onclick="showModal('testcase', {suiteId: ${suiteId}})"
+        ${isAdmin() ? `<button onclick="showModal('testcase', {suiteId: ${suiteId}})" data-testid="new-testcase-btn"
           class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           New Test Case
@@ -3594,11 +3591,11 @@ async function renderSuiteTestCases(suiteId) {
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${testcases.length} total</span>
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">${counts.active} active</span>
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${counts.draft} draft</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">${counts.deprecated} deprecated</span>
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${counts.deprecated} deprecated</span>
       </div>
       ${!testcases.length ? `
         <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
-          <p class="text-slate-400 mb-3">No test cases yet.</p>
+          <p class="text-slate-500 mb-3">No test cases yet.</p>
           <button onclick="showModal('testcase', {suiteId: ${suiteId}})" class="text-blue-600 hover:underline text-sm font-semibold">
             Add your first test case
           </button>
@@ -3645,7 +3642,6 @@ async function renderSuiteRuns(suiteId) {
     { label: suite.name, href: `suite/${suiteId}` },
     { label: "Test Runs", href: `suite/${suiteId}/runs` },
   ]);
-  document.getElementById("nav-new-btn").classList.add("hidden");
 
   el.innerHTML = `
     <div class="fade-in space-y-6">
@@ -3655,13 +3651,13 @@ async function renderSuiteRuns(suiteId) {
           <p class="text-slate-500 text-sm mt-1">${escHtml(suite.name)} · ${runs.length} run${runs.length !== 1 ? "s" : ""}</p>
         </div>
         <button onclick="showModal('run', {suiteId: ${suiteId}})"
-          class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
+          class="bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Start Run
         </button>
       </div>
       ${!runs.length ? `
-        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-400 text-sm">
+        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-500 text-sm">
           No runs yet. Click <strong>Start Run</strong> to execute this suite.
         </div>` : `
         <div class="space-y-3">
@@ -3701,18 +3697,12 @@ async function renderRun(runId) {
     ...(suite   ? [{ label: suite.name,   href: `suite/${suite.id}` }] : []),
     { label: run.name, href: `run/${runId}` },
   ]);
-  document.getElementById("nav-new-btn").classList.add("hidden");
 
-  const results = run.results || [];
-  const pass    = results.filter(r => r.status === "pass").length;
-  const fail    = results.filter(r => r.status === "fail").length;
-  const skip    = results.filter(r => r.status === "skip").length;
-  const pending = results.filter(r => r.status === "pending").length;
-  const total   = results.length;
-  const passP   = total ? Math.round(pass / total * 100) : 0;
-  const failP   = total ? Math.round(fail / total * 100) : 0;
-  const skipP   = total ? Math.round(skip / total * 100) : 0;
-  const done    = total - pending;
+  // The page keeps its results, so marking a result, a live update or a
+  // filter change re-renders only what changed instead of refetching the run.
+  _runView = { runId, run, results: run.results || [], filter: null, failuresFirst: false };
+  const results = _runView.results;
+  const canRecord = !!state.user;
 
   el.innerHTML = `
     <div class="fade-in space-y-6">
@@ -3721,9 +3711,7 @@ async function renderRun(runId) {
         <div>
           <div class="flex items-center gap-2 mb-1 flex-wrap">
             <h1 class="text-2xl font-bold text-slate-800">${escHtml(run.name)}</h1>
-            ${run.completed_at
-              ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Completed</span>`
-              : `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">In Progress</span>`}
+            <span id="run-status-badge">${runStatusBadge(run)}</span>
             ${envBadge(run.environment_key)}
           </div>
           <p class="text-sm text-slate-500">Started ${formatDate(run.created_at)}${run.created_by_username ? ` by <span class="font-medium text-slate-700">${escHtml(run.created_by_username)}</span>` : ""}</p>
@@ -3743,75 +3731,275 @@ async function renderRun(runId) {
         </div>
       </div>
 
-      <!-- Progress card -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-slate-700">Run Progress</h3>
-          <div class="flex items-center gap-3">
-            <span class="text-sm text-slate-400 font-medium">${done} / ${total} executed</span>
-            <span class="text-lg font-bold ${passP >= 80 ? "text-emerald-600" : passP >= 50 ? "text-amber-500" : "text-red-500"}">${passP}% pass rate</span>
-          </div>
-        </div>
-        <div class="h-3 bg-slate-100 rounded-full overflow-hidden flex mb-4">
-          ${passP ? `<div class="bg-emerald-500 h-full transition-all duration-500" style="width:${passP}%"></div>` : ""}
-          ${failP ? `<div class="bg-red-500 h-full transition-all duration-500" style="width:${failP}%"></div>` : ""}
-          ${skipP ? `<div class="bg-amber-400 h-full transition-all duration-500" style="width:${skipP}%"></div>` : ""}
-        </div>
-        <div class="grid grid-cols-4 gap-3 text-center">
-          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-            <p class="text-xl font-bold text-emerald-600">${pass}</p>
-            <p class="text-xs text-slate-500 mt-0.5">Pass</p>
-          </div>
-          <div class="bg-red-50 border border-red-200 rounded-xl p-3">
-            <p class="text-xl font-bold text-red-600">${fail}</p>
-            <p class="text-xs text-slate-500 mt-0.5">Fail</p>
-          </div>
-          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
-            <p class="text-xl font-bold text-amber-600">${skip}</p>
-            <p class="text-xs text-slate-500 mt-0.5">Skip</p>
-          </div>
-          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-            <p class="text-xl font-bold text-slate-500">${pending}</p>
-            <p class="text-xs text-slate-500 mt-0.5">Pending</p>
-          </div>
-        </div>
-      </div>
+      <!-- Progress card; its count tiles double as filters -->
+      <div id="run-progress" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">${runProgressInner()}</div>
 
       <!-- Results list -->
       <div>
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
           <h2 class="text-lg font-semibold text-slate-700">Test Cases</h2>
-          <span id="ws-indicator" class="hidden items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live
-          </span>
+          <div class="flex items-center gap-3 flex-wrap">
+            ${results.length ? `<label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+              <input type="checkbox" id="run-failures-first" data-testid="run-failures-first" onchange="setRunFailuresFirst(this.checked)" class="w-4 h-4 rounded accent-blue-600">
+              Failures first
+            </label>` : ""}
+            <span id="ws-indicator" class="hidden items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live
+            </span>
+          </div>
         </div>
+        ${canRecord && results.length ? `
+          <p class="hidden sm:block text-xs text-slate-500 mb-3" data-testid="run-shortcuts-hint">
+            Keyboard: <kbd class="run-kbd">J</kbd>/<kbd class="run-kbd">K</kbd> or <kbd class="run-kbd">↑</kbd>/<kbd class="run-kbd">↓</kbd> move between tests ·
+            <kbd class="run-kbd">P</kbd> pass · <kbd class="run-kbd">F</kbd> fail · <kbd class="run-kbd">S</kbd> skip
+          </p>` : ""}
         ${!results.length ? `
-          <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-slate-400">
+          <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-slate-500">
             No active test cases were found in this suite when the run was created.
           </div>` : `
-          <div id="results-list" class="space-y-3">
-            ${results.map(r => resultRow(r, runId)).join("")}
-          </div>`}
+          <div id="run-filter-status" data-testid="run-filter-status"></div>
+          <div id="results-list" class="space-y-3">${runResultsListInner()}</div>`}
       </div>
-    </div>`;
+    </div>
+    <style>.run-kbd{display:inline-block;min-width:1.25rem;padding:0 .3rem;border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:.3rem;background:#fff;font:600 11px/1.4 ui-monospace,monospace;text-align:center;color:#334155}</style>`;
 
   // Start WebSocket for live collaboration
   connectRunWebSocket(runId);
 }
 
+let _runView = null;
+
+const RESULT_STYLES = {
+  pending: { border: "border-slate-200", badge: "bg-slate-100 text-slate-600", label: "Pending" },
+  pass:    { border: "border-emerald-200 bg-emerald-50/40", badge: "bg-emerald-100 text-emerald-700", label: "Pass" },
+  fail:    { border: "border-red-200 bg-red-50/40",     badge: "bg-red-100 text-red-700",     label: "Fail" },
+  skip:    { border: "border-amber-200 bg-amber-50/40",  badge: "bg-amber-100 text-amber-800",  label: "Skip" },
+};
+
+function runStatusBadge(run) {
+  return run.completed_at
+    ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Completed</span>`
+    : `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">In Progress</span>`;
+}
+
+function runResult(tcId) {
+  return _runView?.results.find(r => r.test_case.id === tcId);
+}
+
+function runProgressInner() {
+  const { results, filter } = _runView;
+  const count = s => results.filter(r => r.status === s).length;
+  const pass = count("pass"), fail = count("fail"), skip = count("skip"), pending = count("pending");
+  const total = results.length;
+  const passP = total ? Math.round(pass / total * 100) : 0;
+  const failP = total ? Math.round(fail / total * 100) : 0;
+  const skipP = total ? Math.round(skip / total * 100) : 0;
+  const tile = (status, label, n, cls, numCls, ringCls) => `
+    <div>
+      <button type="button" data-testid="run-filter-${status}" onclick="setRunFilter('${status}')"
+        aria-pressed="${filter === status}" title="${filter === status ? "Show all results" : `Show only ${label.toLowerCase()} results`}"
+        class="w-full ${cls} border rounded-xl p-3 transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${filter === status ? `ring-2 ring-offset-1 ${ringCls}` : ""}">
+        <p class="text-xl font-bold ${numCls}">${n}</p>
+        <p class="text-xs text-slate-600 mt-0.5">${label}</p>
+      </button>
+    </div>`;
+  return `
+    <div class="flex items-center justify-between gap-x-3 gap-y-1 flex-wrap mb-4">
+      <h3 class="font-semibold text-slate-700">Run Progress</h3>
+      <div class="flex items-center gap-3">
+        <span class="text-sm text-slate-500 font-medium">${total - pending} / ${total} executed</span>
+        <span class="text-lg font-bold ${passP >= 80 ? "text-emerald-700" : passP >= 50 ? "text-amber-700" : "text-red-600"}">${passP}% pass rate</span>
+      </div>
+    </div>
+    <div class="h-3 bg-slate-100 rounded-full overflow-hidden flex mb-4">
+      ${passP ? `<div class="bg-emerald-500 h-full transition-all duration-500" style="width:${passP}%"></div>` : ""}
+      ${failP ? `<div class="bg-red-500 h-full transition-all duration-500" style="width:${failP}%"></div>` : ""}
+      ${skipP ? `<div class="bg-amber-400 h-full transition-all duration-500" style="width:${skipP}%"></div>` : ""}
+    </div>
+    <div class="grid grid-cols-4 gap-3 text-center">
+      ${tile("pass",    "Pass",    pass,    "bg-emerald-50 border-emerald-200", "text-emerald-700", "ring-emerald-500")}
+      ${tile("fail",    "Fail",    fail,    "bg-red-50 border-red-200",         "text-red-600",     "ring-red-500")}
+      ${tile("skip",    "Skip",    skip,    "bg-amber-50 border-amber-200",     "text-amber-700",   "ring-amber-500")}
+      ${tile("pending", "Pending", pending, "bg-slate-50 border-slate-200",     "text-slate-600",   "ring-slate-500")}
+    </div>`;
+}
+
+// The results in display order: the active filter, then failures first if asked.
+function runVisibleResults() {
+  const { results, filter, failuresFirst } = _runView;
+  const shown = filter ? results.filter(r => r.status === filter) : results.slice();
+  if (failuresFirst) shown.sort((a, b) => (a.status === "fail" ? 0 : 1) - (b.status === "fail" ? 0 : 1));
+  return shown;
+}
+
+function runResultsListInner() {
+  return runVisibleResults().map(r => resultRow(r, _runView.runId)).join("");
+}
+
+function renderRunFilterStatus() {
+  const box = document.getElementById("run-filter-status");
+  if (!box) return;
+  const { filter, results } = _runView;
+  if (!filter) { box.innerHTML = ""; return; }
+  const label = RESULT_STYLES[filter].label.toLowerCase();
+  const n = results.filter(r => r.status === filter).length;
+  box.innerHTML = `
+    <div class="flex items-center justify-between gap-3 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-3 text-sm text-blue-900">
+      <span>${n ? `Showing ${n} ${label} of ${results.length} results` : `No ${label} results in this run.`}</span>
+      <button type="button" data-testid="run-filter-clear" onclick="setRunFilter(null)" class="font-semibold underline hover:text-blue-700">Show all</button>
+    </div>`;
+}
+
+// Re-renders the list, keeping keyboard focus on the row (or the same button
+// in it) that had it - replacing the DOM would otherwise drop focus to <body>.
+function renderRunResults() {
+  const list = document.getElementById("results-list");
+  if (!list) return;
+  const active = document.activeElement;
+  const row = active?.closest?.("#results-list > [data-tc-id]");
+  const focusId = row?.dataset.tcId;
+  const focusBtn = active !== row ? active?.dataset?.testid : null;
+  list.innerHTML = runResultsListInner();
+  renderRunFilterStatus();
+  if (focusId) focusRunRow(+focusId, focusBtn);
+}
+
+function refreshRunProgress() {
+  const box = document.getElementById("run-progress");
+  if (box) box.innerHTML = runProgressInner();
+  const badge = document.getElementById("run-status-badge");
+  if (badge) badge.innerHTML = runStatusBadge(_runView.run);
+}
+
+function setRunFilter(status) {
+  if (!_runView) return;
+  _runView.filter = _runView.filter === status ? null : status;
+  refreshRunProgress();
+  renderRunResults();
+}
+
+function setRunFailuresFirst(on) {
+  if (!_runView) return;
+  _runView.failuresFirst = on;
+  renderRunResults();
+}
+
+function focusRunRow(tcId, buttonTestId) {
+  const row = document.querySelector(`#results-list > [data-tc-id="${tcId}"]`);
+  if (!row) return;
+  const btn = buttonTestId && row.querySelector(`[data-testid="${buttonTestId}"]`);
+  (btn || row).focus();
+}
+
+// Swaps one row for a freshly rendered copy. A row the filter hides stays hidden.
+function replaceResultRow(tcId) {
+  const old = document.querySelector(`#results-list > [data-tc-id="${tcId}"]`);
+  const r = runResult(tcId);
+  if (!old || !r) return null;
+  const active = document.activeElement;
+  const hadFocus = old.contains(active);
+  const focusBtn = hadFocus && active !== old ? active.dataset?.testid : null;
+  const tpl = document.createElement("template");
+  tpl.innerHTML = resultRow(r, _runView.runId).trim();
+  const fresh = tpl.content.firstElementChild;
+  old.replaceWith(fresh);
+  if (hadFocus) focusRunRow(tcId, focusBtn);
+  return fresh;
+}
+
+// After a result changes: its row, the counts, and the run's own status.
+function onRunResultChanged(tcId) {
+  const v = _runView;
+  const wasCompleted = !!v.run.completed_at;
+  if (!wasCompleted && v.results.every(r => r.status !== "pending")) v.run.completed_at = new Date().toISOString();
+  const row = replaceResultRow(tcId);
+  refreshRunProgress();
+  renderRunFilterStatus();
+  return { row, justCompleted: !wasCompleted && !!v.run.completed_at };
+}
+
+// One-click result: keeps the result's notes (the API replaces them) and,
+// when driven from the keyboard, moves on to the next test in the list.
+async function markResultInline(tcId, status, { advance = false } = {}) {
+  const v = _runView;
+  const r = runResult(tcId);
+  if (!v || !r) return;
+  const runId = v.runId;
+  const row = document.querySelector(`#results-list > [data-tc-id="${tcId}"]`);
+  row?.querySelectorAll("[data-mark]").forEach(b => { b.disabled = true; });
+  row?.setAttribute("aria-busy", "true");
+  try {
+    const saved = await PUT(`/api/runs/${runId}/results/${tcId}`, { status, notes: r.notes || null });
+    if (_runView !== v) return; // navigated away meanwhile
+    r.status = saved.status;
+    r.notes = saved.notes;
+    r.executed_at = new Date().toISOString();
+    const { justCompleted } = onRunResultChanged(tcId);
+    if (advance) {
+      const rows = [...document.querySelectorAll("#results-list > [data-tc-id]")];
+      const i = rows.findIndex(x => +x.dataset.tcId === tcId);
+      const next = rows[i + 1] || rows[i];
+      next?.focus();
+      next?.scrollIntoView({ block: "nearest" });
+    } else {
+      focusRunRow(tcId, `mark-${status}-${tcId}`);
+    }
+    if (justCompleted) toast("Run complete — every test has a result", "success");
+  } catch (e) {
+    toast(e.message, "error");
+    if (_runView === v) {
+      row?.querySelectorAll("[data-mark]").forEach(b => { b.disabled = false; });
+      row?.removeAttribute("aria-busy");
+    }
+  }
+}
+
+// Keyboard: J/K (or arrows inside the list) move between rows, P/F/S record.
+function handleRunShortcut(e) {
+  if (!_runView || document.getElementById("view-run")?.classList.contains("hidden")) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const t = e.target;
+  if (t?.closest?.("input, textarea, select, [contenteditable='true']")) return;
+  if (!document.getElementById("modal-overlay")?.classList.contains("hidden")) return;
+  const auth = document.getElementById("auth-modal");
+  if (auth && !auth.classList.contains("hidden")) return;
+  const rows = [...document.querySelectorAll("#results-list > [data-tc-id]")];
+  if (!rows.length) return;
+  const current = t?.closest?.("#results-list > [data-tc-id]");
+  const key = e.key.toLowerCase();
+  const move = d => {
+    const i = current ? rows.indexOf(current) : -1;
+    const next = rows[i === -1 ? 0 : Math.min(rows.length - 1, Math.max(0, i + d))];
+    next.focus();
+    next.scrollIntoView({ block: "nearest" });
+  };
+  if (key === "j" || (key === "arrowdown" && current)) { e.preventDefault(); move(1); }
+  else if (key === "k" || (key === "arrowup" && current)) { e.preventDefault(); move(-1); }
+  else if (current && state.user && ["p", "f", "s"].includes(key)) {
+    e.preventDefault();
+    markResultInline(+current.dataset.tcId, { p: "pass", f: "fail", s: "skip" }[key], { advance: true });
+  }
+}
+document.addEventListener("keydown", handleRunShortcut);
+
 function resultRow(r, runId) {
   const tc = r.test_case;
-  const styles = {
-    pending: { border: "border-slate-200", badge: "bg-slate-100 text-slate-500", label: "Pending" },
-    pass:    { border: "border-emerald-200 bg-emerald-50/40", badge: "bg-emerald-100 text-emerald-700", label: "Pass" },
-    fail:    { border: "border-red-200 bg-red-50/40",     badge: "bg-red-100 text-red-700",     label: "Fail" },
-    skip:    { border: "border-amber-200 bg-amber-50/40",  badge: "bg-amber-100 text-amber-700",  label: "Skip" },
+  const s = RESULT_STYLES[r.status] || RESULT_STYLES.pending;
+  const markBtn = (status, label, onCls, icon) => {
+    const on = r.status === status;
+    return `<button type="button" data-mark data-testid="mark-${status}-${tc.id}" aria-pressed="${on}"
+      onclick="markResultInline(${tc.id}, '${status}')" title="${label} (${label[0]})"
+      class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500
+        ${on ? onCls : "bg-white text-slate-600 hover:bg-slate-50"}">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="${icon}"/></svg>
+      ${label}
+    </button>`;
   };
-  const s = styles[r.status] || styles.pending;
 
   return `
-    <div class="bg-white rounded-2xl border ${s.border} shadow-sm transition-all" data-tc-id="${tc.id}">
-      <div class="p-4 flex items-start gap-3">
+    <div class="bg-white rounded-2xl border ${s.border} shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      data-tc-id="${tc.id}" tabindex="0" role="group" aria-label="${escHtml(tc.title)}: ${s.label}">
+      <div class="p-4 flex flex-col sm:flex-row sm:items-start gap-3">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap mb-0.5">
             <span class="font-semibold text-slate-800">${escHtml(tc.title)}</span>
@@ -3819,13 +4007,19 @@ function resultRow(r, runId) {
           </div>
           ${tc.description ? `<p title="${escHtml(tc.description)}" class="text-xs text-slate-500 truncate">${escHtml(tc.description)}</p>` : ""}
           ${r.notes ? `<p class="text-xs text-slate-600 mt-1.5 bg-slate-50 rounded-lg px-2 py-1 italic">"${escHtml(r.notes)}"</p>` : ""}
-          ${r.executed_at ? `<p class="text-xs text-slate-400 mt-1">Executed ${formatDate(r.executed_at)}</p>` : ""}
+          ${r.executed_at ? `<p class="text-xs text-slate-600 mt-1">Executed ${formatDate(r.executed_at)}</p>` : ""}
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
+        <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <span data-status-badge="${r.status}" class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${s.badge}">${s.label}</span>
+          ${state.user ? `<div role="group" aria-label="Record result for ${escHtml(tc.title)}" class="inline-flex rounded-lg border border-slate-200 overflow-hidden divide-x divide-slate-200">
+            ${markBtn("pass", "Pass", "bg-emerald-700 text-white", "M5 13l4 4L19 7")}
+            ${markBtn("fail", "Fail", "bg-red-600 text-white", "M6 18L18 6M6 6l12 12")}
+            ${markBtn("skip", "Skip", "bg-amber-500 text-slate-900", "M13 5l7 7-7 7M5 5l7 7-7 7")}
+          </div>` : ""}
           <button
             onclick="showModal('result', {runId: ${runId}, tcId: ${tc.id}, tcTitle: ${escHtml(JSON.stringify(tc.title))}, currentStatus: '${r.status}', currentNotes: ${escHtml(JSON.stringify(r.notes || ''))}})"
-            class="px-3 py-1 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 rounded-lg text-xs font-semibold transition-all">
+            title="Record with notes"
+            class="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 rounded-lg text-xs font-semibold transition-all">
             ${r.status === "pending" ? "Record" : "Update"}
           </button>
         </div>
@@ -3845,7 +4039,7 @@ function statusBadge(s) {
 
 function priorityBadge(p) {
   const m = {
-    low:      "bg-slate-100 text-slate-500",
+    low:      "bg-slate-100 text-slate-600",
     medium:   "bg-blue-100 text-blue-700",
     high:     "bg-orange-100 text-orange-700",
     critical: "bg-red-100 text-red-700",
@@ -3884,7 +4078,7 @@ function alertsArchDiagram() {
     `<div class="aad-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
         style="animation:aadIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
-      ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
+      ${sub ? `<p class="text-[11px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
 
   // Animated flowing arrow (dashes travel in data-flow direction)
@@ -3910,7 +4104,7 @@ function alertsArchDiagram() {
       : (dir==='right'
           ? `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M5 4L0 0v8z"/></svg>`
           : `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M0 4L5 0v8z"/></svg>`);
-    const lbl$ = lbl ? `<span class="text-[9px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
+    const lbl$ = lbl ? `<span class="text-[11px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
     return isV
       ? `<div class="flex flex-col items-center gap-0 opacity-0 flex-shrink-0" style="animation:aadIn .25s ease forwards;animation-delay:${d}ms">
           ${lbl$}${line}${tip}
@@ -3921,25 +4115,25 @@ function alertsArchDiagram() {
   };
 
   const lane = (label, clr) =>
-    `<p class="text-[9px] font-bold uppercase tracking-widest ${clr} mb-2">${label}</p>`;
+    `<p class="text-[11px] font-bold uppercase tracking-widest ${clr} mb-2">${label}</p>`;
 
   // Small tag chip (used for annotations like JWT / Rate limit / node-pod groups)
   const tag = (lbl, bg, tc, d = 0) =>
-    `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
+    `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border flex-shrink-0 ${bg} ${tc}"
         style="animation:aadIn .3s ease forwards;animation-delay:${d + 'ms'}">${lbl}</span>`;
 
   return `
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-slate-800 text-sm">System Architecture</h3>
-      <span class="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1.5">
+      <span class="text-[11px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-blue-500 aad-live"></span>GCP · GKE
       </span>
     </div>
 
     <!-- ① Subscribe & Gateway Flow ─────────────────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('① Client → Gateway — User Subscribes to an Alert', 'text-blue-500')}
+      ${lane('① Client → Gateway — User Subscribes to an Alert', 'text-blue-600')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-slate-700','border-slate-800','text-white','User','',0)}
         ${arrow('subscribe on alert','70','right','blue',36)}
@@ -3971,7 +4165,7 @@ function alertsArchDiagram() {
 
     <!-- ③ Search Layer & Async Services ────────────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('③ Fan-out — Search Enrichment & Notification Delivery', 'text-amber-500')}
+      ${lane('③ Fan-out — Search Enrichment & Notification Delivery', 'text-amber-700')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-rose-200','border-rose-400','text-rose-900','Email Alert Workers','GKE x 30',1250)}
         ${arrow('search query on news/company','1320','right','amber',48)}
@@ -4010,17 +4204,17 @@ function alertsArchDiagram() {
     <div>
       ${lane('⑤ Communication Patterns — Sync vs Async', 'text-emerald-500')}
       <div class="flex items-center gap-2 flex-wrap mb-2">
-        ${box('bg-emerald-600','border-emerald-700','text-white','my service','/api/webhook',2470)}
+        ${box('bg-emerald-700','border-emerald-700','text-white','my service','/api/webhook',2470)}
         ${arrow('subscribe (webhook REST endpoint)','2540','right','emerald',44)}
         ${box('bg-emerald-50','border-emerald-300','text-emerald-800','external service','',2610)}
         ${arrow('calculate / response','2680','left','emerald',44)}
-        ${box('bg-emerald-600','border-emerald-700','text-white','my service','',2750)}
+        ${box('bg-emerald-700','border-emerald-700','text-white','my service','',2750)}
         ${arrow('/api/webhook (async)','2820','right','slate',44)}
         ${box('bg-emerald-50','border-emerald-300','text-emerald-800','external service','callback',2890)}
       </div>
       <div class="flex items-center gap-4 flex-wrap mt-2">
         <div>
-          <p class="text-[9px] font-bold text-slate-500 mb-1">Sync (point2point)</p>
+          <p class="text-[11px] font-bold text-slate-500 mb-1">Sync (point2point)</p>
           <div class="flex items-center gap-1.5 flex-wrap">
             ${tag('REST','bg-emerald-50 border-emerald-200','text-emerald-700',2960)}
             ${tag('webSockets','bg-emerald-50 border-emerald-200','text-emerald-700',2990)}
@@ -4028,7 +4222,7 @@ function alertsArchDiagram() {
           </div>
         </div>
         <div>
-          <p class="text-[9px] font-bold text-slate-500 mb-1">Async</p>
+          <p class="text-[11px] font-bold text-slate-500 mb-1">Async</p>
           <div class="flex items-center gap-1.5 flex-wrap">
             ${tag('Queue','bg-slate-50 border-slate-200','text-slate-600',3050)}
             ${tag('Pub/sub','bg-slate-50 border-slate-200','text-slate-600',3080)}
@@ -4042,11 +4236,11 @@ function alertsArchDiagram() {
       ${[['#3b82f6','Gateway / Auth'],['#f59e0b','Queue / Workers'],['#ec4899','Application Layer'],['#8b5cf6','K8s Deployment'],['#10b981','Sync / Async Comms']].map(([c,l])=>`
         <div class="flex items-center gap-1.5">
           <div style="height:2px;width:18px;background:repeating-linear-gradient(to right,${c} 0,${c} 4px,transparent 4px,transparent 8px);background-size:10px 100%;animation:aadFlowR .4s linear infinite"></div>
-          <span class="text-[9px] text-slate-500">${l}</span>
+          <span class="text-[11px] text-slate-500">${l}</span>
         </div>`).join('')}
       <div class="ml-auto flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 aad-live"></span>
-        <span class="text-[9px] text-slate-400 font-medium">Live data flow</span>
+        <span class="text-[11px] text-slate-500 font-medium">Live data flow</span>
       </div>
     </div>
   </div>
@@ -4184,8 +4378,8 @@ function journeySceneHTML(step) {
       <div class="flex flex-col items-center justify-center h-full gap-3">
         <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style="background:${step.color}">${step.data.name[0]}</div>
         <p class="text-sm font-bold text-slate-700">${step.data.name}</p>
-        <span class="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full" style="background:${step.color}1a;color:${step.color}">${step.data.role}</span>
-        <div class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold mt-1 journey-fade-in" style="animation-delay:.6s">
+        <span class="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full" style="background:${step.color}1a;color:${step.color}">${step.data.role}</span>
+        <div class="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold mt-1 journey-fade-in" style="animation-delay:.6s">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
           JWT issued
         </div>
@@ -4201,12 +4395,12 @@ function journeySceneHTML(step) {
           </div>
           ${step.data.fields.map(([l, v], i) => `
             <div class="mb-1.5 journey-fade-in" style="animation-delay:${.15 + i * .15}s">
-              <p class="text-[9px] font-semibold text-slate-400 uppercase">${l}</p>
+              <p class="text-[11px] font-semibold text-slate-500 uppercase">${l}</p>
               <p class="text-xs text-slate-700 border border-slate-200 rounded-md px-2 py-1 bg-slate-50 truncate">${v}</p>
             </div>
           `).join('')}
         </div>
-        <div class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold journey-fade-in" style="animation-delay:${.15 + step.data.fields.length * .15 + .2}s">
+        <div class="flex items-center gap-1.5 text-emerald-700 text-xs font-semibold journey-fade-in" style="animation-delay:${.15 + step.data.fields.length * .15 + .2}s">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
           "${step.data.name}" created
         </div>
@@ -4214,7 +4408,7 @@ function journeySceneHTML(step) {
   }
   // kind === 'run'
   const rows = [
-    { name: 'Apply discount code at checkout', badge: 'Pass', cls: 'bg-emerald-100 text-emerald-600', delay: .3 },
+    { name: 'Apply discount code at checkout', badge: 'Pass', cls: 'bg-emerald-100 text-emerald-700', delay: .3 },
   ];
   return `
     <div class="flex flex-col gap-3 w-full max-w-sm mx-auto">
@@ -4222,13 +4416,13 @@ function journeySceneHTML(step) {
         ${rows.map(r => `
           <div class="flex items-center justify-between px-3 py-2">
             <p class="text-xs text-slate-700 truncate pr-2">${r.name}</p>
-            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${r.cls} journey-fade-in" style="animation-delay:${r.delay}s">${r.badge}</span>
+            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${r.cls} journey-fade-in" style="animation-delay:${r.delay}s">${r.badge}</span>
           </div>
         `).join('')}
       </div>
       <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 flex items-center justify-between journey-fade-in" style="animation-delay:1.1s">
         <p class="text-xs font-bold text-emerald-700">Run complete</p>
-        <p class="text-sm font-black text-emerald-600">100% pass</p>
+        <p class="text-sm font-black text-emerald-700">100% pass</p>
       </div>
     </div>`;
 }
@@ -4289,7 +4483,7 @@ function renderJourneyStep(i) {
       <div class="flex items-center gap-2 mb-3">
         <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black text-white flex-shrink-0" style="background:${step.color}">${step.avatar}</span>
         <div class="min-w-0">
-          <p class="text-[10px] font-bold uppercase tracking-wider" style="color:${step.color}">${step.actor} · Step ${i + 1} of ${JOURNEY_STEPS.length}</p>
+          <p class="text-[11px] font-bold uppercase tracking-wider" style="color:${step.color}">${step.actor} · Step ${i + 1} of ${JOURNEY_STEPS.length}</p>
           <p class="text-sm font-bold text-slate-800 truncate">${step.icon} ${step.title}</p>
         </div>
       </div>
@@ -4309,7 +4503,7 @@ function renderJourneyStep(i) {
           <button onclick="journeyGoto(${Math.max(0, i - 1)})" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 disabled:opacity-30" ${i === 0 ? 'disabled' : ''}>Prev</button>
           <button onclick="journeyToggle()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white">${_journeyPlaying ? '⏸ Pause' : '▶ Play'}</button>
           <button onclick="${i === JOURNEY_STEPS.length - 1 ? 'journeyGoto(0)' : `journeyGoto(${i + 1})`}" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800">${i === JOURNEY_STEPS.length - 1 ? 'Replay' : 'Next'}</button>
-          <button onclick="closeJourneyDemo()" class="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600">Close</button>
+          <button onclick="closeJourneyDemo()" class="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-600">Close</button>
         </div>
       </div>
     </div>`;
@@ -4332,10 +4526,10 @@ function testflowArchDiagram() {
     `<div class="tf-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
         style="animation:tfIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
-      ${sub ? `<p class="text-[10px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
+      ${sub ? `<p class="text-[11px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
   const tag = (lbl, bg, tc, d = 0) =>
-    `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border flex-shrink-0 ${bg} ${tc}"
+    `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border flex-shrink-0 ${bg} ${tc}"
         style="animation:tfIn .3s ease forwards;animation-delay:${d + 'ms'}">${lbl}</span>`;
   const arrow = (lbl, d, dir = 'right', clr = 'blue', len = 36) => {
     const [dash, head] = FLOW[clr] || FLOW.blue;
@@ -4347,25 +4541,25 @@ function testflowArchDiagram() {
     const tip = isV
       ? `<svg width="8" height="5" viewBox="0 0 8 5" fill="${head}"><path d="M4 5L0 0h8z"/></svg>`
       : `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M5 4L0 0v8z"/></svg>`;
-    const lbl$ = lbl ? `<span class="text-[9px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
+    const lbl$ = lbl ? `<span class="text-[11px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
     return isV
       ? `<div class="flex flex-col items-center gap-0 opacity-0 flex-shrink-0" style="animation:tfIn .25s ease forwards;animation-delay:${d}ms">${lbl$}${line}${tip}</div>`
       : `<div class="flex flex-col items-center gap-0.5 opacity-0 flex-shrink-0" style="animation:tfIn .25s ease forwards;animation-delay:${d}ms">${lbl$}<div class="flex items-center">${line}${tip}</div></div>`;
   };
-  const lane = (lbl, clr) => `<p class="text-[9px] font-bold uppercase tracking-widest ${clr} mb-2">${lbl}</p>`;
+  const lane = (lbl, clr) => `<p class="text-[11px] font-bold uppercase tracking-widest ${clr} mb-2">${lbl}</p>`;
 
   return `
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 overflow-x-auto min-w-0">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-slate-800 text-sm">Playwright Tests — Architecture</h3>
-      <span class="text-[10px] bg-red-50 text-red-700 font-semibold px-2.5 py-1 rounded-full border border-red-200 flex items-center gap-1.5">
+      <span class="text-[11px] bg-red-50 text-red-700 font-semibold px-2.5 py-1 rounded-full border border-red-200 flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-red-500 aad-live"></span>UI E2E · API · POM
       </span>
     </div>
 
     <!-- ① Spec Layer -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('① Spec Layer — *.spec.ts  ·  *-be.spec.ts  (pure orchestration)', 'text-blue-500')}
+      ${lane('① Spec Layer — *.spec.ts  ·  *-be.spec.ts  (pure orchestration)', 'text-blue-600')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-blue-600','border-blue-700','text-white','test.describe()','Feature scope',0)}
         ${arrow('contains','70','right','blue',28)}
@@ -4406,7 +4600,7 @@ function testflowArchDiagram() {
     <div class="mb-3 pb-3 border-b border-slate-100">
       ${lane('③ UI Path — Page Object Model  ·  src/pages/*.ts', 'text-emerald-500')}
       <div class="flex items-center gap-2 flex-wrap">
-        ${box('bg-emerald-600','border-emerald-700','text-white','Page Class','constructor(page)',1200)}
+        ${box('bg-emerald-700','border-emerald-700','text-white','Page Class','constructor(page)',1200)}
         ${arrow('declares','1270','right','emerald',32)}
         ${box('bg-white','border-emerald-300','text-emerald-700','Locators','class properties',1340)}
         ${arrow('priority','1410','right','emerald',28)}
@@ -4457,11 +4651,11 @@ function testflowArchDiagram() {
       ${[['#3b82f6','Spec / describe'],['#8b5cf6','Fixtures'],['#10b981','UI / POM'],['#f97316','API / Endpoint'],['#ec4899','Infra / Logger']].map(([c,l])=>`
         <div class="flex items-center gap-1.5">
           <div style="height:2px;width:18px;background:repeating-linear-gradient(to right,${c} 0,${c} 4px,transparent 4px,transparent 8px);background-size:10px 100%;animation:tfFlowR .4s linear infinite"></div>
-          <span class="text-[9px] text-slate-500">${l}</span>
+          <span class="text-[11px] text-slate-500">${l}</span>
         </div>`).join('')}
       <div class="ml-auto flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-red-400 aad-live"></span>
-        <span class="text-[9px] text-slate-400 font-medium">Live data flow</span>
+        <span class="text-[11px] text-slate-500 font-medium">Live data flow</span>
       </div>
     </div>
   </div>
@@ -4477,7 +4671,6 @@ function testflowArchDiagram() {
 // ─── Users View (admin only) ─────────────────────────────────────────────────
 async function renderUsers() {
   setBreadcrumb([{ label: "Users", href: "users" }]);
-  document.getElementById("nav-new-btn").classList.add("hidden");
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
   const el = document.getElementById("view-users");
   el.classList.remove("hidden");
@@ -4486,11 +4679,11 @@ async function renderUsers() {
 
   const users = await GET("/api/users");
   const roleBadge = r => r === "admin"
-    ? `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">Admin</span>`
-    : `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Executor</span>`;
+    ? `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">Admin</span>`
+    : `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Executor</span>`;
   const statusBadge = active => active
-    ? `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Active</span>`
-    : `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Inactive</span>`;
+    ? `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Active</span>`
+    : `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Inactive</span>`;
 
   el.innerHTML = `
     <div class="fade-in space-y-6">
@@ -4532,13 +4725,13 @@ async function renderUsers() {
                 <td class="px-4 py-3 text-slate-500 hidden sm:table-cell">${escHtml(u.email)}</td>
                 <td class="px-4 py-3">${roleBadge(u.role)}</td>
                 <td class="px-4 py-3">${statusBadge(u.is_active !== false)}</td>
-                <td class="px-4 py-3 text-slate-400 text-xs hidden sm:table-cell">${formatDate(u.created_at)}</td>
+                <td class="px-4 py-3 text-slate-500 text-xs hidden sm:table-cell">${formatDate(u.created_at)}</td>
                 <td class="px-4 py-3 text-right">
                   <div class="flex items-center justify-end gap-1">
                   ${u.role !== "admin" ? `
                   <button onclick="toggleUserStatus(${u.id}, '${escHtml(u.username)}', ${u.is_active !== false})"
                     aria-label="${u.is_active !== false ? 'Deactivate' : 'Activate'} ${escHtml(u.username)}"
-                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-all ${u.is_active !== false ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}"
+                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-all ${u.is_active !== false ? 'text-slate-500 hover:text-amber-500 hover:bg-amber-50' : 'text-slate-500 hover:text-emerald-500 hover:bg-emerald-50'}"
                     title="${u.is_active !== false ? 'Deactivate' : 'Activate'}">
                     ${u.is_active !== false
                       ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>`
@@ -4546,7 +4739,7 @@ async function renderUsers() {
                   </button>
                   <button onclick="deleteUser(${u.id}, '${escHtml(u.username)}')"
                     aria-label="Remove ${escHtml(u.username)}"
-                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
+                    class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 w-7 h-7 inline-flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Remove">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>` : ""}
                   </div>
@@ -4670,10 +4863,10 @@ function renderUserBadge(user) {
       </div>
       <div class="hidden lg:flex flex-col leading-none">
         <span class="text-sm font-medium text-slate-700">${escHtml(user.username)}</span>
-        <span class="text-[10px] font-semibold border rounded px-1 mt-0.5 uppercase tracking-wide ${roleCls}">${escHtml(user.role)}</span>
+        <span class="text-[11px] font-semibold border rounded px-1 mt-0.5 uppercase tracking-wide ${roleCls}">${escHtml(user.role)}</span>
       </div>
       <button onclick="logout()" title="Log out" aria-label="Log out"
-        class="ml-1 text-slate-400 hover:text-red-500 transition-colors" data-testid="logout-btn">
+        class="ml-1 text-slate-500 hover:text-red-500 transition-colors" data-testid="logout-btn">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -4687,7 +4880,7 @@ function renderAuthForm(mode) {
   document.getElementById("auth-form-container").innerHTML = `
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full p-8 fade-in relative">
       ${!isSetup ? `<button onclick="hideAuthModal()" aria-label="Close"
-        class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
+        class="absolute top-4 right-4 text-slate-500 hover:text-slate-600 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
@@ -4702,7 +4895,7 @@ function renderAuthForm(mode) {
         </div>
         <div>
           <h1 class="text-xl font-bold text-slate-800">TestFlow</h1>
-          <p class="text-xs text-slate-400">Test Case Management</p>
+          <p class="text-xs text-slate-500">Test Case Management</p>
         </div>
       </div>
 
@@ -4743,7 +4936,7 @@ function renderAuthForm(mode) {
         </button>
       </form>
 
-      ${!isSetup ? `<p class="mt-4 text-center text-xs text-slate-400">Contact your admin to get an account.</p>` : ""}
+      ${!isSetup ? `<p class="mt-4 text-center text-xs text-slate-500">Contact your admin to get an account.</p>` : ""}
     </div>`;
 }
 
@@ -4881,8 +5074,11 @@ function connectRunWebSocket(runId) {
       }
       if (msg.type === "result_updated") {
         _reconcileTouched?.add(msg.testcase_id);
-        applyLiveResultUpdate(msg);
-        if (msg.run_completed) {
+        // Our own change comes back over the socket too; this page already
+        // shows it, so only other people's changes are announced.
+        const own = !!msg.updated_by && msg.updated_by === state.user?.username;
+        applyLiveResultUpdate(msg, { quiet: own });
+        if (msg.run_completed && !own) {
           toast(`Run completed by ${msg.updated_by}`, "info");
         }
       } else if (msg.type === "results_populated") {
@@ -4921,35 +5117,32 @@ async function reconcileRunResults(runId) {
   let run;
   try { run = await GET(`/api/runs/${runId}`); } catch { return; }
   finally { if (_reconcileTouched === touched) _reconcileTouched = null; }
+  if (_runView?.runId !== runId) return;
   for (const r of run?.results || []) {
     if (touched.has(r.testcase_id)) continue;
-    const badge = document.querySelector(`[data-tc-id="${r.testcase_id}"] [data-status-badge]`);
-    if (badge && badge.getAttribute("data-status-badge") !== r.status) {
-      applyLiveResultUpdate({ testcase_id: r.testcase_id, status: r.status }, { quiet: true });
+    const mine = runResult(r.testcase_id);
+    if (mine && mine.status !== r.status) {
+      applyLiveResultUpdate({ testcase_id: r.testcase_id, status: r.status, notes: r.notes }, { quiet: true });
     }
   }
 }
 
 function applyLiveResultUpdate(msg, { quiet = false } = {}) {
-  // Find the result row for this testcase and update its badge
-  const row = document.querySelector(`[data-tc-id="${msg.testcase_id}"]`);
-  if (!row) return;
-  const badge = row.querySelector("[data-status-badge]");
-  if (badge) {
-    const labels = { pass: "Pass", fail: "Fail", skip: "Skip", pending: "Pending" };
-    const colors = {
-      pass:    "bg-emerald-100 text-emerald-700",
-      fail:    "bg-red-100 text-red-700",
-      skip:    "bg-amber-100 text-amber-700",
-      pending: "bg-slate-100 text-slate-500",
-    };
-    badge.className = `px-2 py-0.5 rounded-full text-xs font-semibold ${colors[msg.status] || colors.pending}`;
-    badge.setAttribute("data-status-badge", msg.status);
-    badge.textContent = labels[msg.status] || msg.status;
+  const r = runResult(msg.testcase_id);
+  if (!r) return;
+  // Our own change echoed back is already on the page: re-rendering would
+  // only drop keyboard focus from the row.
+  const changed = r.status !== msg.status || ("notes" in msg && (msg.notes ?? null) !== (r.notes ?? null));
+  if (changed) {
+    r.status = msg.status;
+    if ("notes" in msg) r.notes = msg.notes;
+    if (msg.status !== "pending") r.executed_at = r.executed_at || new Date().toISOString();
+    const { row } = onRunResultChanged(msg.testcase_id);
+    if (row) {
+      row.classList.add("ring-2", "ring-blue-400");
+      setTimeout(() => row.classList.remove("ring-2", "ring-blue-400"), 1500);
+    }
   }
-  // Flash the row
-  row.classList.add("ring-2", "ring-blue-400");
-  setTimeout(() => row.classList.remove("ring-2", "ring-blue-400"), 1500);
   if (!quiet) toast(`${msg.updated_by} marked a test as ${msg.status}`, "info");
 }
 
@@ -5014,9 +5207,9 @@ async function runAIGenerate(suiteId) {
     resultsEl.classList.remove("hidden");
     resultsEl.innerHTML = `
       <div class="flex items-center justify-between">
-        <p class="text-sm font-semibold text-slate-700">${tcs.length} test cases generated <span class="text-xs font-normal text-slate-400">via ${data.model}</span></p>
+        <p class="text-sm font-semibold text-slate-700">${tcs.length} test cases generated <span class="text-xs font-normal text-slate-500">via ${data.model}</span></p>
         <button onclick="saveAllAITestCases(${suiteId})"
-          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+          class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
           Save All
         </button>
       </div>
@@ -5103,11 +5296,11 @@ function aiReviewPanel(suiteId, reviews) {
             <div class="min-w-0 flex-1">
               <p class="text-sm font-semibold text-slate-800">${escHtml(r.original.title)}</p>
               ${r.original.description ? `<p class="text-xs text-slate-500 mt-0.5">${escHtml(r.original.description)}</p>` : ""}
-              ${r.feature_description ? `<p class="text-[11px] text-slate-400 mt-1">From: “${escHtml(r.feature_description)}”${r.model ? ` · ${escHtml(r.model)}` : ""}</p>` : ""}
+              ${r.feature_description ? `<p class="text-[11px] text-slate-500 mt-1">From: “${escHtml(r.feature_description)}”${r.model ? ` · ${escHtml(r.model)}` : ""}</p>` : ""}
             </div>
             ${admin ? `<div class="flex items-center gap-1.5 flex-shrink-0">
               <button data-testid="ai-review-accept-${r.id}" onclick="reviewAIDraft(${suiteId}, ${r.id}, {verdict: 'accepted'})"
-                class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">Accept</button>
+                class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white">Accept</button>
               <button data-testid="ai-review-edit-${r.id}" onclick="showAIDraftEditModal(${suiteId}, ${r.id})"
                 class="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Edit</button>
               <button data-testid="ai-review-reject-${r.id}" onclick="showAIDraftRejectModal(${suiteId}, ${r.id})"
@@ -5144,7 +5337,7 @@ function showAIDraftRejectModal(suiteId, reviewId) {
   _openReviewModal("Reject AI draft", `
     <div class="space-y-3">
       <p class="text-sm text-slate-700"><strong>${escHtml(r.original.title)}</strong></p>
-      <label class="block text-sm font-medium text-slate-700" for="ai-reject-reason">Why is it wrong? <span class="text-red-500">*</span></label>
+      <label class="block text-sm font-medium text-slate-700" for="ai-reject-reason">Why is it wrong? <span class="text-red-600">*</span></label>
       <textarea id="ai-reject-reason" rows="3" maxlength="1000" placeholder="e.g. Duplicates an existing case; too vague to execute; out of scope"
         class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"></textarea>
       <p class="text-xs text-slate-500">The reason is shown to the model on this suite's next generation, and the draft becomes an eval case.</p>
@@ -5247,7 +5440,7 @@ async function showFlakyTestsModal(suiteId) {
             </div>
             <p class="text-xs text-slate-500">${c.flip_count} flips across ${c.executions} executions</p>
             <div class="flex gap-1 mt-2">
-              ${c.history.map(s => `<span class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${s === "pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}" title="${s}">${s === "pass" ? "✓" : "✗"}</span>`).join("")}
+              ${c.history.map(s => `<span class="w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold ${s === "pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}" title="${s}">${s === "pass" ? "✓" : "✗"}</span>`).join("")}
             </div>
           </div>`).join("")}
         <button onclick="hideModal()" class="w-full px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-xl transition-colors">Close</button>
@@ -5310,9 +5503,9 @@ async function showTriageModal(runId) {
               ${toolCalls.map((c, i) => `
                 <li class="text-xs text-slate-600">
                   <span class="font-mono font-semibold ${c.is_error ? "text-red-600" : "text-violet-700"}">${i + 1}. ${escHtml(c.name)}</span>
-                  <span class="font-mono text-slate-400">${escHtml(JSON.stringify(c.input))}</span>
+                  <span class="font-mono text-slate-500">${escHtml(JSON.stringify(c.input))}</span>
                 </li>`).join("")}
-            </ol>` : `<p class="text-xs text-slate-400">The agent answered without needing extra evidence.</p>`}
+            </ol>` : `<p class="text-xs text-slate-500">The agent answered without needing extra evidence.</p>`}
           </div>` : ""}
         ${data.problem_results.length ? `
           <div class="space-y-2">
@@ -5326,7 +5519,7 @@ async function showTriageModal(runId) {
                 ${triageVerdictHtml(verdicts[r.testcase_id])}
               </div>`).join("")}
           </div>` : ""}
-        ${data.model ? `<p class="text-xs text-slate-400">via ${escHtml(data.model)}</p>` : ""}
+        ${data.model ? `<p class="text-xs text-slate-500">via ${escHtml(data.model)}</p>` : ""}
         <button onclick="hideModal()" class="w-full px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 border border-slate-200 rounded-xl transition-colors">Close</button>
       </div>`;
   } catch (e) {
@@ -5362,7 +5555,6 @@ async function renderEnvironments() {
   const el = document.getElementById("view-environments");
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
-  document.getElementById("nav-new-btn").classList.add("hidden");
 
   let envs;
   try {
@@ -5390,7 +5582,7 @@ async function renderEnvironments() {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         ${envs.map(envCard).join("")}
       </div>
-      <p class="text-xs text-slate-400">Pod/CPU/memory figures are simulated telemetry for this demo (no live cluster behind it) — refreshes every 5 minutes.</p>
+      <p class="text-xs text-slate-500">Pod/CPU/memory figures are simulated telemetry for this demo (no live cluster behind it) — refreshes every 5 minutes.</p>
     </div>`;
 }
 
@@ -5414,15 +5606,15 @@ function envCard(e) {
       </div>
       <div class="flex items-center justify-between text-xs mb-1">
         <span class="text-slate-500">Pods</span>
-        <span class="font-semibold ${e.pods_ready === e.pods_desired ? "text-emerald-600" : "text-amber-600"}">${e.pods_ready}/${e.pods_desired}</span>
+        <span class="font-semibold ${e.pods_ready === e.pods_desired ? "text-emerald-700" : "text-amber-700"}">${e.pods_ready}/${e.pods_desired}</span>
       </div>
       <div class="grid grid-cols-2 gap-2 text-xs">
         <div>
-          <div class="flex justify-between text-slate-400 mb-0.5"><span>CPU</span><span>${e.cpu_pct}%</span></div>
+          <div class="flex justify-between text-slate-500 mb-0.5"><span>CPU</span><span>${e.cpu_pct}%</span></div>
           <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500" style="width:${e.cpu_pct}%"></div></div>
         </div>
         <div>
-          <div class="flex justify-between text-slate-400 mb-0.5"><span>Mem</span><span>${e.mem_pct}%</span></div>
+          <div class="flex justify-between text-slate-500 mb-0.5"><span>Mem</span><span>${e.mem_pct}%</span></div>
           <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-violet-500" style="width:${e.mem_pct}%"></div></div>
         </div>
       </div>
@@ -5455,7 +5647,6 @@ async function renderLogs() {
   const el = document.getElementById("view-logs");
   el.classList.remove("hidden");
   el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
-  document.getElementById("nav-new-btn").classList.add("hidden");
 
   setBreadcrumb([
     { label: "Projects", href: "projects" },
@@ -5503,7 +5694,7 @@ async function loadLogs() {
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 class="text-2xl font-bold text-slate-800">Log Center</h1>
-          <p class="text-sm text-slate-500 mt-0.5">Showing ${rangeStart}–${rangeEnd} of ${total} · <span class="text-red-600 font-medium">${errorCount} error</span> · <span class="text-amber-600 font-medium">${warningCount} warning</span></p>
+          <p class="text-sm text-slate-500 mt-0.5">Showing ${rangeStart}–${rangeEnd} of ${total} · <span class="text-red-600 font-medium">${errorCount} error</span> · <span class="text-amber-700 font-medium">${warningCount} warning</span></p>
         </div>
         <button onclick="loadLogs()" class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.13-5.36M20 15a9 9 0 01-14.13 5.36"/></svg>
@@ -5511,13 +5702,13 @@ async function loadLogs() {
         </button>
       </div>
       <div class="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-slate-200 p-3">
-        <select id="log-f-level" onchange="setLogFilter('level', this.value)" class="${inputCls} w-auto text-sm">
+        <select id="log-f-level" aria-label="Filter by level" onchange="setLogFilter('level', this.value)" class="${inputCls} w-auto text-sm">
           <option value="">All levels</option>
           <option value="error" ${logFilters.level === "error" ? "selected" : ""}>Error</option>
           <option value="warning" ${logFilters.level === "warning" ? "selected" : ""}>Warning</option>
           <option value="info" ${logFilters.level === "info" ? "selected" : ""}>Info</option>
         </select>
-        <select id="log-f-source" onchange="setLogFilter('source', this.value)" class="${inputCls} w-auto text-sm">
+        <select id="log-f-source" aria-label="Filter by source" onchange="setLogFilter('source', this.value)" class="${inputCls} w-auto text-sm">
           <option value="">All sources</option>
           <option value="server" ${logFilters.source === "server" ? "selected" : ""}>Server</option>
           <option value="client" ${logFilters.source === "client" ? "selected" : ""}>Client (browser)</option>
@@ -5529,11 +5720,11 @@ async function loadLogs() {
           class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">Search</button>
       </div>
       ${!entries.length ? `
-        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-400 text-sm">No log entries match these filters.</div>` : `
+        <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-500 text-sm">No log entries match these filters.</div>` : `
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="border-b border-slate-200 text-left text-xs text-slate-400 uppercase tracking-wide">
+              <tr class="border-b border-slate-200 text-left text-xs text-slate-500 uppercase tracking-wide">
                 <th class="px-4 py-2 font-medium">Time</th>
                 <th class="px-4 py-2 font-medium">Level</th>
                 <th class="px-4 py-2 font-medium">Source</th>
@@ -5548,7 +5739,7 @@ async function loadLogs() {
           </table>
         </div>
         <div class="flex items-center justify-between flex-wrap gap-3" data-testid="log-pagination">
-          <p class="text-xs text-slate-400">Page ${page} of ${totalPages}</p>
+          <p class="text-xs text-slate-500">Page ${page} of ${totalPages}</p>
           <div class="flex items-center gap-2">
             <button data-testid="log-prev-btn" onclick="setLogPage(${page - 1})" ${page <= 1 ? "disabled" : ""}
               class="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">Previous</button>
@@ -5562,7 +5753,7 @@ async function loadLogs() {
 function logRowHtml(e) {
   return `
     <tr data-testid="log-row-${e.id}" class="hover:bg-slate-50">
-      <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">${formatDateTime(e.created_at)}</td>
+      <td class="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">${formatDateTime(e.created_at)}</td>
       <td class="px-4 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${logLevelCls(e.level)}">${escHtml(e.level)}</span></td>
       <td class="px-4 py-2 text-xs text-slate-500">${escHtml(e.source)}</td>
       <td class="px-4 py-2 text-slate-700 max-w-md truncate" title="${escHtml(e.extra || "")}">${escHtml(e.message)}</td>
@@ -5612,13 +5803,13 @@ async function renderAnalytics(projectId) {
 
       ${!history.length ? `
         <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center">
-          <p class="text-slate-400 text-sm">No completed runs yet. Execute some test runs to see analytics.</p>
+          <p class="text-slate-500 text-sm">No completed runs yet. Execute some test runs to see analytics.</p>
         </div>` : `
 
       <!-- Pass rate trend -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <h2 class="text-base font-semibold text-slate-700 mb-1">Pass Rate Trend</h2>
-        <p class="text-xs text-slate-400 mb-4">Last ${history.length} completed runs across all suites</p>
+        <p class="text-xs text-slate-500 mb-4">Last ${history.length} completed runs across all suites</p>
         <div style="position:relative;height:240px">
           <canvas id="analytics-chart"></canvas>
         </div>
@@ -5634,9 +5825,9 @@ async function renderAnalytics(projectId) {
             <thead class="bg-slate-50 text-xs text-slate-500 font-medium uppercase tracking-wider">
               <tr>
                 <th class="px-4 py-3 text-left">Run</th>
-                <th class="px-4 py-3 text-right text-emerald-600">Pass</th>
+                <th class="px-4 py-3 text-right text-emerald-700">Pass</th>
                 <th class="px-4 py-3 text-right text-red-600">Fail</th>
-                <th class="px-4 py-3 text-right text-amber-600">Skip</th>
+                <th class="px-4 py-3 text-right text-amber-700">Skip</th>
                 <th class="px-4 py-3 text-right">Pass Rate</th>
               </tr>
             </thead>
@@ -5644,11 +5835,11 @@ async function renderAnalytics(projectId) {
               ${history.map(r => `
                 <tr class="hover:bg-slate-50 transition-colors">
                   <td class="px-4 py-3 font-medium text-slate-800">${escHtml(r.run_name)}</td>
-                  <td class="px-4 py-3 text-right text-emerald-600 font-semibold">${r.pass_count}</td>
+                  <td class="px-4 py-3 text-right text-emerald-700 font-semibold">${r.pass_count}</td>
                   <td class="px-4 py-3 text-right text-red-600 font-semibold">${r.fail_count}</td>
-                  <td class="px-4 py-3 text-right text-amber-600 font-semibold">${r.skip_count}</td>
+                  <td class="px-4 py-3 text-right text-amber-700 font-semibold">${r.skip_count}</td>
                   <td class="px-4 py-3 text-right">
-                    <span class="font-bold ${r.pass_rate >= 80 ? 'text-emerald-600' : r.pass_rate >= 50 ? 'text-amber-600' : 'text-red-600'}">${r.pass_rate}%</span>
+                    <span class="font-bold ${r.pass_rate >= 80 ? 'text-emerald-700' : r.pass_rate >= 50 ? 'text-amber-700' : 'text-red-600'}">${r.pass_rate}%</span>
                   </td>
                 </tr>`).join("")}
             </tbody>

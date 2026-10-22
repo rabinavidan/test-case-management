@@ -185,7 +185,7 @@ test.describe('Responsive — signed-in pages', () => {
   test('the New Project modal fits the device with its submit button reachable', async ({ page }) => {
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('nav-new-btn').tap();
+    await page.getByTestId('new-project-btn').tap();
     await expectOnScreen(page, page.getByTestId('modal-box'), 'New Project modal');
     const submit = page.getByTestId('modal-submit-btn');
     await submit.scrollIntoViewIfNeeded();

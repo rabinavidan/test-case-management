@@ -21,7 +21,7 @@ class ProjectsPage(BasePage):
 
     @property
     def new_project_btn(self) -> Locator:
-        return self.page.locator("#view-projects button", has_text="New Project")
+        return self.page.get_by_test_id("new-project-btn")
 
     @property
     def project_rows(self) -> Locator:

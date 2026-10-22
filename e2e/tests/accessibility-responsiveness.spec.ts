@@ -147,7 +147,7 @@ authTest.describe('Dialogs close with Escape — signed in', () => {
     await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('nav-new-btn').click();
+    await page.getByTestId('new-project-btn').click();
     await authExpect(page.getByTestId('modal-overlay')).toBeVisible();
     await page.keyboard.press('Escape');
     await authExpect(page.getByTestId('modal-overlay')).toHaveClass(/hidden/);

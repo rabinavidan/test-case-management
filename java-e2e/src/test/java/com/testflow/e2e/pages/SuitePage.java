@@ -18,7 +18,7 @@ public class SuitePage extends BasePage {
 
     public SuitePage(Page page) {
         super(page);
-        this.newTestCaseBtn = page.getByTestId("nav-new-btn");
+        this.newTestCaseBtn = page.getByTestId("new-testcase-btn");
         this.titleInput = page.locator("[data-testid=\"f-title\"], #f-title");
         this.descInput = page.locator("[data-testid=\"f-desc\"], #f-desc");
         this.submitBtn = page.getByTestId("modal-submit-btn");

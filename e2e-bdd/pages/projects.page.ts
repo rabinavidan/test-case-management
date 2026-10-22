@@ -9,7 +9,7 @@ export class ProjectsPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.newProjectBtn = page.getByTestId('nav-new-btn');
+    this.newProjectBtn = page.getByTestId('new-project-btn');
     this.nameInput     = page.locator('[data-testid="f-name"], #f-name');
     this.descInput     = page.locator('[data-testid="f-desc"], #f-desc');
     this.submitBtn     = page.getByTestId('modal-submit-btn');

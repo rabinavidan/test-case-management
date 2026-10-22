@@ -88,10 +88,11 @@ def test_new_project_modal_opens(logged_in: ProjectsPage):
     logged_in.close_modal()
 
 
-def test_nav_label_on_projects_page(logged_in: ProjectsPage):
-    _log.section("Project CRUD — Nav label on projects page")
-    _log.assert_("nav label text", "New Project")
-    expect(logged_in.nav_new_label).to_have_text("New Project")
+def test_new_button_label_on_projects_page(logged_in: ProjectsPage):
+    _log.section("Project CRUD — New button label on projects page")
+    # An empty database shows the first-project call to action instead.
+    _log.assert_("New button text", "New Project / Create First Project")
+    expect(logged_in.page_new_label).to_have_text(re.compile(r"New Project|Create First Project"))
 
 
 # ── Suite CRUD ────────────────────────────────────────────────────────────────
@@ -114,10 +115,10 @@ def test_create_suite(temp_project: ProjectPage):
     temp_project.expect_suite_visible("Login Suite")
 
 
-def test_nav_label_on_project_page(temp_project: ProjectPage):
-    _log.section("Suite CRUD — Nav label on project page")
-    _log.assert_("nav label text", "New Suite")
-    expect(temp_project.nav_new_label).to_have_text("New Suite")
+def test_new_button_label_on_project_page(temp_project: ProjectPage):
+    _log.section("Suite CRUD — New button label on project page")
+    _log.assert_("New button text", "New Suite")
+    expect(temp_project.page_new_label).to_have_text("New Suite")
 
 
 # ── Test Case CRUD ────────────────────────────────────────────────────────────
@@ -142,10 +143,10 @@ def test_create_test_case(temp_suite: SuitePage):
     temp_suite.expect_test_case_visible("Login with valid credentials")
 
 
-def test_nav_label_on_suite_page(temp_suite: SuitePage):
-    _log.section("Test Case CRUD — Nav label on suite page")
-    _log.assert_("nav label text", "New Test Case")
-    expect(temp_suite.nav_new_label).to_have_text("New Test Case")
+def test_new_button_label_on_suite_page(temp_suite: SuitePage):
+    _log.section("Test Case CRUD — New button label on suite page")
+    _log.assert_("New button text", "New Test Case")
+    expect(temp_suite.page_new_label).to_have_text("New Test Case")
 
 
 # ── New Project Modal ─────────────────────────────────────────────────────────
@@ -193,8 +194,8 @@ def test_create_project_with_timestamp(logged_in: ProjectsPage, new_project_moda
     description = f"project description with time stamp {ts}"
     _log.info(f"Generated project name: {name}")
 
-    _log.step("Open New Project modal via nav button")
-    logged_in.nav_new_btn.click()
+    _log.step("Open New Project modal via the page's New Project button")
+    logged_in.page_new_btn.click()
     new_project_modal.expect_open()
 
     _log.step("Submit project form")
