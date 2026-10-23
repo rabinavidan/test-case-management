@@ -10,4 +10,4 @@ RUN pip install --no-cache-dir -r services/worker/requirements.txt
 COPY services/worker services/worker
 COPY services/runs services/runs
 COPY services/common services/common
-CMD ["python", "-m", "services.worker.main"]
+CMD ["ddtrace-run", "python", "-m", "services.worker.main"]

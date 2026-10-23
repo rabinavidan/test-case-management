@@ -1,0 +1,45 @@
+# Datadog Agent for the TestFlow GKE cluster — Helm values for the official
+# chart (https://github.com/DataDog/helm-charts, chart "datadog/datadog").
+# How to install and switch tracing on: docs/datadog.md.
+#
+#   helm repo add datadog https://helm.datadoghq.com
+#   kubectl create namespace datadog
+#   kubectl -n datadog create secret generic datadog-secret --from-literal api-key="$DD_API_KEY"
+#   helm upgrade --install datadog datadog/datadog -n datadog -f deploy/datadog/values.yaml
+datadog:
+  apiKeyExistingSecret: datadog-secret
+  site: datadoghq.com          # datadoghq.eu for the EU1 site
+  clusterName: testflow
+
+  # Container stdout -> Datadog Logs. The services already write one JSON
+  # object per line (services/common/logging_config.py), with dd.trace_id when
+  # tracing is on, so no parsing pipeline is needed.
+  logs:
+    enabled: true
+    containerCollectAll: true
+
+  # Traces: the app pods send to the Agent on their own node —
+  # k8s/base/*.yaml sets DD_AGENT_HOST=status.hostIP, which needs this hostPort.
+  apm:
+    portEnabled: true
+
+  # Custom metrics (DogStatsD) and ddtrace runtime metrics, same node-local path.
+  dogstatsd:
+    useHostPort: true
+
+  kubeStateMetricsCore:
+    enabled: true
+
+clusterAgent:
+  enabled: true
+
+# The cluster is GKE Autopilot (terraform/modules/gke_autopilot), which
+# restricts DaemonSets; the chart's Autopilot mode handles that. Checked with
+# `helm template` (chart datadog/datadog 3.261.0): hostPort 8126/8125 are kept
+# in Autopilot mode, so DD_AGENT_HOST=status.hostIP works as-is. The mode also
+# adds a node-local Service `datadog` (internalTrafficPolicy: Local) — to use
+# it instead, add DD_TRACE_AGENT_URL=http://datadog.datadog.svc.cluster.local:8126
+# to testflow-config (it takes precedence over DD_AGENT_HOST).
+providers:
+  gke:
+    autopilot: true

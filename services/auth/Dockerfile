@@ -13,4 +13,4 @@ COPY services/auth services/auth
 COPY services/common services/common
 COPY shared shared
 COPY VERSION VERSION
-CMD ["uvicorn", "services.auth.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["ddtrace-run", "uvicorn", "services.auth.main:app", "--host", "0.0.0.0", "--port", "8001"]

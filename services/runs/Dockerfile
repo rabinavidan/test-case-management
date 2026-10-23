@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir -r services/runs/requirements.txt
 COPY services/runs services/runs
 COPY services/common services/common
 COPY shared shared
-CMD ["uvicorn", "services.runs.main:app", "--host", "0.0.0.0", "--port", "8003"]
+CMD ["ddtrace-run", "uvicorn", "services.runs.main:app", "--host", "0.0.0.0", "--port", "8003"]

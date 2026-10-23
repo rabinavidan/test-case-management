@@ -1,49 +1,92 @@
-"""Unit tests for services/common/logging_config.py — pure format-string
-construction (json_log_format) plus a check that configure_json_logging
-wires it up as the root logging format. No file/network I/O.
-"""
+"""Unit tests for services/common/logging_config.py — the JSON log formatter
+every microservice uses, including the Datadog trace-correlation fields
+ddtrace injects (see docs/datadog.md). No file/network I/O, no ddtrace import:
+the injected attributes are set on the record directly, the same way ddtrace's
+logging patch sets them."""
 import json
 import logging
+import sys
 
-from services.common.logging_config import configure_json_logging, json_log_format
+import pytest
+
+from services.common.logging_config import JsonLogFormatter, configure_json_logging
 
 
-def _format_one_record(service_name: str, message: str) -> str:
-    """Run message through the real logging.Formatter with this service's
-    format string — exactly what a log call produces, without touching any
-    global logging state (no basicConfig, no handlers)."""
-    formatter = logging.Formatter(json_log_format(service_name))
-    record = logging.LogRecord(
-        name=service_name, level=logging.INFO, pathname=__file__, lineno=1,
-        msg=message, args=(), exc_info=None,
-    )
-    return formatter.format(record)
+def _record(message, *args, name="runs", level=logging.INFO, exc_info=None, **attrs):
+    record = logging.LogRecord(name=name, level=level, pathname=__file__, lineno=1,
+                               msg=message, args=args, exc_info=exc_info)
+    for key, value in attrs.items():
+        setattr(record, key.replace("__", "."), value)  # dd__trace_id -> "dd.trace_id"
+    return record
+
+
+def _format(record, service="runs"):
+    return json.loads(JsonLogFormatter(service).format(record))
 
 
 def test_configure_json_logging_returns_a_logger_named_for_the_service():
-    logger = configure_json_logging("gateway")
-    assert logger.name == "gateway"
+    assert configure_json_logging("gateway").name == "gateway"
 
 
-def test_formatted_line_is_valid_json_with_expected_keys():
-    line = _format_one_record("auth", "POST /token 200 12.3ms")
-    payload = json.loads(line)
+def test_configure_json_logging_installs_the_json_formatter_on_root():
+    configure_json_logging("auth")
+    [handler] = logging.getLogger().handlers
+    assert isinstance(handler.formatter, JsonLogFormatter)
+    assert handler.formatter.service_name == "auth"
+
+
+def test_line_has_the_expected_keys():
+    payload = _format(_record("POST /token %s %.1fms", 200, 12.3, name="auth.http"), service="auth")
     assert payload["service"] == "auth"
     assert payload["level"] == "INFO"
+    assert payload["logger"] == "auth.http"
     assert payload["msg"] == "POST /token 200 12.3ms"
-    assert "time" in payload
+    assert payload["time"].endswith("+00:00")
+    assert "dd" not in payload and "error" not in payload
 
 
-def test_different_services_get_distinct_service_fields():
-    projects_line = _format_one_record("projects", "hello")
-    runs_line = _format_one_record("runs", "hello")
-    assert json.loads(projects_line)["service"] == "projects"
-    assert json.loads(runs_line)["service"] == "runs"
+@pytest.mark.parametrize("message", [
+    'Request failed: {"detail": "Not found"}',
+    "line one\nline two",
+    "tab\there and a backslash \\ too",
+    "עברית ✓ unicode",
+])
+def test_messages_that_broke_the_old_format_string_are_valid_json(message):
+    assert _format(_record(message))["msg"] == message
 
 
-def test_message_containing_quotes_still_parses_reasonably():
-    # Not bulletproof JSON escaping (msg is interpolated raw), but a plain
-    # request-log line (method/path/status/latency, no embedded quotes)
-    # never hits this — documents the known limitation instead of hiding it.
-    line = _format_one_record("ai", "GET /docs 200 5.0ms")
-    assert json.loads(line)["msg"] == "GET /docs 200 5.0ms"
+def test_trace_context_from_ddtrace_is_nested_under_dd():
+    payload = _format(_record("hi", dd__trace_id="6adbc1fe00000000", dd__span_id="1458",
+                              dd__service="runs", dd__env="prod", dd__version="2.0.160"))
+    assert payload["dd"] == {"trace_id": "6adbc1fe00000000", "span_id": "1458",
+                             "service": "runs", "env": "prod", "version": "2.0.160"}
+
+
+def test_no_dd_block_outside_a_span():
+    """ddtrace sets trace_id "0" (and empty service fields when unset) for a
+    log made outside any span — nothing to correlate, so no dd block."""
+    payload = _format(_record("hi", dd__trace_id="0", dd__span_id="0", dd__service="runs", dd__env=""))
+    assert "dd" not in payload
+
+
+def test_empty_dd_fields_are_dropped():
+    payload = _format(_record("hi", dd__trace_id="abc", dd__span_id="1", dd__service="", dd__env="", dd__version=""))
+    assert payload["dd"] == {"trace_id": "abc", "span_id": "1"}
+
+
+def test_exceptions_use_datadogs_error_attributes():
+    try:
+        raise ValueError('bad "value"')
+    except ValueError:
+        payload = _format(_record("boom", level=logging.ERROR, exc_info=sys.exc_info()))
+    assert payload["level"] == "ERROR"
+    assert payload["error"]["kind"] == "ValueError"
+    assert payload["error"]["message"] == 'bad "value"'
+    assert "Traceback" in payload["error"]["stack"]
+
+
+def test_non_serializable_args_do_not_crash_formatting():
+    class Odd:
+        def __str__(self):
+            return "odd-object"
+    assert _format(_record("value=%s", Odd()))["msg"] == "value=odd-object"

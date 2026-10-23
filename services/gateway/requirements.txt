@@ -2,3 +2,5 @@ fastapi==0.141.1
 uvicorn[standard]==0.32.1
 httpx==0.28.1
 websockets==14.1
+# APM / log-trace correlation for Datadog — inert until DD_TRACE_ENABLED=true (docs/datadog.md).
+ddtrace==4.16.0
