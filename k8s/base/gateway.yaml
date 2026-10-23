@@ -9,7 +9,12 @@ spec:
     matchLabels: { app: gateway }
   template:
     metadata:
-      labels: { app: gateway }
+      labels:
+        app: gateway
+        # Datadog unified service tagging + log source (docs/datadog.md).
+        tags.datadoghq.com/service: gateway
+      annotations:
+        ad.datadoghq.com/gateway.logs: '[{"source":"python","service":"gateway"}]'
     spec:
       containers:
         - name: gateway
@@ -18,6 +23,14 @@ spec:
             - containerPort: 8000
           envFrom:
             - configMapRef: { name: testflow-config }
+          env:
+            # Datadog: the node-local Agent (DaemonSet, hostPort 8126) and this
+            # service's name. On/off, env and log injection come from
+            # testflow-config (DD_TRACE_ENABLED defaults to "false").
+            - name: DD_AGENT_HOST
+              valueFrom: { fieldRef: { fieldPath: status.hostIP } }
+            - name: DD_SERVICE
+              value: gateway
           livenessProbe:
             httpGet: { path: /api/version, port: 8000 }
             periodSeconds: 10

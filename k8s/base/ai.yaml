@@ -9,7 +9,12 @@ spec:
     matchLabels: { app: ai }
   template:
     metadata:
-      labels: { app: ai }
+      labels:
+        app: ai
+        # Datadog unified service tagging + log source (docs/datadog.md).
+        tags.datadoghq.com/service: ai
+      annotations:
+        ad.datadoghq.com/ai.logs: '[{"source":"python","service":"ai"}]'
     spec:
       containers:
         - name: ai
@@ -19,6 +24,13 @@ spec:
           envFrom:
             - configMapRef: { name: testflow-config }
           env:
+            # Datadog: the node-local Agent (DaemonSet, hostPort 8126) and this
+            # service's name. On/off, env and log injection come from
+            # testflow-config (DD_TRACE_ENABLED defaults to "false").
+            - name: DD_AGENT_HOST
+              valueFrom: { fieldRef: { fieldPath: status.hostIP } }
+            - name: DD_SERVICE
+              value: ai
             - name: JWT_SECRET_KEY
               valueFrom: { secretKeyRef: { name: testflow-secrets, key: JWT_SECRET_KEY } }
             - name: ANTHROPIC_API_KEY

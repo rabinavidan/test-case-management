@@ -6,3 +6,5 @@ httpx==0.28.1
 redis==5.2.1
 kafka-python==3.0.11
 websockets==14.1
+# APM / log-trace correlation for Datadog — inert until DD_TRACE_ENABLED=true (docs/datadog.md).
+ddtrace==4.16.0

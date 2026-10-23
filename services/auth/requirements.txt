@@ -4,3 +4,5 @@ sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 passlib[sha256-crypt]==1.7.4
 slowapi==0.1.9
+# APM / log-trace correlation for Datadog — inert until DD_TRACE_ENABLED=true (docs/datadog.md).
+ddtrace==4.16.0

@@ -45,6 +45,7 @@ configMapGenerator:
     behavior: merge
     literals:
       - ENVIRONMENT=staging
+      - DD_ENV=staging
 
 secretGenerator:
   - name: testflow-secrets
