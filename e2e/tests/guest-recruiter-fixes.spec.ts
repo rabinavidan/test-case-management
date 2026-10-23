@@ -50,7 +50,7 @@ test.describe('Guest recruiter journey — P0 fixes', () => {
 
   test('the demo buttons show a friendly message, not "Invalid token", when nothing is seeded', async ({ page }) => {
     await test.step('Visit as a guest', async () => {
-      await page.goto('/#projects');
+      await page.goto('/#home/architecture');
       await page.waitForLoadState('networkidle');
     });
 
@@ -90,7 +90,7 @@ test.describe('Guest recruiter journey — P0 fixes', () => {
     });
 
     await test.step('Visit as a guest and click "Run Playwright Architecture Demo"', async () => {
-      await page.goto('/#projects');
+      await page.goto('/#home/architecture');
       await page.waitForLoadState('networkidle');
       await page.locator('#demo-pw-btn').click();
     });

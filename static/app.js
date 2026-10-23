@@ -78,8 +78,15 @@ function toast(msg, type = "success") {
     error:   "bg-red-600 text-white",
     info:    "bg-blue-600 text-white",
   };
-  inner.className = `px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-xs ${colors[type] || colors.info}`;
-  inner.textContent = msg;
+  const icons = {
+    success: "M5 13l4 4L19 7",
+    error:   "M6 18L18 6M6 6l12 12",
+    info:    "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  };
+  inner.className = `px-4 py-3 rounded-xl shadow-xl text-sm font-medium flex items-center gap-2.5 max-w-xs ${colors[type] || colors.info}`;
+  inner.innerHTML = `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="${icons[type] || icons.info}"/></svg><span>${escHtml(msg)}</span><span class="toast-timer" aria-hidden="true"></span>`;
+  // Restart the entrance and timer animations for back-to-back toasts.
+  inner.style.animation = "none"; void inner.offsetWidth; inner.style.animation = "";
   el.classList.remove("hidden");
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => el.classList.add("hidden"), 3000);
@@ -664,14 +671,21 @@ async function router() {
 let _breadcrumbObserver = null;
 function setBreadcrumb(items) {
   const el = document.getElementById("breadcrumb");
-  el.innerHTML = items.map((item, i) => {
-    const sep = i > 0
-      ? `<svg class="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`
-      : "";
+  // On phones only the parent and the current page show, after an ellipsis
+  // that stands for the rest; wider screens show the whole trail.
+  const sepSvg = `<svg class="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>`;
+  const collapse = items.length > 2;
+  // A lone crumb fits on the header's first row; a trail gets its own row on phones.
+  el.classList.toggle("order-last", items.length > 1);
+  el.classList.toggle("basis-full", items.length > 1);
+  el.innerHTML = (collapse ? `<span class="sm:hidden text-slate-500 flex-shrink-0" aria-hidden="true">…</span>` : "") + items.map((item, i) => {
+    const phoneHidden = collapse && i < items.length - 2;
+    const wrap = (html) => `<span class="${phoneHidden ? "hidden sm:inline-flex" : "inline-flex"} items-center gap-1 min-w-0 flex-shrink-0">${html}</span>`;
+    const sep = i > 0 ? sepSvg : "";
     if (i === items.length - 1) {
-      return `${sep}<span class="text-slate-600 font-medium truncate max-w-[160px] flex-shrink-0">${escHtml(item.label)}</span>`;
+      return wrap(`${sep}<span class="text-slate-700 font-semibold truncate max-w-[160px] sm:max-w-[220px]" aria-current="page">${escHtml(item.label)}</span>`);
     }
-    return `${sep}<button onclick="navigate('${item.href}')" class="text-blue-600 hover:text-blue-700 transition-colors truncate max-w-[120px] flex-shrink-0">${escHtml(item.label)}</button>`;
+    return wrap(`${sep}<button onclick="navigate('${item.href}')" class="text-blue-600 hover:text-blue-700 hover:underline underline-offset-2 transition-colors truncate max-w-[120px] sm:max-w-[160px]">${escHtml(item.label)}</button>`);
   }).join("");
   // On narrow screens the breadcrumb scrolls sideways; show its end, the current
   // page. Watched, not set once: the Tailwind CDN's CSS can land after this
@@ -889,6 +903,7 @@ function toggleShowcase() {
 function viewArchitecture() {
   const reveal = () => {
     const content = document.getElementById("showcase-content");
+    revealHomeSection(content);
     if (content && content.classList.contains("hidden")) toggleShowcase();
     document.getElementById("showcase-toggle-btn")?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
   };
@@ -907,7 +922,7 @@ function viewArchitecture() {
 // Skippable/exitable at any step.
 const RECRUITER_TOUR_STEPS = [
   { title: "Leadership Profile", desc: "Automation Tech Lead positioning and how I lead engineering delivery.", targetId: "leadership-impact-section" },
-  { title: "System Architecture", desc: "Live microservice architecture, plus the real trade-offs behind it.", targetId: "showcase-toggle-btn", onEnter: () => { const c = document.getElementById("showcase-content"); if (c && c.classList.contains("hidden")) toggleShowcase(); } },
+  { title: "System Architecture", desc: "Live microservice architecture, plus the real trade-offs behind it.", targetId: "showcase-toggle-btn", onEnter: () => { const c = document.getElementById("showcase-content"); revealHomeSection(c); if (c && c.classList.contains("hidden")) toggleShowcase(); } },
   { title: "Test Strategy", desc: "A real Test Pyramid with measured counts, and the Shift-Left strategy behind it.", targetId: "test-pyramid-section" },
   { title: "CI/CD Quality Gates & KPIs", desc: "The quality gates that block a merge, and the KPI dashboard tracking them.", targetId: "kpi-dashboard-section" },
   { title: "AI Engineering & Source", desc: "Eight real AI-assisted workflows, the roadmap, and the GitHub source behind all of it.", targetId: "ai-first-engineering-section" },
@@ -977,6 +992,7 @@ function goToTourStep(i) {
   setTimeout(() => {
     const target = document.querySelector(`[data-testid="${step.targetId}"]`);
     if (!target) return;
+    revealHomeSection(target);
     target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
     const prevOutline = target.style.outline, prevOffset = target.style.outlineOffset;
     target.style.outline = "3px solid #3b82f6";
@@ -1399,7 +1415,7 @@ async function renderProjects() {
 
   const el = document.getElementById("view-projects");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   await loadSidebar();
 
@@ -2087,7 +2103,7 @@ async function renderProjects() {
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
           <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Automation Tech Lead | AI-Driven Quality Engineering</p>
-          <h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Leading Automation Architecture &<br>AI-Driven Quality Strategy</h2>
+          <div class="blur-in"><h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Leading Automation Architecture &amp;<br>AI-Driven Quality Strategy</h2></div>
           <p class="text-xs mb-4" style="color:rgba(100,200,255,.7)">Technical roadmaps · Shift-Left strategy · CI/CD quality gates · measurable engineering KPIs</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
@@ -2473,7 +2489,17 @@ async function renderProjects() {
     ];
   };
   const kpiCardTestId = (k) => `kpi-card-${k.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
-  const kpiCardHtml = (k) => `
+  // Unmeasured KPIs get a compact, muted card in their own "On the roadmap"
+  // row, so the measured ones lead the section.
+  const kpiUnmeasured = (k) => k.status === 'Not yet measured';
+  const kpiCardHtml = (k) => kpiUnmeasured(k) ? `
+          <div class="bg-slate-50/70 rounded-xl border border-dashed border-slate-300 px-3 py-2.5" data-testid="${kpiCardTestId(k)}" title="${escHtml(k.def)}">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="text-xs font-bold text-slate-700">${k.name}</h3>
+              <span class="text-[11px] font-semibold text-slate-500 whitespace-nowrap">Not yet measured</span>
+            </div>
+            <p class="text-[11px] text-slate-500 leading-snug mt-1 line-clamp-2">${k.def}</p>
+          </div>` : `
           <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4" data-testid="${kpiCardTestId(k)}">
             <div class="flex items-start justify-between gap-2 mb-1">
               <h3 class="text-xs font-bold text-slate-700">${k.name}</h3>
@@ -2497,14 +2523,23 @@ async function renderProjects() {
     const live = new Set(['Pass Rate (live)', 'Pipeline Execution Time']);
     for (const k of buildKpiCards(flagshipStats, pipelineStats, false).filter(k => live.has(k.name))) {
       const card = document.querySelector(`[data-testid="${kpiCardTestId(k)}"]`);
-      if (card) card.outerHTML = kpiCardHtml(k);
+      if (!card) continue;
+      card.outerHTML = kpiCardHtml(k);
+      // A live KPI that turned out unmeasured (or measured) moves to its row.
+      const fresh = document.querySelector(`[data-testid="${kpiCardTestId(k)}"]`);
+      const row = document.querySelector(kpiUnmeasured(k) ? '[data-testid="kpi-roadmap-grid"]' : '[data-testid="kpi-measured-grid"]');
+      if (fresh && row && fresh.parentElement !== row) row.appendChild(fresh);
     }
   };
   const kpiDashboardSection = !getToken() ? `
     <div class="mb-6" data-testid="kpi-dashboard-section">
       <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Quality Engineering KPIs</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        ${buildKpiCards(null, null, true).map(kpiCardHtml).join('')}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="kpi-measured-grid">
+        ${buildKpiCards(null, null, true).filter(k => !kpiUnmeasured(k)).map(kpiCardHtml).join('')}
+      </div>
+      <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wide mt-5 mb-2">On the roadmap — not yet measured</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2" data-testid="kpi-roadmap-grid">
+        ${buildKpiCards(null, null, true).filter(kpiUnmeasured).map(kpiCardHtml).join('')}
       </div>
       <p class="text-[11px] text-slate-500 mt-3">
         Test-inventory count, execution pass rate, requirement/risk coverage, and code coverage are
@@ -2570,16 +2605,13 @@ async function renderProjects() {
     el.innerHTML = `
       <div class="fade-in">
         ${ownerCard}
-        ${successStoriesSection}
-        ${topReposSection}
-        ${aiLiveDemoSection}
+        ${homeTabsHtml({
+          stories: successStoriesSection, repos: topReposSection, demo: aiLiveDemoSection,
+          leadership: leadershipImpactSection + deliveryWorkflowSection, strategy: testPyramidSection,
+          ai: aiFirstEngineeringSection, kpis: kpiDashboardSection,
+          architecture: getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection]),
+        })}
         ${recruiterTourBanner}
-        ${leadershipImpactSection}
-        ${deliveryWorkflowSection}
-        ${testPyramidSection}
-        ${aiFirstEngineeringSection}
-        ${kpiDashboardSection}
-        ${getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
         <div data-testid="empty-state" class="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2597,22 +2629,12 @@ async function renderProjects() {
     hydrateLiveKpis();
     initHomeCarousels();
     initAiPipelineDemo(document.querySelector('[data-testid="ai-live-demo-section"]'));
+    if (!state.user) { applyReveal(el); positionHomeTabIndicator(); }
     return;
   }
 
-  el.innerHTML = `
-    <div class="fade-in">
-      ${ownerCard}
-      ${successStoriesSection}
-      ${topReposSection}
-      ${aiLiveDemoSection}
-      ${recruiterTourBanner}
-      ${leadershipImpactSection}
-      ${deliveryWorkflowSection}
-      ${testPyramidSection}
-      ${aiFirstEngineeringSection}
-      ${kpiDashboardSection}
-      ${getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}
+  // The project list: the "Projects" tab for a guest, the page itself when signed in.
+  const projectsListHtml = `
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
@@ -2670,12 +2692,27 @@ async function renderProjects() {
         <div id="proj-empty-filter" class="hidden py-10 text-center text-slate-500 text-sm">No projects match your filter.</div>
       </div>
       <div id="proj-pagination" class="flex items-center justify-between flex-wrap gap-3 mt-3"></div>
+  `;
+
+  el.innerHTML = `
+    <div class="fade-in">
+      ${ownerCard}
+      ${homeTabsHtml({
+        stories: successStoriesSection, repos: topReposSection, demo: aiLiveDemoSection,
+        leadership: leadershipImpactSection + deliveryWorkflowSection, strategy: testPyramidSection,
+        ai: aiFirstEngineeringSection, kpis: kpiDashboardSection,
+        architecture: getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection]),
+        projects: getToken() ? "" : projectsListHtml,
+      })}
+      ${recruiterTourBanner}
+      ${getToken() ? projectsListHtml : ""}
       ${getToken() ? `<div class="mt-8">${renderShowcaseSection([demoBanner, archDiagram, techStackBanner, sysArchBanner, architectureStorySection])}</div>` : ""}
     </div>`;
   filterProjectTable();
   hydrateLiveKpis();
   initHomeCarousels();
   initAiPipelineDemo(document.querySelector('[data-testid="ai-live-demo-section"]'));
+  if (!state.user) { applyReveal(el); positionHomeTabIndicator(); }
 }
 
 async function loadProjectStats(projects) {
@@ -2909,7 +2946,7 @@ async function getSuiteWithProject(suiteId) {
 async function renderProject(projectId) {
   const el = document.getElementById("view-project");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   let project, suites, stats;
   try {
@@ -3342,7 +3379,7 @@ async function bulkDeleteSuites(projectId) {
 async function renderSuite(suiteId) {
   const el = document.getElementById("view-suite");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   let suite, testcases, project, runs, aiReviews;
   try {
@@ -3410,12 +3447,7 @@ async function renderSuite(suiteId) {
       </div>
 
       <!-- Status counts -->
-      <div class="flex flex-wrap gap-2">
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${testcases.length} total</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">${counts.active} active</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${counts.draft} draft</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${counts.deprecated} deprecated</span>
-      </div>
+      ${tcFilterBar(testcases, counts)}
 
       ${aiReviewPanel(suiteId, aiReviews)}
 
@@ -3458,7 +3490,7 @@ async function renderSuite(suiteId) {
 function testCaseCard(tc) {
   const tcJson = JSON.stringify(tc).replace(/\\/g, "\\\\").replace(/"/g, "&quot;");
   return `
-    <div id="tccard-${tc.id}" data-testid="testcase-card-${tc.id}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+    <div id="tccard-${tc.id}" data-testid="testcase-card-${tc.id}" data-tc-status="${tc.status}" data-tc-text="${escHtml(`${tc.title} ${tc.description || ""}`.toLowerCase())}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
       <div class="p-4">
         <div class="flex items-start gap-3">
           <div class="flex-1 min-w-0">
@@ -3560,7 +3592,7 @@ async function bulkDeleteTestCases(suiteId) {
 async function renderSuiteTestCases(suiteId) {
   const el = document.getElementById("view-suite");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   let suite, project, testcases;
   try {
@@ -3600,12 +3632,7 @@ async function renderSuiteTestCases(suiteId) {
           New Test Case
         </button>` : ""}
       </div>
-      <div class="flex flex-wrap gap-2">
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${testcases.length} total</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">${counts.active} active</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">${counts.draft} draft</span>
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">${counts.deprecated} deprecated</span>
-      </div>
+      ${tcFilterBar(testcases, counts)}
       ${!testcases.length ? `
         <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
           <p class="text-slate-500 mb-3">No test cases yet.</p>
@@ -3633,7 +3660,7 @@ async function renderSuiteTestCases(suiteId) {
 async function renderSuiteRuns(suiteId) {
   const el = document.getElementById("view-suite");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   let suite, project, runs;
   try {
@@ -3683,7 +3710,7 @@ async function renderSuiteRuns(suiteId) {
 async function renderRun(runId) {
   const el = document.getElementById("view-run");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   let run, suite = null, project = null;
   try {
@@ -4687,7 +4714,7 @@ async function renderUsers() {
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
   const el = document.getElementById("view-users");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
   await loadSidebar();
 
   const users = await GET("/api/users");
@@ -5566,7 +5593,7 @@ async function renderEnvironments() {
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
   const el = document.getElementById("view-environments");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   let envs;
   try {
@@ -5658,7 +5685,7 @@ async function renderLogs() {
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
   const el = document.getElementById("view-logs");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   setBreadcrumb([
     { label: "Projects", href: "projects" },
@@ -5706,7 +5733,7 @@ async function loadLogs() {
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 class="text-2xl font-bold text-slate-800">Log Center</h1>
-          <p class="text-sm text-slate-500 mt-0.5">Showing ${rangeStart}–${rangeEnd} of ${total} · <span class="text-red-600 font-medium">${errorCount} error</span> · <span class="text-amber-700 font-medium">${warningCount} warning</span></p>
+          <p class="text-sm text-slate-500 mt-0.5">Showing ${rangeStart}–${rangeEnd} of ${total} · <span class="${errorCount ? "text-red-600 font-semibold" : "text-slate-500"}">${errorCount} error${errorCount === 1 ? "" : "s"}</span> · <span class="${warningCount ? "text-amber-700 font-semibold" : "text-slate-500"}">${warningCount} warning${warningCount === 1 ? "" : "s"}</span></p>
         </div>
         <button onclick="loadLogs()" class="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.13-5.36M20 15a9 9 0 01-14.13 5.36"/></svg>
@@ -5781,7 +5808,7 @@ async function renderAnalytics(projectId) {
   document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
   const el = document.getElementById("view-analytics");
   el.classList.remove("hidden");
-  el.innerHTML = `<div class="flex items-center justify-center py-16"><div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>`;
+  el.innerHTML = pageSkeleton();
 
   let data;
   try {
@@ -5916,3 +5943,391 @@ async function renderAnalytics(projectId) {
     }
   }
 }
+
+// ─── Modern UI layer ──────────────────────────────────────────────────────────
+// Header shadow on scroll, the reading-progress bar (where CSS scroll-driven
+// animations aren't supported), reveal-on-scroll, skeleton loaders, the hero's
+// blur-in headline and the Ctrl/Cmd+K command palette.
+
+(function initScrollChrome() {
+  const header = document.getElementById("app-header");
+  const bar = document.getElementById("scroll-progress");
+  const cssDriven = !!window.CSS?.supports?.("animation-timeline: scroll()");
+  let queued = false;
+  const update = () => {
+    queued = false;
+    header?.classList.toggle("is-scrolled", window.scrollY > 4);
+    if (!cssDriven && bar) {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      bar.style.setProperty("--progress", max > 0 ? (window.scrollY / max).toFixed(4) : "0");
+    }
+  };
+  window.addEventListener("scroll", () => { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
+  update();
+  if (header && "ResizeObserver" in window) {
+    new ResizeObserver(() => document.documentElement.style.setProperty("--header-h", `${header.offsetHeight}px`)).observe(header);
+  }
+})();
+
+// Sections, and the cards in their grids, rise into place the first time they
+// scroll into view. The first section (the hero) is left alone.
+let _revealObserver = null;
+function applyReveal(container) {
+  if (!container || !("IntersectionObserver" in window)) return;
+  _revealObserver ||= new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      e.target.classList.add("is-visible");
+      _revealObserver.unobserve(e.target);
+    }
+  }, { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
+  const page = container.firstElementChild || container;
+  const watch = (el, delay) => {
+    if (el.classList.contains("reveal")) return;
+    el.classList.add("reveal");
+    el.style.setProperty("--reveal-delay", `${delay}ms`);
+    _revealObserver.observe(el);
+  };
+  // The hero and the tab bar stay put; each tab panel's sections (and the
+  // cards in their grids) rise in as they come into view.
+  const sections = [...page.children].slice(1).flatMap((el) =>
+    el.matches("[data-home-panel]") ? [...el.children] : el.matches('[data-testid="home-tabs"], style') ? [] : [el]);
+  sections.forEach((section) => {
+    if (section.tagName === "STYLE") return;
+    watch(section, 0);
+    section.querySelectorAll(".grid > *").forEach((card, i) => watch(card, 120 + (i % 6) * 70));
+  });
+}
+
+// Shown while a page loads: the rough shape of a page, shimmering.
+function pageSkeleton() {
+  return `
+    <div class="space-y-6" aria-busy="true" aria-label="Loading">
+      <div class="flex items-center justify-between gap-4">
+        <div class="space-y-2 flex-1"><div class="skel h-7 w-56 max-w-full"></div><div class="skel h-4 w-80 max-w-full"></div></div>
+        <div class="skel h-10 w-32 flex-shrink-0"></div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">${'<div class="skel h-24"></div>'.repeat(4)}</div>
+      <div class="space-y-3">${'<div class="skel h-16"></div>'.repeat(4)}</div>
+    </div>`;
+}
+
+// ─── Command palette (Ctrl/Cmd+K) ─────────────────────────────────────────────
+let _cmdk = null; // { items, filtered, selected, opener }
+
+function _cmdkPages() {
+  const pages = [
+    { label: "Projects", group: "Page", icon: "📁", run: () => navigate("projects") },
+  ];
+  if (state.user) pages.push({ label: "Environments", group: "Page", icon: "🌐", run: () => navigate("environments") });
+  if (isAdmin()) {
+    pages.push({ label: "User Management", group: "Page", icon: "👥", run: () => navigate("users") });
+    pages.push({ label: "Log Center", group: "Page", icon: "📜", run: () => navigate("logs") });
+    pages.push({ label: "New project", group: "Action", icon: "➕", run: () => { navigate("projects"); setTimeout(() => showModal("project"), 250); } });
+  }
+  if (!state.user) {
+    pages.push({ label: "Take the 3-min Recruiter Tour", group: "Action", icon: "🧭", run: () => startRecruiterTour(document.querySelector('[data-testid="hero-tour-btn"]')) });
+    pages.push({ label: "Sign in", group: "Action", icon: "🔑", run: () => showAuthModal("login") });
+  }
+  pages.push({ label: "View architecture", group: "Action", icon: "🏗️", run: () => { navigate("projects"); setTimeout(() => viewArchitecture(), 250); } });
+  pages.push({ label: "Source code on GitHub", group: "Link", icon: "🐙", run: () => window.open("https://github.com/rabinavidan/test-case-management", "_blank", "noopener") });
+  if (state.user) pages.push({ label: "Sign out", group: "Action", icon: "🚪", run: () => logout() });
+  return pages;
+}
+
+// Projects and their suites, fetched without the app's api() helper: a guest
+// whose request is refused should just get fewer results, not a sign-in popup.
+async function _cmdkLoadData() {
+  const token = getToken();
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const get = async (p) => { const r = await fetch(p, { headers }); if (!r.ok) throw new Error(r.status); return r.json(); };
+  try {
+    const res = await get("/api/projects?page_size=100");
+    const projects = res?.items ?? res ?? [];
+    const items = projects.map((p) => ({ label: p.name, group: "Project", icon: "🗂️", run: () => navigate(`project/${p.id}`) }));
+    const suites = await Promise.all(projects.slice(0, 25).map((p) =>
+      get(`/api/projects/${p.id}/suites`).then((ss) => ss.map((s) => ({ label: s.name, group: `Suite · ${p.name}`, icon: "🧪", run: () => navigate(`suite/${s.id}`) }))).catch(() => [])));
+    return items.concat(suites.flat());
+  } catch { return []; }
+}
+
+function openCommandPalette() {
+  if (_cmdk) return;
+  _cmdk = { items: _cmdkPages(), filtered: [], selected: 0, opener: document.activeElement };
+  document.getElementById("cmdk-root").innerHTML = `
+    <div id="cmdk" data-testid="cmdk" class="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-start justify-center p-4 pt-[12vh]"
+      onmousedown="if (event.target === this) closeCommandPalette()">
+      <div id="cmdk-panel" role="dialog" aria-modal="true" aria-label="Search and jump to"
+        class="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="flex items-center gap-3 px-4 border-b border-slate-200">
+          <svg class="w-5 h-5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+          <input id="cmdk-input" data-testid="cmdk-input" type="text" autocomplete="off" spellcheck="false"
+            role="combobox" aria-expanded="true" aria-controls="cmdk-list" aria-autocomplete="list" aria-label="Search projects, suites and pages"
+            placeholder="Search projects, suites and pages…" class="flex-1 py-4 text-base bg-transparent focus:outline-none" style="outline:none">
+          <kbd class="kbd">Esc</kbd>
+        </div>
+        <ul id="cmdk-list" data-testid="cmdk-list" role="listbox" aria-label="Results" class="max-h-[50vh] overflow-y-auto p-2"></ul>
+        <div class="px-4 py-2 border-t border-slate-100 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1 bg-slate-50">
+          <span><kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> move</span>
+          <span><kbd class="kbd">Enter</kbd> open</span>
+          <span><kbd class="kbd">Esc</kbd> close</span>
+        </div>
+      </div>
+    </div>`;
+  const input = document.getElementById("cmdk-input");
+  input.addEventListener("input", () => { _cmdk.selected = 0; _cmdkRender(); });
+  input.addEventListener("keydown", _cmdkKeydown);
+  _cmdkRender();
+  input.focus();
+  const opened = _cmdk;
+  _cmdkLoadData().then((data) => {
+    if (_cmdk !== opened) return;
+    _cmdk.items = _cmdk.items.concat(data);
+    _cmdkRender();
+  });
+}
+
+function closeCommandPalette() {
+  if (!_cmdk) return;
+  const opener = _cmdk.opener;
+  _cmdk = null;
+  document.getElementById("cmdk-root").innerHTML = "";
+  if (opener && document.body.contains(opener)) opener.focus?.();
+}
+
+function _cmdkRender() {
+  const list = document.getElementById("cmdk-list");
+  if (!list || !_cmdk) return;
+  const q = document.getElementById("cmdk-input").value.trim().toLowerCase();
+  const score = (it) => {
+    const label = it.label.toLowerCase(), group = it.group.toLowerCase();
+    if (!q) return 1;
+    if (label.startsWith(q)) return 3;
+    if (label.includes(q)) return 2;
+    if (group.includes(q)) return 1;
+    return 0;
+  };
+  _cmdk.filtered = _cmdk.items.map((it) => [score(it), it]).filter(([s]) => s > 0)
+    .sort((a, b) => b[0] - a[0]).slice(0, 50).map(([, it]) => it);
+  _cmdk.selected = Math.min(_cmdk.selected, Math.max(0, _cmdk.filtered.length - 1));
+  list.innerHTML = _cmdk.filtered.length ? _cmdk.filtered.map((it, i) => `
+    <li id="cmdk-opt-${i}" role="option" aria-selected="${i === _cmdk.selected}" data-testid="cmdk-option"
+      onmousemove="_cmdkSelect(${i})" onclick="_cmdkRun(${i})"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-slate-700">
+      <span class="text-lg w-6 text-center flex-shrink-0" aria-hidden="true">${it.icon}</span>
+      <span class="flex-1 min-w-0 truncate font-medium">${escHtml(it.label)}</span>
+      <span class="text-xs text-slate-500 truncate max-w-[45%]">${escHtml(it.group)}</span>
+    </li>`).join("") : `<li class="px-3 py-8 text-center text-sm text-slate-500">No matches for “${escHtml(q)}”.</li>`;
+  document.getElementById("cmdk-input").setAttribute("aria-activedescendant", _cmdk.filtered.length ? `cmdk-opt-${_cmdk.selected}` : "");
+}
+
+function _cmdkSelect(i) {
+  if (!_cmdk || _cmdk.selected === i) return;
+  _cmdk.selected = i;
+  document.querySelectorAll("#cmdk-list [role=option]").forEach((el, j) => el.setAttribute("aria-selected", String(j === i)));
+  document.getElementById("cmdk-input").setAttribute("aria-activedescendant", `cmdk-opt-${i}`);
+}
+
+function _cmdkRun(i) {
+  const it = _cmdk?.filtered[i];
+  if (!it) return;
+  _cmdk.opener = null; // the chosen destination decides where focus goes
+  closeCommandPalette();
+  it.run();
+}
+
+function _cmdkKeydown(e) {
+  if (!_cmdk) return;
+  const n = _cmdk.filtered.length;
+  if (e.key === "ArrowDown" && n) { e.preventDefault(); _cmdkSelect((_cmdk.selected + 1) % n); document.getElementById(`cmdk-opt-${_cmdk.selected}`)?.scrollIntoView({ block: "nearest" }); }
+  else if (e.key === "ArrowUp" && n) { e.preventDefault(); _cmdkSelect((_cmdk.selected - 1 + n) % n); document.getElementById(`cmdk-opt-${_cmdk.selected}`)?.scrollIntoView({ block: "nearest" }); }
+  else if (e.key === "Enter") { e.preventDefault(); _cmdkRun(_cmdk.selected); }
+  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeCommandPalette(); }
+  else if (e.key === "Tab") { e.preventDefault(); } // keep focus in the dialog
+}
+
+document.addEventListener("keydown", (e) => {
+  const typing = e.target?.closest?.("input, textarea, select, [contenteditable='true']");
+  if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    _cmdk ? closeCommandPalette() : openCommandPalette();
+  } else if (e.key === "/" && !typing && !_cmdk && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    openCommandPalette();
+  }
+});
+
+// ─── Test case search & filter ────────────────────────────────────────────────
+// The suite and Test Cases pages narrow their list as you type, and the status
+// chips double as filters - all client-side, over the cards already rendered.
+let _tcFilter = { q: "", status: null };
+
+function tcFilterBar(testcases, counts) {
+  _tcFilter = { q: "", status: null };
+  const chip = (status, label, n, cls) => `
+    <button type="button" data-tc-filter="${status}" data-testid="tc-filter-${status}" aria-pressed="false"
+      onclick="setTcStatusFilter('${status}')"
+      class="px-3 py-1 rounded-full text-xs font-medium transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${cls}">${n} ${label}</button>`;
+  return `
+    <div class="flex flex-wrap items-center gap-2">
+      ${testcases.length ? `
+      <label class="relative flex-1 min-w-[12rem] max-w-sm">
+        <span class="sr-only">Search test cases</span>
+        <svg class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+        <input type="search" data-testid="tc-search" oninput="setTcQuery(this.value)" placeholder="Search test cases…"
+          class="w-full pl-9 pr-3 py-1.5 text-sm bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+      </label>` : ""}
+      ${chip("all", "total", testcases.length, "bg-slate-100 text-slate-600")}
+      ${chip("active", "active", counts.active, "bg-emerald-100 text-emerald-700")}
+      ${chip("draft", "draft", counts.draft, "bg-amber-100 text-amber-700")}
+      ${chip("deprecated", "deprecated", counts.deprecated, "bg-slate-100 text-slate-600")}
+    </div>
+    <p data-testid="tc-filter-empty" class="hidden text-sm text-slate-500 bg-white border border-dashed border-slate-200 rounded-2xl px-4 py-6 text-center">No test cases match. <button type="button" onclick="clearTcFilter()" class="font-semibold text-blue-600 hover:underline">Clear filters</button></p>`;
+}
+
+function setTcQuery(q) { _tcFilter.q = q.trim().toLowerCase(); applyTcFilter(); }
+
+function setTcStatusFilter(status) {
+  _tcFilter.status = status === "all" || _tcFilter.status === status ? null : status;
+  applyTcFilter();
+}
+
+function clearTcFilter() {
+  _tcFilter = { q: "", status: null };
+  const input = document.querySelector('#view-suite [data-testid="tc-search"]');
+  if (input) input.value = "";
+  applyTcFilter();
+}
+
+function applyTcFilter() {
+  const view = document.getElementById("view-suite");
+  if (!view) return;
+  const { q, status } = _tcFilter;
+  let shown = 0;
+  view.querySelectorAll('[data-testid^="testcase-card-"]').forEach((card) => {
+    const match = (!status || card.dataset.tcStatus === status) && (!q || card.dataset.tcText.includes(q));
+    card.classList.toggle("hidden", !match);
+    if (match) shown++;
+  });
+  view.querySelectorAll("[data-tc-filter]").forEach((b) => {
+    const on = !!status && b.dataset.tcFilter === status;
+    b.setAttribute("aria-pressed", String(on));
+    b.classList.toggle("ring-2", !!on);
+    b.classList.toggle("ring-blue-500", !!on);
+  });
+  view.querySelector('[data-testid="tc-filter-empty"]')?.classList.toggle("hidden", shown > 0 || (!q && !status));
+}
+
+// ─── Home page tabs ───────────────────────────────────────────────────────────
+// The guest home page shows one section at a time under the hero, chosen from
+// a sticky tab bar, instead of one long scroll. #home/<tab> links straight to
+// a tab; anything that scrolls to a section (the Recruiter Tour, "View
+// Architecture") switches to its tab first.
+const HOME_TABS = [
+  { id: "stories",      label: "Success Stories", icon: "⭐" },
+  { id: "repos",        label: "Open Source",     icon: "📦" },
+  { id: "demo",         label: "Live Demo",       icon: "⚡" },
+  { id: "leadership",   label: "Leadership",      icon: "🧭" },
+  { id: "strategy",     label: "Test Strategy",   icon: "🧪" },
+  { id: "ai",           label: "AI Engineering",  icon: "🤖" },
+  { id: "kpis",         label: "KPIs",            icon: "📊" },
+  { id: "architecture", label: "Architecture",    icon: "🏗️" },
+  { id: "projects",     label: "Projects",        icon: "📁" },
+];
+let _homeTab = null;
+
+function _homeTabFromHash() {
+  const [route, tab] = window.location.hash.replace("#", "").split("/");
+  return route === "home" ? tab : null;
+}
+
+// `panels` maps a tab id to its HTML. Signed in, there are no tabs: the
+// sections render one after another, as before.
+function homeTabsHtml(panels) {
+  const tabs = HOME_TABS.filter((t) => panels[t.id]);
+  if (getToken() || !tabs.length) return tabs.map((t) => panels[t.id]).join("");
+  let stored = null;
+  try { stored = sessionStorage.getItem("tf_home_tab"); } catch {}
+  const wanted = _homeTabFromHash() || _homeTab || stored;
+  const active = tabs.some((t) => t.id === wanted) ? wanted : tabs[0].id;
+  _homeTab = active;
+  return `
+    <div data-testid="home-tabs" class="sticky z-20 -mx-4 px-4 pt-1 pb-3 mb-3" style="top:var(--header-h, 56px)">
+      <div role="tablist" aria-label="Explore this site" onkeydown="_homeTabsKeydown(event)"
+        class="relative flex gap-1 overflow-x-auto no-scrollbar bg-white/85 backdrop-blur-md border border-slate-200 rounded-2xl p-1 shadow-sm">
+        <span class="home-tab-indicator" aria-hidden="true"></span>
+        ${tabs.map((t) => `
+          <button type="button" role="tab" id="home-tab-${t.id}" data-home-tab="${t.id}" data-testid="home-tab-${t.id}"
+            aria-controls="home-panel-${t.id}" aria-selected="${t.id === active}" tabindex="${t.id === active ? 0 : -1}"
+            onclick="showHomeTab('${t.id}')"
+            class="home-tab relative z-10 flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-xl text-sm font-semibold">
+            <span aria-hidden="true">${t.icon}</span>${t.label}
+          </button>`).join("")}
+      </div>
+    </div>
+    ${tabs.map((t) => `
+      <section role="tabpanel" id="home-panel-${t.id}" data-home-panel="${t.id}" aria-labelledby="home-tab-${t.id}"
+        class="home-panel ${t.id === active ? "" : "hidden"}">${panels[t.id]}</section>`).join("")}`;
+}
+
+let _homeTabsObserver = null;
+function positionHomeTabIndicator() {
+  const btn = document.querySelector('[data-home-tab][aria-selected="true"]');
+  const ind = btn?.parentElement.querySelector(".home-tab-indicator");
+  if (!btn || !ind) return;
+  ind.style.width = `${btn.offsetWidth}px`;
+  ind.style.transform = `translateX(${btn.offsetLeft}px)`;
+  // Tabs change width when the web font or the Tailwind CDN's CSS arrives
+  // after the first measurement; follow them.
+  if (!_homeTabsObserver && "ResizeObserver" in window) _homeTabsObserver = new ResizeObserver(() => positionHomeTabIndicator());
+  if (_homeTabsObserver && !btn.parentElement._tabsObserved) {
+    _homeTabsObserver.disconnect();
+    // The tabs only: the indicator moves in response, and watching it too would loop.
+    btn.parentElement.querySelectorAll("[data-home-tab]").forEach((c) => _homeTabsObserver.observe(c));
+    btn.parentElement._tabsObserved = true;
+  }
+}
+
+function showHomeTab(id, { focus = false, scroll = true } = {}) {
+  const panel = document.getElementById(`home-panel-${id}`);
+  if (!panel) return;
+  _homeTab = id;
+  try { sessionStorage.setItem("tf_home_tab", id); } catch {}
+  document.querySelectorAll("[data-home-tab]").forEach((b) => {
+    const on = b.dataset.homeTab === id;
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll("[data-home-panel]").forEach((p) => p.classList.toggle("hidden", p.dataset.homePanel !== id));
+  positionHomeTabIndicator();
+  const btn = document.getElementById(`home-tab-${id}`);
+  const list = btn?.parentElement;
+  if (btn && list) list.scrollTo({ left: btn.offsetLeft - (list.clientWidth - btn.offsetWidth) / 2, behavior: "smooth" });
+  if (focus) btn?.focus();
+  if (scroll) {
+    // Bring the panel's top up under the sticky tab bar if the page is
+    // scrolled past it, so a new tab never opens half-way down.
+    const bar = document.querySelector('[data-testid="home-tabs"]');
+    const gap = (bar?.getBoundingClientRect().bottom ?? 0) + 8;
+    const top = panel.getBoundingClientRect().top;
+    if (top < gap) window.scrollTo({ top: window.scrollY + top - gap, behavior: "smooth" });
+  }
+}
+
+// Arrow keys, Home and End move between tabs, as the ARIA tabs pattern expects.
+function _homeTabsKeydown(e) {
+  const tabs = [...document.querySelectorAll("[data-home-tab]")];
+  const i = tabs.findIndex((t) => t.getAttribute("aria-selected") === "true");
+  const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+  if (to === undefined || !tabs.length) return;
+  e.preventDefault();
+  showHomeTab(tabs[(to + tabs.length) % tabs.length].dataset.homeTab, { focus: true });
+}
+
+// Shows the tab holding `el`, if it is in a hidden one.
+function revealHomeSection(el) {
+  const panel = el?.closest?.("[data-home-panel]");
+  if (panel?.classList.contains("hidden")) showHomeTab(panel.dataset.homePanel, { scroll: false });
+}
+
+window.addEventListener("resize", positionHomeTabIndicator, { passive: true });

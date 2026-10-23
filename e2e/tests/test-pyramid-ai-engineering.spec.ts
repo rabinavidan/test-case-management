@@ -15,6 +15,7 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
   });
 
   guestTest('the Live Demo AI-pipeline section renders animated right after the hero banner', async ({ page }) => {
+    await page.getByTestId('home-tab-demo').click();
     const heroCard = page.locator('.owner-banner');
     const demoSection = page.getByTestId('ai-live-demo-section');
     await guestExpect(heroCard).toBeVisible();
@@ -43,6 +44,7 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
   });
 
   guestTest('the Test Pyramid section shows all four levels with real counts', async ({ page }) => {
+    await page.getByTestId('home-tab-strategy').click();
     const section = page.getByTestId('test-pyramid-section');
     await guestExpect(section).toBeVisible();
 
@@ -58,12 +60,14 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
   });
 
   guestTest('the Shift-Left strategy statement is present', async ({ page }) => {
+    await page.getByTestId('home-tab-strategy').click();
     const section = page.getByTestId('test-pyramid-section');
     await guestExpect(section.getByText(/Shift-Left strategy/i)).toBeVisible();
     await guestExpect(section.getByText(/critical customer journeys/i)).toBeVisible();
   });
 
   guestTest('the AI-First Engineering section shows at least four repo-backed workflows', async ({ page }) => {
+    await page.getByTestId('home-tab-ai').click();
     const section = page.getByTestId('ai-first-engineering-section');
     await guestExpect(section).toBeVisible();
     await guestExpect(section.getByText('AI Test-Case Generation')).toBeVisible();
@@ -77,6 +81,7 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
   });
 
   guestTest('the AI roadmap lists M7–M10 and reliability guards R1–R2 as done', async ({ page }) => {
+    await page.getByTestId('home-tab-ai').click();
     const roadmap = page.getByTestId('ai-first-engineering-section').getByTestId('ai-roadmap');
     await guestExpect(roadmap).toBeVisible();
     for (const id of ['M7', 'M8', 'M9', 'M10', 'R1', 'R2']) {
@@ -87,6 +92,7 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
   });
 
   guestTest('the "See the pipeline" button opens a static AI-pipeline walkthrough modal', async ({ page }) => {
+    await page.getByTestId('home-tab-ai').click();
     const section = page.getByTestId('ai-first-engineering-section');
     const demoButton = section.getByTestId('ai-pipeline-demo-btn');
     await guestExpect(demoButton).toBeVisible();

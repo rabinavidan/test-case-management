@@ -8,7 +8,7 @@ import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture
 
 guestTest.describe('Guest recruiter view — KPI dashboard', () => {
   guestTest('shows all twelve KPI cards with the separate-concepts disclaimer', async ({ page }) => {
-    await page.goto('/#projects');
+    await page.goto('/#home/kpis');
     await page.waitForLoadState('networkidle');
 
     const section = page.getByTestId('kpi-dashboard-section');
@@ -27,7 +27,7 @@ guestTest.describe('Guest recruiter view — KPI dashboard', () => {
   });
 
   guestTest('Code Coverage and Quality Gate Status show real, non-fabricated values', async ({ page }) => {
-    await page.goto('/#projects');
+    await page.goto('/#home/kpis');
     await page.waitForLoadState('networkidle');
 
     const coverage = page.getByTestId('kpi-card-code-coverage');
@@ -41,7 +41,7 @@ guestTest.describe('Guest recruiter view — KPI dashboard', () => {
   });
 
   guestTest('KPIs with no real data source are honestly labeled "Not yet measured", never a fake number', async ({ page }) => {
-    await page.goto('/#projects');
+    await page.goto('/#home/kpis');
     await page.waitForLoadState('networkidle');
 
     for (const testId of [
@@ -62,7 +62,7 @@ guestTest.describe('Guest recruiter view — KPI dashboard', () => {
     const res = await request.get('/api/ci/pipeline-stats');
     const stats = await res.json();
 
-    await page.goto('/#projects');
+    await page.goto('/#home/kpis');
     await page.waitForLoadState('networkidle');
     const card = page.getByTestId('kpi-card-pipeline-execution-time');
 
@@ -108,7 +108,7 @@ authTest.describe('Pass Rate KPI — live data from the flagship project', () =>
       // load would change which project is the flagship.
       await guestExpect(async () => {
         const expected = await flagshipPassRate();
-        await page.goto('/#projects');
+        await page.goto('/#home/kpis');
         await page.waitForLoadState('networkidle');
         await guestExpect(card.getByText(`${expected}%`)).toBeVisible({ timeout: 5000 });
       }).toPass({ timeout: 30000 });

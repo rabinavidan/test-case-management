@@ -55,6 +55,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the Leadership Impact section shows five repo-evidenced cards', async ({ page }) => {
+    await page.getByTestId('home-tab-leadership').click();
     const section = page.getByTestId('leadership-impact-section');
     await guestExpect(section).toBeVisible();
     await guestExpect(section.getByText('Technical Direction & Governance')).toBeVisible();
@@ -65,6 +66,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the delivery workflow section shows all six steps in order', async ({ page }) => {
+    await page.getByTestId('home-tab-leadership').click();
     const section = page.getByTestId('delivery-workflow-section');
     await guestExpect(section).toBeVisible();
     const steps = ['Product Requirements', 'Technical Roadmap', 'Epics & Stories', 'Sprint Delivery', 'Quality Gates', 'KPI Review'];

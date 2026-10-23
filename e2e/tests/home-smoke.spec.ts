@@ -61,7 +61,10 @@ test.describe('Home page smoke — guest', () => {
   test('loads cleanly, with every section rendered', async ({ page }) => {
     const p = watch(page);
     await page.goto('/#projects');
-    for (const id of ['success-stories-section', 'top-repos-section', 'ai-live-demo-section', 'recruiter-tour-banner']) {
+    await expect(page.getByTestId('recruiter-tour-banner')).toBeVisible();
+    // One section at a time, under the hero's tab bar.
+    for (const [tab, id] of [['stories', 'success-stories-section'], ['repos', 'top-repos-section'], ['demo', 'ai-live-demo-section']]) {
+      await page.getByTestId(`home-tab-${tab}`).click();
       await expect(page.getByTestId(id), id).toBeVisible();
     }
     await expect(page.locator('.owner-banner')).toBeVisible();
@@ -76,7 +79,7 @@ test.describe('Home page smoke — guest', () => {
 
   test('the architecture showcase panel opens and closes, and says so to assistive tech', async ({ page }) => {
     await page.addInitScript(() => localStorage.removeItem('tf_showcase_expanded'));
-    await page.goto('/#projects');
+    await page.goto('/#home/architecture');
     const toggle = page.locator('#showcase-toggle-btn');
     const panel = page.locator('#showcase-content');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');

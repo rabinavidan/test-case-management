@@ -174,7 +174,7 @@ test.describe('Log Center', () => {
     const rows = page.locator('[data-testid^="log-row-"]');
     const search = async (text: string) => {
       await page.locator('#log-f-search').fill(text);
-      await page.getByRole('button', { name: 'Search' }).click();
+      await page.locator('#view-logs').getByRole('button', { name: 'Search' }).click();
     };
 
     // Each search re-renders the view, search box included, so wait until the

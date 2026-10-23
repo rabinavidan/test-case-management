@@ -14,9 +14,10 @@ guestTest.describe('Guest home page — Success Stories carousel', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  guestTest('sits right after the hero and before the Live Demo section', async ({ page }) => {
+  guestTest('sits right after the hero and before the Live Demo section, in the first tab', async ({ page }) => {
     // networkidle can arrive before renderProjects() has written the page.
-    await guestExpect(page.getByTestId('ai-live-demo-section')).toBeVisible();
+    await guestExpect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');
+    await guestExpect(page.getByTestId('ai-live-demo-section')).toHaveCount(1);
     const order = await page.evaluate(() => {
       const ids = ['.owner-banner', '[data-testid="success-stories-section"]', '[data-testid="ai-live-demo-section"]'];
       const [hero, stories, demo] = ids.map((s) => document.querySelector(s));

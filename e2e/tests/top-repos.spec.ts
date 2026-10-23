@@ -11,7 +11,7 @@ const WITH_LIVE_LINK = ['test-case-management', 'playwright-kafka-microservices'
 
 guestTest.describe('Guest home page — Open-Source Repositories', () => {
   guestTest.beforeEach(async ({ page }) => {
-    await page.goto('/#projects');
+    await page.goto('/#home/repos');
     await page.waitForLoadState('networkidle');
     await guestExpect(page.getByTestId('top-repos-section')).toBeVisible();
   });
@@ -88,7 +88,7 @@ guestTest.describe('Guest home page — repositories carousel', () => {
     // A paused fake clock keeps auto-advance from firing.
     await page.clock.install();
     await page.clock.pauseAt(Date.now() + 1000);
-    await page.goto('/#projects');
+    await page.goto('/#home/repos');
     await page.waitForLoadState('networkidle');
     const prev = page.getByTestId('repos-prev');
     const next = page.getByTestId('repos-next');
@@ -107,42 +107,44 @@ guestTest.describe('Guest home page — repositories carousel', () => {
     await dots.last().click();
     await guestExpect(next).toBeDisabled();
     await guestExpect(dots.last()).toHaveAttribute('aria-current', 'true');
-    await guestExpect(page.getByTestId('stories-dots').getByRole('button').first()).toHaveAttribute('aria-current', 'true');
+    // Success Stories, in its own (hidden) tab, has not moved.
+    guestExpect(await scrollLeft(page, 'stories')).toBe(0);
 
     await prev.click();
     await guestExpect(next).toBeEnabled();
   });
 
-  guestTest('starts paused while scrolled out of view, and runs once on screen', async ({ page }) => {
+  guestTest('stays paused while its tab is hidden, and runs once its tab opens', async ({ page }) => {
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
     await page.mouse.move(0, 0);
     const repos = page.getByTestId('top-repos-section');
-    // Below the fold at the default 720px-tall viewport.
-    guestExpect(await repos.evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThan(720);
+    // The home page opens on the Success Stories tab.
+    await guestExpect(repos).toBeHidden();
     await guestExpect(repos).toHaveAttribute('data-autoplay', 'paused');
 
-    await repos.scrollIntoViewIfNeeded();
+    await page.getByTestId('home-tab-repos').click();
     await page.mouse.move(0, 0);
     await guestExpect(repos).toHaveAttribute('data-autoplay', 'running');
   });
 
   guestTest('auto-advances on its own clock, and pausing it leaves Success Stories running', async ({ page }) => {
-    // Tall enough that both carousels are on screen, so neither is paused for being out of view.
     await page.setViewportSize({ width: 1280, height: 2200 });
     // Paused before the page loads, so no tick can fire during setup however
     // slow it is; only runFor() moves time. (install() alone lets fake time
     // flow at real speed.)
     await page.clock.install();
     await page.clock.pauseAt(Date.now() + 1000);
-    await page.goto('/#projects');
+    await page.goto('/#home/repos');
     await page.waitForLoadState('networkidle');
     await page.mouse.move(0, 0);
     const repos = page.getByTestId('top-repos-section');
     const stories = page.getByTestId('success-stories-section');
     await guestExpect(repos).toHaveAttribute('data-autoplay', 'running');
 
+    // Paused here, it stays put; Success Stories, back in its own tab, runs.
     await page.getByTestId('repos-autoplay').click();
+    await page.getByTestId('home-tab-stories').click();
     await page.mouse.move(0, 0);
     await guestExpect(page.getByTestId('repos-autoplay')).toHaveAttribute('aria-label', 'Play auto-advance');
     await guestExpect(repos).toHaveAttribute('data-autoplay', 'paused');
