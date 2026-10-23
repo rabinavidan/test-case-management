@@ -410,9 +410,16 @@ function renderAiPipelineTimelineInner() {
           <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
           <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
         </div>
-        <p class="text-[11px] font-mono" style="color:rgba(255,255,255,.55)">
-          <span data-pipe-run data-testid="pipe-run">Run #1</span> · <span data-pipe-step data-testid="pipe-step">Step 1/${n}</span>
-        </p>
+        <div class="flex items-center gap-3">
+          <button type="button" data-pipe-play data-testid="pipe-play"
+            class="hidden items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold text-slate-900 bg-emerald-300 hover:bg-emerald-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            Play animation
+          </button>
+          <p class="text-[11px] font-mono" style="color:rgba(255,255,255,.55)">
+            <span data-pipe-run data-testid="pipe-run">Run #1</span> · <span data-pipe-step data-testid="pipe-step">Step 1/${n}</span>
+          </p>
+        </div>
       </div>
       <div class="h-1 rounded-full overflow-hidden mb-3" style="background:rgba(255,255,255,.08)">
         <div data-pipe-progress data-testid="pipe-progress" class="h-full rounded-full transition-[width] duration-700 ease-out" style="width:0%;background:linear-gradient(90deg,#38bdf8,#34d399)"></div>
@@ -518,14 +525,6 @@ function initAiPipelineDemo(container) {
     }
   };
 
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    step = n;
-    paint();
-    root.dataset.pipeMode = "static";
-    return;
-  }
-  root.dataset.pipeMode = "live";
-
   const tick = () => {
     timer = null;
     if (!document.body.contains(root)) { abort.abort(); return; } // section re-rendered or modal closed
@@ -541,12 +540,35 @@ function initAiPipelineDemo(container) {
     if (!running && timer) { clearTimeout(timer); timer = null; }
   };
 
-  document.addEventListener("visibilitychange", schedule, { signal });
-  const io = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; schedule(); });
-  io.observe(root);
-  signal.addEventListener("abort", () => { io.disconnect(); if (timer) clearTimeout(timer); });
-  paint();
-  schedule();
+  const startLive = () => {
+    root.dataset.pipeMode = "live";
+    document.addEventListener("visibilitychange", schedule, { signal });
+    const io = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; schedule(); });
+    io.observe(root);
+    signal.addEventListener("abort", () => { io.disconnect(); if (timer) clearTimeout(timer); });
+    paint();
+    schedule();
+  };
+
+  // Visitors who prefer reduced motion see the finished run, still, and can
+  // start the replay themselves.
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    step = n;
+    paint();
+    root.dataset.pipeMode = "static";
+    const play = root.querySelector("[data-pipe-play]");
+    play.classList.remove("hidden");
+    play.classList.add("inline-flex");
+    play.addEventListener("click", () => {
+      play.classList.add("hidden");
+      play.classList.remove("inline-flex");
+      step = 0;
+      startLive();
+      row.focus({ preventScroll: true }); // the button is gone; keep focus in the section
+    }, { signal });
+    return;
+  }
+  startLive();
 }
 
 function buildAiPipelineDemoModal(title, body) {
@@ -1150,12 +1172,14 @@ function toggleCarouselAutoplay(id) {
 }
 
 function _startCarouselAutoplay(id, section, track, signal) {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; // control stays hidden
   const btn = section.querySelector("[data-carousel-autoplay]");
   btn.classList.remove("hidden");
   btn.classList.add("flex");
 
-  const ap = { userPaused: false, hovered: false, focused: false, inView: true, timer: null };
+  // Visitors who prefer reduced motion start paused: the carousel never moves
+  // on its own, but its Play button can turn auto-advance on.
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ap = { userPaused: reduced, hovered: false, focused: false, inView: true, timer: null };
   // Index-based, not scroll-position-based: a tick can land while the
   // previous smooth scroll is still moving.
   const advance = () => {

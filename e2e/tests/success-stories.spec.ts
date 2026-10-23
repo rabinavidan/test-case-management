@@ -188,14 +188,22 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
     await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(0);
   });
 
-  guestTest('never moves on its own for visitors who prefer reduced motion', async ({ page }) => {
+  guestTest('never moves on its own for visitors who prefer reduced motion, but Play starts it', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await guestExpect(page.getByTestId('success-stories-section')).toBeVisible();
-    await guestExpect(page.getByTestId('stories-autoplay')).toBeHidden();
+    const section = page.getByTestId('success-stories-section');
+    const toggle = page.getByTestId('stories-autoplay');
+    await guestExpect(section).toHaveAttribute('data-autoplay', 'paused');
+    await guestExpect(toggle).toHaveAttribute('aria-label', 'Play auto-advance');
     await page.clock.runFor(INTERVAL * 3);
     guestExpect(await scrollLeft(page)).toBe(0);
+
+    await toggle.click();
+    await page.mouse.move(0, 0);
+    await guestExpect(section).toHaveAttribute('data-autoplay', 'running');
+    await page.clock.runFor(INTERVAL + 100);
+    await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(0);
   });
 });
 
