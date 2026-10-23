@@ -411,10 +411,11 @@ function renderAiPipelineTimelineInner() {
           <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
         </div>
         <div class="flex items-center gap-3">
-          <button type="button" data-pipe-play data-testid="pipe-play"
-            class="hidden items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold text-slate-900 bg-emerald-300 hover:bg-emerald-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-            Play animation
+          <button type="button" data-pipe-toggle data-testid="pipe-toggle" aria-pressed="false"
+            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-white/90 border border-white/20 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
+            <svg data-icon="pause" class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+            <svg data-icon="play" class="hidden w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <span data-pipe-toggle-label>Pause</span>
           </button>
           <p class="text-[11px] font-mono" style="color:rgba(255,255,255,.55)">
             <span data-pipe-run data-testid="pipe-run">Run #1</span> · <span data-pipe-step data-testid="pipe-step">Step 1/${n}</span>
@@ -473,8 +474,8 @@ const AI_PIPELINE_DEMO_KEYFRAMES = `
 
 // The Live Demo replays one pipeline run on a loop: each stage goes queued ->
 // running -> done while a pulse flows along the link into it, then the run
-// finishes green and starts over. It pauses off-screen and in a hidden tab;
-// reduced-motion visitors get the finished run, still. One instance per
+// finishes green and starts over. It pauses off-screen, in a hidden tab and
+// when its Pause button is pressed. One instance per
 // rendered timeline (the home section and the "See the pipeline" modal).
 const PIPE_STEP_MS = 1600;
 const PIPE_RESULT_MS = 2600;
@@ -533,42 +534,33 @@ function initAiPipelineDemo(container) {
     paint();
     schedule();
   };
+  let userPaused = false;
   const schedule = () => {
-    const running = inView && !document.hidden;
+    const running = inView && !document.hidden && !userPaused;
     root.dataset.pipeLive = running ? "running" : "paused";
     if (running && !timer) timer = setTimeout(tick, step >= n ? PIPE_RESULT_MS : PIPE_STEP_MS);
     if (!running && timer) { clearTimeout(timer); timer = null; }
   };
 
-  const startLive = () => {
-    root.dataset.pipeMode = "live";
-    document.addEventListener("visibilitychange", schedule, { signal });
-    const io = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; schedule(); });
-    io.observe(root);
-    signal.addEventListener("abort", () => { io.disconnect(); if (timer) clearTimeout(timer); });
-    paint();
+  // The replay always plays - the site owner wants the home page to move for
+  // every visitor - and Pause stops it, as moving content must allow.
+  const toggle = root.querySelector("[data-pipe-toggle]");
+  toggle.addEventListener("click", () => {
+    userPaused = !userPaused;
+    toggle.setAttribute("aria-pressed", String(userPaused));
+    toggle.querySelector("[data-pipe-toggle-label]").textContent = userPaused ? "Play" : "Pause";
+    toggle.querySelector('[data-icon="pause"]').classList.toggle("hidden", userPaused);
+    toggle.querySelector('[data-icon="play"]').classList.toggle("hidden", !userPaused);
     schedule();
-  };
+  }, { signal });
 
-  // Visitors who prefer reduced motion see the finished run, still, and can
-  // start the replay themselves.
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    step = n;
-    paint();
-    root.dataset.pipeMode = "static";
-    const play = root.querySelector("[data-pipe-play]");
-    play.classList.remove("hidden");
-    play.classList.add("inline-flex");
-    play.addEventListener("click", () => {
-      play.classList.add("hidden");
-      play.classList.remove("inline-flex");
-      step = 0;
-      startLive();
-      row.focus({ preventScroll: true }); // the button is gone; keep focus in the section
-    }, { signal });
-    return;
-  }
-  startLive();
+  root.dataset.pipeMode = "live";
+  document.addEventListener("visibilitychange", schedule, { signal });
+  const io = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; schedule(); });
+  io.observe(root);
+  signal.addEventListener("abort", () => { io.disconnect(); if (timer) clearTimeout(timer); });
+  paint();
+  schedule();
 }
 
 function buildAiPipelineDemoModal(title, body) {
@@ -1076,8 +1068,8 @@ const SUCCESS_STORIES = [
 // One scroll-snap carousel, shared by Success Stories and the repositories
 // section. Swipe, Previous/Next, dots and arrow keys all drive the same
 // track; auto-advance runs every 5 s with a Pause/Play control, pausing on
-// hover, on focus inside, off-screen or in a hidden tab, and never for
-// reduced-motion users. `prefix` names its test ids (`${prefix}-track` ...).
+// hover, on focus inside, off-screen or in a hidden tab.
+// `prefix` names its test ids (`${prefix}-track` ...).
 const CAROUSEL_INTERVAL_MS = 5000;
 const _carousels = new Map(); // id -> { index, autoplay, abort }
 
@@ -1124,7 +1116,7 @@ function renderCarousel({ id, prefix, noun, heading, subtitle, slides, slideTest
 
 function _carouselEl(id) { return document.querySelector(`[data-carousel="${id}"]`); }
 function _carouselTrack(id) { return _carouselEl(id)?.querySelector("[data-carousel-track]"); }
-function _carouselScrollBehavior() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+function _carouselScrollBehavior() { return "smooth"; }
 function _slideOffset(track, i) { return track.children[i].offsetLeft - track.firstElementChild.offsetLeft; }
 function _carouselAtEnd(track) { return track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; }
 
@@ -1176,10 +1168,9 @@ function _startCarouselAutoplay(id, section, track, signal) {
   btn.classList.remove("hidden");
   btn.classList.add("flex");
 
-  // Visitors who prefer reduced motion start paused: the carousel never moves
-  // on its own, but its Play button can turn auto-advance on.
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const ap = { userPaused: reduced, hovered: false, focused: false, inView: true, timer: null };
+  // Auto-advance runs for every visitor (the site owner wants the home page
+  // to move); the Pause button stops it.
+  const ap = { userPaused: false, hovered: false, focused: false, inView: true, timer: null };
   // Index-based, not scroll-position-based: a tick can land while the
   // previous smooth scroll is still moving.
   const advance = () => {

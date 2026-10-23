@@ -106,44 +106,43 @@ test.describe('Guest home page — Live Demo pipeline motion', () => {
   });
 });
 
-test.describe('Guest home page — Live Demo pipeline, reduced motion', () => {
-  test('shows the finished run, still', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.clock.install();
-    await page.goto('/#projects');
-    await page.waitForLoadState('networkidle');
-    const root = page.getByTestId('ai-live-demo-section').getByTestId('pipe-root');
-    await expect(root).toHaveAttribute('data-pipe-mode', 'static');
-    await expect(root.getByTestId('pipe-step')).toHaveText('✓ Pipeline green — merged');
-    expect(await states(root)).toEqual(Array(STAGES).fill('done'));
-    await page.clock.runFor(STEP_MS * 5);
-    expect(await states(root)).toEqual(Array(STAGES).fill('done'));
-  });
-
-  test('Play animation starts the replay', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
+test.describe('Guest home page — Live Demo pipeline, Pause and reduced motion', () => {
+  const open = async (page: Page) => {
     await page.clock.install();
     await page.clock.pauseAt(Date.now() + 1000);
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
     const root = page.getByTestId('ai-live-demo-section').getByTestId('pipe-root');
-    const play = root.getByTestId('pipe-play');
-    await expect(play).toBeVisible();
+    await root.scrollIntoViewIfNeeded();
+    return root;
+  };
 
-    await play.click();
-    await expect(play).toBeHidden();
+  test('plays even when the OS asks for reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const root = await open(page);
     await expect(root).toHaveAttribute('data-pipe-mode', 'live');
-    await expect(root).toHaveAttribute('data-pipe-step', '0');
+    await expect(root).toHaveAttribute('data-pipe-live', 'running');
     await page.clock.runFor(STEP_MS + 100);
     await expect(root).toHaveAttribute('data-pipe-step', '1');
-    expect((await states(root)).slice(0, 2)).toEqual(['done', 'active']);
   });
 
-  test('without reduced motion there is no Play button - it is already playing', async ({ page }) => {
-    await page.goto('/#projects');
-    await page.waitForLoadState('networkidle');
-    const root = page.getByTestId('ai-live-demo-section').getByTestId('pipe-root');
-    await expect(root).toHaveAttribute('data-pipe-mode', 'live');
-    await expect(root.getByTestId('pipe-play')).toBeHidden();
+  test('Pause stops the replay and Play resumes it', async ({ page }) => {
+    const root = await open(page);
+    const toggle = root.getByTestId('pipe-toggle');
+    await expect(toggle).toHaveText('Pause');
+
+    await toggle.click();
+    await expect(toggle).toHaveText('Play');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(root).toHaveAttribute('data-pipe-live', 'paused');
+    const at = await root.getAttribute('data-pipe-step');
+    await page.clock.runFor(STEP_MS * 3);
+    await expect(root).toHaveAttribute('data-pipe-step', at!);
+
+    await toggle.click();
+    await expect(toggle).toHaveText('Pause');
+    await expect(root).toHaveAttribute('data-pipe-live', 'running');
+    await page.clock.runFor(STEP_MS + 100);
+    await expect(root).toHaveAttribute('data-pipe-step', String(Number(at) + 1));
   });
 });

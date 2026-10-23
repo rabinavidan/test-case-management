@@ -85,7 +85,9 @@ guestTest.describe('Guest home page — repositories carousel', () => {
     page.getByTestId(`${prefix}-track`).evaluate((t) => t.scrollLeft);
 
   guestTest('Next, Previous and the dots move only this carousel', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' }); // no auto-advance
+    // A paused fake clock keeps auto-advance from firing.
+    await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
     const prev = page.getByTestId('repos-prev');

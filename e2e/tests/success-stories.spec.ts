@@ -59,8 +59,9 @@ guestTest.describe('Guest home page — Success Stories carousel', () => {
   });
 
   guestTest('Next, Previous, the dots and the arrow keys move through the stories', async ({ page }) => {
-    // Reduced motion turns auto-advance off, so only these controls move the track.
-    await page.emulateMedia({ reducedMotion: 'reduce' });
+    // A paused fake clock keeps auto-advance from firing, so only these controls move the track.
+    await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.reload();
     await page.waitForLoadState('networkidle');
     const track = page.getByTestId('stories-track');
@@ -188,20 +189,14 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
     await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(0);
   });
 
-  guestTest('never moves on its own for visitors who prefer reduced motion, but Play starts it', async ({ page }) => {
+  guestTest('auto-advances even when the OS asks for reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
     await page.waitForLoadState('networkidle');
-    const section = page.getByTestId('success-stories-section');
-    const toggle = page.getByTestId('stories-autoplay');
-    await guestExpect(section).toHaveAttribute('data-autoplay', 'paused');
-    await guestExpect(toggle).toHaveAttribute('aria-label', 'Play auto-advance');
-    await page.clock.runFor(INTERVAL * 3);
-    guestExpect(await scrollLeft(page)).toBe(0);
-
-    await toggle.click();
     await page.mouse.move(0, 0);
+    const section = page.getByTestId('success-stories-section');
     await guestExpect(section).toHaveAttribute('data-autoplay', 'running');
+    await guestExpect(page.getByTestId('stories-autoplay')).toHaveAttribute('aria-label', 'Pause auto-advance');
     await page.clock.runFor(INTERVAL + 100);
     await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(0);
   });
