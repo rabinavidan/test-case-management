@@ -97,17 +97,19 @@ guestTest.describe('Guest recruiter view — Recruiter Tour keyboard operation',
   });
 });
 
-guestTest.describe('Guest recruiter view — reduced motion is honored', () => {
-  guestTest('continuous decorative animations are neutralized when the visitor prefers reduced motion', async ({ page }) => {
+// The site owner chose motion for every visitor: the home page keeps animating
+// when the OS asks for reduced motion, and each moving section has a Pause
+// control instead (see live-demo-pipeline, success-stories and top-repos).
+guestTest.describe('Guest recruiter view — animations run for every visitor', () => {
+  guestTest('decorative animations still run even when the OS asks for reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
 
     const duration = await page.locator('.owner-title-flash').evaluate((el) => getComputedStyle(el).animationDuration);
-    // Every comma-separated value must collapse to (near-)zero once the
-    // reduced-motion override applies.
+    // No reduced-motion override collapses it to (near-)zero.
     for (const d of duration.split(',')) {
-      guestExpect(parseFloat(d)).toBeLessThan(0.01);
+      guestExpect(parseFloat(d)).toBeGreaterThan(0.01);
     }
   });
 });
@@ -147,7 +149,7 @@ authTest.describe('Dialogs close with Escape — signed in', () => {
     await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('nav-new-btn').click();
+    await page.getByTestId('new-project-btn').click();
     await authExpect(page.getByTestId('modal-overlay')).toBeVisible();
     await page.keyboard.press('Escape');
     await authExpect(page.getByTestId('modal-overlay')).toHaveClass(/hidden/);

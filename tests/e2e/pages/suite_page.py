@@ -26,7 +26,7 @@ class SuitePage(BasePage):
 
     @property
     def new_test_case_btn(self) -> Locator:
-        return self.view.locator("button", has_text="New Test Case").first
+        return self.view.get_by_test_id("new-testcase-btn")
 
     @property
     def start_run_btn(self) -> Locator:

@@ -14,9 +14,10 @@ guestTest.describe('Guest home page — Success Stories carousel', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  guestTest('sits right after the hero and before the Live Demo section', async ({ page }) => {
+  guestTest('sits right after the hero and before the Live Demo section, in the first tab', async ({ page }) => {
     // networkidle can arrive before renderProjects() has written the page.
-    await guestExpect(page.getByTestId('ai-live-demo-section')).toBeVisible();
+    await guestExpect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');
+    await guestExpect(page.getByTestId('ai-live-demo-section')).toHaveCount(1);
     const order = await page.evaluate(() => {
       const ids = ['.owner-banner', '[data-testid="success-stories-section"]', '[data-testid="ai-live-demo-section"]'];
       const [hero, stories, demo] = ids.map((s) => document.querySelector(s));
@@ -59,8 +60,9 @@ guestTest.describe('Guest home page — Success Stories carousel', () => {
   });
 
   guestTest('Next, Previous, the dots and the arrow keys move through the stories', async ({ page }) => {
-    // Reduced motion turns auto-advance off, so only these controls move the track.
-    await page.emulateMedia({ reducedMotion: 'reduce' });
+    // A paused fake clock keeps auto-advance from firing, so only these controls move the track.
+    await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1000);
     await page.reload();
     await page.waitForLoadState('networkidle');
     const track = page.getByTestId('stories-track');
@@ -188,14 +190,16 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
     await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(0);
   });
 
-  guestTest('never moves on its own for visitors who prefer reduced motion', async ({ page }) => {
+  guestTest('auto-advances even when the OS asks for reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await guestExpect(page.getByTestId('success-stories-section')).toBeVisible();
-    await guestExpect(page.getByTestId('stories-autoplay')).toBeHidden();
-    await page.clock.runFor(INTERVAL * 3);
-    guestExpect(await scrollLeft(page)).toBe(0);
+    await page.mouse.move(0, 0);
+    const section = page.getByTestId('success-stories-section');
+    await guestExpect(section).toHaveAttribute('data-autoplay', 'running');
+    await guestExpect(page.getByTestId('stories-autoplay')).toHaveAttribute('aria-label', 'Pause auto-advance');
+    await page.clock.runFor(INTERVAL + 100);
+    await guestExpect.poll(() => scrollLeft(page)).toBeGreaterThan(0);
   });
 });
 

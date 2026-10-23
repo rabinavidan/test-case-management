@@ -53,10 +53,10 @@ async function seed(api: APIRequestContext, tag: string) {
 }
 
 test.describe('Responsive — guest pages', () => {
-  test('the home page fits the device, with Sign in and both carousels on screen', async ({ page }) => {
+  test('the home page fits the device, with Sign in and its first tab, Success Stories, on screen', async ({ page }) => {
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
-    await expect(page.getByTestId('ai-live-demo-section')).toBeVisible();
+    await expect(page.getByTestId('success-stories-section')).toBeVisible();
     await expectFitsDevice(page, 'guest home');
     await expectOnScreen(page, page.getByTestId('signin-btn'), 'Sign in');
 
@@ -185,7 +185,7 @@ test.describe('Responsive — signed-in pages', () => {
   test('the New Project modal fits the device with its submit button reachable', async ({ page }) => {
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('nav-new-btn').tap();
+    await page.getByTestId('new-project-btn').tap();
     await expectOnScreen(page, page.getByTestId('modal-box'), 'New Project modal');
     const submit = page.getByTestId('modal-submit-btn');
     await submit.scrollIntoViewIfNeeded();

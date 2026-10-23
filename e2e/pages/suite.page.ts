@@ -26,7 +26,7 @@ export class SuitePage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.newTestCaseBtn = page.getByTestId('nav-new-btn');
+    this.newTestCaseBtn = page.getByTestId('new-testcase-btn');
     this.titleInput     = page.locator('[data-testid="f-title"], #f-title');
     this.descInput      = page.locator('[data-testid="f-desc"], #f-desc');
     this.stepsInput     = page.locator('[data-testid="f-steps"], #f-steps');

@@ -16,13 +16,14 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     await guestExpect(page.getByText('Senior Automation Engineer', { exact: true })).toHaveCount(0);
   });
 
-  guestTest('all four hero CTAs are present, in order, with working destinations', async ({ page }) => {
+  guestTest('all five hero CTAs are present, in order, with working destinations', async ({ page }) => {
     const row = page.getByTestId('hero-cta-row');
     await guestExpect(row).toBeVisible();
 
     const buttons = row.locator('button, a');
-    await guestExpect(buttons).toHaveCount(4);
+    await guestExpect(buttons).toHaveCount(5);
 
+    await guestExpect(page.getByTestId('hero-tour-btn')).toHaveText(/Take the 3-min Tour/);
     await guestExpect(page.getByTestId('hero-explore-demo-btn')).toHaveText(/Explore Live Demo/);
     await guestExpect(page.getByTestId('hero-architecture-btn')).toHaveText(/View Architecture/);
 
@@ -33,9 +34,10 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     const linkedinLink = page.getByTestId('hero-linkedin-btn');
     await guestExpect(linkedinLink).toHaveAttribute('href', /linkedin\.com/);
 
-    // Order matches the plan: Explore Live Demo, View Architecture, View GitHub, Connect on LinkedIn.
+    // The tour leads, then the plan's order: Explore Live Demo, View Architecture, View GitHub, Connect on LinkedIn.
     const testIds = await buttons.evaluateAll(els => els.map(el => el.getAttribute('data-testid')));
     guestExpect(testIds).toEqual([
+      'hero-tour-btn',
       'hero-explore-demo-btn',
       'hero-architecture-btn',
       'hero-github-btn',
@@ -53,6 +55,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the Leadership Impact section shows five repo-evidenced cards', async ({ page }) => {
+    await page.getByTestId('home-tab-leadership').click();
     const section = page.getByTestId('leadership-impact-section');
     await guestExpect(section).toBeVisible();
     await guestExpect(section.getByText('Technical Direction & Governance')).toBeVisible();
@@ -63,6 +66,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the delivery workflow section shows all six steps in order', async ({ page }) => {
+    await page.getByTestId('home-tab-leadership').click();
     const section = page.getByTestId('delivery-workflow-section');
     await guestExpect(section).toBeVisible();
     const steps = ['Product Requirements', 'Technical Roadmap', 'Epics & Stories', 'Sprint Delivery', 'Quality Gates', 'KPI Review'];

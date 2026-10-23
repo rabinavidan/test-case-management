@@ -11,7 +11,7 @@ export class ProjectPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.newSuiteBtn    = page.getByTestId('nav-new-btn');
+    this.newSuiteBtn    = page.getByTestId('new-suite-btn');
     this.nameInput      = page.locator('[data-testid="f-name"], #f-name');
     this.descInput      = page.locator('[data-testid="f-desc"], #f-desc');
     this.submitBtn      = page.getByTestId('modal-submit-btn');

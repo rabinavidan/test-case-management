@@ -25,7 +25,7 @@ test.describe('Guest home page — Live Demo pipeline motion', () => {
     // flow at real speed.)
     await page.clock.install();
     await page.clock.pauseAt(Date.now() + 1000);
-    await page.goto('/#projects');
+    await page.goto('/#home/demo');
     await page.waitForLoadState('networkidle');
     root = page.getByTestId('ai-live-demo-section').getByTestId('pipe-root');
     await root.scrollIntoViewIfNeeded();
@@ -70,14 +70,14 @@ test.describe('Guest home page — Live Demo pipeline motion', () => {
     expect((await states(root)).slice(1).every((x) => x === 'queued')).toBe(true);
   });
 
-  test('pauses while scrolled out of view, and resumes where it left off', async ({ page }) => {
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  test('pauses while out of view (its tab closed), and resumes where it left off', async ({ page }) => {
+    await page.getByTestId('home-tab-stories').click();
     await expect(root).toHaveAttribute('data-pipe-live', 'paused');
     const at = await root.getAttribute('data-pipe-step');
     await page.clock.runFor(STEP_MS * 3);
     expect(await root.getAttribute('data-pipe-step')).toBe(at);
 
-    await root.scrollIntoViewIfNeeded();
+    await page.getByTestId('home-tab-demo').click();
     await expect(root).toHaveAttribute('data-pipe-live', 'running');
     await page.clock.runFor(STEP_MS);
     await expect(root).not.toHaveAttribute('data-pipe-step', at!);
@@ -97,6 +97,7 @@ test.describe('Guest home page — Live Demo pipeline motion', () => {
   });
 
   test('the "See the pipeline" modal runs its own replay', async ({ page }) => {
+    await page.getByTestId('home-tab-ai').click(); // the button lives in the AI Engineering tab
     await page.getByTestId('ai-pipeline-demo-btn').click();
     const modal = page.getByTestId('ai-pipeline-demo').getByTestId('pipe-root');
     await expect(modal).toHaveAttribute('data-pipe-live', 'running');
@@ -106,17 +107,43 @@ test.describe('Guest home page — Live Demo pipeline motion', () => {
   });
 });
 
-test.describe('Guest home page — Live Demo pipeline, reduced motion', () => {
-  test('shows the finished run, still', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
+test.describe('Guest home page — Live Demo pipeline, Pause and reduced motion', () => {
+  const open = async (page: Page) => {
     await page.clock.install();
-    await page.goto('/#projects');
+    await page.clock.pauseAt(Date.now() + 1000);
+    await page.goto('/#home/demo');
     await page.waitForLoadState('networkidle');
     const root = page.getByTestId('ai-live-demo-section').getByTestId('pipe-root');
-    await expect(root).toHaveAttribute('data-pipe-mode', 'static');
-    await expect(root.getByTestId('pipe-step')).toHaveText('✓ Pipeline green — merged');
-    expect(await states(root)).toEqual(Array(STAGES).fill('done'));
-    await page.clock.runFor(STEP_MS * 5);
-    expect(await states(root)).toEqual(Array(STAGES).fill('done'));
+    await root.scrollIntoViewIfNeeded();
+    return root;
+  };
+
+  test('plays even when the OS asks for reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const root = await open(page);
+    await expect(root).toHaveAttribute('data-pipe-mode', 'live');
+    await expect(root).toHaveAttribute('data-pipe-live', 'running');
+    await page.clock.runFor(STEP_MS + 100);
+    await expect(root).toHaveAttribute('data-pipe-step', '1');
+  });
+
+  test('Pause stops the replay and Play resumes it', async ({ page }) => {
+    const root = await open(page);
+    const toggle = root.getByTestId('pipe-toggle');
+    await expect(toggle).toHaveText('Pause');
+
+    await toggle.click();
+    await expect(toggle).toHaveText('Play');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(root).toHaveAttribute('data-pipe-live', 'paused');
+    const at = await root.getAttribute('data-pipe-step');
+    await page.clock.runFor(STEP_MS * 3);
+    await expect(root).toHaveAttribute('data-pipe-step', at!);
+
+    await toggle.click();
+    await expect(toggle).toHaveText('Pause');
+    await expect(root).toHaveAttribute('data-pipe-live', 'running');
+    await page.clock.runFor(STEP_MS + 100);
+    await expect(root).toHaveAttribute('data-pipe-step', String(Number(at) + 1));
   });
 });

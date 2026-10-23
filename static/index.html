@@ -45,8 +45,9 @@
   </script>
   <style>
     [x-cloak] { display: none; }
-    .fade-in { animation: fadeIn .18s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    /* Route changes: the new view rises into place. */
+    .fade-in { animation: fadeIn .32s cubic-bezier(.2, .7, .2, 1); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .modal-backdrop { backdrop-filter: blur(2px); }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -62,14 +63,82 @@
       outline-offset: 2px;
       border-radius: 4px;
     }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.001ms !important;
-        scroll-behavior: auto !important;
-      }
+  </style>
+  <!-- Modern UI layer: glass header, scroll progress, reveal-on-scroll,
+       skeleton loaders, toasts, card lift, hero text reveal, command palette. -->
+  <style>
+    /* Frosted sticky header that gains a shadow once the page scrolls. */
+    #app-header {
+      background: rgba(255, 255, 255, .78);
+      -webkit-backdrop-filter: saturate(180%) blur(14px);
+      backdrop-filter: saturate(180%) blur(14px);
+      transition: box-shadow .25s ease, background-color .25s ease;
     }
+    #app-header.is-scrolled { background: rgba(255, 255, 255, .9); box-shadow: 0 10px 30px -18px rgba(15, 23, 42, .45); }
+
+    /* Reading progress along the top edge: CSS scroll-driven animation where
+       supported, a scroll listener (static/app.js) elsewhere. */
+    #scroll-progress {
+      position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 40; pointer-events: none;
+      transform-origin: 0 50%; transform: scaleX(var(--progress, 0));
+      background: linear-gradient(90deg, #38bdf8, #6366f1, #a855f7, #34d399);
+    }
+    @supports (animation-timeline: scroll()) {
+      #scroll-progress { animation: tf-progress linear both; animation-timeline: scroll(root); }
+      @keyframes tf-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+    }
+
+    /* Sections and cards rise into place as they scroll into view. */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity .75s cubic-bezier(.2, .7, .2, 1), transform .75s cubic-bezier(.2, .7, .2, 1); transition-delay: var(--reveal-delay, 0ms); }
+    .reveal.is-visible { opacity: 1; transform: none; }
+
+    /* Cards across the app lift under the pointer. */
+    [data-testid^="suite-card-"], [data-testid^="run-card-"], [data-testid^="kpi-card-"], [data-testid="repo-card"] {
+      transition: transform .22s cubic-bezier(.2, .7, .2, 1), box-shadow .22s ease, border-color .22s ease;
+    }
+    [data-testid^="suite-card-"]:hover, [data-testid^="run-card-"]:hover, [data-testid^="kpi-card-"]:hover, [data-testid="repo-card"]:hover {
+      transform: translateY(-3px); box-shadow: 0 14px 30px -16px rgba(15, 23, 42, .35);
+    }
+    [data-testid^="project-row-"] { transition: background-color .15s ease; }
+
+    /* Skeleton loaders in place of spinners. */
+    .skel { border-radius: .9rem; background: linear-gradient(100deg, #e2e8f0 30%, #f1f5f9 50%, #e2e8f0 70%); background-size: 300% 100%; animation: tf-skel 1.3s ease-in-out infinite; }
+    @keyframes tf-skel { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+    /* Toasts slide in with an icon and a timer bar. */
+    #toast-inner { position: relative; overflow: hidden; animation: tf-toast-in .35s cubic-bezier(.2, .9, .3, 1.2) both; }
+    #toast-inner .toast-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: rgba(255, 255, 255, .55); transform-origin: 0 50%; animation: tf-toast-timer 3s linear forwards; }
+    @keyframes tf-toast-in { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+    @keyframes tf-toast-timer { to { transform: scaleX(0); } }
+
+    /* Cards lift under the pointer. */
+    .lift { transition: transform .22s cubic-bezier(.2, .7, .2, 1), box-shadow .22s ease, border-color .22s ease; }
+    .lift:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -16px rgba(15, 23, 42, .35); }
+
+    /* Hero headline: blurs into focus as the page opens. A wrapper carries the
+       effect so the headline keeps its own gradient-text animation. */
+    .blur-in { opacity: 0; filter: blur(14px); transform: translateY(-10px) scale(1.02); animation: tf-blur-in 1s cubic-bezier(.2, .7, .2, 1) .15s forwards; }
+    @keyframes tf-blur-in { to { opacity: 1; filter: blur(0); transform: none; } }
+
+    /* Home page tabs: a gradient pill slides to the chosen tab; its panel rises in. */
+    .home-tab { color: #334155; transition: color .2s ease, background-color .2s ease; }
+    .home-tab:hover:not([aria-selected="true"]) { color: #0f172a; background: #f1f5f9; }
+    .home-tab[aria-selected="true"] { color: #fff; }
+    .home-tab-indicator {
+      position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; border-radius: .75rem; pointer-events: none;
+      background: linear-gradient(135deg, #2563eb, #7c3aed); box-shadow: 0 8px 18px -8px rgba(79, 70, 229, .7);
+      transition: transform .38s cubic-bezier(.2, .8, .2, 1), width .38s cubic-bezier(.2, .8, .2, 1);
+    }
+    .home-panel:not(.hidden) { animation: tf-panel-in .45s cubic-bezier(.2, .7, .2, 1) both; }
+    @keyframes tf-panel-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+    /* Command palette (Ctrl/Cmd+K). */
+    #cmdk { animation: tf-fade .18s ease both; }
+    #cmdk-panel { animation: tf-pop .22s cubic-bezier(.2, .9, .3, 1.15) both; }
+    #cmdk-list [aria-selected="true"] { background: #eff6ff; color: #1e3a8a; }
+    @keyframes tf-fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes tf-pop { from { opacity: 0; transform: translateY(-8px) scale(.97); } to { opacity: 1; transform: none; } }
+    .kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 1.4rem; height: 1.3rem; padding: 0 .35rem; border: 1px solid #cbd5e1; border-bottom-width: 2px; border-radius: .35rem; background: #fff; font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: #475569; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
@@ -83,19 +152,22 @@
 <div id="app-shell" class="flex flex-col min-h-screen">
 
 <!-- Top nav -->
-<header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30">
-  <div class="max-w-screen-xl mx-auto px-4 flex items-center h-14 gap-3">
+<div id="scroll-progress" aria-hidden="true"></div>
+<header id="app-header" class="border-b border-slate-200/80 sticky top-0 z-30">
+  <div class="max-w-screen-xl mx-auto px-4 flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 py-2 sm:py-0 min-h-[3.5rem] sm:h-14">
     <button data-testid="logo-btn" onclick="navigate('projects')" aria-label="TestFlow home" class="flex items-center gap-2 font-bold text-brand-700 text-lg hover:text-brand-600 transition-colors flex-shrink-0">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
       </svg>
       <span class="hidden sm:inline">TestFlow</span>
     </button>
-    <div id="breadcrumb" data-testid="breadcrumb" class="no-scrollbar flex items-center gap-1 text-sm text-slate-500 ml-1 sm:ml-2 min-w-0 flex-1 overflow-x-auto whitespace-nowrap"></div>
+    <div id="breadcrumb" data-testid="breadcrumb" class="no-scrollbar order-last basis-full sm:order-none sm:basis-auto flex items-center gap-1 text-sm text-slate-500 sm:ml-2 min-w-0 flex-1 overflow-x-auto whitespace-nowrap"></div>
     <div class="ml-auto flex items-center gap-2 flex-shrink-0">
-      <button id="nav-new-btn" data-testid="nav-new-btn" onclick="handleNewBtn()" class="hidden bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        <span id="nav-new-label" data-testid="nav-new-label" class="hidden sm:inline">New</span>
+      <button type="button" onclick="openCommandPalette()" data-testid="cmdk-btn" aria-label="Search and jump to (Ctrl+K)" title="Search (Ctrl+K)"
+        class="flex items-center gap-2 text-slate-500 hover:text-slate-800 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1.5 text-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+        <span class="hidden md:inline">Search</span>
+        <span class="hidden md:inline-flex items-center gap-0.5"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">K</kbd></span>
       </button>
       <div id="user-badge" data-testid="user-badge" class="flex-shrink-0">
         <button onclick="showAuthModal('login')" data-testid="signin-btn"
@@ -107,11 +179,20 @@
   </div>
 </header>
 
+<!-- Fresh install, no admin account yet: a notice, never a blocking popup -->
+<div id="setup-banner" data-testid="setup-banner" role="status" class="hidden bg-amber-50 border-b border-amber-200">
+  <div class="max-w-screen-xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-amber-900">
+    <span>No admin account has been set up yet. You can keep browsing as a guest.</span>
+    <button type="button" onclick="showAuthModal('setup')" data-testid="setup-banner-btn"
+      class="font-semibold underline hover:text-amber-700 whitespace-nowrap">Create admin account</button>
+  </div>
+</div>
+
 <!-- Main layout -->
 <div class="flex flex-1 max-w-screen-xl mx-auto w-full px-4 py-6 gap-6">
 
   <!-- Sidebar -->
-  <aside class="w-56 flex-shrink-0 hidden md:block">
+  <aside id="app-sidebar" data-testid="app-sidebar" class="w-56 flex-shrink-0 hidden md:block">
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
         <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Projects</span>
@@ -123,7 +204,7 @@
            scroll into this list's view, and the Tailwind CDN's CSS can land
            after the first render, when the list would briefly be full height. -->
       <ul id="sidebar-projects" data-testid="sidebar-projects" class="divide-y divide-slate-100 max-h-[280px] overflow-y-auto" style="max-height:280px;overflow-y:auto">
-        <li class="px-4 py-3 text-sm text-slate-400 italic">Loading…</li>
+        <li class="px-4 py-3 text-sm text-slate-500 italic">Loading…</li>
       </ul>
     </div>
   </aside>
@@ -142,7 +223,7 @@
 </div>
 
   <footer class="border-t border-slate-200 bg-white py-3 mt-auto">
-    <div class="max-w-screen-xl mx-auto px-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-400">
+    <div class="max-w-screen-xl mx-auto px-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-slate-500">
       <span>TestFlow</span>
       <span class="flex items-center gap-3">
         <button onclick="showModal('contact')" data-testid="contact-us-btn" class="text-blue-600 hover:text-blue-700 font-medium transition-colors">Contact Us</button>
@@ -158,7 +239,7 @@
   <div id="modal-box" data-testid="modal-box" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
       <h2 id="modal-title" data-testid="modal-title" class="text-lg font-semibold text-slate-800"></h2>
-      <button data-testid="modal-close-btn" onclick="hideModal()" aria-label="Close dialog" class="text-slate-400 hover:text-slate-600 transition-colors">
+      <button data-testid="modal-close-btn" onclick="hideModal()" aria-label="Close dialog" class="text-slate-500 hover:text-slate-600 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
@@ -167,10 +248,11 @@
 </div>
 
 <!-- Toast -->
+<div id="cmdk-root"></div>
 <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
   <div id="toast-inner" data-testid="toast-inner" class="px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-xs"></div>
 </div>
 
-<script src="/static/app.js?v=74"></script>
+<script src="/static/app.js?v=88"></script>
 </body>
 </html>

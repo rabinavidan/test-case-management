@@ -25,7 +25,7 @@ class ProjectPage(BasePage):
 
     @property
     def new_suite_btn(self) -> Locator:
-        return self.view.locator("button", has_text="New Suite").first
+        return self.view.get_by_test_id("new-suite-btn")
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 

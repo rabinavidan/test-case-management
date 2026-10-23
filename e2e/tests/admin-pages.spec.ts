@@ -57,7 +57,7 @@ test.describe('User Management', () => {
       await expect(exec.getByTestId('environments-btn')).toBeVisible();
       await expect(exec.getByTestId('users-btn')).toHaveCount(0);
       await expect(exec.getByTestId('logs-btn')).toHaveCount(0);
-      await expect(exec.getByTestId('nav-new-btn')).toBeHidden();
+      await expect(exec.getByTestId('new-project-btn')).toBeHidden();
       // The admin pages fall back to the projects list.
       for (const hash of ['#users', '#logs']) {
         await exec.goto(`/${hash}`);
@@ -174,7 +174,7 @@ test.describe('Log Center', () => {
     const rows = page.locator('[data-testid^="log-row-"]');
     const search = async (text: string) => {
       await page.locator('#log-f-search').fill(text);
-      await page.getByRole('button', { name: 'Search' }).click();
+      await page.locator('#view-logs').getByRole('button', { name: 'Search' }).click();
     };
 
     // Each search re-renders the view, search box included, so wait until the
