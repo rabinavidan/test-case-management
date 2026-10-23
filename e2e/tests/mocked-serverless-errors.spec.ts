@@ -84,16 +84,25 @@ test.describe('Auth edge cases — serverless', () => {
     expect(storedToken).toBeNull();
   });
 
-  test('with no admin account set up yet, the app opens straight to the setup form', async ({ page }) => {
+  test('with no admin account set up yet, guests can still browse and the setup form is one click away', async ({ page }) => {
     // No token seeded, so the app never calls /api/auth/me at all (see
     // static/app.js's bootstrap: it's only called when a stored token
-    // exists) — instead it checks /api/auth/setup and, on a fresh
-    // install, opens the sign-in modal in "setup" mode.
+    // exists) — instead it checks /api/auth/setup and, on a fresh install,
+    // shows a notice rather than a popup that would block every visitor.
     await page.route(byPath('/api/auth/setup'), (route) => fulfillJson(route, 200, { setup_needed: true }));
 
     await page.goto('/');
 
-    await expect(page.locator('#auth-modal')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('setup-banner')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#auth-modal')).toBeHidden();
+
+    await page.getByTestId('setup-banner-btn').click();
+    await expect(page.locator('#auth-modal')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Create Admin Account' })).toBeVisible();
+
+    // And it can be closed again, back to browsing.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#auth-modal')).toBeHidden();
   });
 });
 

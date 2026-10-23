@@ -114,9 +114,7 @@ function closeModal(e) {
 }
 
 // Escape closes the open dialog, as keyboard users expect of any dialog. The
-// sign-in dialog only when it can be closed at all: the first-run "create the
-// admin account" form has no Close button and must stay up. The Recruiter
-// Tour handles its own Escape (and marks the event handled).
+// Recruiter Tour handles its own Escape (and marks the event handled).
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || e.defaultPrevented) return;
   const overlay = document.getElementById("modal-overlay");
@@ -4818,6 +4816,7 @@ function hideAuthModal() {
 function showAppShell(user) {
   state.user = user;
   hideAuthModal();
+  document.getElementById("setup-banner").classList.add("hidden");
   renderUserBadge(user);
   loadSidebar();
   router();
@@ -4879,12 +4878,12 @@ function renderAuthForm(mode) {
   const isSetup = mode === "setup";
   document.getElementById("auth-form-container").innerHTML = `
     <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full p-8 fade-in relative">
-      ${!isSetup ? `<button onclick="hideAuthModal()" aria-label="Close"
+      <button onclick="hideAuthModal()" aria-label="Close"
         class="absolute top-4 right-4 text-slate-500 hover:text-slate-600 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
-      </button>` : ""}
+      </button>
 
       <div class="flex items-center gap-3 mb-6">
         <div class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
@@ -5015,14 +5014,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const el = document.getElementById("app-version");
     if (el && d.version) el.textContent = `v${d.version}`;
   }).catch(() => {});
-  // Check if first-time setup is needed (no admin account yet)
+  // No admin account yet (a fresh install): say so in a notice, never a
+  // popup - visitors must still be able to browse the home page as guests.
   if (!state.user) {
     try {
       const setup = await fetch("/api/auth/setup").then(r => r.json());
-      if (setup.setup_needed) {
-        renderAuthForm("setup");
-        document.getElementById("auth-modal").classList.remove("hidden");
-      }
+      if (setup.setup_needed) document.getElementById("setup-banner").classList.remove("hidden");
     } catch { /* ignore — server may be starting up */ }
   }
 });

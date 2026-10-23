@@ -103,6 +103,15 @@
   </div>
 </header>
 
+<!-- Fresh install, no admin account yet: a notice, never a blocking popup -->
+<div id="setup-banner" data-testid="setup-banner" role="status" class="hidden bg-amber-50 border-b border-amber-200">
+  <div class="max-w-screen-xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-amber-900">
+    <span>No admin account has been set up yet. You can keep browsing as a guest.</span>
+    <button type="button" onclick="showAuthModal('setup')" data-testid="setup-banner-btn"
+      class="font-semibold underline hover:text-amber-700 whitespace-nowrap">Create admin account</button>
+  </div>
+</div>
+
 <!-- Main layout -->
 <div class="flex flex-1 max-w-screen-xl mx-auto w-full px-4 py-6 gap-6">
 
@@ -167,6 +176,6 @@
   <div id="toast-inner" data-testid="toast-inner" class="px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-xs"></div>
 </div>
 
-<script src="/static/app.js?v=75"></script>
+<script src="/static/app.js?v=76"></script>
 </body>
 </html>
