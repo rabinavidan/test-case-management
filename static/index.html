@@ -176,11 +176,11 @@
     </button>
     <div id="breadcrumb" data-testid="breadcrumb" class="no-scrollbar order-last basis-full sm:order-none sm:basis-auto flex items-center gap-1 text-sm text-slate-500 sm:ml-2 min-w-0 flex-1 overflow-x-auto whitespace-nowrap"></div>
     <div class="ml-auto flex items-center gap-2 flex-shrink-0">
-      <button type="button" onclick="openCommandPalette()" data-testid="cmdk-btn" aria-label="Search and jump to (Ctrl+K)" title="Search (Ctrl+K)"
-        class="flex items-center gap-2 text-slate-500 hover:text-slate-800 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1.5 text-sm transition-colors">
+      <button type="button" onclick="openCommandPalette()" data-testid="cmdk-btn" aria-keyshortcuts="Control+K Meta+K /" title="Search and jump to (Ctrl+K)"
+        class="flex items-center gap-2 text-slate-600 hover:text-slate-900 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1.5 text-sm transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
-        <span class="hidden md:inline">Search</span>
-        <span class="hidden md:inline-flex items-center gap-0.5"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">K</kbd></span>
+        <span class="sr-only md:not-sr-only">Search</span>
+        <span class="hidden md:inline-flex items-center gap-0.5" aria-hidden="true"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">K</kbd></span>
       </button>
       <div id="user-badge" data-testid="user-badge" class="flex-shrink-0">
         <button onclick="showAuthModal('login')" data-testid="signin-btn"
@@ -266,6 +266,6 @@
   <div id="toast-inner" data-testid="toast-inner" class="px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-xs"></div>
 </div>
 
-<script src="/static/app.js?v=90"></script>
+<script src="/static/app.js?v=95"></script>
 </body>
 </html>
