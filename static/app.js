@@ -2168,10 +2168,10 @@ async function renderProjects() {
         </a>
       </div>
 
-      <!-- Skills strip -->
-      <div class="relative z-10 border-t flex flex-wrap gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
+      <!-- Skills strip: one swipeable row on phones, so the hero leaves room for the tab bar on the first screen -->
+      <div data-testid="hero-skills" class="relative z-10 border-t flex flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
         ${['Test Automation','AI Vibe Coding','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
-          `<span class="text-[11px] font-semibold px-3 py-1 rounded-full" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
+          `<span class="text-[11px] font-semibold px-3 py-1 rounded-full flex-shrink-0 whitespace-nowrap" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
       </div>
     </div>
