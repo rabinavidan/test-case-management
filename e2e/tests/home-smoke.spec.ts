@@ -71,6 +71,26 @@ test.describe('Home page smoke — guest', () => {
     await expectClean(page, p, 'guest home');
   });
 
+  // Regression: the tab bar's resize observer once watched its own sliding
+  // indicator, so moving the indicator re-fired it - Firefox reported that as
+  // an error on every load. Every tab, and a resize, must stay clean.
+  test('every home tab opens cleanly, before and after a resize', async ({ page }) => {
+    const p = watch(page);
+    await page.goto('/#projects');
+    const tabs = page.locator('[data-home-tab]');
+    await expect(tabs.first()).toBeVisible();
+    const ids = await tabs.evaluateAll((els) => els.map((e) => e.getAttribute('data-home-tab')));
+    expect(ids.length, 'home tabs').toBeGreaterThan(5);
+    for (const id of ids) {
+      await page.getByTestId(`home-tab-${id}`).click();
+      await expect(page.locator(`#home-panel-${id}`)).toBeVisible();
+    }
+    await page.setViewportSize({ width: 900, height: 800 });
+    await page.getByTestId('home-tab-stories').click();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expectClean(page, p, 'home tabs');
+  });
+
   test('the footer shows the version the API reports', async ({ page }) => {
     const { version } = await (await page.request.get('/api/version')).json();
     await page.goto('/#projects');
