@@ -1309,7 +1309,7 @@ function renderSuccessStoriesSection() {
           <h3 class="text-sm font-semibold text-white leading-snug">${escHtml(s.title)}</h3>
           <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.6)">${escHtml(s.summary)}</p>
           <a href="${postUrl(s)}" target="_blank" rel="noopener noreferrer" data-testid="story-link"
-            aria-label="View ${escHtml(s.title)} on LinkedIn (opens in a new tab)"
+            aria-label="View on LinkedIn: ${escHtml(s.title)} (opens in a new tab)"
             class="mt-auto pt-2 text-xs font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">View on LinkedIn${_extLinkIcon}</a>
         </div>`,
     })),
@@ -2168,10 +2168,10 @@ async function renderProjects() {
         </a>
       </div>
 
-      <!-- Skills strip -->
-      <div class="relative z-10 border-t flex flex-wrap gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
+      <!-- Skills strip: one swipeable row on phones, so the hero leaves room for the tab bar on the first screen -->
+      <div data-testid="hero-skills" class="relative z-10 border-t flex flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
         ${['Test Automation','AI Vibe Coding','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
-          `<span class="text-[11px] font-semibold px-3 py-1 rounded-full" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
+          `<span class="text-[11px] font-semibold px-3 py-1 rounded-full flex-shrink-0 whitespace-nowrap" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
       </div>
     </div>
@@ -3115,7 +3115,7 @@ async function loadTestReport(suites) {
     pass:    'bg-emerald-100 text-emerald-700',
     fail:    'bg-red-100 text-red-700',
     skip:    'bg-amber-100 text-amber-700',
-    pending: 'bg-slate-100 text-slate-500',
+    pending: 'bg-slate-100 text-slate-600',
   };
   const STATUS_DOT = {
     pass: 'bg-emerald-500', fail: 'bg-red-500', skip: 'bg-amber-400', pending: 'bg-slate-300',
@@ -3188,7 +3188,7 @@ async function loadTestReport(suites) {
             </span>
           </td>
           <td class="px-3 py-2.5 text-xs text-slate-500 hidden sm:table-cell">
-            <span class="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium ${r.test_case.priority === 'high' ? 'bg-red-50 text-red-600' : r.test_case.priority === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'}">${r.test_case.priority}</span>
+            <span class="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium ${r.test_case.priority === 'high' ? 'bg-red-50 text-red-700' : r.test_case.priority === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}">${r.test_case.priority}</span>
           </td>
           <td class="px-3 py-2.5 text-xs text-slate-500 hidden md:table-cell whitespace-nowrap">${r.executed_at ? new Date(r.executed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}</td>
         </tr>`).join('');
@@ -4072,7 +4072,7 @@ function statusBadge(s) {
   const m = {
     draft:      "bg-amber-100 text-amber-700",
     active:     "bg-emerald-100 text-emerald-700",
-    deprecated: "bg-slate-100 text-slate-500",
+    deprecated: "bg-slate-100 text-slate-600",
   };
   return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${m[s] || m.draft}">${s}</span>`;
 }
@@ -4112,13 +4112,23 @@ function formatDateTime(iso) {
 }
 
 // ─── Alerts Microservice architecture diagram ────────────────────────────────
+// Architecture diagrams: white text needs a dark enough box behind it, and
+// arrow labels a darker shade than their dashed line, to meet WCAG AA contrast.
+const DIAGRAM_LABEL_COLORS = {
+  blue: '#1d4ed8', violet: '#6d28d9', emerald: '#047857', amber: '#b45309',
+  slate: '#475569', red: '#b91c1c', orange: '#c2410c', pink: '#be185d',
+};
+function diagramBoxBg(bg, tc) {
+  return tc === 'text-white' ? bg.replace(/-(?:400|500|600)(?![0-9])/, '-700') : bg;
+}
+
 function alertsArchDiagram() {
   // Coloured component box
   const box = (bg, border, tc, label, sub, d = 0) =>
-    `<div class="aad-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
+    `<div class="aad-box opacity-0 rounded-lg px-3 py-2 border ${border} ${diagramBoxBg(bg, tc)} flex-shrink-0"
         style="animation:aadIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
-      ${sub ? `<p class="text-[11px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
+      ${sub ? `<p class="text-[11px] ${tc} leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
 
   // Animated flowing arrow (dashes travel in data-flow direction)
@@ -4144,7 +4154,7 @@ function alertsArchDiagram() {
       : (dir==='right'
           ? `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M5 4L0 0v8z"/></svg>`
           : `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M0 4L5 0v8z"/></svg>`);
-    const lbl$ = lbl ? `<span class="text-[11px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
+    const lbl$ = lbl ? `<span class="text-[11px] font-medium whitespace-nowrap" style="color:${DIAGRAM_LABEL_COLORS[clr] || head}">${lbl}</span>` : '';
     return isV
       ? `<div class="flex flex-col items-center gap-0 opacity-0 flex-shrink-0" style="animation:aadIn .25s ease forwards;animation-delay:${d}ms">
           ${lbl$}${line}${tip}
@@ -4189,7 +4199,7 @@ function alertsArchDiagram() {
 
     <!-- ② Application Layer - GCP ──────────────────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('② Application Layer — GCP · Email Alert Cron & Workers', 'text-rose-500')}
+      ${lane('② Application Layer — GCP · Email Alert Cron & Workers', 'text-rose-700')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-rose-100','border-rose-300','text-rose-800','Email Alert CRON','CronJob · at 12AM',630)}
         ${arrow('read alerts','700','right','slate',32)}
@@ -4224,7 +4234,7 @@ function alertsArchDiagram() {
 
     <!-- ④ Kubernetes Deployment — Availability ─────── -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('④ Kubernetes Deployment — Availability (make sure the system is always running)', 'text-violet-500')}
+      ${lane('④ Kubernetes Deployment — Availability (make sure the system is always running)', 'text-violet-700')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-slate-700','border-slate-800','text-white','User','',2020)}
         ${arrow('alert app','2090','right','violet',32)}
@@ -4242,7 +4252,7 @@ function alertsArchDiagram() {
 
     <!-- ⑤ Communication Patterns ────────────────────── -->
     <div>
-      ${lane('⑤ Communication Patterns — Sync vs Async', 'text-emerald-500')}
+      ${lane('⑤ Communication Patterns — Sync vs Async', 'text-emerald-700')}
       <div class="flex items-center gap-2 flex-wrap mb-2">
         ${box('bg-emerald-700','border-emerald-700','text-white','my service','/api/webhook',2470)}
         ${arrow('subscribe (webhook REST endpoint)','2540','right','emerald',44)}
@@ -4563,10 +4573,10 @@ function testflowArchDiagram() {
     pink:    ['#f9a8d4','#ec4899'],
   };
   const box = (bg, border, tc, label, sub, d = 0) =>
-    `<div class="tf-box opacity-0 rounded-lg px-3 py-2 border ${border} ${bg} flex-shrink-0"
+    `<div class="tf-box opacity-0 rounded-lg px-3 py-2 border ${border} ${diagramBoxBg(bg, tc)} flex-shrink-0"
         style="animation:tfIn .35s ease forwards;animation-delay:${d + 'ms'}">
       <p class="text-xs font-bold ${tc} leading-tight whitespace-nowrap">${label}</p>
-      ${sub ? `<p class="text-[11px] ${tc} opacity-70 leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
+      ${sub ? `<p class="text-[11px] ${tc} leading-tight mt-0.5 whitespace-nowrap">${sub}</p>` : ''}
     </div>`;
   const tag = (lbl, bg, tc, d = 0) =>
     `<span class="opacity-0 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border flex-shrink-0 ${bg} ${tc}"
@@ -4581,7 +4591,7 @@ function testflowArchDiagram() {
     const tip = isV
       ? `<svg width="8" height="5" viewBox="0 0 8 5" fill="${head}"><path d="M4 5L0 0h8z"/></svg>`
       : `<svg width="5" height="8" viewBox="0 0 5 8" fill="${head}"><path d="M5 4L0 0v8z"/></svg>`;
-    const lbl$ = lbl ? `<span class="text-[11px] font-medium whitespace-nowrap" style="color:${head}">${lbl}</span>` : '';
+    const lbl$ = lbl ? `<span class="text-[11px] font-medium whitespace-nowrap" style="color:${DIAGRAM_LABEL_COLORS[clr] || head}">${lbl}</span>` : '';
     return isV
       ? `<div class="flex flex-col items-center gap-0 opacity-0 flex-shrink-0" style="animation:tfIn .25s ease forwards;animation-delay:${d}ms">${lbl$}${line}${tip}</div>`
       : `<div class="flex flex-col items-center gap-0.5 opacity-0 flex-shrink-0" style="animation:tfIn .25s ease forwards;animation-delay:${d}ms">${lbl$}<div class="flex items-center">${line}${tip}</div></div>`;
@@ -4620,7 +4630,7 @@ function testflowArchDiagram() {
 
     <!-- ② Fixtures -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('② Fixtures — src/fixtures/fixtures.ts  (inject, never instantiate)', 'text-violet-500')}
+      ${lane('② Fixtures — src/fixtures/fixtures.ts  (inject, never instantiate)', 'text-violet-700')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-violet-600','border-violet-700','text-white','fixtures.ts','Extends PW test',630)}
         ${arrow('provides','700','right','violet',36)}
@@ -4632,13 +4642,13 @@ function testflowArchDiagram() {
         ${arrow('','1000','right','slate',18)}
         ${box('bg-white','border-violet-300','text-violet-700','alertsPage','',1040)}
         ${arrow('…','1090','right','slate',18)}
-        ${box('bg-slate-100','border-slate-300','text-slate-500','+12 more','page objects',1130)}
+        ${box('bg-slate-100','border-slate-300','text-slate-600','+12 more','page objects',1130)}
       </div>
     </div>
 
     <!-- ③ UI Path — Page Objects -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('③ UI Path — Page Object Model  ·  src/pages/*.ts', 'text-emerald-500')}
+      ${lane('③ UI Path — Page Object Model  ·  src/pages/*.ts', 'text-emerald-700')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-emerald-700','border-emerald-700','text-white','Page Class','constructor(page)',1200)}
         ${arrow('declares','1270','right','emerald',32)}
@@ -4656,7 +4666,7 @@ function testflowArchDiagram() {
 
     <!-- ④ API Path — Endpoint + Helper -->
     <div class="mb-3 pb-3 border-b border-slate-100">
-      ${lane('④ API Path — *-endpoint.ts  →  *-helper.ts  →  BaseApiClient', 'text-orange-500')}
+      ${lane('④ API Path — *-endpoint.ts  →  *-helper.ts  →  BaseApiClient', 'text-orange-700')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-orange-500','border-orange-600','text-white','*-endpoint.ts','@step · Logger CRUD',1790)}
         ${arrow('calls','1860','right','orange',28)}
@@ -4672,7 +4682,7 @@ function testflowArchDiagram() {
 
     <!-- ⑤ Shared Infrastructure -->
     <div>
-      ${lane('⑤ Shared Infrastructure — Logger · Utilities · Test Data · Reporting', 'text-pink-500')}
+      ${lane('⑤ Shared Infrastructure — Logger · Utilities · Test Data · Reporting', 'text-pink-700')}
       <div class="flex items-center gap-2 flex-wrap">
         ${box('bg-pink-500','border-pink-600','text-white','Logger','info/success/warn/error',2350)}
         ${arrow('no console.log','2420','right','pink',48)}
@@ -4723,7 +4733,7 @@ async function renderUsers() {
     : `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Executor</span>`;
   const statusBadge = active => active
     ? `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Active</span>`
-    : `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Inactive</span>`;
+    : `<span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Inactive</span>`;
 
   el.innerHTML = `
     <div class="fade-in space-y-6">
@@ -5616,7 +5626,7 @@ async function renderEnvironments() {
     <div class="fade-in space-y-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Environments</h1>
-        <p class="text-sm text-slate-500 mt-0.5">Deployment pipeline · each environment runs on its own Kubernetes node (see <code class="bg-slate-100 px-1 py-0.5 rounded text-xs">k8s/overlays/</code>)</p>
+        <p class="text-sm text-slate-500 mt-0.5">Deployment pipeline · each environment runs on its own Kubernetes node (see <code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded text-xs">k8s/overlays/</code>)</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         ${envs.map(envCard).join("")}
