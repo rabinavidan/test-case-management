@@ -1408,6 +1408,27 @@ function renderTopReposSection() {
 }
 
 // ─── Projects View ───────────────────────────────────────────────────────────
+// Numbers the home page states in more than one place (the hero's impact row,
+// the Test Pyramid, the KPI cards) come from here, so they can't drift apart.
+const TEST_PYRAMID_LEVELS = [
+  { level: 'Unit',                 count: 220, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/unit' },
+  { level: 'Component',            count: 145, desc: 'Each microservice tested in isolation via TestClient.', where: 'tests/services' },
+  { level: 'API / Integration / Contract', count: 237, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests and black-box REST Assured HTTP tests.', where: 'tests/api + tests/contract + java-tests' },
+  { level: 'E2E',                  count: 104, desc: 'Full user flows through the real UI — Python, TypeScript, and Java Playwright, plus Cucumber/Gherkin BDD.', where: 'tests/e2e + e2e/ + java-e2e + e2e-bdd' },
+];
+const TEST_TOTAL = TEST_PYRAMID_LEVELS.reduce((n, l) => n + l.count, 0);
+const SITE_FACTS = {
+  coverage: '89.1%',  // pytest line coverage of api/, services/ and shared/ (CI floor 85%)
+  ciGates: 4,         // lint, coverage floor, contract tests, Docker Compose boot smoke test
+  testStacks: 5,      // pytest, Playwright TypeScript / Python / Java, REST Assured
+};
+const HERO_IMPACT = [
+  { value: String(TEST_TOTAL), label: 'automated tests' },
+  { value: SITE_FACTS.coverage, label: 'code coverage' },
+  { value: String(SITE_FACTS.ciGates), label: 'CI quality gates' },
+  { value: String(SITE_FACTS.testStacks), label: 'test stacks' },
+];
+
 async function renderProjects() {
   state.currentProject = null;
   state.currentSuite = null;
@@ -2115,9 +2136,9 @@ async function renderProjects() {
 
         <!-- Right: name + badges + CTA -->
         <div class="flex flex-col items-start sm:items-end gap-3 flex-shrink-0">
-          <div class="flex items-center gap-2 flex-wrap sm:justify-end">
+          <div class="flex items-center gap-2 sm:justify-end">
             <div class="w-10 h-10 rounded-xl flex items-center justify-center text-base font-black text-white flex-shrink-0" style="background:linear-gradient(135deg,#1d6ff5,#5b44f2);box-shadow:0 0 16px rgba(59,130,246,.5)">RA</div>
-            <div>
+            <div class="min-w-0">
               <p class="text-sm font-bold text-white">Rabin Avidan</p>
               <div class="flex gap-1.5 mt-0.5 flex-wrap">
                 <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.2);color:#93c5fd;border:1px solid rgba(59,130,246,.3)">Site Owner</span>
@@ -2125,6 +2146,14 @@ async function renderProjects() {
               </div>
             </div>
           </div>
+          <!-- Impact at a glance: sits beside the headline on wider screens, so the hero doesn't grow -->
+          <dl data-testid="hero-impact" class="grid grid-cols-4 gap-1.5 w-full sm:w-80">
+            ${HERO_IMPACT.map((f) => `
+              <div class="flex flex-col-reverse rounded-lg px-1.5 py-1.5 text-center" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)">
+                <dt class="text-[11px] leading-tight" style="color:rgba(190,225,255,.85)">${f.label}</dt>
+                <dd class="text-base font-black text-white leading-tight">${f.value}</dd>
+              </div>`).join('')}
+          </dl>
         </div>
       </div>
 
@@ -2169,8 +2198,8 @@ async function renderProjects() {
         </a>
       </div>
 
-      <!-- Skills strip: one swipeable row on phones, so the hero leaves room for the tab bar on the first screen -->
-      <div data-testid="hero-skills" class="relative z-10 border-t flex flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
+      <!-- Skills strip: wider screens only - on phones the impact row takes its place, so the tab bar stays on the first screen -->
+      <div data-testid="hero-skills" class="relative z-10 border-t hidden sm:flex sm:flex-wrap gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
         ${['Test Automation','AI Vibe Coding','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
           `<span class="text-[11px] font-semibold px-3 py-1 rounded-full flex-shrink-0 whitespace-nowrap" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
@@ -2278,12 +2307,6 @@ async function renderProjects() {
   // "isolated UI/service behavior" - there's no separate frontend framework
   // with its own component-test runner). Bar widths are proportional to the
   // actual counts, including where that isn't a clean pyramid shape.
-  const TEST_PYRAMID_LEVELS = [
-    { level: 'Unit',                 count: 220, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/unit' },
-    { level: 'Component',            count: 145, desc: 'Each microservice tested in isolation via TestClient.', where: 'tests/services' },
-    { level: 'API / Integration / Contract', count: 237, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests and black-box REST Assured HTTP tests.', where: 'tests/api + tests/contract + java-tests' },
-    { level: 'E2E',                  count: 104, desc: 'Full user flows through the real UI — Python, TypeScript, and Java Playwright, plus Cucumber/Gherkin BDD.', where: 'tests/e2e + e2e/ + java-e2e + e2e-bdd' },
-  ];
   const testPyramidSection = !getToken() ? `
     <div class="mb-6" data-testid="test-pyramid-section">
       <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Test Pyramid</h2>
@@ -2408,7 +2431,7 @@ async function renderProjects() {
 
     return [
       {
-        name: 'Code Coverage', current: '89.1%', target: '85% floor (CI-enforced)',
+        name: 'Code Coverage', current: SITE_FACTS.coverage, target: '85% floor (CI-enforced)',
         status: 'Healthy',
         def: 'Line coverage of api/, services/, and shared/ from the pytest suite — a PR that drops below the floor fails the build. Not the same as test-inventory count or pass rate.',
         source: '.github/workflows/test.yml',
@@ -2422,13 +2445,13 @@ async function renderProjects() {
         source: 'GET /api/projects/{id}/stats',
       },
       {
-        name: 'Test Inventory', current: '706 tests / 4 layers', target: 'Grows with the codebase',
+        name: 'Test Inventory', current: `${TEST_TOTAL} tests / ${TEST_PYRAMID_LEVELS.length} layers`, target: 'Grows with the codebase',
         status: 'Healthy',
         def: 'Total automated test count across unit, component, API/contract, and E2E layers (see Test Pyramid above). This counts tests that exist, not requirements or risk covered.',
         source: 'tests/, e2e/, java-tests/, java-e2e/, e2e-bdd/',
       },
       {
-        name: 'Quality Gate Status', current: '4 gates enforced', target: 'All required checks pass before merge',
+        name: 'Quality Gate Status', current: `${SITE_FACTS.ciGates} gates enforced`, target: 'All required checks pass before merge',
         status: 'Enforced',
         def: 'Lint, the coverage floor, contract tests, and a live Docker-Compose boot smoke test all block a PR from merging if any fails.',
         source: '.github/workflows/test.yml, microservices-smoke.yml',
