@@ -139,6 +139,11 @@ for (const { name, width, height, budget } of VIEWPORTS) {
     });
 
     test('the page fits the screen and the content column is centered', async ({ page }) => {
+      // A classic scrollbar can appear a frame after the page grows; wait for the column to settle.
+      await expect.poll(async () => {
+        const { mainLeft, mainRight } = await measure(page);
+        return Math.abs(mainLeft - mainRight);
+      }, { message: 'left vs right margin (px)' }).toBeLessThanOrEqual(2);
       const m = await measure(page);
       expect(m.overflowX, 'horizontal page overflow (px)').toBeLessThanOrEqual(0);
       expect(Math.abs(m.mainLeft - m.mainRight), 'left vs right margin (px)').toBeLessThanOrEqual(2);

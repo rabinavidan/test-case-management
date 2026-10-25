@@ -44,7 +44,8 @@ guestTest.describe('Guest recruiter view — semantic structure', () => {
   guestTest('the Architecture Decisions & Trade-offs block is a real heading, not a styled paragraph', async ({ page }) => {
     await page.goto('/#projects');
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('hero-architecture-btn').click();
+    await page.getByTestId('home-tab-architecture').click();
+    await page.locator('#showcase-toggle-btn').click();
 
     const heading = page.getByRole('heading', { name: 'Architecture Decisions & Trade-offs' });
     await guestExpect(heading).toBeVisible({ timeout: 5000 });
