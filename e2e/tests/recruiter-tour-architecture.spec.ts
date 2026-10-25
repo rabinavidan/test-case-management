@@ -11,8 +11,9 @@ guestTest.describe('Guest recruiter view — Architecture story', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  guestTest('"View Architecture" reveals real, sourced architecture-decisions content', async ({ page }) => {
-    await page.getByTestId('hero-architecture-btn').click();
+  guestTest('the Architecture tab reveals real, sourced architecture-decisions content', async ({ page }) => {
+    await page.getByTestId('home-tab-architecture').click();
+    await page.locator('#showcase-toggle-btn').click();
     const section = page.getByTestId('architecture-story-section');
     await guestExpect(section).toBeVisible({ timeout: 5000 });
 

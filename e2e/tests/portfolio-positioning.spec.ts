@@ -12,7 +12,9 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the hero shows the Tech Lead role label, not the old title', async ({ page }) => {
-    await guestExpect(page.getByText('Automation Tech Lead | AI-Driven Quality Engineering')).toBeVisible();
+    await guestExpect(page.getByText('Automation Team Lead | AI-First Quality Engineering')).toBeVisible();
+    await guestExpect(page.getByTestId('hero-leadership')).toContainText('Israel, USA and India');
+    await guestExpect(page.getByText('AFEKA / Tel Aviv University Branch')).toBeVisible();
     await guestExpect(page.getByText('Senior Automation Engineer', { exact: true })).toHaveCount(0);
   });
 
@@ -25,7 +27,12 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
 
     await guestExpect(page.getByTestId('hero-tour-btn')).toHaveText(/Take the 3-min Tour/);
     await guestExpect(page.getByTestId('hero-explore-demo-btn')).toHaveText(/Explore Live Demo/);
-    await guestExpect(page.getByTestId('hero-architecture-btn')).toHaveText(/View Architecture/);
+    const cvLink = page.getByTestId('hero-cv-btn');
+    await guestExpect(cvLink).toHaveText(/Download CV/);
+    await guestExpect(cvLink).toHaveAttribute('href', '/static/Rabin_Avidan_CV.pdf');
+    const cv = await page.request.get('/static/Rabin_Avidan_CV.pdf');
+    guestExpect(cv.status()).toBe(200);
+    guestExpect(cv.headers()['content-type']).toBe('application/pdf');
 
     const githubLink = page.getByTestId('hero-github-btn');
     await guestExpect(githubLink).toHaveAttribute('href', 'https://github.com/rabinavidan/test-case-management');
@@ -34,22 +41,23 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     const linkedinLink = page.getByTestId('hero-linkedin-btn');
     await guestExpect(linkedinLink).toHaveAttribute('href', /linkedin\.com/);
 
-    // The tour leads, then the plan's order: Explore Live Demo, View Architecture, View GitHub, Connect on LinkedIn.
+    // The tour and the CV lead, then Explore Live Demo, View GitHub, Connect on LinkedIn.
     const testIds = await buttons.evaluateAll(els => els.map(el => el.getAttribute('data-testid')));
     guestExpect(testIds).toEqual([
       'hero-tour-btn',
+      'hero-cv-btn',
       'hero-explore-demo-btn',
-      'hero-architecture-btn',
       'hero-github-btn',
       'hero-linkedin-btn',
     ]);
   });
 
-  guestTest('"View Architecture" reveals the architecture panel without signing in', async ({ page }) => {
+  guestTest('the Architecture tab reveals the architecture panel without signing in', async ({ page }) => {
     const content = page.locator('#showcase-content');
-    // Panel starts collapsed (or absent until first toggle) - clicking must
-    // never trigger a sign-in prompt or an error toast.
-    await page.getByTestId('hero-architecture-btn').click();
+    // Panel starts collapsed - opening it must never trigger a sign-in
+    // prompt or an error toast.
+    await page.getByTestId('home-tab-architecture').click();
+    await page.locator('#showcase-toggle-btn').click();
     await guestExpect(content).toBeVisible({ timeout: 5000 });
     await guestExpect(page.locator('#auth-modal')).toHaveClass(/hidden/);
   });

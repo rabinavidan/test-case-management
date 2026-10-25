@@ -2102,13 +2102,13 @@ async function renderProjects() {
       <div class="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
-          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Automation Tech Lead | AI-Driven Quality Engineering</p>
+          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Automation Team Lead | AI-First Quality Engineering</p>
           <div class="blur-in"><h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Leading Automation Architecture &amp;<br>AI-Driven Quality Strategy</h2></div>
-          <p class="text-xs mb-4" style="color:rgba(100,200,255,.7)">Technical roadmaps · Shift-Left strategy · CI/CD quality gates · measurable engineering KPIs</p>
+          <p class="text-xs mb-4" data-testid="hero-leadership" style="color:rgba(100,200,255,.75)">10+ years in automation · leading QA &amp; automation teams across Israel, USA and India</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
             <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🏢</span><span class="font-semibold text-white/70">ZoomInfo</span></span>
-            <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🎓</span><span class="font-semibold text-white/70">Tel Aviv University</span></span>
+            <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🎓</span><span class="font-semibold text-white/70">AFEKA / Tel Aviv University Branch</span></span>
             <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">📍</span>Tel Aviv District, Israel</span>
           </div>
         </div>
@@ -2128,7 +2128,8 @@ async function renderProjects() {
         </div>
       </div>
 
-      <!-- Primary hero actions, in order: Take the Tour, Explore Live Demo, View Architecture, View GitHub, Connect on LinkedIn.
+      <!-- Primary hero actions, in order: Take the Tour, Download CV, Explore Live Demo, View GitHub, Connect on LinkedIn.
+           (The architecture has its own tab, so it no longer needs a hero button.)
            The tour leads: it is the shortest guided path for a first-time visitor. -->
       <div class="relative z-10 flex flex-wrap items-center gap-2 px-6 pb-6" data-testid="hero-cta-row">
         <button type="button" data-testid="hero-tour-btn" onclick="startRecruiterTour(this)"
@@ -2137,18 +2138,18 @@ async function renderProjects() {
           <span aria-hidden="true">🧭</span>
           Take the 3-min Tour
         </button>
+        <a href="/static/Rabin_Avidan_CV.pdf" download="Rabin_Avidan_Automation_Team_Lead_CV.pdf" data-testid="hero-cv-btn"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
+          style="background:linear-gradient(135deg,#6d28d9,#9333ea);box-shadow:0 4px 16px rgba(139,92,246,.4)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+          Download CV
+        </a>
         <button type="button" id="hero-demo-btn" data-testid="hero-explore-demo-btn"
           onclick="viewOrCreateDemo('testflow', {btnId: 'hero-demo-btn', labelId: 'hero-demo-label'})"
           class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
           style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 4px 16px rgba(16,185,129,.35)">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span id="hero-demo-label">Explore Live Demo</span>
-        </button>
-        <button type="button" data-testid="hero-architecture-btn" onclick="viewArchitecture()"
-          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 border border-white/10"
-          style="background:rgba(255,255,255,.08)">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
-          View Architecture
         </button>
         <a href="https://github.com/rabinavidan/test-case-management" target="_blank" rel="noopener noreferrer"
           data-testid="hero-github-btn"
