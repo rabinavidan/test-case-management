@@ -8,7 +8,7 @@ sqlalchemy==2.0.23
 # plain BaseModel usage in api/schemas.py.
 pydantic==2.13.5
 python-multipart==0.0.6
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.13
 passlib==1.7.4
 anthropic>=0.40.0
 websockets>=12.0
