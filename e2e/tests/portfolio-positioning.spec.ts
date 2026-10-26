@@ -18,21 +18,20 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     await guestExpect(page.getByText('Senior Automation Engineer', { exact: true })).toHaveCount(0);
   });
 
-  guestTest('all five hero CTAs are present, in order, with working destinations', async ({ page }) => {
+  guestTest('all four hero CTAs are present, in order, with working destinations', async ({ page }) => {
     const row = page.getByTestId('hero-cta-row');
     await guestExpect(row).toBeVisible();
 
     const buttons = row.locator('button, a');
-    await guestExpect(buttons).toHaveCount(5);
+    await guestExpect(buttons).toHaveCount(4);
 
     await guestExpect(page.getByTestId('hero-tour-btn')).toHaveText(/Take the 3-min Tour/);
     await guestExpect(page.getByTestId('hero-explore-demo-btn')).toHaveText(/Explore Live Demo/);
-    const cvLink = page.getByTestId('hero-cv-btn');
-    await guestExpect(cvLink).toHaveText(/Download CV/);
-    await guestExpect(cvLink).toHaveAttribute('href', '/static/Rabin_Avidan_CV.pdf');
+    // assertion-change-approved: the site owner asked to withdraw the CV download; these checks now assert it is gone.
+    // The CV is not published on the site: no download button, and no file to fetch.
+    await guestExpect(page.getByTestId('hero-cv-btn')).toHaveCount(0);
     const cv = await page.request.get('/static/Rabin_Avidan_CV.pdf');
-    guestExpect(cv.status()).toBe(200);
-    guestExpect(cv.headers()['content-type']).toBe('application/pdf');
+    guestExpect(cv.status()).toBe(404);
 
     const githubLink = page.getByTestId('hero-github-btn');
     await guestExpect(githubLink).toHaveAttribute('href', 'https://github.com/rabinavidan/test-case-management');
@@ -41,11 +40,10 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     const linkedinLink = page.getByTestId('hero-linkedin-btn');
     await guestExpect(linkedinLink).toHaveAttribute('href', /linkedin\.com/);
 
-    // The tour and the CV lead, then Explore Live Demo, View GitHub, Connect on LinkedIn.
+    // The tour leads, then Explore Live Demo, View GitHub, Connect on LinkedIn.
     const testIds = await buttons.evaluateAll(els => els.map(el => el.getAttribute('data-testid')));
     guestExpect(testIds).toEqual([
       'hero-tour-btn',
-      'hero-cv-btn',
       'hero-explore-demo-btn',
       'hero-github-btn',
       'hero-linkedin-btn',

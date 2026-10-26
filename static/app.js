@@ -2157,7 +2157,7 @@ async function renderProjects() {
         </div>
       </div>
 
-      <!-- Primary hero actions, in order: Take the Tour, Download CV, Explore Live Demo, View GitHub, Connect on LinkedIn.
+      <!-- Primary hero actions, in order: Take the Tour, Explore Live Demo, View GitHub, Connect on LinkedIn.
            (The architecture has its own tab, so it no longer needs a hero button.)
            The tour leads: it is the shortest guided path for a first-time visitor. -->
       <div class="relative z-10 flex flex-wrap items-center gap-2 px-6 pb-6" data-testid="hero-cta-row">
@@ -2167,12 +2167,6 @@ async function renderProjects() {
           <span aria-hidden="true">🧭</span>
           Take the 3-min Tour
         </button>
-        <a href="/static/Rabin_Avidan_CV.pdf" download="Rabin_Avidan_Automation_Team_Lead_CV.pdf" data-testid="hero-cv-btn"
-          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
-          style="background:linear-gradient(135deg,#6d28d9,#9333ea);box-shadow:0 4px 16px rgba(139,92,246,.4)">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
-          Download CV
-        </a>
         <button type="button" id="hero-demo-btn" data-testid="hero-explore-demo-btn"
           onclick="viewOrCreateDemo('testflow', {btnId: 'hero-demo-btn', labelId: 'hero-demo-label'})"
           class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
