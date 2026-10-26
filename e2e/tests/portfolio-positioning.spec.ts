@@ -14,7 +14,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   guestTest('the hero shows the Tech Lead role label, not the old title', async ({ page }) => {
     await guestExpect(page.getByText('Automation Team Lead | AI-First Quality Engineering')).toBeVisible();
     await guestExpect(page.getByTestId('hero-leadership')).toContainText('Israel, USA and India');
-    await guestExpect(page.getByText('AFEKA / Tel Aviv University Branch')).toBeVisible();
+    await guestExpect(page.locator('.owner-banner').getByText('AFEKA / Tel Aviv University Branch')).toBeVisible();
     await guestExpect(page.getByText('Senior Automation Engineer', { exact: true })).toHaveCount(0);
   });
 
@@ -54,14 +54,16 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     const content = page.locator('#showcase-content');
     // Panel starts collapsed - opening it must never trigger a sign-in
     // prompt or an error toast.
-    await page.getByTestId('home-tab-architecture').click();
+    await page.getByTestId('home-tab-engineering').click();
+    await page.getByTestId('home-subtab-architecture').click();
     await page.locator('#showcase-toggle-btn').click();
     await guestExpect(content).toBeVisible({ timeout: 5000 });
     await guestExpect(page.locator('#auth-modal')).toHaveClass(/hidden/);
   });
 
   guestTest('the Leadership Impact section shows five repo-evidenced cards', async ({ page }) => {
-    await page.getByTestId('home-tab-leadership').click();
+    await page.getByTestId('home-tab-engineering').click();
+    await page.getByTestId('home-subtab-leadership').click();
     const section = page.getByTestId('leadership-impact-section');
     await guestExpect(section).toBeVisible();
     await guestExpect(section.getByText('Technical Direction & Governance')).toBeVisible();
@@ -72,7 +74,8 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the delivery workflow section shows all six steps in order', async ({ page }) => {
-    await page.getByTestId('home-tab-leadership').click();
+    await page.getByTestId('home-tab-engineering').click();
+    await page.getByTestId('home-subtab-leadership').click();
     const section = page.getByTestId('delivery-workflow-section');
     await guestExpect(section).toBeVisible();
     const steps = ['Product Requirements', 'Technical Roadmap', 'Epics & Stories', 'Sprint Delivery', 'Quality Gates', 'KPI Review'];

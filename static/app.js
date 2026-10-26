@@ -1429,6 +1429,58 @@ const HERO_IMPACT = [
   { value: String(SITE_FACTS.testStacks), label: 'test stacks' },
 ];
 
+// ─── Home page: Overview tab ──────────────────────────────────────────────────
+// The 30-second read for a recruiter: who, how they work, skills, education.
+// Deliberately no employer names or dates (the site owner's choice).
+const OVERVIEW_SKILLS = [
+  { group: "Leadership & quality", items: ["Hands-on team leadership", "Matrix management", "Mentoring", "Delivery ownership", "Design & code reviews", "QA strategy", "KPIs", "Agile / Scrum", "Shift-Left"] },
+  { group: "Automation & test design", items: ["Playwright", "pytest", "Selenium", "REST Assured", "JUnit / TestNG", "Cucumber / BDD", "Test Pyramid", "API & E2E testing"] },
+  { group: "Programming", items: ["TypeScript", "Python", "Java", "JavaScript", "C#"] },
+  { group: "CI/CD & cloud", items: ["GitHub Actions", "Jenkins", "Quality gates", "Docker", "Kubernetes / GKE", "GCP", "AWS", "Azure"] },
+  { group: "Data & diagnostics", items: ["PostgreSQL", "MongoDB", "Redis", "Kafka", "Pub/Sub", "Datadog", "Grafana", "Allure"] },
+  { group: "Generative AI", items: ["AI agents", "Agentic workflows", "MCP servers", "LLM workflows", "RAG", "LangGraph", "Claude Code", "GitHub Copilot"] },
+];
+
+function renderOverviewSection() {
+  const chip = (s) => `<span class="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">${escHtml(s)}</span>`;
+  const jump = (tab, label) => `<button type="button" onclick="showHomeTab('${tab}')" data-testid="overview-go-${tab}"
+      class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline underline-offset-2">${label}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>`;
+  return `
+    <div class="space-y-4 mb-6" data-testid="overview-section">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">About</h2>
+          <p class="text-slate-700 leading-relaxed mb-3"><strong class="text-slate-900">AI-first, hands-on Automation Team Lead</strong> with 10+ years in automation development, leading automation engineers and QA professionals in matrix teams across <strong class="text-slate-900">Israel, USA and India</strong>. I stay close to the code while mentoring engineers, planning delivery, reviewing designs and setting practical engineering standards.</p>
+          <p class="text-slate-700 leading-relaxed">I own QA strategy, risk-based coverage and Shift-Left practice across the SDLC, working with Product, R&amp;D, Architecture and DevOps to turn requirements into test plans and reliable automation for web apps, REST APIs and microservices - with CI/CD quality gates, clear KPIs and AI tools for test development and failure investigation.</p>
+          <div class="flex flex-wrap gap-x-5 gap-y-2 mt-4 pt-4 border-t border-slate-100">
+            ${jump("stories", "Success stories")}
+            ${jump("demo", "AI pipeline demo")}
+            ${jump("engineering", "How I engineer")}
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Education &amp; certifications</h2>
+          <ul class="space-y-3 text-sm text-slate-700">
+            <li><p class="font-semibold text-slate-900">B.Sc. Electronic &amp; Computer Engineering</p><p class="text-slate-600">AFEKA / Tel Aviv University Branch</p></li>
+            <li><p class="font-semibold text-slate-900">ISTQB</p><p class="text-slate-600">Software testing certification</p></li>
+            <li><p class="font-semibold text-slate-900">MCSD</p><p class="text-slate-600">ASP.NET / MVC</p></li>
+          </ul>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Core skills</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-4" data-testid="overview-skills">
+          ${OVERVIEW_SKILLS.map((g) => `
+            <div>
+              <h3 class="text-xs font-semibold text-slate-600 mb-2">${escHtml(g.group)}</h3>
+              <div class="flex flex-wrap gap-1.5">${g.items.map(chip).join("")}</div>
+            </div>`).join("")}
+        </div>
+      </div>
+    </div>`;
+}
+
 async function renderProjects() {
   state.currentProject = null;
   state.currentSuite = null;
@@ -2226,6 +2278,7 @@ async function renderProjects() {
   // recruiter sees it without hunting for a button. Same node data and
   // animation (renderAiPipelineTimelineInner), just a different, persistent
   // home instead of a click-to-open modal.
+  const overviewSection = !getToken() ? renderOverviewSection() : "";
   const successStoriesSection = !getToken() ? renderSuccessStoriesSection() : "";
   const topReposSection = !getToken() ? renderTopReposSection() : "";
 
@@ -2624,7 +2677,7 @@ async function renderProjects() {
       <div class="fade-in">
         ${ownerCard}
         ${homeTabsHtml({
-          stories: successStoriesSection, repos: topReposSection, demo: aiLiveDemoSection,
+          overview: overviewSection, stories: successStoriesSection, repos: topReposSection, demo: aiLiveDemoSection,
           leadership: leadershipImpactSection + deliveryWorkflowSection, strategy: testPyramidSection,
           ai: aiFirstEngineeringSection, kpis: kpiDashboardSection,
           architecture: getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection]),
@@ -2716,7 +2769,7 @@ async function renderProjects() {
     <div class="fade-in">
       ${ownerCard}
       ${homeTabsHtml({
-        stories: successStoriesSection, repos: topReposSection, demo: aiLiveDemoSection,
+        overview: overviewSection, stories: successStoriesSection, repos: topReposSection, demo: aiLiveDemoSection,
         leadership: leadershipImpactSection + deliveryWorkflowSection, strategy: testPyramidSection,
         ai: aiFirstEngineeringSection, kpis: kpiDashboardSection,
         architecture: getToken() ? "" : demoBanner + renderShowcaseSection([archDiagram, techStackBanner, sysArchBanner, architectureStorySection]),
@@ -6248,37 +6301,66 @@ function applyTcFilter() {
 
 // ─── Home page tabs ───────────────────────────────────────────────────────────
 // The guest home page shows one section at a time under the hero, chosen from
-// a sticky tab bar, instead of one long scroll. #home/<tab> links straight to
-// a tab; anything that scrolls to a section (the Recruiter Tour, "View
-// Architecture") switches to its tab first.
+// a sticky tab bar, instead of one long scroll. Engineering holds four topics
+// of its own, picked from a second row of tabs inside it. #home/<id> links
+// straight to any tab or topic; anything that scrolls to a section (the
+// Recruiter Tour, "View architecture") switches to it first.
 const HOME_TABS = [
-  { id: "stories",      label: "Success Stories", icon: "⭐" },
-  { id: "repos",        label: "Open Source",     icon: "📦" },
-  { id: "demo",         label: "Live Demo",       icon: "⚡" },
-  { id: "leadership",   label: "Leadership",      icon: "🧭" },
-  { id: "strategy",     label: "Test Strategy",   icon: "🧪" },
-  { id: "ai",           label: "AI Engineering",  icon: "🤖" },
-  { id: "kpis",         label: "KPIs",            icon: "📊" },
-  { id: "architecture", label: "Architecture",    icon: "🏗️" },
-  { id: "projects",     label: "Projects",        icon: "📁" },
+  { id: "overview",    label: "Overview",        icon: "👋" },
+  { id: "stories",     label: "Success Stories", icon: "⭐" },
+  { id: "repos",       label: "Open Source",     icon: "📦" },
+  { id: "demo",        label: "Live Demo",       icon: "⚡" },
+  { id: "ai",          label: "AI Engineering",  icon: "🤖" },
+  { id: "engineering", label: "Engineering",     icon: "🛠️" },
+  { id: "projects",    label: "Projects",        icon: "📁" },
 ];
-let _homeTab = null;
+const ENGINEERING_TOPICS = [
+  { id: "leadership",   label: "Leadership" },
+  { id: "strategy",     label: "Test Strategy" },
+  { id: "kpis",         label: "KPIs" },
+  { id: "architecture", label: "Architecture" },
+];
+let _homeTab = null;   // selected top-level tab
+let _homeTopic = null; // selected Engineering topic
+
+const _isTopic = (id) => ENGINEERING_TOPICS.some((t) => t.id === id);
 
 function _homeTabFromHash() {
   const [route, tab] = window.location.hash.replace("#", "").split("/");
   return route === "home" ? tab : null;
 }
 
-// `panels` maps a tab id to its HTML. Signed in, there are no tabs: the
-// sections render one after another, as before.
+// `panels` maps a tab or topic id to its HTML. Signed in, there are no tabs:
+// the sections render one after another, as before.
 function homeTabsHtml(panels) {
-  const tabs = HOME_TABS.filter((t) => panels[t.id]);
-  if (getToken() || !tabs.length) return tabs.map((t) => panels[t.id]).join("");
+  const topics = ENGINEERING_TOPICS.filter((t) => panels[t.id]);
+  const has = (id) => (id === "engineering" ? topics.length > 0 : !!panels[id]);
+  const tabs = HOME_TABS.filter((t) => has(t.id));
+  if (getToken() || !tabs.length) {
+    return HOME_TABS.flatMap((t) => (t.id === "engineering" ? topics.map((x) => panels[x.id]) : [panels[t.id] || ""])).join("");
+  }
   let stored = null;
   try { stored = sessionStorage.getItem("tf_home_tab"); } catch {}
-  const wanted = _homeTabFromHash() || _homeTab || stored;
-  const active = tabs.some((t) => t.id === wanted) ? wanted : tabs[0].id;
-  _homeTab = active;
+  const wanted = _homeTabFromHash() || stored;
+  // A topic id selects Engineering with that topic; otherwise keep the last topic or the first.
+  if (_isTopic(wanted) && topics.some((t) => t.id === wanted)) { _homeTab = "engineering"; _homeTopic = wanted; }
+  else { _homeTab = tabs.some((t) => t.id === wanted) ? wanted : (tabs.some((t) => t.id === _homeTab) ? _homeTab : tabs[0].id); }
+  if (!topics.some((t) => t.id === _homeTopic)) _homeTopic = topics[0]?.id || null;
+  const active = _homeTab;
+
+  const engineering = `
+    <div role="tablist" aria-label="Engineering topics" onkeydown="_homeTopicsKeydown(event)"
+      class="flex gap-1.5 overflow-x-auto no-scrollbar mb-4" data-testid="engineering-topics">
+      ${topics.map((t) => `
+        <button type="button" role="tab" id="home-subtab-${t.id}" data-home-subtab="${t.id}" data-testid="home-subtab-${t.id}"
+          aria-controls="home-subpanel-${t.id}" aria-selected="${t.id === _homeTopic}" tabindex="${t.id === _homeTopic ? 0 : -1}"
+          onclick="showHomeTab('${t.id}')"
+          class="home-subtab whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-semibold border">${t.label}</button>`).join("")}
+    </div>
+    ${topics.map((t) => `
+      <div role="tabpanel" id="home-subpanel-${t.id}" data-home-subpanel="${t.id}" aria-labelledby="home-subtab-${t.id}"
+        class="home-subpanel ${t.id === _homeTopic ? "" : "hidden"}">${panels[t.id]}</div>`).join("")}`;
+
   return `
     <div data-testid="home-tabs" class="sticky z-20 -mx-4 px-4 pt-1 pb-3 mb-3" style="top:var(--header-h, 56px)">
       <div role="tablist" aria-label="Explore this site" onkeydown="_homeTabsKeydown(event)"
@@ -6295,7 +6377,7 @@ function homeTabsHtml(panels) {
     </div>
     ${tabs.map((t) => `
       <section role="tabpanel" id="home-panel-${t.id}" data-home-panel="${t.id}" aria-labelledby="home-tab-${t.id}"
-        class="home-panel ${t.id === active ? "" : "hidden"}">${panels[t.id]}</section>`).join("")}`;
+        class="home-panel ${t.id === active ? "" : "hidden"}">${t.id === "engineering" ? engineering : panels[t.id]}</section>`).join("")}`;
 }
 
 let _homeTabsObserver = null;
@@ -6316,22 +6398,35 @@ function positionHomeTabIndicator() {
   }
 }
 
+// Shows a top-level tab, or - given a topic id - Engineering with that topic.
 function showHomeTab(id, { focus = false, scroll = true } = {}) {
-  const panel = document.getElementById(`home-panel-${id}`);
+  let tab = id;
+  if (_isTopic(id)) {
+    if (!document.getElementById(`home-subpanel-${id}`)) return;
+    tab = "engineering";
+    _homeTopic = id;
+    document.querySelectorAll("[data-home-subtab]").forEach((b) => {
+      const on = b.dataset.homeSubtab === id;
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    document.querySelectorAll("[data-home-subpanel]").forEach((p) => p.classList.toggle("hidden", p.dataset.homeSubpanel !== id));
+  }
+  const panel = document.getElementById(`home-panel-${tab}`);
   if (!panel) return;
-  _homeTab = id;
-  try { sessionStorage.setItem("tf_home_tab", id); } catch {}
+  _homeTab = tab;
+  try { sessionStorage.setItem("tf_home_tab", tab === "engineering" ? _homeTopic : tab); } catch {}
   document.querySelectorAll("[data-home-tab]").forEach((b) => {
-    const on = b.dataset.homeTab === id;
+    const on = b.dataset.homeTab === tab;
     b.setAttribute("aria-selected", String(on));
     b.tabIndex = on ? 0 : -1;
   });
-  document.querySelectorAll("[data-home-panel]").forEach((p) => p.classList.toggle("hidden", p.dataset.homePanel !== id));
+  document.querySelectorAll("[data-home-panel]").forEach((p) => p.classList.toggle("hidden", p.dataset.homePanel !== tab));
   positionHomeTabIndicator();
-  const btn = document.getElementById(`home-tab-${id}`);
+  const btn = document.getElementById(`home-tab-${tab}`);
   const list = btn?.parentElement;
   if (btn && list) list.scrollTo({ left: btn.offsetLeft - (list.clientWidth - btn.offsetWidth) / 2, behavior: "smooth" });
-  if (focus) btn?.focus();
+  if (focus) (_isTopic(id) ? document.getElementById(`home-subtab-${id}`) : btn)?.focus();
   if (scroll) {
     // Bring the panel's top up under the sticky tab bar if the page is
     // scrolled past it, so a new tab never opens half-way down.
@@ -6343,17 +6438,24 @@ function showHomeTab(id, { focus = false, scroll = true } = {}) {
 }
 
 // Arrow keys, Home and End move between tabs, as the ARIA tabs pattern expects.
-function _homeTabsKeydown(e) {
-  const tabs = [...document.querySelectorAll("[data-home-tab]")];
+function _arrowTo(e, selector, attr) {
+  const tabs = [...document.querySelectorAll(selector)];
   const i = tabs.findIndex((t) => t.getAttribute("aria-selected") === "true");
   const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
   if (to === undefined || !tabs.length) return;
   e.preventDefault();
-  showHomeTab(tabs[(to + tabs.length) % tabs.length].dataset.homeTab, { focus: true });
+  showHomeTab(tabs[(to + tabs.length) % tabs.length].dataset[attr], { focus: true });
 }
+function _homeTabsKeydown(e) { _arrowTo(e, "[data-home-tab]", "homeTab"); }
+function _homeTopicsKeydown(e) { _arrowTo(e, "[data-home-subtab]", "homeSubtab"); }
 
-// Shows the tab holding `el`, if it is in a hidden one.
+// Shows the tab (and topic) holding `el`, if it is in a hidden one.
 function revealHomeSection(el) {
+  const topic = el?.closest?.("[data-home-subpanel]");
+  if (topic && (topic.classList.contains("hidden") || topic.closest("[data-home-panel]")?.classList.contains("hidden"))) {
+    showHomeTab(topic.dataset.homeSubpanel, { scroll: false });
+    return;
+  }
   const panel = el?.closest?.("[data-home-panel]");
   if (panel?.classList.contains("hidden")) showHomeTab(panel.dataset.homePanel, { scroll: false });
 }

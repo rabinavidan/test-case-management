@@ -21,7 +21,7 @@ guestTest.describe('Home tab bar — the indicator', () => {
   // narrower than its tab and clipped the label ("Success Stori").
   guestTest('covers the selected tab exactly, on load, after switching and after a resize', async ({ page }) => {
     await page.goto('/#projects');
-    await guestExpect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');
+    await guestExpect(page.getByTestId('home-tab-overview')).toHaveAttribute('aria-selected', 'true');
     await page.evaluate(() => document.fonts.ready);
     const settled = async () => {
       // The indicator slides with a short transition; poll until it has arrived.

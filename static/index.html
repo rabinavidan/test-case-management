@@ -143,6 +143,11 @@
       transition: transform .38s cubic-bezier(.2, .8, .2, 1), width .38s cubic-bezier(.2, .8, .2, 1);
     }
     .home-panel:not(.hidden) { animation: tf-panel-in .45s cubic-bezier(.2, .7, .2, 1) both; }
+    /* Engineering topics: pills under the tab bar. */
+    .home-subtab { color: #334155; background: #fff; border-color: #e2e8f0; transition: color .2s ease, background-color .2s ease, border-color .2s ease; }
+    .home-subtab:hover:not([aria-selected="true"]) { background: #f1f5f9; color: #0f172a; }
+    .home-subtab[aria-selected="true"] { color: #fff; background: #0f172a; border-color: #0f172a; }
+    .home-subpanel:not(.hidden) { animation: tf-panel-in .35s cubic-bezier(.2, .7, .2, 1) both; }
     @keyframes tf-panel-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
     /* Command palette (Ctrl/Cmd+K). */
@@ -266,6 +271,6 @@
   <div id="toast-inner" data-testid="toast-inner" class="px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-xs"></div>
 </div>
 
-<script src="/static/app.js?v=99"></script>
+<script src="/static/app.js?v=101"></script>
 </body>
 </html>

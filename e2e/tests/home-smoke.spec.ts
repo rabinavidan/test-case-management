@@ -80,7 +80,7 @@ test.describe('Home page smoke — guest', () => {
     const tabs = page.locator('[data-home-tab]');
     await expect(tabs.first()).toBeVisible();
     const ids = await tabs.evaluateAll((els) => els.map((e) => e.getAttribute('data-home-tab')));
-    expect(ids.length, 'home tabs').toBeGreaterThan(5);
+    expect(ids.length, 'home tabs').toBeGreaterThan(4);
     for (const id of ids) {
       await page.getByTestId(`home-tab-${id}`).click();
       await expect(page.locator(`#home-panel-${id}`)).toBeVisible();

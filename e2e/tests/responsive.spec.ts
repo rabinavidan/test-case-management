@@ -53,8 +53,8 @@ async function seed(api: APIRequestContext, tag: string) {
 }
 
 test.describe('Responsive — guest pages', () => {
-  test('the home page fits the device, with Sign in and its first tab, Success Stories, on screen', async ({ page }) => {
-    await page.goto('/#projects');
+  test('the home page fits the device, with Sign in and the Success Stories tab on screen', async ({ page }) => {
+    await page.goto('/#home/stories');
     await page.waitForLoadState('networkidle');
     await expect(page.getByTestId('success-stories-section')).toBeVisible();
     await expectFitsDevice(page, 'guest home');

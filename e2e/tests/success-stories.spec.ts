@@ -10,11 +10,11 @@ const POSTS = [
 
 guestTest.describe('Guest home page — Success Stories carousel', () => {
   guestTest.beforeEach(async ({ page }) => {
-    await page.goto('/#projects');
+    await page.goto('/#home/stories');
     await page.waitForLoadState('networkidle');
   });
 
-  guestTest('sits right after the hero and before the Live Demo section, in the first tab', async ({ page }) => {
+  guestTest('sits right after the hero and before the Live Demo section, in its own tab', async ({ page }) => {
     // networkidle can arrive before renderProjects() has written the page.
     await guestExpect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');
     await guestExpect(page.getByTestId('ai-live-demo-section')).toHaveCount(1);
@@ -105,7 +105,7 @@ guestTest.describe('Guest home page — Success Stories auto-advance', () => {
     // flow at real speed.)
     await page.clock.install();
     await page.clock.pauseAt(Date.now() + 1000);
-    await page.goto('/#projects');
+    await page.goto('/#home/stories');
     await page.waitForLoadState('networkidle');
     await guestExpect(page.getByTestId('success-stories-section')).toBeVisible();
     await page.mouse.move(0, 0); // keep the pointer off the carousel
