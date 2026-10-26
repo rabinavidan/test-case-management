@@ -44,7 +44,7 @@ redis==5.2.1
 # fixes that.
 kafka-python==3.0.11
 # Only used by tests/infra/ to parse `kubectl kustomize` output.
-PyYAML==6.0.1
+PyYAML==6.0.3
 # agents/test_plan_reviewer.py (LangChain-based) and its unit tests — the
 # latter use langchain_core's own FakeListChatModel, never a real Ollama
 # server. langchain-ollama is only imported lazily inside
