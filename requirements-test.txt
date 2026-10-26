@@ -22,6 +22,11 @@ pytest-rerunfailures==14.0
 # Pinned to the 3.x line: 4.x requires pytest>=9, which conflicts with the
 # pytest==7.4.3 / pytest-playwright pins above.
 schemathesis==3.39.16
+# hypothesis comes in through schemathesis, unpinned until now: 6.170.11 changed
+# an internal API schemathesis 3.x uses (AttributeError: 'many' object has no
+# attribute 'more'), failing every OpenAPI contract test. 6.170.9 is the last
+# version CI passed with.
+hypothesis==6.170.9
 # tests/contract/test_asyncapi_contract.py validates WebSocket messages
 # against docs/asyncapi.yaml. Already installed transitively by schemathesis;
 # listed so the direct import is declared.
