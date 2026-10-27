@@ -56,7 +56,8 @@ test.describe('Home page — Engineering topics', () => {
   test('topics switch on click and with the arrow keys, and Engineering remembers the last one', async ({ page }) => {
     await page.goto('/#projects');
     await page.getByTestId('home-tab-engineering').click();
-    await expect(page.getByTestId('home-subtab-leadership')).toHaveAttribute('aria-selected', 'true');
+    // assertion-change-approved: Test Strategy is now the first Engineering topic, ahead of Leadership
+    await expect(page.getByTestId('home-subtab-strategy')).toHaveAttribute('aria-selected', 'true');
 
     await page.getByTestId('home-subtab-strategy').click();
     await expect(page.getByTestId('test-pyramid-section')).toBeVisible();

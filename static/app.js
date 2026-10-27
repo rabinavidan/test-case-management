@@ -921,7 +921,7 @@ function viewArchitecture() {
 // (for step 2) expanding the already-guest-visible architecture panel.
 // Skippable/exitable at any step.
 const RECRUITER_TOUR_STEPS = [
-  { title: "Leadership Profile", desc: "Automation Tech Lead positioning and how I lead engineering delivery.", targetId: "leadership-impact-section" },
+  { title: "Leadership Profile", desc: "How I work: engineering standards, design reviews and delivery.", targetId: "leadership-impact-section" },
   { title: "System Architecture", desc: "Live microservice architecture, plus the real trade-offs behind it.", targetId: "showcase-toggle-btn", onEnter: () => { const c = document.getElementById("showcase-content"); revealHomeSection(c); if (c && c.classList.contains("hidden")) toggleShowcase(); } },
   { title: "Test Strategy", desc: "A real Test Pyramid with measured counts, and the Shift-Left strategy behind it.", targetId: "test-pyramid-section" },
   { title: "CI/CD Quality Gates & KPIs", desc: "The quality gates that block a merge, and the KPI dashboard tracking them.", targetId: "kpi-dashboard-section" },
@@ -1433,12 +1433,12 @@ const HERO_IMPACT = [
 // The 30-second read for a recruiter: who, how they work, skills, education.
 // Deliberately no employer names or dates (the site owner's choice).
 const OVERVIEW_SKILLS = [
-  { group: "Leadership & quality", items: ["Hands-on team leadership", "Matrix management", "Mentoring", "Delivery ownership", "Design & code reviews", "QA strategy", "KPIs", "Agile / Scrum", "Shift-Left"] },
   { group: "Automation & test design", items: ["Playwright", "pytest", "Selenium", "REST Assured", "JUnit / TestNG", "Cucumber / BDD", "Test Pyramid", "API & E2E testing"] },
   { group: "Programming", items: ["TypeScript", "Python", "Java", "JavaScript", "C#"] },
   { group: "CI/CD & cloud", items: ["GitHub Actions", "Jenkins", "Quality gates", "Docker", "Kubernetes / GKE", "GCP", "AWS", "Azure"] },
   { group: "Data & diagnostics", items: ["PostgreSQL", "MongoDB", "Redis", "Kafka", "Pub/Sub", "Datadog", "Grafana", "Allure"] },
   { group: "Generative AI", items: ["AI agents", "Agentic workflows", "MCP servers", "LLM workflows", "RAG", "LangGraph", "Claude Code", "GitHub Copilot"] },
+  { group: "Quality & collaboration", items: ["QA strategy", "Shift-Left", "Design & code reviews", "KPIs", "Agile / Scrum", "Mentoring", "Team leadership", "Delivery ownership"] },
 ];
 
 function renderOverviewSection() {
@@ -1451,8 +1451,8 @@ function renderOverviewSection() {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">About</h2>
-          <p class="text-slate-700 leading-relaxed mb-3"><strong class="text-slate-900">AI-first, hands-on Automation Team Lead</strong> with 10+ years in automation development, leading automation engineers and QA professionals in matrix teams across <strong class="text-slate-900">Israel, USA and India</strong>. I stay close to the code while mentoring engineers, planning delivery, reviewing designs and setting practical engineering standards.</p>
-          <p class="text-slate-700 leading-relaxed">I own QA strategy, risk-based coverage and Shift-Left practice across the SDLC, working with Product, R&amp;D, Architecture and DevOps to turn requirements into test plans and reliable automation for web apps, REST APIs and microservices - with CI/CD quality gates, clear KPIs and AI tools for test development and failure investigation.</p>
+          <p class="text-slate-700 leading-relaxed mb-3"><strong class="text-slate-900">Senior automation engineer</strong> with 10+ years building test frameworks, CI/CD infrastructure and backend services. I design automation for web apps, REST APIs and microservices (Playwright, pytest, REST Assured) and the infrastructure that runs it: GitHub Actions quality gates, Docker and Kubernetes, and Python/TypeScript services on PostgreSQL, Redis and Kafka.</p>
+          <p class="text-slate-700 leading-relaxed">This site is the evidence: a FastAPI microservices app with five test stacks, an 85% coverage gate, and AI agents that triage CI failures. I&#39;ve also led automation teams across <strong class="text-slate-900">Israel, USA and India</strong>, so I&#39;m used to setting standards and reviewing designs as well as writing the code.</p>
           <div class="flex flex-wrap gap-x-5 gap-y-2 mt-4 pt-4 border-t border-slate-100">
             ${jump("stories", "Success stories")}
             ${jump("demo", "AI pipeline demo")}
@@ -2175,9 +2175,9 @@ async function renderProjects() {
       <div class="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
-          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Automation Team Lead | AI-First Quality Engineering</p>
-          <div class="blur-in"><h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Leading Automation Architecture &amp;<br>AI-Driven Quality Strategy</h2></div>
-          <p class="text-xs mb-4" data-testid="hero-leadership" style="color:rgba(100,200,255,.75)">10+ years in automation · leading QA &amp; automation teams across Israel, USA and India</p>
+          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Senior Automation Engineer · Test Infrastructure · Backend</p>
+          <div class="blur-in"><h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Automation Infrastructure &amp;<br>AI-Driven Test Engineering</h2></div>
+          <p class="text-xs mb-4" data-testid="hero-leadership" style="color:rgba(100,200,255,.75)">10+ years in test automation, CI/CD and backend services · teams across Israel, USA and India</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
             <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🏢</span><span class="font-semibold text-white/70">ZoomInfo</span></span>
@@ -6315,10 +6315,10 @@ const HOME_TABS = [
   { id: "projects",    label: "Projects",        icon: "📁" },
 ];
 const ENGINEERING_TOPICS = [
-  { id: "leadership",   label: "Leadership" },
   { id: "strategy",     label: "Test Strategy" },
   { id: "kpis",         label: "KPIs" },
   { id: "architecture", label: "Architecture" },
+  { id: "leadership",   label: "Leadership" },
 ];
 let _homeTab = null;   // selected top-level tab
 let _homeTopic = null; // selected Engineering topic

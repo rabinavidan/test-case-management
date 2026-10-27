@@ -12,7 +12,8 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the hero shows the Tech Lead role label, not the old title', async ({ page }) => {
-    await guestExpect(page.getByText('Automation Team Lead | AI-First Quality Engineering')).toBeVisible();
+    // assertion-change-approved: the hero was repositioned for senior automation, infra and backend roles
+    await guestExpect(page.getByText('Senior Automation Engineer · Test Infrastructure · Backend')).toBeVisible();
     await guestExpect(page.getByTestId('hero-leadership')).toContainText('Israel, USA and India');
     await guestExpect(page.locator('.owner-banner').getByText('AFEKA / Tel Aviv University Branch')).toBeVisible();
     await guestExpect(page.getByText('Senior Automation Engineer', { exact: true })).toHaveCount(0);
