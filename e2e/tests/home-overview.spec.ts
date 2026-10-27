@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { test as seededTest } from '../fixtures/auth.fixture';
 
 /**
  * The guest home page opens on an Overview tab, and Engineering groups five
@@ -35,21 +36,83 @@ test.describe('Home page — Overview tab', () => {
   test('education, certifications and professional development, in that order, with no dates or links', async ({ page }) => {
     const section = page.getByTestId('overview-credentials');
     await expect(section.getByRole('heading', { name: 'Education, Certifications & Professional Development' })).toBeVisible();
-    await expect(section.getByRole('heading', { level: 3 })).toHaveText(['Education', 'Professional Certifications', 'Professional Development']);
+    // assertion-change-approved: the owner asked for Professional Development right after Education
+    await expect(section.getByRole('heading', { level: 3 })).toHaveText(['Education', 'Professional Development', 'Professional Certifications']);
     const groups = section.getByTestId('credentials-group');
     await expect(groups.nth(0).locator('li p.font-semibold')).toHaveText(['B.Sc. Electronic & Computer Engineering']);
-    await expect(groups.nth(1).locator('li p.font-semibold')).toHaveText(['ISTQB', 'MCSD']);
-    await expect(groups.nth(2).locator('li p.font-semibold')).toHaveText(['Emerging Leader', 'Build with AI: Reasoning Models for AI Agents']);
-    await expect(groups.nth(2)).toContainText('LinkedIn · Course completion');
+    await expect(groups.nth(1).locator('li p.font-semibold')).toHaveText(['Emerging Leader', 'Build with AI: Reasoning Models for AI Agents']);
+    await expect(groups.nth(1)).toContainText('ZoomInfo · Leadership development program');
+    await expect(groups.nth(1)).toContainText('LinkedIn · Course completion');
+    await expect(groups.nth(2).locator('li p.font-semibold')).toHaveText(['ISTQB', 'MCSD']);
     expect(await section.innerText()).not.toMatch(/(19|20)\d{2}/);
     // No verified credential URL or certificate file exists yet, so nothing links.
     await expect(section.locator('a, button')).toHaveCount(0);
+  });
+
+  test('side by side with About, the card matches its height and scrolls instead of leaving a gap', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const about = page.getByTestId('overview-section').getByRole('heading', { name: 'About Me' }).locator('..');
+    const card = page.getByTestId('overview-credentials');
+    // Polled: the cards' entrance animation moves them for a moment after load.
+    const gap = async () => {
+      const [a, c] = [await about.boundingBox(), await card.boundingBox()];
+      return Math.max(Math.abs(a!.height - c!.height), Math.abs(a!.y - c!.y));
+    };
+    await expect.poll(gap, { message: 'card vs About: largest height or top difference (px)' }).toBeLessThanOrEqual(1);
+    const scroll = page.getByTestId('overview-credentials-scroll');
+    await expect(scroll).toHaveAttribute('tabindex', '0');
+    // Every entry stays reachable by scrolling.
+    await scroll.getByText('MCSD', { exact: true }).scrollIntoViewIfNeeded();
+    await expect(scroll.getByText('MCSD', { exact: true })).toBeInViewport();
   });
 
   test('its shortcuts open the tab they name', async ({ page }) => {
     await page.getByTestId('overview-go-demo').click();
     await expect(page.getByTestId('home-tab-demo')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('ai-live-demo-section')).toBeVisible();
+  });
+});
+
+test.describe('Home page — navigation', () => {
+  // The Test Workspace tab shows only once a project exists, so these two
+  // create one (signed in) and then look at the page as a guest.
+  seededTest('seven tabs in order, opening on About Me', async ({ page, authedRequest }) => {
+    const { id } = await (await authedRequest.post('/api/projects', { data: { name: `e2e-nav-${Date.now()}` } })).json();
+    try {
+      await page.goto('/#projects');
+      const tabs = page.getByRole('tablist', { name: 'Explore this site' }).getByRole('tab');
+      await expect(tabs).toHaveCount(7);
+      await expect(tabs).toContainText(['About Me', 'Portfolio', 'Engineering Practices', 'AI Engineering', 'AI Pipeline', 'Engineering Insights', 'Test Workspace']);
+      await expect(page.getByTestId('home-tab-overview')).toHaveAttribute('aria-selected', 'true');
+      await page.getByTestId('home-tab-engineering').click();
+      await expect(page.getByTestId('engineering-topics').getByRole('tab')).toHaveText(['Test Strategy', 'Quality Metrics', 'How TestFlow Works', 'Technical Leadership']);
+    } finally {
+      await authedRequest.delete(`/api/projects/${id}`);
+    }
+  });
+
+  seededTest('Explore TestFlow opens the Test Workspace, and Watch AI Pipeline the walkthrough', async ({ page, authedRequest }) => {
+    const { id } = await (await authedRequest.post('/api/projects', { data: { name: `e2e-nav-${Date.now()}` } })).json();
+    try {
+      await page.goto('/#projects');
+      await page.getByTestId('hero-explore-demo-btn').click();
+      await expect(page.getByTestId('home-tab-projects')).toHaveAttribute('aria-selected', 'true');
+      await expect(page.locator('#home-panel-projects h1')).toHaveText('Test Workspace');
+      await page.getByTestId('hero-ai-pipeline-btn').click();
+      await expect(page.getByTestId('home-tab-demo')).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByTestId('pipe-illustrative-label')).toHaveText('Illustrative walkthrough. No live AI calls.');
+    } finally {
+      await authedRequest.delete(`/api/projects/${id}`);
+    }
+  });
+
+  test('old deep links still open their tab', async ({ page }) => {
+    await page.goto('/#home/stories');
+    await expect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('home-tab-stories')).toHaveText(/Engineering Insights/);
+    await page.goto('/#home/architecture');
+    await expect(page.getByTestId('home-subtab-architecture')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('home-subtab-architecture')).toHaveText('How TestFlow Works');
   });
 });
 

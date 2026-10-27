@@ -12,22 +12,26 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
   });
 
   guestTest('the hero shows the Tech Lead role label, not the old title', async ({ page }) => {
-    // assertion-change-approved: the hero was repositioned for senior automation, infra and backend roles
-    await guestExpect(page.getByText('Senior Automation Engineer · Test Infrastructure · Backend')).toBeVisible();
+    // assertion-change-approved: the owner asked for this role line, and for no role badge beside the name
+    await guestExpect(page.getByText('Hands-on Automation Tech Lead | Software Engineer')).toBeVisible();
+    await guestExpect(page.locator('.owner-banner').getByText('Automation Tech Lead', { exact: true })).toHaveCount(0);
+    await guestExpect(page.locator('.owner-banner').getByText('Site Owner', { exact: true })).toHaveCount(0);
     await guestExpect(page.getByTestId('hero-leadership')).toContainText('Israel, USA and India');
     await guestExpect(page.locator('.owner-banner').getByText('AFEKA / Tel Aviv University Branch')).toBeVisible();
     await guestExpect(page.getByText('Senior Automation Engineer', { exact: true })).toHaveCount(0);
   });
 
-  guestTest('all four hero CTAs are present, in order, with working destinations', async ({ page }) => {
+  // assertion-change-approved: the hero gained Watch AI Pipeline, and Explore / GitHub were relabelled for what they open
+  guestTest('all five hero CTAs are present, in order, with working destinations', async ({ page }) => {
     const row = page.getByTestId('hero-cta-row');
     await guestExpect(row).toBeVisible();
 
     const buttons = row.locator('button, a');
-    await guestExpect(buttons).toHaveCount(4);
+    await guestExpect(buttons).toHaveCount(5);
 
     await guestExpect(page.getByTestId('hero-tour-btn')).toHaveText(/Take the 3-min Tour/);
-    await guestExpect(page.getByTestId('hero-explore-demo-btn')).toHaveText(/Explore Live Demo/);
+    await guestExpect(page.getByTestId('hero-explore-demo-btn')).toHaveText(/Explore TestFlow/);
+    await guestExpect(page.getByTestId('hero-ai-pipeline-btn')).toHaveText(/Watch AI Pipeline/);
     // assertion-change-approved: the site owner asked to withdraw the CV download; these checks now assert it is gone.
     // The CV is not published on the site: no download button, and no file to fetch.
     await guestExpect(page.getByTestId('hero-cv-btn')).toHaveCount(0);
@@ -37,16 +41,18 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     const githubLink = page.getByTestId('hero-github-btn');
     await guestExpect(githubLink).toHaveAttribute('href', 'https://github.com/rabinavidan/test-case-management');
     await guestExpect(githubLink).toHaveAttribute('target', '_blank');
+    await guestExpect(githubLink).toHaveText(/View TestFlow Source/);
 
     const linkedinLink = page.getByTestId('hero-linkedin-btn');
     await guestExpect(linkedinLink).toHaveAttribute('href', /linkedin\.com/);
     await guestExpect(linkedinLink).toHaveAttribute('href', 'https://www.linkedin.com/in/rabin-avidan/');
 
-    // The tour leads, then Explore Live Demo, View GitHub, Connect on LinkedIn.
+    // The tour leads, then Explore TestFlow, Watch AI Pipeline, View TestFlow Source, Connect on LinkedIn.
     const testIds = await buttons.evaluateAll(els => els.map(el => el.getAttribute('data-testid')));
     guestExpect(testIds).toEqual([
       'hero-tour-btn',
       'hero-explore-demo-btn',
+      'hero-ai-pipeline-btn',
       'hero-github-btn',
       'hero-linkedin-btn',
     ]);
@@ -63,7 +69,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
     await guestExpect(page.locator('#auth-modal')).toHaveClass(/hidden/);
   });
 
-  guestTest('the Leadership Impact section shows five repo-evidenced cards', async ({ page }) => {
+  guestTest('the Technical Leadership section shows five repo-evidenced cards', async ({ page }) => {
     await page.getByTestId('home-tab-engineering').click();
     await page.getByTestId('home-subtab-leadership').click();
     const section = page.getByTestId('leadership-impact-section');

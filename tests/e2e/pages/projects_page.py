@@ -1,3 +1,5 @@
+import re
+
 from playwright.sync_api import Page, Locator, expect
 from .base_page import BasePage
 
@@ -13,7 +15,8 @@ class ProjectsPage(BasePage):
     # ── Page elements ────────────────────────────────────────────────────────
     @property
     def heading(self) -> Locator:
-        return self.page.locator("#view-projects h1", has_text="Projects")
+        # "Projects" signed in; a guest sees the same list as the "Test Workspace" tab.
+        return self.page.locator("#view-projects h1", has_text=re.compile(r"^(Projects|Test Workspace)$"))
 
     @property
     def project_count_text(self) -> Locator:
@@ -75,6 +78,9 @@ class ProjectsPage(BasePage):
     # ── Assertions ────────────────────────────────────────────────────────────
     def expect_loaded(self):
         self.log.assert_("Projects heading visible")
+        workspace_tab = self.page.get_by_test_id("home-tab-projects")
+        if workspace_tab.count():
+            workspace_tab.click()
         expect(self.heading).to_be_visible()
 
     def expect_project_visible(self, name: str):

@@ -31,7 +31,8 @@ guestTest.describe('Guest recruiter view — KPI dashboard', () => {
     await page.waitForLoadState('networkidle');
 
     const coverage = page.getByTestId('kpi-card-code-coverage');
-    await guestExpect(coverage.getByText('89.1%')).toBeVisible();
+    // assertion-change-approved: coverage updated to main's latest CI figure (93.18%)
+    await guestExpect(coverage.getByText('93.2%')).toBeVisible();
     await guestExpect(coverage.getByText(/85% floor/)).toBeVisible();
     await guestExpect(coverage.getByText('Healthy')).toBeVisible();
 

@@ -14,7 +14,8 @@ guestTest.describe('Guest home page — Success Stories carousel', () => {
     await page.waitForLoadState('networkidle');
   });
 
-  guestTest('sits right after the hero and before the Live Demo section, in its own tab', async ({ page }) => {
+  // assertion-change-approved: the tabs were reordered and renamed; Engineering Insights now follows the AI Pipeline
+  guestTest('sits after the AI Pipeline section, in its own tab', async ({ page }) => {
     // networkidle can arrive before renderProjects() has written the page.
     await guestExpect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');
     await guestExpect(page.getByTestId('ai-live-demo-section')).toHaveCount(1);
@@ -23,10 +24,10 @@ guestTest.describe('Guest home page — Success Stories carousel', () => {
       const [hero, stories, demo] = ids.map((s) => document.querySelector(s));
       if (!hero || !stories || !demo) return 'missing';
       const after = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-      return after(hero, stories) && after(stories, demo) ? 'ok' : 'out of order';
+      return after(hero, demo) && after(demo, stories) ? 'ok' : 'out of order';
     });
     guestExpect(order).toBe('ok');
-    await guestExpect(page.getByRole('heading', { name: 'Success Stories' })).toBeVisible();
+    await guestExpect(page.getByRole('heading', { name: 'Engineering Insights' })).toBeVisible();
   });
 
   guestTest('shows six stories, each linking to its LinkedIn post with real alt text', async ({ page }) => {

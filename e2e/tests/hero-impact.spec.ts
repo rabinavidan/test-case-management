@@ -22,6 +22,7 @@ test.describe('Hero impact row', () => {
     await page.goto('/#projects');
     const facts = await impact(page);
     expect(Object.keys(facts)).toEqual(['automated tests', 'code coverage', 'CI quality gates', 'test stacks']);
+    await expect(page.getByTestId('hero-impact')).toHaveAccessibleName('TestFlow Repository Metrics');
     for (const [label, value] of Object.entries(facts)) expect(value, label).toMatch(/^\d+(\.\d+)?%?$/);
   });
 
