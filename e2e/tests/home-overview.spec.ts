@@ -106,6 +106,20 @@ test.describe('Home page — navigation', () => {
     }
   });
 
+  // With no projects there is no Test Workspace tab, so Explore TestFlow falls
+  // back to the demo project - and once left the button reading "Run TestFlow Demo".
+  test('with no projects, Explore TestFlow keeps its own label after the demo fallback', async ({ page }) => {
+    await page.route('**/api/projects?page_size=100', (route) =>
+      route.fulfill({ json: { items: [], total: 0, page: 1, page_size: 100, total_pages: 1 } }));
+    await page.goto('/#projects');
+    const label = page.locator('#hero-demo-label');
+    await expect(label).toHaveText('Explore TestFlow');
+    await page.getByTestId('hero-explore-demo-btn').click();
+    await expect(page.locator('#toast-inner')).toContainText('No demo project is seeded yet');
+    await expect(page.getByTestId('hero-explore-demo-btn')).toBeEnabled();
+    await expect(label).toHaveText('Explore TestFlow');
+  });
+
   test('old deep links still open their tab', async ({ page }) => {
     await page.goto('/#home/stories');
     await expect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');

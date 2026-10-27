@@ -4429,9 +4429,9 @@ function alertsArchDiagram() {
 // "TestFlow Repo - ..." (DEMO_KINDS.playwright), which also starts with
 // "TestFlow ".
 const DEMO_KINDS = {
-  alerts:     { btnId: "demo-seed-btn", labelId: "demo-seed-label", endpoint: "/api/demo/alerts-microservice", namePattern: /^Alerts Microservice \d{4}-\d{2}-\d{2}/, defaultLabel: "Run Alerts Microservice Demo" },
-  testflow:   { btnId: "demo-tf-btn",   labelId: "demo-tf-label",   endpoint: "/api/demo/testflow",            namePattern: /^TestFlow \d{4}-\d{2}-\d{2}/,             defaultLabel: "Run TestFlow Demo" },
-  playwright: { btnId: "demo-pw-btn",   labelId: "demo-pw-label",   endpoint: "/api/demo/playwright",          namePattern: /^TestFlow Repo — API & E2E Tests Demo/,   defaultLabel: "Run Playwright Architecture Demo" },
+  alerts:     { btnId: "demo-seed-btn", labelId: "demo-seed-label", endpoint: "/api/demo/alerts-microservice", namePattern: /^Alerts Microservice \d{4}-\d{2}-\d{2}/ },
+  testflow:   { btnId: "demo-tf-btn",   labelId: "demo-tf-label",   endpoint: "/api/demo/testflow",            namePattern: /^TestFlow \d{4}-\d{2}-\d{2}/ },
+  playwright: { btnId: "demo-pw-btn",   labelId: "demo-pw-label",   endpoint: "/api/demo/playwright",          namePattern: /^TestFlow Repo — API & E2E Tests Demo/ },
 };
 
 // GET /api/projects has no auth dependency (api/main.py's list_projects) -
@@ -4461,6 +4461,7 @@ async function viewOrCreateDemo(kind, elementIds) {
   const btn = document.getElementById(elementIds?.btnId || cfg.btnId);
   const label = document.getElementById(elementIds?.labelId || cfg.labelId);
   if (!btn) return;
+  const originalLabel = label.textContent;
   btn.disabled = true;
   btn.classList.add("opacity-60");
 
@@ -4477,7 +4478,7 @@ async function viewOrCreateDemo(kind, elementIds) {
       toast("Couldn't open the demo right now. Please try again.", "error");
     } finally {
       btn.disabled = false;
-      label.textContent = cfg.defaultLabel;
+      label.textContent = originalLabel;
       btn.classList.remove("opacity-60");
     }
     return;
@@ -4493,7 +4494,7 @@ async function viewOrCreateDemo(kind, elementIds) {
     toast("Failed to create demo: " + e.message, "error");
   } finally {
     btn.disabled = false;
-    label.textContent = cfg.defaultLabel;
+    label.textContent = originalLabel;
     btn.classList.remove("opacity-60");
   }
 }
