@@ -2175,9 +2175,13 @@ async function renderProjects() {
       <div class="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
-          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Senior Automation Engineer · Test Infrastructure · Backend</p>
-          <div class="blur-in"><h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Automation Infrastructure &amp;<br>AI-Driven Test Engineering</h2></div>
-          <p class="text-xs mb-4" data-testid="hero-leadership" style="color:rgba(100,200,255,.75)">10+ years in test automation, CI/CD and backend services · teams across Israel, USA and India</p>
+          <!-- Same message as the LinkedIn banner: headline, focus, industries -->
+          <div class="blur-in"><h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">AI-First Automation Engineering</h2></div>
+          <p class="text-sm font-semibold text-white/85 mb-1" data-testid="hero-focus">for Microservices &amp; Event-Driven Systems</p>
+          <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold tracking-[.18em] mb-2" data-testid="hero-industries" style="color:rgba(0,200,255,.75)">
+            ${['SAAS', 'AUTOMOTIVE', 'IoT', 'MEDICAL', 'FINTECH', 'TELECOM'].map((s) => `<span>${s}</span>`).join('<span aria-hidden="true" style="color:rgba(0,200,255,.35)">|</span>')}
+          </p>
+          <p class="text-xs mb-3" data-testid="hero-leadership" style="color:rgba(100,200,255,.75)">10+ years in test automation, CI/CD and backend services · teams across Israel, USA and India</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
             <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🏢</span><span class="font-semibold text-white/70">ZoomInfo</span></span>
@@ -2245,8 +2249,8 @@ async function renderProjects() {
       </div>
 
       <!-- Skills strip: wider screens only - on phones the impact row takes its place, so the tab bar stays on the first screen -->
-      <div data-testid="hero-skills" class="relative z-10 border-t hidden sm:flex sm:flex-wrap gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
-        ${['Test Automation','AI Vibe Coding','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
+      <div data-testid="hero-skills" class="relative z-10 border-t hidden sm:flex sm:flex-wrap gap-x-2 gap-y-1.5 px-6 py-2" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
+        ${['Playwright','TypeScript','Python','Java','REST API','Kafka','Docker','Kubernetes','GCP','AWS','Datadog','GitHub Actions','Claude Code','OpenAI Codex','MCP'].map(s =>
           `<span class="text-[11px] font-semibold px-3 py-1 rounded-full flex-shrink-0 whitespace-nowrap" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
       </div>
