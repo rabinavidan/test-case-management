@@ -67,8 +67,8 @@ guestTest.describe('Hero headline', () => {
     await page.goto('/#projects');
     const title = page.locator('.owner-banner h2');
     // The <br> between the two lines adds no space to the text.
-    // assertion-change-approved: the hero headline was reworded for senior automation, infra and backend roles
-    await guestExpect(title).toHaveText(/^Automation Infrastructure &\s*AI-Driven Test Engineering$/);
+    // assertion-change-approved: the hero headline was reworded at the owner's request
+    await guestExpect(title).toHaveText('Automation Infrastructure, Backend & AI Engineering');
     const inner = await title.evaluate((h2) => Array.from(h2.querySelectorAll('*')).map((el) => ({
       tag: el.tagName,
       transform: getComputedStyle(el).transform,

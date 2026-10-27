@@ -50,12 +50,13 @@ guestTest.describe('Guest recruiter view — Recruiter Tour', () => {
     await guestExpect(page.locator('#auth-modal h2')).toHaveText('Sign in');
   });
 
-  guestTest('starting the tour opens on step 1 of 5 — Leadership Profile', async ({ page }) => {
+  // assertion-change-approved: tour steps were renamed to match the Engineering Practices topics
+  guestTest('starting the tour opens on step 1 of 5 — Technical Leadership', async ({ page }) => {
     await page.getByTestId('start-tour-btn').click();
     const card = page.getByTestId('recruiter-tour-card');
     await guestExpect(card).toBeVisible();
     await guestExpect(page.getByTestId('tour-step-label')).toHaveText(/Step 1 of 5/);
-    await guestExpect(card.getByText('Leadership Profile')).toBeVisible();
+    await guestExpect(card.getByText('Technical Leadership')).toBeVisible();
     // No Back button on the first step.
     await guestExpect(page.getByTestId('tour-prev-btn')).toHaveCount(0);
   });
@@ -63,10 +64,10 @@ guestTest.describe('Guest recruiter view — Recruiter Tour', () => {
   guestTest('Next advances through all five steps, ending in Finish', async ({ page }) => {
     await page.getByTestId('start-tour-btn').click();
 
-    const titles = ['Leadership Profile', 'System Architecture', 'Test Strategy', 'CI/CD Quality Gates & KPIs', 'AI Engineering & Source'];
+    const titles = ['Technical Leadership', 'How TestFlow Works', 'Test Strategy', 'Quality Metrics', 'AI Engineering'];
     for (let i = 0; i < titles.length; i++) {
       await guestExpect(page.getByTestId('tour-step-label')).toHaveText(new RegExp(`Step ${i + 1} of 5`));
-      await guestExpect(page.getByTestId('recruiter-tour-card').getByText(titles[i])).toBeVisible();
+      await guestExpect(page.getByTestId('recruiter-tour-card').getByRole('heading', { name: titles[i], exact: true })).toBeVisible();
       if (i < titles.length - 1) {
         await guestExpect(page.getByTestId('tour-next-btn')).toHaveText('Next');
         await page.getByTestId('tour-next-btn').click();
@@ -75,7 +76,7 @@ guestTest.describe('Guest recruiter view — Recruiter Tour', () => {
     await guestExpect(page.getByTestId('tour-next-btn')).toHaveText('Finish');
   });
 
-  guestTest('step 2 (System Architecture) expands the showcase panel', async ({ page }) => {
+  guestTest('step 2 (How TestFlow Works) expands the showcase panel', async ({ page }) => {
     await page.getByTestId('start-tour-btn').click();
     await page.getByTestId('tour-next-btn').click(); // -> step 2
 

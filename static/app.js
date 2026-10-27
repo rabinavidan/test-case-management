@@ -414,8 +414,8 @@ function renderAiPipelineTimelineInner() {
     <div data-pipe-root data-testid="pipe-root">
       <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
         <div class="flex items-center gap-1.5">
-          <span class="relative flex h-2 w-2 flex-shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span></span>
-          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-300/80">Static walkthrough — not a live AI call</span>
+          <span class="relative inline-flex rounded-full h-2 w-2 flex-shrink-0 bg-emerald-400" aria-hidden="true"></span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-300" data-testid="pipe-illustrative-label">Illustrative walkthrough. No live AI calls.</span>
         </div>
         <div class="flex items-center gap-3">
           <button type="button" data-pipe-toggle data-testid="pipe-toggle" aria-pressed="false"
@@ -921,11 +921,11 @@ function viewArchitecture() {
 // (for step 2) expanding the already-guest-visible architecture panel.
 // Skippable/exitable at any step.
 const RECRUITER_TOUR_STEPS = [
-  { title: "Leadership Profile", desc: "How I work: engineering standards, design reviews and delivery.", targetId: "leadership-impact-section" },
-  { title: "System Architecture", desc: "Live microservice architecture, plus the real trade-offs behind it.", targetId: "showcase-toggle-btn", onEnter: () => { const c = document.getElementById("showcase-content"); revealHomeSection(c); if (c && c.classList.contains("hidden")) toggleShowcase(); } },
-  { title: "Test Strategy", desc: "A real Test Pyramid with measured counts, and the Shift-Left strategy behind it.", targetId: "test-pyramid-section" },
-  { title: "CI/CD Quality Gates & KPIs", desc: "The quality gates that block a merge, and the KPI dashboard tracking them.", targetId: "kpi-dashboard-section" },
-  { title: "AI Engineering & Source", desc: "Eight real AI-assisted workflows, the roadmap, and the GitHub source behind all of it.", targetId: "ai-first-engineering-section" },
+  { title: "Technical Leadership", desc: "Engineering Practices: the standards, quality gates and delivery practice behind this repository.", targetId: "leadership-impact-section" },
+  { title: "How TestFlow Works", desc: "Engineering Practices: the product workflow, the service architecture and the trade-offs behind it.", targetId: "showcase-toggle-btn", onEnter: () => { const c = document.getElementById("showcase-content"); revealHomeSection(c); if (c && c.classList.contains("hidden")) toggleShowcase(); } },
+  { title: "Test Strategy", desc: "Engineering Practices: a real Test Pyramid with measured counts, and the Shift-Left strategy behind it.", targetId: "test-pyramid-section" },
+  { title: "Quality Metrics", desc: "Engineering Practices: what is measured today, what is still on the roadmap, and the CI gates behind them.", targetId: "kpi-dashboard-section" },
+  { title: "AI Engineering", desc: "AI-assisted workflows in this repository, the roadmap, and the source behind them.", targetId: "ai-first-engineering-section" },
 ];
 
 // The element focus should return to once the tour closes - the "Start
@@ -1296,7 +1296,7 @@ function renderSuccessStoriesSection() {
   const postUrl = (s) => `https://www.linkedin.com/feed/update/urn:li:activity:${s.activity}/`;
   return renderCarousel({
     id: "success-stories", prefix: "stories", noun: "story", slideTestId: "story-slide",
-    heading: "Success Stories", subtitle: "Automation work I've shipped, as I shared it on LinkedIn.",
+    heading: "Engineering Insights", subtitle: "Practical lessons on automation infrastructure, testing patterns and AI workflows, shared on LinkedIn.",
     slides: SUCCESS_STORIES.map((s, i) => ({
       label: s.title,
       html: `
@@ -1322,8 +1322,9 @@ function renderSuccessStoriesSection() {
 // sparse to describe them).
 const TOP_REPOS = [
   { name: "test-case-management", title: "TestFlow",
-    summary: "This site: AI-assisted test case management with real-time runs, five services and four test stacks.",
-    fact: "706 tests across 4 layers",
+    summary: "This site: AI-assisted test case management with real-time runs, five services and five test stacks.",
+    // A getter: TEST_PYRAMID_LEVELS is declared further down the file.
+    get fact() { return `${TEST_TOTAL} tests across ${TEST_PYRAMID_LEVELS.length} layers`; },
     live: "https://test-case-management-omega.vercel.app",
     tech: ["Python", "FastAPI", "PostgreSQL", "Redis", "Playwright", "TypeScript", "Java", "Docker", "Kubernetes", "Terraform"] },
   { name: "automation-failure-orchestrator", title: "Agentic SOC Automation Orchestrator",
@@ -1371,8 +1372,8 @@ function renderTopReposSection() {
 
   return renderCarousel({
     id: "top-repos", prefix: "repos", noun: "repository", slideTestId: "repo-card",
-    heading: "Open-Source Repositories",
-    subtitle: "Public projects on GitHub, and the stack behind each one. ",
+    heading: "Selected Projects",
+    subtitle: "Applications, automation frameworks and infrastructure projects I’ve built, with source code and available demos. ",
     headerLink: `<a href="https://github.com/rabinavidan?tab=repositories" target="_blank" rel="noopener noreferrer"
       class="font-semibold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1 whitespace-nowrap">All repositories${_extLinkIcon}</a>`,
     beforeTrack: techSummary,
@@ -1410,17 +1411,21 @@ function renderTopReposSection() {
 // ─── Projects View ───────────────────────────────────────────────────────────
 // Numbers the home page states in more than one place (the hero's impact row,
 // the Test Pyramid, the KPI cards) come from here, so they can't drift apart.
+// Counts as collected on 2026-10-27: pytest --collect-only per directory,
+// `playwright test --list` (Chromium project, plus the mocked config), Java
+// test methods (@Test / @ParameterizedTest) and Cucumber scenarios.
 const TEST_PYRAMID_LEVELS = [
-  { level: 'Unit',                 count: 220, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/unit' },
-  { level: 'Component',            count: 145, desc: 'Each microservice tested in isolation via TestClient.', where: 'tests/services' },
-  { level: 'API / Integration / Contract', count: 237, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests and black-box REST Assured HTTP tests.', where: 'tests/api + tests/contract + java-tests' },
-  { level: 'E2E',                  count: 104, desc: 'Full user flows through the real UI — Python, TypeScript, and Java Playwright, plus Cucumber/Gherkin BDD.', where: 'tests/e2e + e2e/ + java-e2e + e2e-bdd' },
+  { level: 'Unit',                 count: 477, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/unit' },
+  { level: 'Component',            count: 170, desc: 'Each microservice tested in isolation via TestClient.', where: 'tests/services' },
+  { level: 'API / Integration / Contract', count: 418, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests and black-box REST Assured HTTP tests.', where: 'tests/api + tests/contract + java-tests' },
+  { level: 'E2E',                  count: 364, desc: 'Full user flows through the real UI — Python, TypeScript, and Java Playwright, plus Cucumber/Gherkin BDD.', where: 'tests/e2e + e2e/ + java-e2e + e2e-bdd' },
 ];
 const TEST_TOTAL = TEST_PYRAMID_LEVELS.reduce((n, l) => n + l.count, 0);
 const SITE_FACTS = {
-  coverage: '89.1%',  // pytest line coverage of api/, services/ and shared/ (CI floor 85%)
+  coverage: '93.2%',  // pytest line coverage of api/, services/ and shared/ on main's CI (floor 85%)
   ciGates: 4,         // lint, coverage floor, contract tests, Docker Compose boot smoke test
-  testStacks: 5,      // pytest, Playwright TypeScript / Python / Java, REST Assured
+  testStacks: 5,      // the five stacks the README names, listed below
+  testStackNames: 'pytest, Playwright TypeScript, Playwright Java, REST Assured and Cucumber BDD',
 };
 const HERO_IMPACT = [
   { value: String(TEST_TOTAL), label: 'automated tests' },
@@ -1441,6 +1446,23 @@ const OVERVIEW_SKILLS = [
   { group: "Quality & collaboration", items: ["QA strategy", "Shift-Left", "Design & code reviews", "KPIs", "Agile / Scrum", "Mentoring", "Team leadership", "Delivery ownership"] },
 ];
 
+// Education, certifications and professional development, in display order.
+// Only verified details: no dates, no credential links until a verified URL
+// or certificate file exists for an item.
+const OVERVIEW_CREDENTIALS = [
+  { group: "Education", items: [
+    { title: "B.Sc. Electronic & Computer Engineering", detail: "AFEKA / Tel Aviv University Branch" },
+  ] },
+  { group: "Professional Development", items: [
+    { title: "Emerging Leader", detail: "ZoomInfo · Leadership development program" },
+    { title: "Build with AI: Reasoning Models for AI Agents", detail: "LinkedIn · Course completion" },
+  ] },
+  { group: "Professional Certifications", items: [
+    { title: "ISTQB", detail: "Software testing certification" },
+    { title: "MCSD", detail: "ASP.NET / MVC" },
+  ] },
+];
+
 function renderOverviewSection() {
   const chip = (s) => `<span class="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">${escHtml(s)}</span>`;
   const jump = (tab, label) => `<button type="button" onclick="showHomeTab('${tab}')" data-testid="overview-go-${tab}"
@@ -1450,22 +1472,31 @@ function renderOverviewSection() {
     <div class="space-y-4 mb-6" data-testid="overview-section">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">About</h2>
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">About Me</h2>
           <p class="text-slate-700 leading-relaxed mb-3"><strong class="text-slate-900">Software Engineer</strong> building automation frameworks, infrastructures, backend services, productivity tools, quality dashboards and CI/CD pipelines. Tech Lead since 2024. I&#39;ve designed automation for web apps, mobile, REST APIs and microservices running on GitHub Actions, Docker and Kubernetes.</p>
           <p class="text-slate-700 leading-relaxed">I embed AI into the automation lifecycle: AI agents, MCP servers and LLM workflows for test generation, failure investigation, regression classification and coverage analysis, connected to Jira, TestRail and Slack. I lead automation engineers across <strong class="text-slate-900">Israel, USA and India</strong>, so I&#39;m used to setting standards and reviewing designs as well as writing the code.</p>
           <div class="flex flex-wrap gap-x-5 gap-y-2 mt-4 pt-4 border-t border-slate-100">
-            ${jump("stories", "Success stories")}
-            ${jump("demo", "AI pipeline demo")}
-            ${jump("engineering", "How I engineer")}
+            ${jump("repos", "Portfolio")}
+            ${jump("engineering", "Engineering Practices")}
+            ${jump("demo", "Watch AI Pipeline")}
+            ${jump("stories", "Engineering Insights")}
           </div>
         </div>
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Education &amp; certifications</h2>
-          <ul class="space-y-3 text-sm text-slate-700">
-            <li><p class="font-semibold text-slate-900">B.Sc. Electronic &amp; Computer Engineering</p><p class="text-slate-600">AFEKA / Tel Aviv University Branch</p></li>
-            <li><p class="font-semibold text-slate-900">ISTQB</p><p class="text-slate-600">Software testing certification</p></li>
-            <li><p class="font-semibold text-slate-900">MCSD</p><p class="text-slate-600">ASP.NET / MVC</p></li>
-          </ul>
+        <div class="lg:relative">
+        <div class="lg:absolute lg:inset-0 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm p-5" data-testid="overview-credentials">
+          <h2 id="overview-credentials-heading" class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Education, Certifications &amp; Professional Development</h2>
+          <!-- Side by side with About, this list scrolls when it is taller than the About card. -->
+          <div class="space-y-4 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            data-testid="overview-credentials-scroll" role="region" aria-labelledby="overview-credentials-heading" tabindex="0" style="scrollbar-width:thin">
+            ${OVERVIEW_CREDENTIALS.map((g) => `
+              <div data-testid="credentials-group">
+                <h3 class="text-xs font-semibold text-slate-600 mb-1.5">${escHtml(g.group)}</h3>
+                <ul class="space-y-2 text-sm">
+                  ${g.items.map((i) => `<li><p class="font-semibold text-slate-900">${escHtml(i.title)}</p><p class="text-slate-600">${escHtml(i.detail)}</p></li>`).join("")}
+                </ul>
+              </div>`).join("")}
+          </div>
+        </div>
         </div>
       </div>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -1670,7 +1701,8 @@ async function renderProjects() {
     <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6 overflow-hidden relative">
       <div class="relative z-10">
         <p class="text-blue-200 text-xs font-semibold uppercase tracking-widest mb-1">How TestFlow works</p>
-        <h2 class="text-white text-lg font-bold mb-5">End-to-end test management pipeline</h2>
+        <h2 class="text-white text-lg font-bold mb-1">End-to-end test management pipeline</h2>
+        <p class="text-[11px] mb-5" style="color:rgba(191,219,254,.8)">The product workflow, step by step - not a service architecture diagram. The service architecture is in the panel below.</p>
 
         <!-- Pipeline steps with descriptions -->
         <div class="flex items-stretch gap-1.5 sm:gap-2 mb-5 overflow-x-auto pb-1" id="tf-demo">
@@ -2175,9 +2207,9 @@ async function renderProjects() {
       <div class="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
         <!-- Left: headline copy styled like the banner -->
         <div class="flex-1 min-w-0">
-          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Senior Automation Engineer · Test Infrastructure · Backend</p>
-          <div class="blur-in"><h2 class="text-xl sm:text-2xl font-black leading-tight mb-1 owner-title-flash">Automation Infrastructure &amp;<br>AI-Driven Test Engineering</h2></div>
-          <p class="text-xs mb-4" data-testid="hero-leadership" style="color:rgba(100,200,255,.75)">10+ years in test automation, CI/CD and backend services · teams across Israel, USA and India</p>
+          <p class="text-[11px] font-bold uppercase tracking-[.25em] mb-2" style="color:rgba(0,200,255,.7)">Hands-on Automation Tech Lead | Software Engineer</p>
+          <div class="blur-in"><h2 class="text-xl lg:text-2xl font-black leading-tight mb-1 owner-title-flash">Automation Infrastructure, Backend &amp; AI Engineering</h2></div>
+          <p class="text-xs mb-3" data-testid="hero-leadership" style="color:rgba(100,200,255,.75)">I build automation frameworks, backend services and AI-assisted quality workflows, with hands-on technical leadership across Israel, USA and India.</p>
           <!-- Meta row -->
           <div class="flex flex-wrap items-center gap-3 text-[11px]" style="color:rgba(255,255,255,.5)">
             <span class="flex items-center gap-1.5"><span style="color:rgba(0,200,255,.6)">🏢</span><span class="font-semibold text-white/70">ZoomInfo</span></span>
@@ -2193,13 +2225,13 @@ async function renderProjects() {
             <div class="min-w-0">
               <p class="text-sm font-bold text-white">Rabin Avidan</p>
               <div class="flex gap-1.5 mt-0.5 flex-wrap">
-                <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:rgba(59,130,246,.2);color:#93c5fd;border:1px solid rgba(59,130,246,.3)">Site Owner</span>
                 <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full owner-open-badge" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(52,211,153,.3)">Open to Opportunities</span>
               </div>
             </div>
           </div>
           <!-- Impact at a glance: sits beside the headline on wider screens, so the hero doesn't grow -->
-          <dl data-testid="hero-impact" class="grid grid-cols-4 gap-1.5 w-full sm:w-80">
+          <p id="hero-impact-label" class="text-[11px] font-semibold uppercase tracking-wider -mb-1.5 w-full sm:w-80 sm:text-right" style="color:rgba(190,225,255,.75)">TestFlow Repository Metrics</p>
+          <dl data-testid="hero-impact" aria-labelledby="hero-impact-label" class="grid grid-cols-4 gap-1.5 w-full sm:w-80">
             ${HERO_IMPACT.map((f) => `
               <div class="flex flex-col-reverse rounded-lg px-1.5 py-1.5 text-center" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)">
                 <dt class="text-[11px] leading-tight" style="color:rgba(190,225,255,.85)">${f.label}</dt>
@@ -2209,33 +2241,39 @@ async function renderProjects() {
         </div>
       </div>
 
-      <!-- Primary hero actions, in order: Take the Tour, Explore Live Demo, View GitHub, Connect on LinkedIn.
+      <!-- Primary hero actions, in order: Take the Tour, Explore TestFlow, Watch AI Pipeline, View TestFlow Source, Connect on LinkedIn.
            (The architecture has its own tab, so it no longer needs a hero button.)
            The tour leads: it is the shortest guided path for a first-time visitor. -->
-      <div class="relative z-10 flex flex-wrap items-center gap-2 px-6 pb-6" data-testid="hero-cta-row">
+      <div class="relative z-10 flex flex-wrap items-center gap-2 px-4 sm:px-6 pb-6" data-testid="hero-cta-row">
         <button type="button" data-testid="hero-tour-btn" onclick="startRecruiterTour(this)"
-          class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-slate-900 text-xs font-bold transition-all hover:scale-105 hover:bg-blue-50"
+          class="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-white text-slate-900 text-xs font-bold transition-all hover:scale-105 hover:bg-blue-50"
           style="box-shadow:0 4px 16px rgba(255,255,255,.18)">
           <span aria-hidden="true">🧭</span>
           Take the 3-min Tour
         </button>
         <button type="button" id="hero-demo-btn" data-testid="hero-explore-demo-btn"
-          onclick="viewOrCreateDemo('testflow', {btnId: 'hero-demo-btn', labelId: 'hero-demo-label'})"
-          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
+          onclick="exploreTestFlow()"
+          class="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
           style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 4px 16px rgba(16,185,129,.35)">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span id="hero-demo-label">Explore Live Demo</span>
+          <span id="hero-demo-label">Explore TestFlow</span>
+        </button>
+        <button type="button" data-testid="hero-ai-pipeline-btn" onclick="showHomeTab('demo', { focus: true })"
+          class="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
+          style="background:linear-gradient(135deg,#6d28d9,#7c3aed);box-shadow:0 4px 16px rgba(124,58,237,.35)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Watch AI Pipeline
         </button>
         <a href="https://github.com/rabinavidan/test-case-management" target="_blank" rel="noopener noreferrer"
-          data-testid="hero-github-btn"
-          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 border border-white/10"
+          data-testid="hero-github-btn" aria-label="View TestFlow source on GitHub (opens in a new tab)"
+          class="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105 border border-white/10"
           style="background:rgba(255,255,255,.08)">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.744.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.93 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-          View GitHub
+          View TestFlow Source
         </a>
-        <a href="https://www.linkedin.com/in/rabin-avidan-1aab6653/" target="_blank" rel="noopener noreferrer"
+        <a href="https://www.linkedin.com/in/rabin-avidan/" target="_blank" rel="noopener noreferrer"
           data-testid="hero-linkedin-btn"
-          class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
+          class="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
           style="background:linear-gradient(135deg,#0a66c2,#0f8ce8);box-shadow:0 4px 16px rgba(10,102,194,.4)">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
@@ -2244,9 +2282,10 @@ async function renderProjects() {
         </a>
       </div>
 
-      <!-- Skills strip: wider screens only - on phones the impact row takes its place, so the tab bar stays on the first screen -->
-      <div data-testid="hero-skills" class="relative z-10 border-t hidden sm:flex sm:flex-wrap gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
-        ${['Test Automation','AI Vibe Coding','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
+      <!-- Skills strip: wider screens only - on phones the impact row takes its place, so the tab bar stays on the first screen.
+           One row: where the chips don't all fit, the strip scrolls sideways instead of wrapping. -->
+      <div data-testid="hero-skills" role="region" aria-label="Skills" tabindex="0" class="relative z-10 border-t hidden sm:flex flex-nowrap overflow-x-auto gap-2 px-6 py-3" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25);scrollbar-width:thin">
+        ${['Test Automation','AI-Assisted Development','FastAPI','Playwright','pytest','CI/CD','PostgreSQL','Full-Stack Dev','ISTQB','MCSD'].map(s =>
           `<span class="text-[11px] font-semibold px-3 py-1 rounded-full flex-shrink-0 whitespace-nowrap" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
       </div>
@@ -2286,8 +2325,8 @@ async function renderProjects() {
     <div class="relative rounded-2xl overflow-hidden mb-6 px-5 py-6" style="background:linear-gradient(135deg,#020c1b,#071428,#030d1c)" data-testid="ai-live-demo-section">
       <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.05) 1px,transparent 1px);background-size:28px 28px"></div>
       <div class="relative z-10">
-        <h2 class="text-sm font-bold text-white uppercase tracking-wide mb-1">Live Demo — AI in This Repo’s CI/CD Pipeline</h2>
-        <p class="text-[11px] mb-4" style="color:rgba(255,255,255,.45)">Where AI models actually sit in this pipeline, end to end — the same facts as the AI-First Engineering cards below, told as a sequence.</p>
+        <h2 class="text-sm font-bold text-white uppercase tracking-wide mb-1">AI in the CI/CD Pipeline</h2>
+        <p class="text-[11px] mb-4" style="color:rgba(255,255,255,.6)">An animated walkthrough of the AI workflows configured in this repository.</p>
         ${renderAiPipelineTimelineInner()}
       </div>
     </div>
@@ -2299,12 +2338,13 @@ async function renderProjects() {
   // "team leadership" narrative this solo-maintained project can't back up.
   const leadershipImpactSection = !getToken() ? `
     <div class="mb-6" data-testid="leadership-impact-section">
-      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Leadership Impact</h2>
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-1">Technical Leadership</h2>
+      <p class="text-sm text-slate-600 mb-3">What this repository shows is hands-on: the standards, quality gates and delivery practice I apply myself. Leading automation engineers across Israel, USA and India is my professional experience; this personal project doesn’t demonstrate team management.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         ${[
           { icon: '🧭', title: 'Technical Direction & Governance', desc: 'Defines this repository’s contribution standards, architecture conventions, and CI quality gates — enforced automatically on every pull request, not just documented.' },
-          { icon: '🧪', title: 'Quality Strategy', desc: 'A real Test Pyramid across 5 independent automation stacks (pytest, 3× Playwright, REST Assured), with an 85% coverage floor enforced in CI.' },
-          { icon: '🚦', title: 'CI/CD Governance', desc: '9+ GitHub Actions workflows gate every PR — lint, coverage floor, contract tests, a live Docker-Compose boot smoke test. A failed gate blocks the merge.' },
+          { icon: '🧪', title: 'Quality Strategy', desc: `A real Test Pyramid across ${SITE_FACTS.testStacks} independent automation stacks (${SITE_FACTS.testStackNames}), with an 85% coverage floor enforced in CI.` },
+          { icon: '🚦', title: 'CI/CD Governance', desc: 'GitHub Actions check every PR — lint, coverage floor, contract tests, and a live Docker-Compose boot smoke test when the services change. A failed gate fails the PR’s CI run.' },
           { icon: '🏗️', title: 'Architecture & Delivery', desc: 'Designed the microservices decomposition (5 services + gateway + worker) and used real load-testing to find and fix production concurrency bugs.' },
           { icon: '🤖', title: 'AI-First Engineering', desc: 'Built and operates an AI PR Steward that reads CI failures and review feedback and drives pull requests to green — the same automation behind this repository’s Kafka integration.' },
         ].map(c => `
@@ -2323,7 +2363,7 @@ async function renderProjects() {
   // real CI - not an abstract Scrum claim.
   const deliveryWorkflowSection = !getToken() ? `
     <div class="mb-6" data-testid="delivery-workflow-section">
-      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">How I Lead Engineering Delivery</h2>
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">How Work Ships in This Repository</h2>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
         <ol class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           ${[
@@ -2395,7 +2435,10 @@ async function renderProjects() {
   const aiFirstEngineeringSection = !getToken() ? `
     <div class="mb-6" data-testid="ai-first-engineering-section">
       <div class="flex items-center justify-between gap-3 mb-3">
-        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">AI-First Quality Engineering</h2>
+        <div>
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">AI Engineering</h2>
+          <p class="text-sm text-slate-600 mt-1">AI-assisted test generation, failure investigation and development workflows, with evaluations and human review.</p>
+        </div>
         <button data-testid="ai-pipeline-demo-btn" onclick="showModal('aiPipelineDemo')"
           class="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-1.5 rounded-lg transition-colors">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
@@ -2500,7 +2543,7 @@ async function renderProjects() {
       {
         name: 'Quality Gate Status', current: `${SITE_FACTS.ciGates} gates enforced`, target: 'All required checks pass before merge',
         status: 'Enforced',
-        def: 'Lint, the coverage floor, contract tests, and a live Docker-Compose boot smoke test all block a PR from merging if any fails.',
+        def: 'Lint, the coverage floor and contract tests run on every PR, and a live Docker-Compose boot smoke test on PRs that touch the services; any failure fails the PR’s CI run.',
         source: '.github/workflows/test.yml, microservices-smoke.yml',
       },
       {
@@ -2604,7 +2647,8 @@ async function renderProjects() {
   };
   const kpiDashboardSection = !getToken() ? `
     <div class="mb-6" data-testid="kpi-dashboard-section">
-      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Quality Engineering KPIs</h2>
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Quality Metrics</h2>
+      <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Measured</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="kpi-measured-grid">
         ${buildKpiCards(null, null, true).filter(k => !kpiUnmeasured(k)).map(kpiCardHtml).join('')}
       </div>
@@ -2636,7 +2680,7 @@ async function renderProjects() {
           { icon: '📡', title: 'Redis / WebSocket event flow', desc: 'Pub/Sub fans out WebSocket updates across replicas and publishes run-completion events; a Redis Stream queues TestResult population off the request path. Both degrade to local/inline behavior if Redis is unreachable — nothing depends on it being up.' },
           { icon: '🗄️', title: 'PostgreSQL schema separation', desc: 'Table-name prefixing was chosen over Postgres schema-qualification specifically because it works identically against SQLite in tests and Postgres in production — no ATTACH-DATABASE workaround needed.' },
           { icon: '☸️', title: 'Docker & Kubernetes deployment', desc: 'docker-compose.microservices.yml locally; Kustomize base + four environment overlays (staging/regression/preprod/prod) in k8s/, each pinned to a named node — mirroring the same four environments the in-app Environments dashboard reports on.' },
-          { icon: '🚦', title: 'CI/CD quality gates', desc: 'Lint, an 85% coverage floor, contract tests, and a live Docker-Compose boot smoke test all block a merge — see the Quality Gate Status KPI above.' },
+          { icon: '🚦', title: 'CI/CD quality gates', desc: 'Lint, an 85% coverage floor, contract tests, and a live Docker-Compose boot smoke test each fail a PR’s CI run — see the Quality Gate Status metric.' },
           { icon: '🔎', title: 'Observability & failure diagnostics', desc: 'A correlation ID threads through every request and log line across every service. In the GCP deployment, Terraform provisions a Cloud Monitoring dashboard (latency, error rate, pod health), alerting (5xx spikes, crash-loops, an uptime check, a budget guard), wired through Pub/Sub to a Cloud Function that auto-files and updates a GitHub issue per incident.' },
           { icon: '⚖️', title: 'Trade-offs, found by testing — not assumed', desc: 'Load-testing the same scenarios against both backends found a real trade: the SQLite monolith’s DELETE+GET race (issue #214) never reproduced under Postgres/microservices, but that same run surfaced a different race the async worker introduces (issue #219) that the monolith can’t have. Trading one concurrency bug for a different one, not a strict win.' },
         ].map(a => `
@@ -2661,7 +2705,7 @@ async function renderProjects() {
     <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl px-5 py-3.5" data-testid="recruiter-tour-banner">
       <div class="flex items-start gap-2.5 text-sm text-blue-900">
         <span class="text-lg flex-shrink-0" aria-hidden="true">🧭</span>
-        <span><strong class="font-bold">New here?</strong> Take a 5-step guided tour — leadership, architecture, test strategy, quality gates, and AI engineering. Under 3 minutes, no sign-in, nothing is created.
+        <span><strong class="font-bold">New here?</strong> Take a 5-step guided tour — technical leadership, how TestFlow works, test strategy, quality metrics and AI engineering. Under 3 minutes, no sign-in, nothing is created.
           <span class="block mt-1 text-xs text-blue-700" data-testid="guest-signin-prompt">You're browsing as a guest. <button type="button" onclick="showAuthModal('login')" data-testid="guest-signin-link" class="font-semibold underline hover:text-blue-900">Sign in</button> to add and manage projects.</span>
         </span>
       </div>
@@ -2709,7 +2753,8 @@ async function renderProjects() {
       <!-- Projects table header -->
       <div class="flex items-center justify-between mb-3">
         <div>
-          <h1 class="text-xl font-bold text-slate-800">Projects</h1>
+          <h1 class="text-xl font-bold text-slate-800">${getToken() ? "Projects" : "Test Workspace"}</h1>
+          ${getToken() ? "" : `<p class="text-sm text-slate-600 mt-0.5">Explore TestFlow projects, test suites, runs and results.</p>`}
           <p class="text-slate-500 text-xs mt-0.5" id="proj-count-label">${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}</p>
         </div>
         <div class="flex items-center gap-2">
@@ -4384,9 +4429,9 @@ function alertsArchDiagram() {
 // "TestFlow Repo - ..." (DEMO_KINDS.playwright), which also starts with
 // "TestFlow ".
 const DEMO_KINDS = {
-  alerts:     { btnId: "demo-seed-btn", labelId: "demo-seed-label", endpoint: "/api/demo/alerts-microservice", namePattern: /^Alerts Microservice \d{4}-\d{2}-\d{2}/, defaultLabel: "Run Alerts Microservice Demo" },
-  testflow:   { btnId: "demo-tf-btn",   labelId: "demo-tf-label",   endpoint: "/api/demo/testflow",            namePattern: /^TestFlow \d{4}-\d{2}-\d{2}/,             defaultLabel: "Run TestFlow Demo" },
-  playwright: { btnId: "demo-pw-btn",   labelId: "demo-pw-label",   endpoint: "/api/demo/playwright",          namePattern: /^TestFlow Repo — API & E2E Tests Demo/,   defaultLabel: "Run Playwright Architecture Demo" },
+  alerts:     { btnId: "demo-seed-btn", labelId: "demo-seed-label", endpoint: "/api/demo/alerts-microservice", namePattern: /^Alerts Microservice \d{4}-\d{2}-\d{2}/ },
+  testflow:   { btnId: "demo-tf-btn",   labelId: "demo-tf-label",   endpoint: "/api/demo/testflow",            namePattern: /^TestFlow \d{4}-\d{2}-\d{2}/ },
+  playwright: { btnId: "demo-pw-btn",   labelId: "demo-pw-label",   endpoint: "/api/demo/playwright",          namePattern: /^TestFlow Repo — API & E2E Tests Demo/ },
 };
 
 // GET /api/projects has no auth dependency (api/main.py's list_projects) -
@@ -4404,11 +4449,19 @@ async function findLatestDemoProject(namePattern) {
 // recently seeded demo project instead: no sign-in prompt, no new data
 // created. A signed-in user keeps the original behavior - seed a fresh demo
 // project and jump to it.
+// "Explore TestFlow": the Test Workspace tab when the project list is on the
+// page; with no projects yet, the demo project, as this button always opened.
+function exploreTestFlow() {
+  if (document.getElementById("home-panel-projects")) showHomeTab("projects", { focus: true });
+  else viewOrCreateDemo("testflow", { btnId: "hero-demo-btn", labelId: "hero-demo-label" });
+}
+
 async function viewOrCreateDemo(kind, elementIds) {
   const cfg = DEMO_KINDS[kind];
   const btn = document.getElementById(elementIds?.btnId || cfg.btnId);
   const label = document.getElementById(elementIds?.labelId || cfg.labelId);
   if (!btn) return;
+  const originalLabel = label.textContent;
   btn.disabled = true;
   btn.classList.add("opacity-60");
 
@@ -4425,7 +4478,7 @@ async function viewOrCreateDemo(kind, elementIds) {
       toast("Couldn't open the demo right now. Please try again.", "error");
     } finally {
       btn.disabled = false;
-      label.textContent = cfg.defaultLabel;
+      label.textContent = originalLabel;
       btn.classList.remove("opacity-60");
     }
     return;
@@ -4441,7 +4494,7 @@ async function viewOrCreateDemo(kind, elementIds) {
     toast("Failed to create demo: " + e.message, "error");
   } finally {
     btn.disabled = false;
-    label.textContent = cfg.defaultLabel;
+    label.textContent = originalLabel;
     btn.classList.remove("opacity-60");
   }
 }
@@ -6107,6 +6160,7 @@ function _cmdkPages() {
     pages.push({ label: "New project", group: "Action", icon: "➕", run: () => { navigate("projects"); setTimeout(() => showModal("project"), 250); } });
   }
   if (!state.user) {
+    HOME_TABS.forEach((t) => pages.push({ label: t.label, group: "Section", icon: t.icon, run: () => { navigate("projects"); setTimeout(() => showHomeTab(t.id), 250); } }));
     pages.push({ label: "Take the 3-min Recruiter Tour", group: "Action", icon: "🧭", run: () => startRecruiterTour(document.querySelector('[data-testid="hero-tour-btn"]')) });
     pages.push({ label: "Sign in", group: "Action", icon: "🔑", run: () => showAuthModal("login") });
   }
@@ -6306,19 +6360,19 @@ function applyTcFilter() {
 // straight to any tab or topic; anything that scrolls to a section (the
 // Recruiter Tour, "View architecture") switches to it first.
 const HOME_TABS = [
-  { id: "overview",    label: "Overview",        icon: "👋" },
-  { id: "stories",     label: "Success Stories", icon: "⭐" },
-  { id: "repos",       label: "Open Source",     icon: "📦" },
-  { id: "demo",        label: "Live Demo",       icon: "⚡" },
-  { id: "ai",          label: "AI Engineering",  icon: "🤖" },
-  { id: "engineering", label: "Engineering",     icon: "🛠️" },
-  { id: "projects",    label: "Projects",        icon: "📁" },
+  { id: "overview",    label: "About Me",              icon: "👋" },
+  { id: "repos",       label: "Portfolio",             icon: "📦" },
+  { id: "engineering", label: "Engineering Practices", icon: "🛠️" },
+  { id: "ai",          label: "AI Engineering",        icon: "🤖" },
+  { id: "demo",        label: "AI Pipeline",           icon: "⚡" },
+  { id: "stories",     label: "Engineering Insights",  icon: "⭐" },
+  { id: "projects",    label: "Test Workspace",        icon: "📁" },
 ];
 const ENGINEERING_TOPICS = [
   { id: "strategy",     label: "Test Strategy" },
-  { id: "kpis",         label: "KPIs" },
-  { id: "architecture", label: "Architecture" },
-  { id: "leadership",   label: "Leadership" },
+  { id: "kpis",         label: "Quality Metrics" },
+  { id: "architecture", label: "How TestFlow Works" },
+  { id: "leadership",   label: "Technical Leadership" },
 ];
 let _homeTab = null;   // selected top-level tab
 let _homeTopic = null; // selected Engineering topic
@@ -6349,7 +6403,11 @@ function homeTabsHtml(panels) {
   const active = _homeTab;
 
   const engineering = `
-    <div role="tablist" aria-label="Engineering topics" onkeydown="_homeTopicsKeydown(event)"
+    <div class="mb-3">
+      <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide">Engineering Practices</h2>
+      <p class="text-sm text-slate-600 mt-1">How I approach test strategy, quality measurement, technical decisions and delivery.</p>
+    </div>
+    <div role="tablist" aria-label="Engineering Practices topics" onkeydown="_homeTopicsKeydown(event)"
       class="flex gap-1.5 overflow-x-auto no-scrollbar mb-4" data-testid="engineering-topics">
       ${topics.map((t) => `
         <button type="button" role="tab" id="home-subtab-${t.id}" data-home-subtab="${t.id}" data-testid="home-subtab-${t.id}"

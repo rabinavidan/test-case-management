@@ -34,8 +34,10 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     });
     guestExpect(heroFollowedByDemo).toBe(true);
 
-    await guestExpect(demoSection.getByText(/Live Demo/)).toBeVisible();
-    await guestExpect(demoSection.getByText('Static walkthrough — not a live AI call')).toBeVisible();
+    // assertion-change-approved: the walkthrough is no longer called a Live Demo, and its label now reads as the owner asked
+    await guestExpect(demoSection.getByRole('heading', { name: 'AI in the CI/CD Pipeline' })).toBeVisible();
+    await guestExpect(demoSection.getByText('Illustrative walkthrough. No live AI calls.')).toBeVisible();
+    await guestExpect(demoSection.getByText(/Live Demo/)).toHaveCount(0);
     // Exact: the replay's step label ("Step 2/7 · AI PR Steward") repeats the
     // running stage's title, so a substring match can find two elements.
     await guestExpect(demoSection.getByText('AI PR Steward', { exact: true })).toBeVisible();
@@ -54,10 +56,11 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     await guestExpect(section.getByText('API / Integration / Contract')).toBeVisible();
     await guestExpect(section.getByText('E2E', { exact: true })).toBeVisible();
 
-    await guestExpect(section.getByText('220 tests')).toBeVisible();
-    await guestExpect(section.getByText('145 tests')).toBeVisible();
-    await guestExpect(section.getByText('237 tests')).toBeVisible();
-    await guestExpect(section.getByText('104 tests')).toBeVisible();
+    // assertion-change-approved: counts re-measured from the repository (see TEST_PYRAMID_LEVELS in static/app.js)
+    await guestExpect(section.getByText('477 tests')).toBeVisible();
+    await guestExpect(section.getByText('170 tests')).toBeVisible();
+    await guestExpect(section.getByText('418 tests')).toBeVisible();
+    await guestExpect(section.getByText('364 tests')).toBeVisible();
   });
 
   guestTest('the Shift-Left strategy statement is present', async ({ page }) => {
@@ -108,7 +111,7 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
 
     const demo = page.getByTestId('ai-pipeline-demo');
     await guestExpect(demo).toBeVisible();
-    await guestExpect(demo.getByText('Static walkthrough — not a live AI call')).toBeVisible();
+    await guestExpect(demo.getByText('Illustrative walkthrough. No live AI calls.')).toBeVisible();
     // Exact, as above: the step label repeats the running stage's title.
     await guestExpect(demo.getByText('AI PR Steward', { exact: true })).toBeVisible();
     await guestExpect(demo.getByText('Playwright Healer', { exact: true })).toBeVisible();

@@ -16,16 +16,17 @@ guestTest.describe('Guest home page — Open-Source Repositories', () => {
     await guestExpect(page.getByTestId('top-repos-section')).toBeVisible();
   });
 
-  guestTest('sits after Success Stories and before the Live Demo section', async ({ page }) => {
+  // assertion-change-approved: the tabs were reordered and renamed; Portfolio now comes before the AI Pipeline and Engineering Insights
+  guestTest('sits before the AI Pipeline and Engineering Insights sections', async ({ page }) => {
     const order = await page.evaluate(() => {
       const [stories, repos, demo] = ['success-stories-section', 'top-repos-section', 'ai-live-demo-section']
         .map((id) => document.querySelector(`[data-testid="${id}"]`));
       if (!stories || !repos || !demo) return 'missing';
       const after = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-      return after(stories, repos) && after(repos, demo) ? 'ok' : 'out of order';
+      return after(repos, demo) && after(demo, stories) ? 'ok' : 'out of order';
     });
     guestExpect(order).toBe('ok');
-    await guestExpect(page.getByRole('heading', { name: 'Open-Source Repositories' })).toBeVisible();
+    await guestExpect(page.getByRole('heading', { name: 'Selected Projects' })).toBeVisible();
   });
 
   guestTest('lists the six repos, each linking to its GitHub source with a fact and its stack', async ({ page }) => {
