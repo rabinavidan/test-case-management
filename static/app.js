@@ -2248,10 +2248,11 @@ async function renderProjects() {
         </a>
       </div>
 
-      <!-- Skills strip: wider screens only - on phones the impact row takes its place, so the tab bar stays on the first screen -->
-      <div data-testid="hero-skills" class="relative z-10 border-t hidden sm:flex sm:flex-wrap gap-x-2 gap-y-1.5 px-6 py-2" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25)">
+      <!-- Skills strip: wider screens only - on phones the impact row takes its place, so the tab bar stays on the first screen.
+           One row: all 15 fit from 1280px up; narrower screens scroll it sideways instead of wrapping. -->
+      <div data-testid="hero-skills" role="region" aria-label="Tech stack" tabindex="0" class="relative z-10 border-t hidden sm:flex flex-nowrap overflow-x-auto gap-x-1.5 px-6 py-2" style="border-color:rgba(255,255,255,.07);background:rgba(0,0,0,.25);scrollbar-width:thin">
         ${['Playwright','TypeScript','Python','Java','REST API','Kafka','Docker','Kubernetes','GCP','AWS','Datadog','GitHub Actions','Claude Code','OpenAI Codex','MCP'].map(s =>
-          `<span class="text-[11px] font-semibold px-3 py-1 rounded-full flex-shrink-0 whitespace-nowrap" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
+          `<span class="text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0 whitespace-nowrap" style="background:rgba(255,255,255,.07);color:rgba(180,220,255,.8);border:1px solid rgba(255,255,255,.1)">${s}</span>`
         ).join('')}
       </div>
     </div>
