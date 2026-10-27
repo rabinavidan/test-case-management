@@ -37,7 +37,8 @@ async function expectNoViolations(page: Page, label: string) {
   expect(report, `${label}: WCAG A/AA violations`).toEqual([]);
 }
 
-const HOME_TABS = ['stories', 'repos', 'demo', 'leadership', 'strategy', 'ai', 'kpis', 'architecture', 'projects'];
+// Every top-level tab, and each Engineering topic (#home/<topic> opens Engineering on it).
+const HOME_TABS = ['overview', 'stories', 'repos', 'demo', 'leadership', 'strategy', 'ai', 'kpis', 'architecture', 'projects'];
 
 /** An API client signed in as the e2e user. Worker-scoped setup can't use the
  * test-scoped auth fixtures, so it reads the same token global-setup saved. */
@@ -65,7 +66,7 @@ test.describe('Accessibility gate — guest home page', () => {
   for (const tab of HOME_TABS) {
     test(`the ${tab} tab`, async ({ page }) => {
       await page.goto(`/#home/${tab}`);
-      await expect(page.locator(`#home-panel-${tab}`)).toBeVisible();
+      await expect(page.locator(`#home-panel-${tab}, #home-subpanel-${tab}`).first()).toBeVisible();
       await expectNoViolations(page, `home: ${tab}`);
     });
   }

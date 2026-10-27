@@ -138,7 +138,7 @@ The public, unauthenticated view (visiting the app with no session) is built for
 manager evaluating this repo, not only as a test-management product demo. Everything below is generated
 directly from this repository's own code, tests, and CI — not a static marketing page.
 
-- **Automation Tech Lead positioning** — the hero identifies the owner's role and links directly to the live
+- **Senior automation, infra & backend positioning** — the hero identifies the owner's role and links directly to the live
   demo, the architecture panel, GitHub, and LinkedIn, all reachable in one action with no sign-in required.
 - **Leadership Impact** — five cards, each backed by something this repo actually enforces (CI quality
   gates, the five-stack test pyramid, the microservice decomposition, the AI PR Steward) rather than a

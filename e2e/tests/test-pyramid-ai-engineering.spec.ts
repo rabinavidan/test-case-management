@@ -44,7 +44,8 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
   });
 
   guestTest('the Test Pyramid section shows all four levels with real counts', async ({ page }) => {
-    await page.getByTestId('home-tab-strategy').click();
+    await page.getByTestId('home-tab-engineering').click();
+    await page.getByTestId('home-subtab-strategy').click();
     const section = page.getByTestId('test-pyramid-section');
     await guestExpect(section).toBeVisible();
 
@@ -60,7 +61,8 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
   });
 
   guestTest('the Shift-Left strategy statement is present', async ({ page }) => {
-    await page.getByTestId('home-tab-strategy').click();
+    await page.getByTestId('home-tab-engineering').click();
+    await page.getByTestId('home-subtab-strategy').click();
     const section = page.getByTestId('test-pyramid-section');
     await guestExpect(section.getByText(/Shift-Left strategy/i)).toBeVisible();
     await guestExpect(section.getByText(/critical customer journeys/i)).toBeVisible();

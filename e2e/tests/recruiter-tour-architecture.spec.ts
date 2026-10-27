@@ -12,7 +12,8 @@ guestTest.describe('Guest recruiter view — Architecture story', () => {
   });
 
   guestTest('the Architecture tab reveals real, sourced architecture-decisions content', async ({ page }) => {
-    await page.getByTestId('home-tab-architecture').click();
+    await page.getByTestId('home-tab-engineering').click();
+    await page.getByTestId('home-subtab-architecture').click();
     await page.locator('#showcase-toggle-btn').click();
     const section = page.getByTestId('architecture-story-section');
     await guestExpect(section).toBeVisible({ timeout: 5000 });

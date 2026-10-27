@@ -21,7 +21,7 @@ guestTest.describe('Home tab bar — the indicator', () => {
   // narrower than its tab and clipped the label ("Success Stori").
   guestTest('covers the selected tab exactly, on load, after switching and after a resize', async ({ page }) => {
     await page.goto('/#projects');
-    await guestExpect(page.getByTestId('home-tab-stories')).toHaveAttribute('aria-selected', 'true');
+    await guestExpect(page.getByTestId('home-tab-overview')).toHaveAttribute('aria-selected', 'true');
     await page.evaluate(() => document.fonts.ready);
     const settled = async () => {
       // The indicator slides with a short transition; poll until it has arrived.
@@ -67,7 +67,8 @@ guestTest.describe('Hero headline', () => {
     await page.goto('/#projects');
     const title = page.locator('.owner-banner h2');
     // The <br> between the two lines adds no space to the text.
-    await guestExpect(title).toHaveText(/^Leading Automation Architecture &\s*AI-Driven Quality Strategy$/);
+    // assertion-change-approved: the hero headline was reworded for senior automation, infra and backend roles
+    await guestExpect(title).toHaveText(/^Automation Infrastructure &\s*AI-Driven Test Engineering$/);
     const inner = await title.evaluate((h2) => Array.from(h2.querySelectorAll('*')).map((el) => ({
       tag: el.tagName,
       transform: getComputedStyle(el).transform,

@@ -112,7 +112,8 @@ for (const { name, width, height, budget } of VIEWPORTS) {
   test.describe(`Home page layout budget — ${name} (${width}×${height})`, () => {
     test.beforeEach(async ({ page }) => {
       await page.setViewportSize({ width, height });
-      await page.goto('/#projects');
+      // The Success Stories tab, so the budget can measure a story card too.
+      await page.goto('/#home/stories');
       await settle(page);
     });
 
