@@ -22,10 +22,28 @@ test.describe('Home page — Overview tab', () => {
     await expect(page.getByTestId('overview-skills').locator('h3')).toHaveCount(6);
   });
 
-  // The site owner chose not to publish an employer timeline.
-  test('names no employer', async ({ page }) => {
+  // The site owner chose not to publish an employer timeline. The one
+  // exception is a certificate's issuer: ZoomInfo issued Emerging Leader.
+  test('names no employer, except as a certificate issuer', async ({ page }) => {
     const text = await page.getByTestId('overview-section').innerText();
-    for (const employer of ['ZoomInfo', 'Samsung', 'iMDsoft', 'NCR']) expect(text.includes(employer), `mentions ${employer}`).toBe(false);
+    // assertion-change-approved: the owner asked for ZoomInfo as the Emerging Leader issuer
+    for (const employer of ['Samsung', 'iMDsoft', 'NCR']) expect(text.includes(employer), `mentions ${employer}`).toBe(false);
+    expect(text.split('ZoomInfo').length - 1, 'ZoomInfo mentions').toBe(1);
+    await expect(page.getByTestId('overview-credentials').getByText('ZoomInfo · Leadership development program')).toBeVisible();
+  });
+
+  test('education, certifications and professional development, in that order, with no dates or links', async ({ page }) => {
+    const section = page.getByTestId('overview-credentials');
+    await expect(section.getByRole('heading', { name: 'Education, Certifications & Professional Development' })).toBeVisible();
+    await expect(section.getByRole('heading', { level: 3 })).toHaveText(['Education', 'Professional Certifications', 'Professional Development']);
+    const groups = section.getByTestId('credentials-group');
+    await expect(groups.nth(0).locator('li p.font-semibold')).toHaveText(['B.Sc. Electronic & Computer Engineering']);
+    await expect(groups.nth(1).locator('li p.font-semibold')).toHaveText(['ISTQB', 'MCSD']);
+    await expect(groups.nth(2).locator('li p.font-semibold')).toHaveText(['Emerging Leader', 'Build with AI: Reasoning Models for AI Agents']);
+    await expect(groups.nth(2)).toContainText('LinkedIn · Course completion');
+    expect(await section.innerText()).not.toMatch(/(19|20)\d{2}/);
+    // No verified credential URL or certificate file exists yet, so nothing links.
+    await expect(section.locator('a, button')).toHaveCount(0);
   });
 
   test('its shortcuts open the tab they name', async ({ page }) => {

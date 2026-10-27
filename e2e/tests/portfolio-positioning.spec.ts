@@ -40,6 +40,7 @@ guestTest.describe('Guest recruiter view — Tech Lead positioning', () => {
 
     const linkedinLink = page.getByTestId('hero-linkedin-btn');
     await guestExpect(linkedinLink).toHaveAttribute('href', /linkedin\.com/);
+    await guestExpect(linkedinLink).toHaveAttribute('href', 'https://www.linkedin.com/in/rabin-avidan/');
 
     // The tour leads, then Explore Live Demo, View GitHub, Connect on LinkedIn.
     const testIds = await buttons.evaluateAll(els => els.map(el => el.getAttribute('data-testid')));

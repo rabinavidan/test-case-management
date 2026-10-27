@@ -1441,6 +1441,23 @@ const OVERVIEW_SKILLS = [
   { group: "Quality & collaboration", items: ["QA strategy", "Shift-Left", "Design & code reviews", "KPIs", "Agile / Scrum", "Mentoring", "Team leadership", "Delivery ownership"] },
 ];
 
+// Education, certifications and professional development, in display order.
+// Only verified details: no dates, no credential links until a verified URL
+// or certificate file exists for an item.
+const OVERVIEW_CREDENTIALS = [
+  { group: "Education", items: [
+    { title: "B.Sc. Electronic & Computer Engineering", detail: "AFEKA / Tel Aviv University Branch" },
+  ] },
+  { group: "Professional Certifications", items: [
+    { title: "ISTQB", detail: "Software testing certification" },
+    { title: "MCSD", detail: "ASP.NET / MVC" },
+  ] },
+  { group: "Professional Development", items: [
+    { title: "Emerging Leader", detail: "ZoomInfo · Leadership development program" },
+    { title: "Build with AI: Reasoning Models for AI Agents", detail: "LinkedIn · Course completion" },
+  ] },
+];
+
 function renderOverviewSection() {
   const chip = (s) => `<span class="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">${escHtml(s)}</span>`;
   const jump = (tab, label) => `<button type="button" onclick="showHomeTab('${tab}')" data-testid="overview-go-${tab}"
@@ -1459,13 +1476,17 @@ function renderOverviewSection() {
             ${jump("engineering", "How I engineer")}
           </div>
         </div>
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Education &amp; certifications</h2>
-          <ul class="space-y-3 text-sm text-slate-700">
-            <li><p class="font-semibold text-slate-900">B.Sc. Electronic &amp; Computer Engineering</p><p class="text-slate-600">AFEKA / Tel Aviv University Branch</p></li>
-            <li><p class="font-semibold text-slate-900">ISTQB</p><p class="text-slate-600">Software testing certification</p></li>
-            <li><p class="font-semibold text-slate-900">MCSD</p><p class="text-slate-600">ASP.NET / MVC</p></li>
-          </ul>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5" data-testid="overview-credentials">
+          <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Education, Certifications &amp; Professional Development</h2>
+          <div class="space-y-4">
+            ${OVERVIEW_CREDENTIALS.map((g) => `
+              <div data-testid="credentials-group">
+                <h3 class="text-xs font-semibold text-slate-600 mb-1.5">${escHtml(g.group)}</h3>
+                <ul class="space-y-2 text-sm">
+                  ${g.items.map((i) => `<li><p class="font-semibold text-slate-900">${escHtml(i.title)}</p><p class="text-slate-600">${escHtml(i.detail)}</p></li>`).join("")}
+                </ul>
+              </div>`).join("")}
+          </div>
         </div>
       </div>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -2233,7 +2254,7 @@ async function renderProjects() {
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.744.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.93 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
           View GitHub
         </a>
-        <a href="https://www.linkedin.com/in/rabin-avidan-1aab6653/" target="_blank" rel="noopener noreferrer"
+        <a href="https://www.linkedin.com/in/rabin-avidan/" target="_blank" rel="noopener noreferrer"
           data-testid="hero-linkedin-btn"
           class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold transition-all hover:scale-105"
           style="background:linear-gradient(135deg,#0a66c2,#0f8ce8);box-shadow:0 4px 16px rgba(10,102,194,.4)">
