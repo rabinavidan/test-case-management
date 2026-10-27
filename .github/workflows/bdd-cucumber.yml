@@ -21,6 +21,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned like test.yml: the runner image's own python3 moves with the
+      # image (ubuntu-26.04 ships 3.14, which psycopg2-binary 2.9.9 has no
+      # wheel for), so pip install would break on an image change, not a code change.
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
