@@ -1,6 +1,6 @@
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
 httpx==0.28.1
-anthropic==1.13.0
+anthropic==2.3.0
 # APM / log-trace correlation for Datadog — inert until DD_TRACE_ENABLED=true (docs/datadog.md).
 ddtrace==4.16.0
