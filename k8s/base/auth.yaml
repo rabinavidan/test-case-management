@@ -9,7 +9,12 @@ spec:
     matchLabels: { app: auth }
   template:
     metadata:
-      labels: { app: auth }
+      labels:
+        app: auth
+        # Datadog unified service tagging + log source (docs/datadog.md).
+        tags.datadoghq.com/service: auth
+      annotations:
+        ad.datadoghq.com/auth.logs: '[{"source":"python","service":"auth"}]'
     spec:
       containers:
         - name: auth
@@ -19,6 +24,13 @@ spec:
           envFrom:
             - configMapRef: { name: testflow-config }
           env:
+            # Datadog: the node-local Agent (DaemonSet, hostPort 8126) and this
+            # service's name. On/off, env and log injection come from
+            # testflow-config (DD_TRACE_ENABLED defaults to "false").
+            - name: DD_AGENT_HOST
+              valueFrom: { fieldRef: { fieldPath: status.hostIP } }
+            - name: DD_SERVICE
+              value: auth
             - name: DATABASE_URL
               valueFrom: { secretKeyRef: { name: testflow-secrets, key: DATABASE_URL } }
             - name: JWT_SECRET_KEY

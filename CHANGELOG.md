@@ -90,6 +90,12 @@ but isn't retroactively cataloged here.
   R@1 1.00 vs 0.56 for the hashed vector.
 
 ### Added
+- **Datadog-ready microservices** — all six services run under `ddtrace-run` (`ddtrace==4.16.0`,
+  inert until `DD_TRACE_ENABLED=true`), log one JSON object per line with `dd.trace_id`/`dd.span_id`
+  for log↔trace correlation (`services/common/logging_config.py`), and carry `DD_SERVICE`/`DD_ENV`
+  tagging in compose and in `k8s/` (pods reach the node Agent via `status.hostIP`). An Agent runs
+  locally under the compose `datadog` profile; `deploy/datadog/values.yaml` installs it on GKE with
+  the official Helm chart. No API key in the repo. See `docs/datadog.md`.
 - **GraphQL + WebSocket tests in Java** (GraphQL/WebSocket plan — PR 5 of 5) — `java-tests/`:
   `GraphQLApiTest` (REST Assured against `/graphql`), `RunWebSocketTest` and
   `GraphQLSubscriptionTest` over the JDK's own `java.net.http.WebSocket` (no new dependency,

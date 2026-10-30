@@ -793,6 +793,9 @@ degrade gracefully if the broker is unreachable). The gateway container is the o
 publicly exposed.
 Point your orchestrator's health checks at each service's `/health/live` (restart) and
 `/health/ready` (route traffic) — `k8s/base/` already wires them as startup/liveness/readiness probes.
+Every service is also Datadog-ready (APM via `ddtrace-run`, JSON logs carrying `dd.trace_id`, unified
+service tagging), switched off until you set `DD_TRACE_ENABLED=true` and run an Agent — see
+[`docs/datadog.md`](docs/datadog.md).
 
 ---
 

@@ -42,6 +42,7 @@ configMapGenerator:
     behavior: merge
     literals:
       - ENVIRONMENT=regression
+      - DD_ENV=regression
 
 secretGenerator:
   - name: testflow-secrets

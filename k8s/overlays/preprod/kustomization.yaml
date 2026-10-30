@@ -42,6 +42,7 @@ configMapGenerator:
     behavior: merge
     literals:
       - ENVIRONMENT=preprod
+      - DD_ENV=preprod
 
 secretGenerator:
   - name: testflow-secrets

@@ -12,3 +12,10 @@ data:
   PROJECTS_SERVICE_URL: http://projects:8002
   RUNS_SERVICE_URL: http://runs:8003
   REDIS_URL: redis://redis:6379
+  # Datadog (docs/datadog.md). Every service runs under ddtrace-run; nothing is
+  # traced or sent until an overlay sets DD_TRACE_ENABLED=true AND the Datadog
+  # Agent DaemonSet is installed (deploy/datadog/values.yaml).
+  DD_TRACE_ENABLED: "false"
+  DD_RUNTIME_METRICS_ENABLED: "false"
+  DD_LOGS_INJECTION: "true"
+  DD_ENV: dev

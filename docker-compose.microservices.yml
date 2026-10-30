@@ -1,3 +1,17 @@
+# ─── Datadog (docs/datadog.md) ───────────────────────────────────────────────
+# Every app service runs under ddtrace-run (see its Dockerfile). Off by default:
+# nothing is sent until DD_TRACE_ENABLED=true, and the Agent below only starts
+# with the "datadog" profile:
+#   DD_API_KEY=... DD_TRACE_ENABLED=true \
+#     docker compose -f docker-compose.microservices.yml --profile datadog up
+x-datadog-env: &datadog-env
+  DD_AGENT_HOST: datadog-agent
+  DD_ENV: ${DD_ENV:-local}
+  DD_VERSION: ${DD_VERSION:-dev}
+  DD_TRACE_ENABLED: ${DD_TRACE_ENABLED:-false}
+  DD_LOGS_INJECTION: "true"
+  DD_RUNTIME_METRICS_ENABLED: ${DD_TRACE_ENABLED:-false}
+
 services:
   # ─── Infrastructure ───────────────────────────────────────────────────────
   db:
@@ -57,6 +71,8 @@ services:
     ports:
       - "8001:8001"
     environment:
+      <<: *datadog-env
+      DD_SERVICE: auth
       DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
@@ -75,6 +91,8 @@ services:
     ports:
       - "8002:8002"
     environment:
+      <<: *datadog-env
+      DD_SERVICE: projects
       DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       RUNS_SERVICE_URL: http://runs:8003
@@ -91,6 +109,8 @@ services:
     ports:
       - "8003:8003"
     environment:
+      <<: *datadog-env
+      DD_SERVICE: runs
       DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       REDIS_URL: redis://redis:6379
@@ -112,6 +132,8 @@ services:
       context: .
       dockerfile: services/worker/Dockerfile
     environment:
+      <<: *datadog-env
+      DD_SERVICE: worker
       DATABASE_URL: postgresql://testflow:testflow@db:5432/testflow
       REDIS_URL: redis://redis:6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092
@@ -132,6 +154,8 @@ services:
     ports:
       - "8004:8004"
     environment:
+      <<: *datadog-env
+      DD_SERVICE: ai
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PROJECTS_SERVICE_URL: http://projects:8002
@@ -146,6 +170,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      <<: *datadog-env
+      DD_SERVICE: gateway
       AUTH_URL: http://auth:8001
       PROJECTS_URL: http://projects:8002
       RUNS_URL: http://runs:8003
@@ -155,6 +181,28 @@ services:
       - projects
       - runs
       - ai
+    restart: unless-stopped
+
+  # ─── Datadog Agent (only with --profile datadog) ─────────────────────────
+  # Receives traces from ddtrace (port 8126) and tails every container's
+  # stdout (the JSON logs services/common/logging_config.py writes).
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    profiles: ["datadog"]
+    environment:
+      DD_API_KEY: ${DD_API_KEY:-}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_ENV: ${DD_ENV:-local}
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_CONTAINER_EXCLUDE_LOGS: "name:datadog-agent"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     restart: unless-stopped
 
 volumes:
