@@ -1411,21 +1411,21 @@ function renderTopReposSection() {
 // ─── Projects View ───────────────────────────────────────────────────────────
 // Numbers the home page states in more than one place (the hero's impact row,
 // the Test Pyramid, the KPI cards) come from here, so they can't drift apart.
-// Counts as collected on 2026-10-27: pytest --collect-only per directory,
-// `playwright test --list` (Chromium project, plus the mocked config), Java
-// test methods (@Test / @ParameterizedTest) and Cucumber scenarios.
+// Counts as collected on 2026-11-09: pytest --collect-only per directory
+// (backend) and `playwright test --list` (Chromium project, plus the mocked
+// config) for the Playwright TypeScript E2E/UI suite.
 const TEST_PYRAMID_LEVELS = [
-  { level: 'Unit',                 count: 477, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/unit' },
+  { level: 'Unit',                 count: 501, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/unit' },
   { level: 'Component',            count: 170, desc: 'Each microservice tested in isolation via TestClient.', where: 'tests/services' },
-  { level: 'API / Integration / Contract', count: 418, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests and black-box REST Assured HTTP tests.', where: 'tests/api + tests/contract + java-tests' },
-  { level: 'E2E',                  count: 364, desc: 'Full user flows through the real UI — Python, TypeScript, and Java Playwright, plus Cucumber/Gherkin BDD.', where: 'tests/e2e + e2e/ + java-e2e + e2e-bdd' },
+  { level: 'API / Integration / Contract', count: 368, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests.', where: 'tests/api + tests/contract' },
+  { level: 'E2E',                  count: 304, desc: 'Full user flows through the real UI — Playwright + TypeScript, real-backend and fully mocked.', where: 'e2e/' },
 ];
 const TEST_TOTAL = TEST_PYRAMID_LEVELS.reduce((n, l) => n + l.count, 0);
 const SITE_FACTS = {
   coverage: '93.2%',  // pytest line coverage of api/, services/ and shared/ on main's CI (floor 85%)
   ciGates: 4,         // lint, coverage floor, contract tests, Docker Compose boot smoke test
-  testStacks: 5,      // the five stacks the README names, listed below
-  testStackNames: 'pytest, Playwright TypeScript, Playwright Java, REST Assured and Cucumber BDD',
+  testStacks: 2,      // one per layer: pytest (backend) and Playwright TypeScript (E2E/UI)
+  testStackNames: 'pytest for the backend, Playwright TypeScript for E2E/UI',
 };
 const HERO_IMPACT = [
   { value: String(TEST_TOTAL), label: 'automated tests' },
@@ -2538,7 +2538,7 @@ async function renderProjects() {
         name: 'Test Inventory', current: `${TEST_TOTAL} tests / ${TEST_PYRAMID_LEVELS.length} layers`, target: 'Grows with the codebase',
         status: 'Healthy',
         def: 'Total automated test count across unit, component, API/contract, and E2E layers (see Test Pyramid above). This counts tests that exist, not requirements or risk covered.',
-        source: 'tests/, e2e/, java-tests/, java-e2e/, e2e-bdd/',
+        source: 'tests/, e2e/',
       },
       {
         name: 'Quality Gate Status', current: `${SITE_FACTS.ciGates} gates enforced`, target: 'All required checks pass before merge',

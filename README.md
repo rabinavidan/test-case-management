@@ -5,16 +5,9 @@
 A full-stack test case management platform built with FastAPI microservices, Vanilla JS, PostgreSQL, and Redis.
 Designed to demonstrate cutting-edge engineering practices — microservice decomposition, event-driven async,
 real-time WebSocket collaboration, and AI-powered test generation, failure triage, and flaky-test detection
-(via Anthropic's Claude Haiku). Backed by **five independent, feature-equivalent test automation stacks** —
-Python/pytest, TypeScript/Playwright, Java/REST Assured, Java/Playwright, and Cucumber/Gherkin BDD — see
+(via Anthropic's Claude Haiku). Backed by **two test automation stacks, one per layer** —
+**Playwright + TypeScript** for E2E/UI and **Python + pytest** for the backend — see
 [Test Architecture](#test-architecture) below.
-
-> **Note for reviewers:** two of the five test suites are written in Java — [`java-tests/`](java-tests/README.md)
-> (JUnit 5 + REST Assured, black-box API tests) and [`java-e2e/`](java-e2e/README.md) (JUnit 5 + Playwright Java,
-> browser E2E). Both run standalone with Maven (`mvn test`) and are feature-equivalent to the Python and
-> TypeScript suites. A fifth, [`e2e-bdd/`](e2e-bdd/README.md) (Cucumber.js + Playwright), covers the same core
-> flows as Gherkin feature files, with a companion Azure DevOps pipeline ([`azure-pipelines.yml`](azure-pipelines.yml))
-> alongside the GitHub Actions workflows — see [Test Architecture](#test-architecture).
 
 ---
 
@@ -352,40 +345,37 @@ GET    /health                                  # Same as /health/live (kept for
 
 ## Test Architecture
 
-Five independent, feature-equivalent automation stacks drive the same app — same core flows, same public
-`/api/*` surface — each targeting a different hiring context on purpose (see the breakdown below):
+Two automation stacks, each owning one layer — no duplicated, parallel suites:
 
 ```
-                              TestFlow (api/main.py + static/)
+                              TestFlow (api/main.py + services/ + static/)
                                             ▲
-              ┌──────────────┬─────────────┼─────────────┬──────────────┐
-              │              │             │             │              │
-      ┌───────▼──────┐┌──────▼───────┐┌────▼────────┐┌───▼──────────┐┌──▼───────────┐
-      │  Python       ││  TypeScript  ││  Python     ││  Java        ││  Java        │
-      │  pytest       ││  Playwright  ││  Playwright ││  REST Assured││  Playwright  │
-      ├───────────────┤├──────────────┤├─────────────┤├──────────────┤├──────────────┤
-      │ tests/unit    ││ e2e/tests/   ││ tests/e2e/  ││ java-tests/  ││ java-e2e/    │
-      │ tests/api     ││  *.spec.ts   ││  *.py       ││  *.java      ││  *.java      │
-      │ tests/contract││              ││             ││              ││              │
-      │ tests/services││              ││             ││              ││              │
-      ├───────────────┤├──────────────┤├─────────────┤├──────────────┤├──────────────┤
-      │ in-process     ││ real browser ││ real browser││ black-box    ││ real browser │
-      │ TestClient +   ││ + real HTTP  ││ + real HTTP ││ HTTP only —  ││ + real HTTP  │
-      │ throwaway DB   ││              ││             ││ no shortcuts ││              │
-      └───────┬───────┘└──────┬───────┘└──────┬──────┘└──────┬───────┘└──────┬───────┘
-              │                │               │               │               │
-              └────────────────┴───────────────┴───────────────┴───────────────┘
-                                     Allure report (every run, every stack)
+                         ┌──────────────────┴──────────────────┐
+                 ┌───────▼────────┐                    ┌───────▼────────┐
+                 │  Python        │                    │  TypeScript    │
+                 │  pytest        │                    │  Playwright    │
+                 │  (backend)     │                    │  (E2E / UI)    │
+                 ├────────────────┤                    ├────────────────┤
+                 │ tests/unit     │                    │ e2e/tests/     │
+                 │ tests/api      │                    │  *.spec.ts     │
+                 │ tests/contract │                    │                │
+                 │ tests/services │                    │                │
+                 │ tests/infra    │                    │                │
+                 ├────────────────┤                    ├────────────────┤
+                 │ in-process     │                    │ real browser   │
+                 │ TestClient +   │                    │ + real HTTP,   │
+                 │ throwaway DB   │                    │ or fully mocked│
+                 └───────┬────────┘                    └───────┬────────┘
+                         └──────────────────┬──────────────────┘
+                              Allure report (every run, both stacks)
 ```
 
-707 pytest tests, 92 Playwright TS specs (plus a 19-spec fully-offline mocked layer — see below), 35 REST
-Assured tests, a JUnit 5/Playwright Java E2E suite, and a Cucumber/Gherkin BDD suite — see the full breakdown
-below.
+707 pytest tests and 92 Playwright TS specs (plus a 19-spec fully-offline mocked layer — see below).
 
-**Coverage:** ~90% line coverage of `api/`, `services/`, and `shared/` from the pytest suite alone (unit + API +
+**Coverage:** ~90% line coverage of `api/`, `services/`, and `shared/` from the pytest suite (unit + API +
 contract + services), measured with `pytest-cov` and enforced at an 85% floor in CI (`.github/workflows/test.yml`)
 — a PR that drops coverage below that fails the build. This doesn't count the additional exercise from the
-Playwright/REST Assured E2E suites, which run against a live deployment rather than in-process.
+Playwright E2E suite, which runs against a live app rather than in-process.
 
 ### Test types at a glance
 
@@ -396,48 +386,19 @@ Playwright/REST Assured E2E suites, which run against a live deployment rather t
 | **Contract** | Real responses validated against the app's own live OpenAPI schema — property-based edge cases, not just hand-picked examples | `tests/contract/` (pytest + Schemathesis) · `e2e/tests/contract.spec.ts` (Playwright + ajv + fast-check) |
 | **Microservices** | Each of the 6 `services/` (auth, projects, runs, worker, ai, gateway) tested in isolation — auth, CRUD, inter-service HTTP calls, graceful degradation when a downstream service, Redis, or Kafka is unreachable | `tests/services/` (pytest) |
 | **Kafka producer/consumer** | `services/runs`' `alert.triggered` producer and `services/worker`'s consumer of it, unit-level with `KafkaProducer`/`KafkaConsumer` monkeypatched (no live broker needed) — publish success, broker-unreachable degradation, malformed-message and retries-exhausted routing to the dead-letter topic, transient-failure retry-then-succeed, idempotent persistence | `tests/services/test_kafka_producer.py`, `tests/services/test_kafka_consumer.py` (pytest) |
-| **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `tests/e2e/` (pytest + Playwright) · `e2e/tests/*.spec.ts` (Playwright + TypeScript) · `java-e2e/` (JUnit 5 + Playwright Java) |
+| **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `e2e/tests/*.spec.ts` (Playwright + TypeScript) |
 | **Serverless mocked E2E** | Every backend call intercepted with `page.route()` against typed fixtures (`e2e/mocks/`) — no FastAPI process, no database, served by a ~40-line static file server instead of `uvicorn`. A separate contract-drift check validates those fixtures against the live OpenAPI schema (`ajv`) so a mocked test can't quietly keep passing against a stale backend contract | `e2e/tests/mocked-serverless-*.spec.ts`, `e2e/tests/mock-contract-drift.spec.ts` (Playwright + TypeScript) |
-| **Java API** | Black-box HTTP tests against a running instance — no in-process shortcuts, same public `/api/*` surface as every other stack | `java-tests/` (JUnit 5 + REST Assured) |
-| **BDD / Gherkin** | Stakeholder-readable Given/When/Then feature files over the same core flows (sign-in, project lifecycle), driven by Cucumber.js + Playwright | [`e2e-bdd/`](e2e-bdd/README.md) (Cucumber.js + Playwright + TypeScript) |
-| **Regression** | Cross-layer tag (`-m regression`) for a scheduled full-suite run against a live deployment | `pytest.ini` marker, run by `pw-regression.yml` / `pw-scheduled.yml` |
-| **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) · `allure-junit5` (Java) |
+| **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) |
 | **Coverage** | Line coverage of `api/`, `services/`, `shared/` — ~90%, gated at an 85% floor | `pytest-cov` (`.coveragerc`), reported in the CI job summary and as a `coverage.json` artifact |
-| **Scalability / load** | Throughput and latency under increasing concurrency against both live deployments — the same Locust scenarios against the SQLite monolith and the Postgres/Redis microservices stack, quantifying [issue #214](https://github.com/rabinavidan/test-case-management/issues/214)'s backend race on one and finding a new one ([#219](https://github.com/rabinavidan/test-case-management/issues/219)) on the other, not just pass/fail | [`loadtests/`](loadtests/README.md) (Locust), manual/monthly via `.github/workflows/loadtest-sqlite.yml` + `.github/workflows/loadtest-microservices.yml` |
 | **Microservices boot smoke test** | Actually builds and boots `docker-compose.microservices.yml` (Postgres + Redis + Kafka + all 6 services) and drives a real CRUD flow through the gateway — the one thing `tests/services/`'s in-process `TestClient` coverage can't catch. Found (and fixed) [issue #217](https://github.com/rabinavidan/test-case-management/issues/217): every service crash-looped on the documented `docker compose up --build`, undetected because nothing else in CI ever builds these images | `.github/workflows/microservices-smoke.yml`, every PR/push touching `services/`, `shared/`, or the compose file |
 
 707 pytest tests total (347 unit + 177 API + 38 contract operations + 145 services), plus 92 Playwright TS E2E
-specs (plus a 19-spec fully-offline mocked layer — see below), 35 JUnit 5/REST Assured API tests, a JUnit
-5/Playwright-Java E2E suite, and a Cucumber/Gherkin BDD suite — five
-independent automation stacks (Python, TypeScript, two in Java, and Cucumber) against the same app. See the
-breakdown below for how each stack is built.
-
-This project deliberately maintains **three independent, feature-equivalent browser-automation stacks** against the
-same app — Playwright + TypeScript, Playwright + pytest (Python), and Playwright + Java (JUnit 5) — rather than
-picking one. All three drive the same UI through a Page Object Model and cover the same core user flows (auth,
-projects, suites, test cases, runs); the TypeScript and Python stacks run in CI on every PR, and stay in parity with
-each other as new coverage is added (e.g. `login.spec.ts` / `test_login_e2e.py`, the sidebar pass-rate bar). A
-fourth stack, JUnit 5 + REST Assured (`java-tests/`), covers the same API surface again as pure black-box HTTP
-tests — see [below](#java--rest-assured-suite).
-
-| | Playwright · TypeScript | Playwright · Python (pytest) | Playwright · Java (JUnit 5) |
-|---|---|---|---|
-| Location | [`e2e/`](e2e/README.md) | `tests/e2e/` | [`java-e2e/`](java-e2e/README.md) |
-| Run with | `npm test` (`@playwright/test` runner) | `pytest tests/e2e -m regression` (`pytest-playwright`) | `mvn test` |
-| Page Object Model | `e2e/pages/*.page.ts` | `tests/e2e/pages/*_page.py` | `java-e2e/.../pages/*.java` |
-| Auth strategy | fixture-based token injection (`fixtures/auth.fixture.ts`) + a dedicated UI modal spec (`login.spec.ts`) | page-object login flow (`test_login_e2e.py`) | token injection (`BaseTest.signInAs`) + a dedicated UI modal spec (`LoginTest`) |
-| Structured step logging | `logger.ts` (`log.step/action/assert`) | `logger.py` (`PWLogger`) | — |
-| Failure diagnostics | screenshot + video + trace, only-on-failure (`playwright.config.ts`) | screenshot + video + trace, only-on-failure (`pytest.ini` `addopts`) | screenshot + video + trace, only-on-failure (`FailureArtifactsExtension`, [details](java-e2e/README.md#failure-diagnostics-screenshot--video--trace)) |
-| CI workflow | `.github/workflows/pw-ts.yml` — every PR / push to `main` touching `e2e/`, `api/`, `static/` | `.github/workflows/test.yml`, `pw-scheduled.yml`, `pw-regression.yml` | `.github/workflows/java-e2e-tests.yml` — every PR / push to `main` touching `java-e2e/`, `api/`, `static/` |
-
-The TypeScript and Python stacks get equal billing below — same depth of detail, same structure — since each
-targets a different hiring context (Playwright/TypeScript roles vs. pytest/Python roles) and both are meant to
-stand on their own. The Java stacks (both `java-e2e/` and `java-tests/`) target a third hiring context —
-JUnit/Playwright/REST Assured roles — the same way; see their own READMEs for the same level of detail.
+specs (plus a 19-spec fully-offline mocked layer — see below). Backend behavior is verified only with pytest; UI
+behavior is verified only with Playwright + TypeScript.
 
 ### Test Data & Service Virtualization
 
-Every stack above deliberately minimizes dependency on live, shared, or unstable environments — not as one
+Both stacks deliberately minimizes dependency on live, shared, or unstable environments — not as one
 feature, but as a strategy applied consistently across layers:
 
 - **A fresh, throwaway database per test, not a shared fixture environment.** `tests/api/`, `tests/contract/`,
@@ -463,11 +424,11 @@ feature, but as a strategy applied consistently across layers:
 ### Python · pytest suite
 
 The Python side is further split into the classic pyramid — narrow and fast at the bottom, broad and slow at the
-top — as five physically separate pytest layers under `tests/`.
+top — as physically separate pytest layers under `tests/`.
 
 ```
 tests/
-├── conftest.py     # shared failure-logging hook + auto layer-marking (unit/api/contract/services/e2e)
+├── conftest.py     # shared failure-logging hook + auto layer-marking (unit/api/contract/services/infra)
 ├── unit/           # 347 tests — pure functions, no DB/HTTP/I-O               (~4s total)
 ├── api/            # 177 tests — FastAPI TestClient against an in-memory DB   (~95s total)
 │   └── conftest.py #   per-test SQLite engine + admin/executor auth fixtures
@@ -476,26 +437,22 @@ tests/
 │   ├── conftest.py #   per-service SQLite engine + JWT minting
 │   ├── test_kafka_producer.py  # services/runs' alert.triggered producer, KafkaProducer monkeypatched
 │   └── test_kafka_consumer.py  # services/worker's consumer of it — parsing, retry, dead-letter routing
-└── e2e/            # 44 tests  — Playwright browser + deployed-instance API   (minutes; needs a running app)
-    └── pages/      #   Page Object Model — locators isolated from test logic
+└── infra/          # kustomize render + terraform fmt/init/validate (needs kubectl + terraform)
 ```
 
 **Engineering practices this demonstrates:**
 
 - **Isolation over mocking-everything.** API tests hit the real FastAPI app and a real (but throwaway, per-test) SQLite database via `app.dependency_overrides` — so they verify actual SQLAlchemy behavior, not a stubbed-out fake, while staying hermetic and parallelizable.
-- **Actually parallelized, not just "parallelizable."** `pytest-xdist -n auto` runs `tests/unit`/`api`/`contract`/`services` across worker processes — ~125s → ~35s locally on 4 cores — safe because every DB-backed fixture derives a worker-unique SQLite path from `PYTEST_XDIST_WORKER` (see `tests/api/conftest.py`), so parallel workers never race the same file. The TypeScript E2E suite (`e2e/`) shards across a CI matrix the same way, merging per-shard blob reports back into one report (`.github/workflows/pw-ts.yml`). The Java suites (`java-tests/`, `java-e2e/`) deliberately do **not** run parallel yet — enabling JUnit 5 concurrent test classes reproducibly exposed a real backend race (concurrent `DELETE` + `GET` on a cascading delete returning a stale `200`), tracked as [issue #214](https://github.com/rabinavidan/test-case-management/issues/214) rather than silently shipped or hidden.
+- **Actually parallelized, not just "parallelizable."** `pytest-xdist -n auto` runs `tests/unit`/`api`/`contract`/`services` across worker processes — ~125s → ~35s locally on 4 cores — safe because every DB-backed fixture derives a worker-unique SQLite path from `PYTEST_XDIST_WORKER` (see `tests/api/conftest.py`), so parallel workers never race the same file. The TypeScript E2E suite (`e2e/`) shards across a CI matrix the same way, merging per-shard blob reports back into one report (`.github/workflows/pw-ts.yml`).
 - **Mock the true external boundary, not your own code.** `tests/api/test_ai_generate.py` monkeypatches `anthropic.Anthropic` so AI-generation tests are deterministic and free, without ever faking the FastAPI/Pydantic layers around it.
 - **The same contract tested at two altitudes on purpose.** JWT/password logic is verified as pure functions in `tests/unit/test_auth_tokens.py` *and* through real HTTP status codes in `tests/api/test_auth.py` — a failure in the unit layer localizes to the algorithm; a failure only in the API layer points at the wiring (dependency injection, route guards) instead.
-- **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`contract`/`services`/`e2e` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
+- **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`contract`/`services`/`infra` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
 - **Contract tests, not just example-based ones.** `tests/contract/test_openapi_contract.py` uses Schemathesis to property-test every operation in the app's own OpenAPI schema — generating edge-case inputs per endpoint rather than a handful of hand-picked ones. It already earned its place: it caught response `datetime` fields serializing without a UTC offset (fixed via a shared `UTCDatetime` type, now in `shared/schemas.py` and used by every service — see its docstring) and out-of-`SQLite-INTEGER`-range path params crashing with an unhandled `OverflowError` instead of a clean 4xx (fixed with a dedicated exception handler in `api/main.py`) — real bugs, not hypothetical ones, one of them found on a *later* run after Hypothesis explored a different input (an explicit `null` for a non-nullable field crashing response serialization in `PUT /api/testcases/{tc_id}`, fixed in `api/main.py`).
 - **A real Kafka integration, tested the same way as the Redis one above.** `services/runs/kafka_events.py` publishes an `alert.triggered` event whenever a test result is recorded as `fail`; `services/worker/kafka_consumer.py` consumes it into a new `runs_alerts` table, deduplicated per `(run_id, testcase_id)`. `tests/services/test_kafka_producer.py` and `test_kafka_consumer.py` cover the producer and consumer independently — `KafkaProducer`/`KafkaConsumer` monkeypatched rather than relying on "no broker in this environment" (unlike Redis, a Kafka client's connection-refused path isn't fast enough to lean on that) — including broker-unreachable graceful degradation, malformed-message and retries-exhausted dead-letter routing, and transient-failure retry-then-succeed.
 - **Coverage for the architecture the README calls "recommended" — not just the monolith.** `tests/services/` had zero prior coverage of `services/` (the 5-service microservices deployment) and immediately found a critical, previously-undetected bug: identical JWT-padding math (`"=" * (4 - len(s) % 4) % 4`, wrong operator precedence) duplicated across *five* files, crashing every authenticated request across the entire microservices deployment with a raw `TypeError` — fixed in all five. It also caught the gateway proxy silently misrouting `/api/suites/{id}/runs` to the projects service instead of runs (fixed in `services/gateway/main.py`), and directly validates the services README's claim that events "degrade gracefully if Redis is down" by calling the publisher with no Redis reachable — true by construction in this environment, not asserted from documentation.
-- **In-process coverage isn't the same claim as "it boots."** `tests/services/` imports each service's FastAPI app directly with `TestClient` — real code, but never through a built Docker image or the real gateway proxy. That gap let `docker-compose.microservices.yml` ship with every one of its 5 services crash-looping on the documented `docker compose up --build` (isolated per-service build contexts and bare-module `CMD`s couldn't resolve the `services.common`/`shared`/relative imports the application code actually uses) — [issue #217](https://github.com/rabinavidan/test-case-management/issues/217), found while starting the scalability-profiling work below. Fixed by building every service from the repo root and running it via its full dotted module path, and closed the actual gap with `.github/workflows/microservices-smoke.yml`, which builds and boots the real compose file and runs a live CRUD flow through the gateway on every relevant PR.
-- **The same load-test scenarios against two different backends is a comparison, not just two reports.** Once the boot fix above made it possible, `loadtests/locustfile.py` ran unmodified against the Postgres/Redis microservices stack: issue #214's race never reproduced in 906 samples there (vs. 8.3% under SQLite at the same concurrency) — a real, measured difference in how the two backends handle contention, not an assumption — but the same run surfaced a *different* real bug the monolith can't have: [issue #219](https://github.com/rabinavidan/test-case-management/issues/219), the async `worker` container's queue-driven `TestResult` population occasionally losing a race against a client's immediate mark-result call. See [`loadtests/README.md`](loadtests/README.md#monolith-vs-microservices--the-actual-comparison) for the full comparison — trading one concurrency bug for a different one, not a strict win.
-- **Page Object Model** for the browser layer (`tests/e2e/pages/`): locators, `data-testid` selection strategy, and modal/toast helpers live in page classes, never inline in test bodies.
-- **Structured step logging.** `tests/e2e/logger.py` (`PWLogger`) prints a `step/action/assert` trace for every test, so a CI log reads like a script, not a wall of framework noise.
+- **In-process coverage isn't the same claim as "it boots."** `tests/services/` imports each service's FastAPI app directly with `TestClient` — real code, but never through a built Docker image or the real gateway proxy. That gap let `docker-compose.microservices.yml` ship with every one of its 5 services crash-looping on the documented `docker compose up --build` (isolated per-service build contexts and bare-module `CMD`s couldn't resolve the `services.common`/`shared`/relative imports the application code actually uses) — [issue #217](https://github.com/rabinavidan/test-case-management/issues/217). Fixed by building every service from the repo root and running it via its full dotted module path, and closed the actual gap with `.github/workflows/microservices-smoke.yml`, which builds and boots the real compose file and runs a live CRUD flow through the gateway on every relevant PR.
 - **Allure reporting.** `allure-pytest` (wired via `--alluredir`) turns every test run into a browsable Allure report — history, retries, timeline and step-by-step detail — generated in CI (`test.yml`) and uploaded as a build artifact.
-- **CI runs the right layer at the right cadence** (see below) — fast layers gate every PR, browser E2E runs after deploy, full regression runs on a schedule.
+- **CI runs the right layer at the right cadence** (see below) — every pytest layer gates every PR; UI coverage lives entirely in the Playwright TypeScript suite.
 
 ```bash
 pip install -r requirements.txt -r requirements-test.txt
@@ -503,8 +460,6 @@ pip install -r requirements.txt -r requirements-test.txt
 pytest tests/unit -v                                     # unit layer only — milliseconds, no setup
 pytest tests/unit tests/api tests/contract tests/services -v   # what CI runs on every PR
 pytest tests/services -v                                 # microservices layer only
-pytest tests/e2e/test_e2e.py --base-url=https://your-app.vercel.app -v   # browser E2E
-pytest tests/ -m regression --base-url=https://your-app.vercel.app -v   # full regression suite
 
 pytest tests/unit tests/api --alluredir=allure-results   # write Allure results
 allure generate allure-results --clean -o allure-report && allure open allure-report
@@ -536,7 +491,7 @@ e2e/
 - **Page Object Model** (`pages/*.page.ts`): every page extends a shared `BasePage`, locators use the `data-testid` strategy exclusively, and `test.step()` annotates each action for readable traces.
 - **Multi-browser by default.** Chromium and Firefox run on every pass; WebKit is opt-in (`--project=webkit`) rather than slowing down the default run.
 - **Failure artifacts, not guesswork.** Trace, video and screenshot are captured `on-failure` only — full repro evidence without paying the cost on green runs.
-- **Structured step logging.** `logger.ts` mirrors the Python suite's `PWLogger` output format 1:1, so both stacks read the same way in CI logs.
+- **Structured step logging.** `logger.ts` prints a `step/action/assert` trace for every test, so a CI log reads like a script, not a wall of framework noise.
 - **Allure reporting.** The `allure-playwright` reporter is registered in `playwright.config.ts` (alongside a JSON reporter CI's job summary parses — no plain HTML report); every run produces a full Allure report (steps, attachments, history), generated in CI (`pw-ts.yml`) and uploaded as a build artifact.
 - **Contract tests, not just example-based ones.** `contract.spec.ts` validates real responses against the app's own `/openapi.json` with `ajv`, and property-tests extreme path-param values with `fast-check` — the TypeScript counterpart to the Python side's Schemathesis suite. It caught a real bug of its own: a `datetime` fix on the Python side had silently dropped `format: date-time` from the generated schema instead of preserving it.
 - **CI posts a live report, not just a badge.** `pw-ts.yml` parses the JSON reporter output into a pass/fail/flaky job-summary table on every run.
@@ -561,162 +516,16 @@ the running app and draft/self-heal specs for this suite — see
 [`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents). Everything they produce is an ordinary
 `*.spec.ts` file reviewed and run through `pw-ts.yml` like any other change; they don't run unattended in CI.
 
-### Java · REST Assured suite
-
-The Java side (`java-tests/`) is a fourth, independent stack — black-box HTTP tests against a
-**running instance** of the app, written the way a Java QA engineer would test any deployed
-service, with no in-process shortcuts. It targets a different hiring context again (JUnit/REST
-Assured roles), rounding out the project's automation coverage across Python, TypeScript and Java.
-
-```
-java-tests/
-├── pom.xml
-└── src/test/java/com/testflow/api/
-    ├── support/                # REST Assured config, bootstrap-admin auth, unique naming
-    ├── AuthApiTest.java        # login/me/token validation
-    ├── ProjectsApiTest.java    # CRUD, pagination envelope, admin-only writes
-    ├── SuitesApiTest.java      # CRUD, 404s, admin-only writes
-    ├── TestCasesApiTest.java   # CRUD, defaults, the null-vs-omitted-field regression
-    ├── RunsApiTest.java        # run creation, pending-result seeding, auto-completion
-    └── UsersApiTest.java       # admin user management, self-delete guard
-```
-
-**Engineering practices this demonstrates:**
-
-- **True black-box testing.** Every test is a real HTTP call via REST Assured against a running
-  server — no `TestClient`, no dependency overrides — so it exercises the exact same public
-  contract a real API consumer (or the other two stacks) would hit, monolith or microservices.
-- **A single shared bootstrap-admin convention across stacks.** `POST /api/auth/register` only
-  ever succeeds for the very first user on a given database. `AuthSupport` uses the same
-  register-then-login fallback and the same fixed bootstrap credentials as
-  [`e2e/global-setup.ts`](e2e/global-setup.ts), so this suite, the TypeScript suite, and a human
-  using the app can all run against one live instance without racing to become the first user.
-- **Collision-safe by construction.** Every project/suite/test-case name is UUID-suffixed
-  (`TestData.uniqueName`), so the suite is safe to run repeatedly against a persistent database
-  (SQLite/Postgres), not just a throwaway one.
-- **Regression coverage carried over from the Python suite.** `TestCasesApiTest` re-asserts the
-  explicit-`null`-doesn't-clear-a-non-nullable-field fix documented in `api/main.py`'s
-  `update_testcase`, so the same real bug the contract suite caught stays covered here too.
-- **Allure reporting**, via `allure-junit5` + `allure-rest-assured`, in the same format the
-  Python and TypeScript stacks already produce.
-
-```bash
-# app must be running first (see Quick start above)
-cd java-tests
-mvn test                                             # against http://localhost:8000
-mvn test -DbaseUrl=https://your-app.vercel.app       # against a deployed instance
-
-mvn test
-allure generate target/allure-results --clean -o target/allure-report && allure open target/allure-report
-```
-
-See [`java-tests/README.md`](java-tests/README.md) for the full breakdown.
-
-### Java · Playwright E2E suite
-
-The fourth stack (`java-e2e/`) is a Java browser-automation suite — JUnit 5 + Playwright-for-Java
-driving the real UI in a real browser, the Java counterpart to `e2e/` and `tests/e2e/`. It covers
-the same core flows (sign-in modal, projects, suites, test cases, a run) through a Java Page
-Object Model, rather than the API layer `java-tests/` covers.
-
-```
-java-e2e/
-├── pom.xml
-└── src/test/java/com/testflow/e2e/
-    ├── support/                 # Playwright lifecycle, bootstrap-admin auth, unique naming
-    ├── pages/                   # Page Object Model — mirrors e2e/pages/*.ts
-    ├── LoginTest.java           # sign-in modal: render, valid/invalid login
-    ├── ProjectsTest.java        # create/delete a project through the UI
-    ├── SuitesTest.java          # create a suite inside a project
-    ├── TestCasesTest.java       # create a test case
-    └── RunsTest.java            # start a run, mark results, summary counts
-```
-
-**Engineering practices this demonstrates:**
-
-- **Same Page Object Model discipline as the other two browser stacks**, ported to Java:
-  `pages/*.java` mirror `e2e/pages/*.ts` locator-for-locator (`data-testid` selectors, the same
-  modal/form flows), so a bug caught by one stack's page object has an equivalent check here.
-- **API-driven setup, UI-driven assertions.** Test data (projects, suites, test cases) is created
-  through `ApiClient` (a plain JDK `HttpClient`, no extra dependency) rather than the UI, the same
-  "drive setup through the API, assert through the UI" pattern `e2e/tests/*.spec.ts` uses via
-  Playwright's `request` fixture — keeps each spec focused on the one flow it's testing.
-- **Same shared bootstrap-admin convention** as `java-tests/` and `e2e/global-setup.ts` — see
-  [`java-e2e/README.md`](java-e2e/README.md#auth-strategy).
-- **Allure reporting**, via `allure-junit5`, in the same format the other three stacks produce.
-
-```bash
-# app must be running first (see Quick start above)
-cd java-e2e
-mvn test                                             # headless, against http://localhost:8000
-mvn test -Dheaded=true                               # headed Chromium, for debugging
-mvn test -DbaseUrl=https://your-app.vercel.app       # against a deployed instance
-
-allure generate target/allure-results --clean -o target/allure-report && allure open target/allure-report
-```
-
-See [`java-e2e/README.md`](java-e2e/README.md) for the full breakdown.
-
-### Cucumber/Gherkin BDD suite
-
-The fifth stack (`e2e-bdd/`) is a behavior-driven layer over the same app — Cucumber.js + Playwright, feature
-files in Gherkin instead of hand-written `test()` blocks. It covers the same sign-in and project-lifecycle
-flows as `e2e/`, expressed as scenarios a non-engineer stakeholder can read and review directly.
-
-```
-e2e-bdd/
-├── features/
-│   ├── login.feature               # Sign-in modal — Scenario Outline for invalid-credentials cases
-│   └── project_management.feature  # Create / delete a project
-├── pages/                          # Small, purpose-built Page Object Model (see e2e-bdd/README.md for why
-│                                    # it doesn't import e2e/pages directly)
-├── step-definitions/                # Given/When/Then bindings + Before/After hooks
-└── scripts/cucumber-json-to-junit.js  # Converts Cucumber's JSON report to JUnit XML
-```
-
-**Engineering practices this demonstrates:**
-
-- **Gherkin as the spec, not an afterthought.** Scenarios read as plain business language (`Given a project
-  named "Legacy Suite" already exists` / `When I delete the project named "Legacy Suite"`), with a
-  `Scenario Outline` + `Examples` table driving the invalid-login cases from data instead of copy-pasted
-  scenarios.
-- **A stack that stays independently runnable.** Every automation stack in this repo owns its own Page
-  Objects rather than sharing code across languages/tools (see `java-e2e/`'s own POM, ported from but not
-  importing `e2e/pages`); `e2e-bdd/` follows the same rule — for a concrete reason, not just convention, see
-  [`e2e-bdd/README.md`](e2e-bdd/README.md#why-a-separate-stack-instead-of-reusing-e2epages).
-- **CI-tool-agnostic reporting.** `cucumber-json-to-junit.js` is a small, dependency-free converter (the
-  cucumber-js team dropped the built-in JUnit formatter years ago) so results render natively in whichever CI
-  system is consuming them — GitHub Actions' `dorny/test-reporter` and Azure Pipelines' `PublishTestResults@2`
-  both read the same JUnit file it produces.
-- **Runs in two CI systems from one suite.** [`bdd-cucumber.yml`](.github/workflows/bdd-cucumber.yml) (GitHub
-  Actions) and [`azure-pipelines.yml`](azure-pipelines.yml) (Azure DevOps) both start the app and run the exact
-  same `npm test` against it — the pipeline definition is the only thing that differs.
-
-```bash
-cd e2e-bdd && npm install
-npx playwright install chromium
-npm test                 # all scenarios
-npm run test:smoke       # @smoke only
-npm run report:junit     # reports/cucumber-report.json -> reports/cucumber-junit.xml
-```
-
-See [`e2e-bdd/README.md`](e2e-bdd/README.md) for the full breakdown.
-
 ### CI wiring (`.github/workflows/`)
 
 | Workflow | Trigger | What runs |
 |----------|---------|-----------|
-| `test.yml` | every PR + push to `main` | `ruff check .` (lint, blocking); `tests/unit` + `tests/api` + `tests/contract` + `tests/services` (blocking); `tests/infra/` — renders every `k8s/overlays/*` with `kubectl kustomize` and runs `terraform fmt/init/validate` (blocking); `tests/e2e/test_e2e.py` on push to `main` only (non-blocking) |
-| `pw-scheduled.yml` | weekly cron | `tests/e2e/test_e2e.py` + `tests/e2e/test_users_e2e.py` against the live deployment |
-| `pw-regression.yml` | manual dispatch | full `-m regression` suite across all layers against a chosen target URL |
+| `test.yml` | every PR + push to `main` | `ruff check .` (lint, blocking); `tests/unit` + `tests/api` + `tests/contract` + `tests/services` (blocking); `tests/infra/` — renders every `k8s/overlays/*` with `kubectl kustomize` and runs `terraform fmt/init/validate` (blocking) |
 | `pw-ts.yml` | every PR + push to `main` touching `e2e/`, `api/`, `static/`; daily cron | full `e2e/tests/*.spec.ts` suite (incl. `mock-contract-drift.spec.ts`, which needs the real backend this job starts), Allure report uploaded as an artifact |
 | `pw-mocked-e2e.yml` | every PR + push to `main` touching `e2e/tests/mocked-serverless-*.spec.ts`, `e2e/mocks/`, `static/` | the fully offline `mocked-serverless-*.spec.ts` suite — no `pip install`, no FastAPI, no database, just `npm ci` + a static file server — Allure report uploaded as an artifact |
-| `java-api-tests.yml` | every PR + push to `main` touching `java-tests/`, `api/`, `shared/` | starts the app locally, runs the full `java-tests/` JUnit suite, Allure report uploaded as an artifact |
-| `java-e2e-tests.yml` | every PR + push to `main` touching `java-e2e/`, `api/`, `static/` | starts the app locally, installs Playwright's Chromium, runs the full `java-e2e/` JUnit suite, Allure report uploaded as an artifact |
-| `bdd-cucumber.yml` | every PR + push to `main` touching `e2e-bdd/`, `api/`, `static/` | starts the app locally, runs the full `e2e-bdd/` Cucumber suite, JSON + JUnit reports uploaded as an artifact |
 
 **Also included:** [`azure-pipelines.yml`](azure-pipelines.yml) — an Azure DevOps YAML pipeline running the
-pytest, Cucumber, and serverless mocked/service-virtualized Playwright suites, alongside the GitHub Actions
+pytest and serverless mocked/service-virtualized Playwright TypeScript suites, alongside the GitHub Actions
 workflows above (which remain this repo's actual CI, since it's hosted on GitHub). See the comment at the top
 of that file for why it's here.
 
@@ -754,13 +563,8 @@ of that file for why it's here.
 │   ├── api/                      # FastAPI TestClient integration tests
 │   ├── contract/                 # Schemathesis property tests vs. the OpenAPI schema
 │   ├── services/                 # per-microservice TestClient tests (services/ coverage)
-│   ├── infra/                    # kustomize render + terraform fmt/init/validate (no cloud calls)
-│   └── e2e/                      # Playwright browser + deployed-instance API tests
-│       └── pages/                # page objects for the browser E2E specs
-├── e2e/                          # Playwright TypeScript E2E tests, real-backend + serverless mocked
-├── e2e-bdd/                      # Cucumber.js + Playwright BDD suite — e2e-bdd/README.md
-├── java-tests/                   # JUnit 5 + REST Assured black-box API tests
-├── java-e2e/                     # JUnit 5 + Playwright Java browser E2E tests
+│   └── infra/                    # kustomize render + terraform fmt/init/validate (no cloud calls)
+├── e2e/                          # Playwright TypeScript E2E/UI tests, real-backend + serverless mocked
 ├── agents/                       # LangChain critic/drafter pipeline + LangGraph Playwright-trio orchestrator — agents/README.md
 ├── evals/                        # AI eval harness — golden datasets, LLM-as-judge scoring — evals/README.md
 ├── scripts/                      # CI-support agents: flaky-test tracker, coverage-gap bot, heal/AI-call metrics
@@ -769,7 +573,6 @@ of that file for why it's here.
 ├── k8s/                          # Kustomize manifests, 4 environment overlays — k8s/README.md
 ├── terraform/                    # GCP infra-as-code, never applied from CI — terraform/README.md
 ├── deploy/gcp/                   # Deployment tooling for the terraform/k8s stack above
-├── loadtests/                    # Locust scenarios — monolith vs. microservices — loadtests/README.md
 ├── Dockerfile                    # Monolith container
 ├── docker-compose.yml            # Monolith mode (app + Postgres)
 ├── docker-compose.microservices.yml  # Microservice mode (6 services + Postgres + Redis + Kafka)

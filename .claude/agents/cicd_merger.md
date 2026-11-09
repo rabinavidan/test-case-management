@@ -52,8 +52,7 @@ Never touch port 8000 - the user keeps a preview server there. Use 8001 (app) an
    `MSYS_NO_PATHCONV=1 docker run --rm --ipc=host -e BASE_URL=http://host.docker.internal:8001 -e CI=true -v "<repo>/e2e:/work" -w /work mcr.microsoft.com/playwright:v<installed version>-noble node node_modules/@playwright/test/cli.js test tests/layout-budget.spec.ts --workers=4`
 6. **Mocked E2E:** `python serve-static.py 8010` (from `e2e/`), then
    `CI=true BASE_URL=http://localhost:8010 npx playwright test --config=playwright.mocked.config.ts`
-7. **BDD:** from `e2e-bdd/`, `BASE_URL=http://localhost:8001 npx cucumber-js`
-8. **Java E2E** needs JDK 21 (not installed here) and **Infra** needs kubectl/terraform: leave them to GitHub CI and say so.
+7. **Infra** needs kubectl/terraform: leave it to GitHub CI and say so.
 
 Stop every server you started (by command line, e.g. `--port 8001`, `serve-static.py 8010`) when done.
 If anything is red, go to section 5 before opening the PR. Report local results as numbers, not adjectives.

@@ -46,19 +46,6 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Java suites — REST Assured (API) and Playwright Java (E2E)
-  - package-ecosystem: "maven"
-    directory: "/java-tests"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 3
-
-  - package-ecosystem: "maven"
-    directory: "/java-e2e"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 3
-
   # GitHub Actions workflow dependencies (actions/checkout, etc.)
   - package-ecosystem: "github-actions"
     directory: "/"
