@@ -1,180 +1,103 @@
-import { test, expect } from '../fixtures/auth.fixture';
-import { ProjectsPage } from '../pages/projects.page';
-import { ProjectPage } from '../pages/project.page';
-
-// Date.now() alone can repeat across workers that start in the same ms.
-function uniqueName(base: string): string {
-  return `${base}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
+import { test, expect } from '../fixtures/test';
+import { E2E_NAME_PREFIX, aProject, aSuite, uniqueName } from '../data/builders';
+import { createProjectViaUi, seedRunWithResult, seedTestCases } from '../flows/workflows';
 
 test.describe('Projects', () => {
-  const createdProjectIds: number[] = [];
-
-  test.beforeEach(async ({ page, authToken }) => {
-    await page.addInitScript((token) => localStorage.setItem('tf_token', token), authToken);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-  });
-
-  test.afterEach(async ({ request, authToken }) => {
-    for (const id of createdProjectIds.splice(0)) {
-      await request.delete(`/api/projects/${id}`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      }).catch(() => {});
-    }
-  });
-
-  test('shows empty state on first load', async ({ page }) => {
-    await test.step('Navigate to projects list', async () => {
-      const projectsPage = new ProjectsPage(page);
-      await projectsPage.goto();
+  test('renders the empty state or the project list on first load', async ({ app }) => {
+    await test.step('Open the projects page', async () => {
+      await app.projects.goto();
     });
 
-    await test.step('Verify empty state or welcome message', async () => {
-      const hasWelcome    = await page.getByText(/welcome to testflow/i).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasNoProjects = await page.getByText(/no projects/i).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasEmptyState = await page.locator('[data-testid="empty-state"], .empty-state').isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasWelcome || hasNoProjects || hasEmptyState || true).toBeTruthy();
-      await expect(page).not.toHaveTitle(/error|404|500/i);
+    await test.step('Exactly one of: "no projects yet" or the searchable list', async () => {
+      // The suite shares one backend, so whether this user has projects
+      // depends on what else ran — but one of the two must render.
+      await expect(app.projects.emptyState.or(app.projects.searchInput)).toBeVisible();
+      await expect(app.page).not.toHaveTitle(/error|404|500/i);
     });
   });
 
-  test('can create a project', async ({ page, request, authToken }) => {
-    const projectName = uniqueName('Test Project');
-    const projectsPage = new ProjectsPage(page);
+  test('can create a project', async ({ app, api }) => {
+    const input = aProject({ description: 'Created by e2e test' });
 
-    await test.step('Navigate to projects list', async () => {
-      await projectsPage.goto();
+    await test.step('Create the project through the New Project form', async () => {
+      await createProjectViaUi(app, input);
     });
 
-    await test.step('Open new project form', async () => {
-      await projectsPage.clickNewProject();
+    await test.step('It appears in the list', async () => {
+      // Filtered to this project: parallel specs add newer projects that can
+      // push it off the first page.
+      await app.projects.search(input.name);
+      await expect(app.projects.projectRow(input.name)).toBeVisible({ timeout: 10000 });
     });
 
-    await test.step('Fill and submit the project form', async () => {
-      await projectsPage.fillProjectForm(projectName, 'Created by e2e test');
-      await projectsPage.submitProjectForm();
-    });
-
-    await test.step('Verify project appears in the list', async () => {
-      // Filtered to this project: other specs add newer projects in parallel,
-      // which can push it off the first page of the shared list.
-      await page.locator('#proj-search').fill(projectName);
-      await expect(projectsPage.getProjectCards().filter({ hasText: projectName })).toBeVisible({ timeout: 10000 });
-    });
-
-    await test.step('Register project for cleanup', async () => {
-      const res = await request.get('/api/projects', {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      if (res.ok()) {
-        const { items: projects }: { items: Array<{ id: number; name: string }> } = await res.json();
-        const created = projects.find((p) => p.name === projectName);
-        if (created) createdProjectIds.push(created.id);
-      }
+    await test.step('It was persisted with the description entered', async () => {
+      const created = await api.projects.adoptByName(input.name);
+      expect(created.description).toBe(input.description);
     });
   });
 
-  test('can delete a project', async ({ page, request, authToken }) => {
-    const projectName = uniqueName('Delete Me');
-    let projectId: number;
+  test('can delete a project', async ({ app, api }) => {
+    const project = await api.projects.create(aProject({ name: uniqueName('Delete Me') }));
 
-    await test.step('Create a project via API', async () => {
-      const res = await request.post('/api/projects', {
-        data: { name: projectName, description: 'To be deleted' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      expect(res.ok()).toBeTruthy();
-      const body = await res.json();
-      projectId = body.id || body.data?.id;
-      createdProjectIds.push(projectId);
+    await test.step('Delete it from the projects list', async () => {
+      await app.projects.goto();
+      await app.projects.deleteProject(project.name);
     });
 
-    const projectsPage = new ProjectsPage(page);
-
-    await test.step('Navigate to projects list', async () => {
-      await projectsPage.goto();
-    });
-
-    await test.step('Delete the project', async () => {
-      await projectsPage.deleteProject(projectName);
-    });
-
-    await test.step('Verify project is gone', async () => {
-      await expect(page.getByText(projectName).first()).not.toBeVisible({ timeout: 5000 });
+    await test.step('It is gone from the list and from the backend', async () => {
+      await expect(app.projects.projectRow(project.name)).toHaveCount(0, { timeout: 5000 });
+      expect((await api.projects.search(project.name)).items).toHaveLength(0);
     });
   });
 
-  test('paginates the projects list at 5 rows per page', async ({ page, request, authToken }) => {
-    const base = uniqueName('Page');
+  test('paginates the projects list at 5 rows per page', async ({ app, api }) => {
+    const base = uniqueName(`${E2E_NAME_PREFIX}Page`);
     const names = Array.from({ length: 6 }, (_, i) => `${base}_${i + 1}`);
 
-    await test.step('Create 6 projects via API (sequentially, so ordering is deterministic)', async () => {
-      for (const name of names) {
-        const res = await request.post('/api/projects', {
-          data: { name, description: 'Pagination test' },
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-        expect(res.ok()).toBeTruthy();
-        const body = await res.json();
-        createdProjectIds.push(body.id);
-      }
+    await test.step('Seed 6 projects (sequentially, so ordering is deterministic)', async () => {
+      for (const name of names) await api.projects.create(aProject({ name }));
     });
 
-    const projectsPage = new ProjectsPage(page);
-    // Scoped to table rows, not page.getByText — the sidebar independently
-    // lists every project (unpaginated, by design), so an unscoped text
-    // search would always find a "hidden" row there too.
-    const rowFor = (name: string) => projectsPage.getProjectCards().filter({ hasText: name });
-
-    await test.step('Navigate to projects list, filtered to these 6', async () => {
-      await projectsPage.goto();
-      // Other specs add projects in parallel; filtering to this test's six
-      // keeps the page contents deterministic (the search resets to page 1).
-      await page.locator('#proj-search').fill(base);
+    await test.step('Open the list filtered to these 6', async () => {
+      await app.projects.goto();
+      // Other specs add projects in parallel; filtering keeps the page
+      // deterministic (the search resets to page 1).
+      await app.projects.search(base);
     });
 
-    await test.step('Page 1 shows at most 5 rows, and the oldest of the 6 is not on it', async () => {
-      await expect(rowFor(names[5])).toBeVisible({ timeout: 10000 });
-      await expect(projectsPage.getProjectCards()).toHaveCount(5);
-      await expect(rowFor(names[0])).not.toBeVisible();
+    await test.step('Page 1 shows 5 rows, newest first, without the oldest', async () => {
+      await expect(app.projects.projectRow(names[5])).toBeVisible({ timeout: 10000 });
+      await expect(app.projects.getProjectCards()).toHaveCount(5);
+      await expect(app.projects.projectRow(names[0])).toHaveCount(0);
     });
 
     await test.step('Next reveals the oldest of the 6', async () => {
-      await page.getByTestId('proj-next-btn').click();
-      await expect(rowFor(names[0])).toBeVisible({ timeout: 5000 });
+      await app.projects.nextPage();
+      await expect(app.projects.projectRow(names[0])).toBeVisible({ timeout: 5000 });
     });
 
     await test.step('Previous returns to the first page', async () => {
-      await page.getByTestId('proj-prev-btn').click();
-      await expect(rowFor(names[5])).toBeVisible({ timeout: 5000 });
+      await app.projects.previousPage();
+      await expect(app.projects.projectRow(names[5])).toBeVisible({ timeout: 5000 });
     });
   });
 
-  test('shows project stats after creation', async ({ page, request, authToken }) => {
-    const projectName = uniqueName('Stats Project');
-    let projectId: number;
-
-    await test.step('Create project via API', async () => {
-      const res = await request.post('/api/projects', {
-        data: { name: projectName, description: 'Stats test' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const body = await res.json();
-      projectId = body.id || body.data?.id;
-      createdProjectIds.push(projectId);
+  test('project stats count its suites, test cases and runs', async ({ app, api, project }) => {
+    await test.step('Seed one suite with two cases and one run', async () => {
+      const suite = await api.suites.create(project.id, aSuite());
+      const [first] = await seedTestCases(api, suite.id, ['Stats TC 1', 'Stats TC 2']);
+      await seedRunWithResult(api, suite.id, first, 'pass');
     });
 
-    await test.step('Navigate to the project detail page', async () => {
-      const projectPage = new ProjectPage(page);
-      await projectPage.goto(projectId);
+    await test.step('Open the project', async () => {
+      await app.project.goto(project.id);
+      await expect(app.page).not.toHaveTitle(/error|404|500/i);
     });
 
-    await test.step('Check stats show zeros', async () => {
-      await expect(page).not.toHaveTitle(/error|404|500/i);
-      const pageText = await page.textContent('body');
-      expect(pageText).toBeTruthy();
+    await test.step('Stat tiles reflect what was seeded', async () => {
+      await expect(app.project.stat('suites')).toHaveText('1');
+      await expect(app.project.stat('cases')).toHaveText('2');
+      await expect(app.project.stat('runs')).toHaveText('1');
     });
   });
 });

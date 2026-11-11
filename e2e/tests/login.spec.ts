@@ -38,7 +38,7 @@ test.describe('Sign-in modal', () => {
     });
 
     await test.step('Still logged out', async () => {
-      await expect(page.getByTestId('signin-btn')).toBeVisible();
+      await expect(loginPage.signInBtn).toBeVisible();
     });
   });
 });

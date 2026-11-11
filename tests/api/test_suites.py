@@ -126,6 +126,23 @@ def test_export_suite_csv_is_public(client, project):
     assert "attachment" in r.headers["content-disposition"]
 
 
+@pytest.mark.parametrize(
+    ("suite_name", "expected_filename"),
+    [
+        ("Q3 Release / Smoke!", "Q3_Release_Smoke_export.csv"),
+        ("checkout-v2.1_final", "checkout-v2.1_final_export.csv"),
+        ("  ***  ", "suite_export.csv"),
+    ],
+)
+def test_export_suite_csv_filename_is_sanitized(auth_client, project, suite_name, expected_filename):
+    proj, headers, client = project
+    s = client.post(f"/api/projects/{proj['id']}/suites", json={"name": suite_name}, headers=headers).json()
+
+    r = client.get(f"/api/suites/{s['id']}/export/csv", headers=headers)
+
+    assert r.headers["content-disposition"] == f'attachment; filename="{expected_filename}"'
+
+
 def test_export_suite_csv_headers_and_no_runs(auth_client, project):
     proj, headers, client = project
     s = client.post(f"/api/projects/{proj['id']}/suites", json={"name": "Suite"}, headers=headers).json()

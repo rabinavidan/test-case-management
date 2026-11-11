@@ -26,6 +26,8 @@ npm test                  # headless, all browsers
 npm run test:headed       # headed Chromium
 npm run test:ui           # interactive Playwright UI
 npx playwright test --project=chromium   # single browser
+npm run lint              # test-architecture rules (see "Test architecture")
+npm run typecheck
 ```
 
 ## Running against production / staging
@@ -34,36 +36,90 @@ npx playwright test --project=chromium   # single browser
 BASE_URL=https://test-case-management-omega.vercel.app npm test
 ```
 
+## Test architecture
+
+Specs describe behaviour; everything about *how* to reach the app lives in a
+layer below them. Each layer only imports downward, and `npm run lint`
+(`eslint.config.mjs`) fails the build when that breaks.
+
+```
+tests/*.spec.ts      WHAT is verified: scenario + assertions, in domain words
+   │  uses fixtures (fixtures/test.ts): api, app, signedInPage, project, seededSuite
+   ▼
+flows/               Business workflows: createProjectViaUi, executeRunViaUi,
+   │                 seedRunWithResult … compose pages/api, never assert
+   ├──────────────┐
+   ▼              ▼
+pages/           api/                UI layer (locators + atomic actions + readiness waits)
+   │              │                  HTTP layer (routes.ts = the only URL map; throws on non-2xx)
+   ▼              ▼
+Playwright Page   APIRequestContext
+
+data/                Domain types + builders (aProject, anActiveTestCase …) — used by every layer, imports none
+```
+
+| Rule (enforced by ESLint in specs) | Why |
+|---|---|
+| No `page.locator` / `getBy*` / `click` / `fill` … | Selectors change with the DOM; one page-object fix instead of N specs |
+| No `request.get/post/…`, no `'/api/…'` literals | Routes and auth headers live in `api/`; setup fails loudly on non-2xx |
+| No `waitForLoadState` / `waitForTimeout` | Page objects own readiness (`BasePage.waitForView` waits for the SPA's skeleton to clear) |
+| No `\|\| true`, no `.catch(() => false)` | Both turn a failing check into a passing one |
+| `flows/` may not import `expect` | A flow returns state; the spec owns the verdict |
+| `pages/` ↛ `api/`, `api/` ↛ `pages/`, `data/` ↛ anything | Keeps UI, HTTP and test data independently replaceable |
+
+Cleanup is a fixture concern: `TestFlowApi` records every project it
+creates (or adopts by name after a UI create) and deletes them after the
+test, so specs have no `afterEach`. Builder-made names start with
+`E2E_NAME_PREFIX`, which `global-teardown.ts` also sweeps.
+
+A layered spec reads like this (`tests/runs.spec.ts`):
+
+```ts
+test('all-pass run has no failures or pending', async ({ app, seededSuite }) => {
+  await executeRunViaUi(app, seededSuite.suite.id, { [ALPHA]: 'pass', [BETA]: 'pass' });
+
+  await expect(app.run.summaryCount('pass')).toHaveText('2');
+  await expect(app.run.summaryCount('fail')).toHaveText('0');
+  await expect(app.run.summaryCount('pending')).toHaveText('0');
+});
+```
+
+**Migration status.** `projects`, `suites`, `testcases`, `runs`, `login`
+and `contact` follow the rules. Older specs are listed in
+`eslint.legacy-specs.mjs` with their violation count (885 at baseline);
+the list only shrinks — migrate a spec, delete its line. New specs are
+never added to it.
+
 ## Structure
 
 ```
 e2e/
-├── fixtures/
-│   └── auth.fixture.ts      # Extended test with authToken / authedRequest
+├── tests/                   # Specs (see "Test architecture" above)
+├── flows/
+│   ├── app.ts               # TestFlowApp: one handle on every page object
+│   └── workflows.ts         # UI + seed workflows in domain language
 ├── pages/
-│   ├── base.page.ts         # BasePage with navigate() + waitForNetworkIdle()
+│   ├── base.page.ts         # navigate(), waitForView(), waitForModalClosed()
 │   ├── login.page.ts        # Auth modal (sign-in form, error state)
-│   ├── projects.page.ts     # Projects list page
-│   ├── project.page.ts      # Project detail (suites + stats)
-│   ├── suite.page.ts        # Suite detail (test cases + run creation)
-│   └── run.page.ts          # Test run execution + summary
-├── tests/
-│   ├── login.spec.ts        # Sign-in modal: render, success, invalid credentials
-│   ├── projects.spec.ts     # Project CRUD
-│   ├── suites.spec.ts       # Suite CRUD
-│   ├── testcases.spec.ts    # Test case CRUD
-│   ├── runs.spec.ts         # Test run execution
-│   ├── sidebar-progress-bar.spec.ts  # Sidebar pass-rate bar after a run
-│   ├── contract.spec.ts     # Responses validated against /openapi.json (ajv) +
-│   │                        #   property-based edge cases (fast-check)
-│   ├── api.spec.ts          # API-level tests (no browser) — includes paginated
-│   │                        #   response assertions ({items, total, page, total_pages})
-│   │                        #   and full CRUD flow covering analytics endpoint
-│   ├── mocked-serverless-crud.spec.ts         # Serverless: projects/suites/test cases CRUD
-│   ├── mocked-serverless-ai-features.spec.ts  # Serverless: AI generate + triage
-│   ├── mocked-serverless-errors.spec.ts       # Serverless: 5xx/network/429/401/malformed-data
-│   └── mock-contract-drift.spec.ts            # Validates e2e/mocks/ against /openapi.json (real backend)
+│   ├── projects.page.ts     # Projects list: create, search, paginate, delete
+│   ├── project.page.ts      # Project detail: suites + stat tiles
+│   ├── suite.page.ts        # Suite detail: test cases, edit/delete, CSV export, start run
+│   ├── run.page.ts          # Run execution: record results, summary tiles
+│   └── contact.page.ts
+├── api/
+│   ├── routes.ts            # Every backend URL the suite uses
+│   ├── http-client.ts       # Authenticated transport; ApiError on non-2xx
+│   └── testflow.api.ts      # TestFlowApi facade (projects/suites/testCases/runs) + cleanup
+├── data/
+│   ├── types.ts             # Project, Suite, TestCase, Run, Priority, ResultStatus …
+│   └── builders.ts          # uniqueName(), aProject(), aSuite(), anActiveTestCase(), aRun()
+├── fixtures/
+│   ├── test.ts              # api / signedInPage / app / project / seededSuite
+│   ├── auth.fixture.ts      # authToken / authedRequest (base for test.ts)
+│   └── graphql.ts           # GraphQL helpers for graphql/realtime specs
 ├── mocks/                   # Typed fixtures for the serverless specs — see "Serverless mocked E2E tests" below
+├── eslint.config.mjs        # Architecture rules (npm run lint)
+├── eslint.legacy-specs.mjs  # Pre-rules specs still to migrate (shrink-only)
 ├── global-setup.ts          # Registers e2e test user and saves auth token
 ├── global-teardown.ts       # Deletes leftover test projects by name prefix
 ├── serve-static.py          # Backend-free static server for the serverless specs

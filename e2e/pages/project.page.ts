@@ -3,24 +3,24 @@ import { BasePage } from './base.page';
 import { log } from '../logger';
 
 export class ProjectPage extends BasePage {
+  readonly view:           Locator;
   readonly newSuiteBtn:    Locator;
   readonly nameInput:      Locator;
   readonly descInput:      Locator;
   readonly submitBtn:      Locator;
-  readonly statsContainer: Locator;
 
   constructor(page: Page) {
     super(page);
+    this.view           = page.locator('#view-project');
     this.newSuiteBtn    = page.getByTestId('new-suite-btn');
-    this.nameInput      = page.locator('[data-testid="f-name"], #f-name');
-    this.descInput      = page.locator('[data-testid="f-desc"], #f-desc');
+    this.nameInput      = page.locator('#f-name');
+    this.descInput      = page.locator('#f-desc');
     this.submitBtn      = page.getByTestId('modal-submit-btn');
-    this.statsContainer = page.locator('[data-testid="project-stats"], .stats, .project-stats');
   }
 
   async goto(id: number): Promise<void> {
     await this.navigate(`/#project/${id}`);
-    await this.waitForNetworkIdle();
+    await this.waitForView('view-project');
   }
 
   async clickNewSuite(): Promise<void> {
@@ -43,18 +43,26 @@ export class ProjectPage extends BasePage {
     log.action('click', 'Submit suite form');
     await this.submitBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_SHORT });
     await this.submitBtn.click();
-    await this.waitForNetworkIdle();
+    await this.waitForModalClosed();
+  }
+
+  /** The number on one of the project's stat tiles. */
+  stat(name: 'suites' | 'cases' | 'runs' | 'pass-rate'): Locator {
+    return this.page.getByTestId(`project-stat-${name}`);
   }
 
   getSuiteCards(): Locator {
     return this.page.locator('[data-testid^="suite-card-"]').filter({ hasText: /./ });
   }
 
-  async getStats(): Promise<{ suites: number; cases: number; runs: number }> {
-    const text = await this.statsContainer.textContent() || '';
-    const suites = parseInt(text.match(/(\d+)\s*suite/i)?.[1] || '0', 10);
-    const cases  = parseInt(text.match(/(\d+)\s*(test\s*)?case/i)?.[1] || '0', 10);
-    const runs   = parseInt(text.match(/(\d+)\s*run/i)?.[1] || '0', 10);
-    return { suites, cases, runs };
+  /** Scoped to the suite cards, so a breadcrumb/sidebar mention never matches. */
+  suiteCard(name: string): Locator {
+    return this.getSuiteCards().filter({ hasText: name });
+  }
+
+  async deleteSuite(suiteId: number): Promise<void> {
+    log.action('delete', `suite ${suiteId}`);
+    this.page.once('dialog', d => d.accept());
+    await this.page.getByTestId(`delete-suite-${suiteId}`).click();
   }
 }

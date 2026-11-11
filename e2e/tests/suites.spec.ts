@@ -1,184 +1,73 @@
-import { test, expect } from '../fixtures/auth.fixture';
 import * as fs from 'fs';
-import * as path from 'path';
-import { ProjectPage } from '../pages/project.page';
-import { SuitePage } from '../pages/suite.page';
-
-function getAuthToken(): string {
-  const authStatePath = path.join(__dirname, '..', 'auth-state.json');
-  const { token } = JSON.parse(fs.readFileSync(authStatePath, 'utf-8'));
-  return token;
-}
-
-function uniqueName(base: string): string {
-  return `${base}_${Date.now()}`;
-}
-
-// Mirrors the filename sanitization in api/main.py's export_suite_csv.
-function sanitizeFilename(name: string): string {
-  return name.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
-}
+import { test, expect } from '../fixtures/test';
+import { aSuite } from '../data/builders';
+import { createSuiteViaUi, seedRunWithResult, seedTestCases } from '../flows/workflows';
 
 test.describe('Test Suites', () => {
-  let authToken: string;
-  let projectId: number;
+  test('can create a test suite inside a project', async ({ app, project }) => {
+    const input = aSuite({ description: 'A test suite for e2e' });
 
-  test.beforeAll(async ({ request }) => {
-    authToken = getAuthToken();
-    const res = await request.post('/api/projects', {
-      data: { name: uniqueName('Suite Test Project'), description: 'For suite tests' },
-      headers: { Authorization: `Bearer ${authToken}` },
-    });
-    const body = await res.json();
-    projectId = body.id || body.data?.id;
-  });
-
-  test.afterAll(async ({ request }) => {
-    if (projectId) {
-      await request.delete(`/api/projects/${projectId}`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-    }
-  });
-
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript((token) => localStorage.setItem('tf_token', token), authToken);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-  });
-
-  test('can create a test suite inside a project', async ({ page }) => {
-    const suiteName = uniqueName('My Suite');
-    const projectPage = new ProjectPage(page);
-
-    await test.step('Navigate to project detail', async () => {
-      await projectPage.goto(projectId);
+    await test.step('Create the suite through the New Suite form', async () => {
+      await createSuiteViaUi(app, project.id, input);
     });
 
-    await test.step('Open new suite form', async () => {
-      await projectPage.clickNewSuite();
-    });
-
-    await test.step('Fill and submit suite form', async () => {
-      await projectPage.fillSuiteForm(suiteName, 'A test suite for e2e');
-      await projectPage.submitSuiteForm();
-    });
-
-    await test.step('Verify suite appears on page', async () => {
-      await expect(page.getByText(suiteName).first()).toBeVisible({ timeout: 10000 });
+    await test.step('It is listed on the project and counted in its stats', async () => {
+      await expect(app.project.suiteCard(input.name)).toBeVisible({ timeout: 10000 });
+      await expect(app.project.stat('suites')).toHaveText('1');
     });
   });
 
-  test('can create multiple suites and see them listed', async ({ page, request }) => {
-    const suite1 = uniqueName('Suite Alpha');
-    const suite2 = uniqueName('Suite Beta');
+  test('can create multiple suites and see them listed', async ({ app, api, project }) => {
+    const alpha = aSuite({ name: 'Suite Alpha' });
+    const beta = aSuite({ name: 'Suite Beta' });
 
-    await test.step('Create two suites via API', async () => {
-      await request.post(`/api/projects/${projectId}/suites`, {
-        data: { name: suite1, description: 'First' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      await request.post(`/api/projects/${projectId}/suites`, {
-        data: { name: suite2, description: 'Second' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+    await test.step('Seed two suites', async () => {
+      await api.suites.create(project.id, alpha);
+      await api.suites.create(project.id, beta);
     });
 
-    const projectPage = new ProjectPage(page);
-
-    await test.step('Navigate to project and verify both suites listed', async () => {
-      await projectPage.goto(projectId);
-      await expect(page.getByText(suite1).first()).toBeVisible({ timeout: 10000 });
-      await expect(page.getByText(suite2).first()).toBeVisible({ timeout: 10000 });
+    await test.step('Both are listed on the project, and nothing else', async () => {
+      await app.project.goto(project.id);
+      await expect(app.project.suiteCard(alpha.name)).toBeVisible({ timeout: 10000 });
+      await expect(app.project.suiteCard(beta.name)).toBeVisible({ timeout: 10000 });
+      await expect(app.project.getSuiteCards()).toHaveCount(2);
     });
   });
 
-  test('can delete a suite', async ({ page, request }) => {
-    const suiteName = uniqueName('Delete Suite');
-    let suiteId: number;
+  test('can delete a suite', async ({ app, seededSuite }) => {
+    const { project, suite } = seededSuite;
 
-    await test.step('Create suite via API', async () => {
-      const res = await request.post(`/api/projects/${projectId}/suites`, {
-        data: { name: suiteName, description: 'Will be deleted' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const body = await res.json();
-      suiteId = body.id || body.data?.id;
+    await test.step('Delete it from the project page', async () => {
+      // Through the UI only: the e2e user is an admin, so a missing delete
+      // button is a regression to report, not a reason to fall back to the API.
+      await app.project.goto(project.id);
+      await app.project.deleteSuite(suite.id);
     });
 
-    const projectPage = new ProjectPage(page);
-
-    await test.step('Navigate to project page', async () => {
-      await projectPage.goto(projectId);
-    });
-
-    await test.step('Delete the suite', async () => {
-      // Suite delete button: data-testid="delete-suite-{id}" (requires admin role)
-      const deleteBtn = page.locator(`[data-testid="delete-suite-${suiteId}"]`);
-      if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        page.once('dialog', d => d.accept());
-        await deleteBtn.click();
-        await page.waitForLoadState('networkidle');
-      } else {
-        // Fallback: delete via API if button not visible (non-admin user)
-        await page.request.delete(`/api/suites/${suiteId}`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-        await page.reload();
-        await page.waitForLoadState('networkidle');
-      }
-    });
-
-    await test.step('Verify suite is gone', async () => {
-      await expect(page.getByText(suiteName).first()).not.toBeVisible({ timeout: 5000 });
+    await test.step('It is gone from the list and from the stats', async () => {
+      await expect(app.project.suiteCard(suite.name)).toHaveCount(0, { timeout: 5000 });
+      await expect(app.project.stat('suites')).toHaveText('0');
     });
   });
 
-  test('can export suite test cases to CSV including latest run status', async ({ page, request }) => {
-    const suiteName = uniqueName('Export Suite');
-    let suiteId: number;
+  test('can export suite test cases to CSV including latest run status', async ({ app, api, seededSuite }) => {
+    const { suite } = seededSuite;
 
-    await test.step('Create suite, test case, and a run with a pass result via API', async () => {
-      const suiteRes = await request.post(`/api/projects/${projectId}/suites`, {
-        data: { name: suiteName },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const suite = await suiteRes.json();
-      suiteId = suite.id || suite.data?.id;
-
-      const tcRes = await request.post(`/api/suites/${suiteId}/testcases`, {
-        data: { title: 'Export TC', status: 'active' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const tc = await tcRes.json();
-
-      const runRes = await request.post(`/api/suites/${suiteId}/runs`, {
-        data: { name: 'Export Run' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      const run = await runRes.json();
-
-      await request.put(`/api/runs/${run.id}/results/${tc.id}`, {
-        data: { status: 'pass' },
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+    await test.step('Seed a test case and a run that passed it', async () => {
+      const [testCase] = await seedTestCases(api, suite.id, ['Export TC']);
+      await seedRunWithResult(api, suite.id, testCase, 'pass', 'Export Run');
     });
 
-    const suitePage = new SuitePage(page);
+    await test.step('Export CSV downloads the suite with its latest result', async () => {
+      await app.suite.goto(suite.id);
+      const download = await app.suite.exportCsv();
 
-    await test.step('Navigate to suite page', async () => {
-      await suitePage.goto(suiteId);
-    });
+      // uniqueName() only emits filename-safe characters, so the name is
+      // used as-is. How unsafe names are sanitized is a backend rule, covered
+      // in tests/api/test_suites.py (test_export_suite_csv_filename_is_sanitized).
+      expect(download.suggestedFilename()).toBe(`${suite.name}_export.csv`);
 
-    await test.step('Click Export CSV and verify the downloaded file', async () => {
-      const downloadPromise = page.waitForEvent('download');
-      await page.getByTestId('export-csv-btn').click();
-      const download = await downloadPromise;
-
-      expect(download.suggestedFilename()).toBe(`${sanitizeFilename(suiteName)}_export.csv`);
-
-      const filePath = await download.path();
-      const content = fs.readFileSync(filePath!, 'utf-8');
+      const content = fs.readFileSync((await download.path())!, 'utf-8');
       expect(content).toContain('Export TC');
       expect(content).toContain('Export Run');
       expect(content).toContain('pass');

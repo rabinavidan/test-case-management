@@ -21,6 +21,8 @@ export class LoginPage extends BasePage {
   readonly submitBtn:       Locator;
   readonly authError:       Locator;
   readonly contactAdminText: Locator;
+  /** The header's "Sign in" button; visible only while logged out. */
+  readonly signInBtn:       Locator;
 
   constructor(page: Page) {
     super(page);
@@ -31,6 +33,7 @@ export class LoginPage extends BasePage {
     this.submitBtn        = page.getByTestId('auth-submit-btn');
     this.authError        = page.locator('#auth-error');
     this.contactAdminText = page.getByText('Contact your admin to get an account.');
+    this.signInBtn        = page.getByTestId('signin-btn');
   }
 
   /** Load the app as a guest and open the sign-in modal. */
@@ -38,7 +41,7 @@ export class LoginPage extends BasePage {
     log.step('Open sign-in modal');
     await this.navigate('/');
     await this.waitForNetworkIdle();
-    await this.page.getByTestId('signin-btn').click();
+    await this.signInBtn.click();
     await expect(this.submitBtn).toBeVisible();
     log.assert('auth modal visible');
   }
