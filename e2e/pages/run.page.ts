@@ -1,6 +1,7 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 import { log } from '../logger';
+import type { ResultStatus, RunTileStatus } from '../data/types';
 
 export interface RunSummary {
   pass: number;
@@ -11,40 +12,52 @@ export interface RunSummary {
 
 export class RunPage extends BasePage {
   readonly resultRows:   Locator;
-  readonly summaryGrid:  Locator;
   readonly modalOverlay: Locator;
+  readonly notesInput:   Locator;
+  readonly saveResultBtn: Locator;
 
   constructor(page: Page) {
     super(page);
-    this.resultRows   = page.locator('.space-y-3 > div');
-    this.summaryGrid  = page.locator('#view-run .grid-cols-4 > div');
-    this.modalOverlay = page.locator('#modal-overlay');
+    // One row per test case: <div data-tc-id=… role="group"> inside #results-list.
+    this.resultRows    = page.locator('#results-list > [data-tc-id]');
+    this.modalOverlay  = page.locator('#modal-overlay');
+    this.notesInput    = page.locator('#f-notes');
+    this.saveResultBtn = page.getByRole('button', { name: /save result/i });
   }
 
   async goto(id: number): Promise<void> {
     await this.navigate(`/#run/${id}`);
-    await this.waitForNetworkIdle();
+    await this.waitForView('view-run');
   }
 
-  async markResult(testCaseTitle: string, status: 'pass' | 'fail' | 'skip', notes?: string): Promise<void> {
+  resultRow(testCaseTitle: string): Locator {
+    return this.resultRows.filter({ hasText: testCaseTitle });
+  }
+
+  /**
+   * The number on one of the four summary tiles (Pass / Fail / Skip /
+   * Pending) — a Locator, so a spec can assert it web-first
+   * (`toHaveText('1')`) and let Playwright retry while the run re-renders.
+   */
+  summaryCount(status: RunTileStatus): Locator {
+    return this.page.getByTestId(`run-filter-${status}`).locator('p').first();
+  }
+
+  async markResult(testCaseTitle: string, status: ResultStatus, notes?: string): Promise<void> {
     log.action('mark', `"${testCaseTitle}"`, status);
 
-    const row = this.resultRows.filter({ hasText: testCaseTitle });
-    const recordBtn = row.getByRole('button', { name: /record|update/i });
+    const recordBtn = this.resultRow(testCaseTitle).getByRole('button', { name: /record|update/i });
     await recordBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
     await recordBtn.click();
 
     await this.page.locator(`#rs-${status}`).click();
 
     if (notes) {
-      const notesField = this.page.locator('#f-notes');
-      if (await notesField.isVisible({ timeout: 1000 }).catch(() => false)) {
-        log.action('fill', 'notes', notes);
-        await notesField.fill(notes);
-      }
+      log.action('fill', 'notes', notes);
+      await this.notesInput.fill(notes);
     }
 
-    await this.page.getByRole('button', { name: /save result/i }).click();
+    await this.saveResultBtn.click();
     try {
       await this.modalOverlay.waitFor({ state: 'hidden', timeout: this.TIMEOUT_MEDIUM });
     } catch {
@@ -52,23 +65,19 @@ export class RunPage extends BasePage {
       await this.page.keyboard.press('Escape');
       await this.modalOverlay.waitFor({ state: 'hidden', timeout: this.TIMEOUT_SHORT });
     }
-    await this.waitForNetworkIdle();
   }
 
+  /** Snapshot read of all four tiles; prefer summaryCount() for assertions. */
   async getSummary(): Promise<RunSummary> {
     log.step('Reading run summary');
-
-    const getCount = async (label: string): Promise<number> => {
-      const cell = this.summaryGrid.filter({ hasText: label });
-      const text = await cell.textContent() || '0';
-      return parseInt(text.match(/\d+/)?.[0] || '0', 10);
-    };
+    const read = async (status: RunTileStatus): Promise<number> =>
+      parseInt((await this.summaryCount(status).textContent())?.trim() || '0', 10);
 
     const result = {
-      pass:    await getCount('Pass'),
-      fail:    await getCount('Fail'),
-      skip:    await getCount('Skip'),
-      pending: await getCount('Pending'),
+      pass:    await read('pass'),
+      fail:    await read('fail'),
+      skip:    await read('skip'),
+      pending: await read('pending'),
     };
     log.info(`Summary → pass:${result.pass} fail:${result.fail} skip:${result.skip} pending:${result.pending}`);
     return result;

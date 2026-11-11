@@ -1,90 +1,50 @@
-import { test, expect } from '../fixtures/auth.fixture';
-import { SuitePage } from '../pages/suite.page';
-import { RunPage } from '../pages/run.page';
+import { test, expect } from '../fixtures/test';
+import { aRun } from '../data/builders';
+import { executeRunViaUi, seedTestCases } from '../flows/workflows';
 
-const uid = () => `${Date.now()}`;
+const ALPHA = 'TC-Alpha';
+const BETA = 'TC-Beta';
 
 test.describe('Test Runs', () => {
-  let projectId: number;
-  let suiteId: number;
-
-  test.beforeEach(async ({ page, request, authToken }) => {
-    const h = { Authorization: `Bearer ${authToken}` };
-
-    const proj = await request.post('/api/projects', { data: { name: `RunProj-${uid()}` }, headers: h });
-    projectId = (await proj.json()).id;
-
-    const suite = await request.post(`/api/projects/${projectId}/suites`, { data: { name: `RunSuite-${uid()}` }, headers: h });
-    suiteId = (await suite.json()).id;
-
-    for (const title of ['TC-Alpha', 'TC-Beta']) {
-      await request.post(`/api/suites/${suiteId}/testcases`, {
-        data: { title, status: 'active', priority: 'medium' }, headers: h,
-      });
-    }
-
-    await page.addInitScript((t) => localStorage.setItem('tf_token', t), authToken);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+  // Every test gets its own project → suite → two active cases. The fixtures
+  // are test-scoped, so beforeEach and the test share the same seededSuite.
+  test.beforeEach(async ({ api, seededSuite }) => {
+    await seedTestCases(api, seededSuite.suite.id, [ALPHA, BETA]);
   });
 
-  test.afterEach(async ({ request, authToken }) => {
-    await request.delete(`/api/projects/${projectId}`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-    });
-  });
+  test('can start a test run from a suite', async ({ app, seededSuite }) => {
+    await app.suite.goto(seededSuite.suite.id);
+    const runId = await app.suite.startRun(aRun().name);
 
-  test('can start a test run from a suite', async ({ page }) => {
-    const suitePage = new SuitePage(page);
-    await suitePage.goto(suiteId);
-    const runId = await suitePage.startRun(`Run-${uid()}`);
     expect(runId).toBeGreaterThan(0);
-    await expect(page).toHaveURL(new RegExp(`run/${runId}`));
+    await expect(app.page).toHaveURL(new RegExp(`run/${runId}`));
+    await expect(app.run.summaryCount('pending')).toHaveText('2');
   });
 
-  test('can mark test cases as pass and fail', async ({ page }) => {
-    const suitePage = new SuitePage(page);
-    await suitePage.goto(suiteId);
-    const runId = await suitePage.startRun(`Run-${uid()}`);
+  test('can mark test cases as pass and fail', async ({ app, seededSuite }) => {
+    await executeRunViaUi(app, seededSuite.suite.id, { [ALPHA]: 'pass', [BETA]: 'fail' });
 
-    const runPage = new RunPage(page);
-    await runPage.goto(runId);
-    await runPage.markResult('TC-Alpha', 'pass');
-    await runPage.markResult('TC-Beta', 'fail');
-
-    const summary = await runPage.getSummary();
-    expect(summary.pass).toBeGreaterThanOrEqual(1);
-    expect(summary.fail).toBeGreaterThanOrEqual(1);
+    await expect(app.run.summaryCount('pass')).toHaveText('1');
+    await expect(app.run.summaryCount('fail')).toHaveText('1');
+    await expect(app.run.summaryCount('pending')).toHaveText('0');
   });
 
-  test('run summary shows correct counts after all results', async ({ page }) => {
-    const suitePage = new SuitePage(page);
-    await suitePage.goto(suiteId);
-    const runId = await suitePage.startRun(`Run-${uid()}`);
+  test('run summary shows correct counts after all results', async ({ app, seededSuite }) => {
+    await executeRunViaUi(app, seededSuite.suite.id, {
+      [ALPHA]: { status: 'pass', notes: 'All good' },
+      [BETA]: { status: 'skip', notes: 'N/A' },
+    });
 
-    const runPage = new RunPage(page);
-    await runPage.goto(runId);
-    await runPage.markResult('TC-Alpha', 'pass', 'All good');
-    await runPage.markResult('TC-Beta', 'skip', 'N/A');
-
-    const summary = await runPage.getSummary();
-    expect(summary.pass).toBeGreaterThanOrEqual(1);
-    expect(summary.skip).toBeGreaterThanOrEqual(1);
-    expect(summary.pending).toBe(0);
+    await expect(app.run.summaryCount('pass')).toHaveText('1');
+    await expect(app.run.summaryCount('skip')).toHaveText('1');
+    await expect(app.run.summaryCount('pending')).toHaveText('0');
   });
 
-  test('all-pass run has no failures or pending', async ({ page }) => {
-    const suitePage = new SuitePage(page);
-    await suitePage.goto(suiteId);
-    const runId = await suitePage.startRun(`Run-${uid()}`);
+  test('all-pass run has no failures or pending', async ({ app, seededSuite }) => {
+    await executeRunViaUi(app, seededSuite.suite.id, { [ALPHA]: 'pass', [BETA]: 'pass' });
 
-    const runPage = new RunPage(page);
-    await runPage.goto(runId);
-    await runPage.markResult('TC-Alpha', 'pass');
-    await runPage.markResult('TC-Beta', 'pass');
-
-    const summary = await runPage.getSummary();
-    expect(summary.fail).toBe(0);
-    expect(summary.pending).toBe(0);
+    await expect(app.run.summaryCount('pass')).toHaveText('2');
+    await expect(app.run.summaryCount('fail')).toHaveText('0');
+    await expect(app.run.summaryCount('pending')).toHaveText('0');
   });
 });

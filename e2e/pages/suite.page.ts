@@ -1,15 +1,10 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, Download } from '@playwright/test';
 import { BasePage } from './base.page';
 import { log } from '../logger';
+import type { TestCaseInput } from '../data/types';
 
-export interface TestCaseData {
-  title: string;
-  description?: string;
-  steps?: string;
-  expected?: string;
-  priority?: 'low' | 'medium' | 'high' | 'critical';
-  status?: 'active' | 'draft' | 'deprecated';
-}
+/** @deprecated Kept as an alias for existing imports; use TestCaseInput. */
+export type TestCaseData = TestCaseInput;
 
 export class SuitePage extends BasePage {
   readonly newTestCaseBtn: Locator;
@@ -20,28 +15,32 @@ export class SuitePage extends BasePage {
   readonly prioritySelect: Locator;
   readonly statusSelect:   Locator;
   readonly submitBtn:      Locator;
+  readonly saveChangesBtn: Locator;
   readonly startRunBtn:    Locator;
   readonly runNameInput:   Locator;
   readonly modalBody:      Locator;
+  readonly exportCsvBtn:   Locator;
 
   constructor(page: Page) {
     super(page);
     this.newTestCaseBtn = page.getByTestId('new-testcase-btn');
-    this.titleInput     = page.locator('[data-testid="f-title"], #f-title');
-    this.descInput      = page.locator('[data-testid="f-desc"], #f-desc');
-    this.stepsInput     = page.locator('[data-testid="f-steps"], #f-steps');
-    this.expectedInput  = page.locator('[data-testid="f-expected"], #f-expected');
-    this.prioritySelect = page.locator('[data-testid="f-priority"], #f-priority');
-    this.statusSelect   = page.locator('[data-testid="f-status"], #f-status');
+    this.titleInput     = page.locator('#f-title');
+    this.descInput      = page.locator('#f-desc');
+    this.stepsInput     = page.locator('#f-steps');
+    this.expectedInput  = page.locator('#f-expected');
+    this.prioritySelect = page.locator('#f-priority');
+    this.statusSelect   = page.getByTestId('f-status');
     this.submitBtn      = page.getByTestId('modal-submit-btn');
+    this.saveChangesBtn = page.getByRole('button', { name: /save changes/i });
     this.startRunBtn    = page.getByRole('button', { name: /start run|new run|create run/i });
     this.runNameInput   = page.locator('#f-name');
     this.modalBody      = page.getByTestId('modal-body');
+    this.exportCsvBtn   = page.getByTestId('export-csv-btn');
   }
 
   async goto(id: number): Promise<void> {
     await this.navigate(`/#suite/${id}`);
-    await this.waitForNetworkIdle();
+    await this.waitForView('view-suite');
   }
 
   async clickNewTestCase(): Promise<void> {
@@ -50,7 +49,7 @@ export class SuitePage extends BasePage {
     await this.newTestCaseBtn.click();
   }
 
-  async fillTestCaseForm(data: TestCaseData): Promise<void> {
+  async fillTestCaseForm(data: TestCaseInput): Promise<void> {
     log.action('fill', 'title', data.title);
     await this.titleInput.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
     await this.titleInput.fill(data.title);
@@ -81,11 +80,43 @@ export class SuitePage extends BasePage {
     log.action('click', 'Submit test case form');
     await this.submitBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_SHORT });
     await this.submitBtn.click();
-    await this.waitForNetworkIdle();
+    await this.waitForModalClosed();
   }
 
   getTestCaseRows(): Locator {
     return this.page.locator('[data-testid^="testcase-card-"]').filter({ hasText: /./ });
+  }
+
+  testCaseCard(title: string): Locator {
+    return this.getTestCaseRows().filter({ hasText: title });
+  }
+
+  /** The priority badge on a test case card (e.g. "critical"). */
+  priorityBadge(title: string, priority: string): Locator {
+    return this.testCaseCard(title).getByText(priority, { exact: true });
+  }
+
+  async renameTestCase(testCaseId: number, newTitle: string): Promise<void> {
+    log.action('edit', `test case ${testCaseId} title`, newTitle);
+    await this.page.getByTestId(`edit-testcase-${testCaseId}`).click();
+    await this.titleInput.waitFor({ state: 'visible', timeout: this.TIMEOUT_MEDIUM });
+    await this.titleInput.fill(newTitle);
+    await this.saveChangesBtn.click();
+    await this.waitForModalClosed();
+  }
+
+  async deleteTestCase(testCaseId: number): Promise<void> {
+    log.action('delete', `test case ${testCaseId}`);
+    this.page.once('dialog', d => d.accept());
+    await this.page.getByTestId(`delete-testcase-${testCaseId}`).click();
+  }
+
+  /** Clicks Export CSV and returns the download (the caller inspects it). */
+  async exportCsv(): Promise<Download> {
+    log.action('click', 'Export CSV');
+    const download = this.page.waitForEvent('download');
+    await this.exportCsvBtn.click();
+    return download;
   }
 
   async clickStartRun(): Promise<void> {
@@ -105,16 +136,16 @@ export class SuitePage extends BasePage {
     const submitBtn = this.modalBody.getByRole('button', { name: /start run/i });
     await submitBtn.waitFor({ state: 'visible', timeout: this.TIMEOUT_SHORT });
     await submitBtn.click();
-    await this.waitForNetworkIdle();
   }
 
+  /** Starts a run from this suite and returns its id (read from the URL it navigates to). */
   async startRun(name: string): Promise<number> {
     await this.clickStartRun();
     await this.fillRunForm(name);
     await this.submitRunForm();
-    await this.page.waitForURL(/run\/\d+/, { timeout: 10000 });
-    const url = this.page.url();
-    const match = url.match(/run\/(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
+    await this.page.waitForURL(/run\/\d+/, { timeout: this.TIMEOUT_MEDIUM });
+    const match = this.page.url().match(/run\/(\d+)/);
+    if (!match) throw new Error(`Started run "${name}" but the URL has no run id: ${this.page.url()}`);
+    return parseInt(match[1], 10);
   }
 }

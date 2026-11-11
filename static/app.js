@@ -3123,19 +3123,19 @@ async function renderProject(projectId) {
       <!-- Stats -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-2xl font-bold text-blue-600">${stats.total_suites}</p>
+          <p data-testid="project-stat-suites" class="text-2xl font-bold text-blue-600">${stats.total_suites}</p>
           <p class="text-xs font-medium text-slate-500 mt-1">Suites</p>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-2xl font-bold text-purple-600">${stats.total_cases}</p>
+          <p data-testid="project-stat-cases" class="text-2xl font-bold text-purple-600">${stats.total_cases}</p>
           <p class="text-xs font-medium text-slate-500 mt-1">Test Cases</p>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-2xl font-bold text-slate-600">${stats.total_runs}</p>
+          <p data-testid="project-stat-runs" class="text-2xl font-bold text-slate-600">${stats.total_runs}</p>
           <p class="text-xs font-medium text-slate-500 mt-1">Total Runs</p>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-2xl font-bold text-emerald-700">${passP}%</p>
+          <p data-testid="project-stat-pass-rate" class="text-2xl font-bold text-emerald-700">${passP}%</p>
           <p class="text-xs font-medium text-slate-500 mt-1">Pass Rate</p>
         </div>
       </div>

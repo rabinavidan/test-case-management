@@ -20,6 +20,34 @@ on:
         default: ''
 
 jobs:
+  # Fast static gate, no browser or backend: enforces the suite's layering
+  # (e2e/eslint.config.mjs — specs may not use selectors, URLs or raw HTTP;
+  # layers may only import downward) and that the whole suite typechecks.
+  lint:
+    name: E2E lint (layering + typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (test architecture rules)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
   # Runs the suite as SHARD_TOTAL parallel jobs (Playwright's own sharding —
   # https://playwright.dev/docs/test-sharding), each on its own runner/app
   # instance. fail-fast: false so one shard failing doesn't cancel the
@@ -270,11 +298,15 @@ jobs:
   e2e:
     name: E2E Tests (Playwright TypeScript)
     if: always()
-    needs: [e2e-shard, merge-reports]
+    needs: [lint, e2e-shard, merge-reports]
     runs-on: ubuntu-latest
     steps:
-      - name: Check shard results
+      - name: Check lint and shard results
         run: |
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "E2E lint failed — a spec or layer broke the test architecture rules (e2e/eslint.config.mjs)."
+            exit 1
+          fi
           if [ "${{ needs.e2e-shard.result }}" != "success" ]; then
             echo "One or more E2E shards failed — see the shard jobs and the merged report for details."
             exit 1

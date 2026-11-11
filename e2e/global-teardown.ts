@@ -1,9 +1,11 @@
 import { request } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { E2E_NAME_PREFIX } from './data/builders';
 
 // Name prefixes used by every test spec — anything matching these is safe to delete.
 const TEST_NAME_PREFIXES = [
+  E2E_NAME_PREFIX,  // every project built by data/builders.ts (the layered specs)
   'Test Project_',
   'Delete Me_',
   'Stats Project_',
