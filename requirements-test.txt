@@ -11,7 +11,7 @@ pytest-xdist==3.8.0
 # (0.28+) because httpx 0.28 removed the `Client(app=...)` shortcut
 # starlette's TestClient (used throughout tests/api, tests/contract) relies
 # on — 0.27.x is the newest line that still supports it.
-httpx==0.27.2
+httpx==0.28.1
 pytest-json-report==1.5.0
 allure-pytest==2.13.5
 # Pinned to the 14.x line: 15.x+ requires pytest>=8.2, which conflicts with
