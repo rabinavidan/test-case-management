@@ -26,7 +26,8 @@ uvicorn api.main:app --reload
 
 ## Before opening a PR
 
-This repo runs four independent test stacks and a lint/coverage gate in CI
+This repo runs two test stacks (pytest for the backend, Playwright TypeScript
+for E2E/UI) and a lint/coverage gate in CI
 (`.github/workflows/`) — all of it is runnable locally first:
 
 ```bash
@@ -42,14 +43,10 @@ python -m pytest tests/unit tests/api tests/contract tests/services -v -n auto \
 
 # Playwright TypeScript E2E (needs the app running separately — see e2e/README.md)
 cd e2e && npm test
-
-# Java suites (needs the app running separately — see java-tests/README.md, java-e2e/README.md)
-cd java-tests && mvn test
-cd java-e2e && mvn test
 ```
 
 A PR that fails any of these in CI won't merge — `ruff`, the coverage
-floor, and the four test suites are all required checks. Coverage below
+floor, and both test suites (pytest backend, Playwright TypeScript UI) are required checks. Coverage below
 85% on `api/`, `services/`, or `shared/` fails the build the same way a
 failing test does (see `.coveragerc`).
 
@@ -63,7 +60,7 @@ failing test does (see `.coveragerc`).
 - **New code needs new tests** at the same layer it changes — a new
   endpoint gets an `tests/api/` test, a new service behavior gets a
   `tests/services/` test, a new UI flow gets Playwright coverage in at
-  least one of the parity stacks (`e2e/` or `tests/e2e/`).
+  the Playwright TypeScript suite (`e2e/`).
 - **Don't add a dependency for something the standard library or an
   existing dependency already covers.**
 - Draft PRs are the default while CI is still running; mark ready for
@@ -114,20 +111,6 @@ agents are single-shot calls that don't need a framework. Its unit tests
 (`tests/unit/test_test_plan_reviewer.py`, `tests/unit/test_agents_cli.py`)
 use LangChain's own `FakeListChatModel` and run in the same `pytest`
 invocation as everything else — no real Ollama server required.
-
-## Scalability / Load Tests
-
-`loadtests/` runs [Locust](https://locust.io/) scenarios — the same `locustfile.py` against **both**
-deployments this repo ships — see [`loadtests/README.md`](loadtests/README.md) for methodology and recorded
-findings: a live, quantified measurement of [issue #214](https://github.com/rabinavidan/test-case-management/issues/214)'s
-backend race against the SQLite monolith, a comparison against the Postgres/Redis microservices deployment
-(where that race never reproduced), and a different, microservices-specific race the same run found there
-([issue #219](https://github.com/rabinavidan/test-case-management/issues/219)). Its dependency
-(`requirements-loadtest.txt`) is **never** installed alongside `requirements-test.txt` — `locust` requires a
-newer `pytest`/`greenlet` than this repo's pinned versions tolerate (confirmed by a real conflict) — so it
-gets its own virtualenv, locally and in `.github/workflows/loadtest-sqlite.yml` /
-`.github/workflows/loadtest-microservices.yml` (both manual/monthly, not part of `Before opening a PR`'s
-required checks; a load test is diagnostic, not a per-commit gate).
 
 ## Microservices Smoke Test
 

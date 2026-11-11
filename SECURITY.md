@@ -48,8 +48,8 @@ report might be duplicating:
 - Rate limiting on `/api/auth/login` and `/api/auth/register`
   (5 requests/minute per IP) against brute-force/credential-stuffing.
 - Passwords hashed with `passlib` (never stored or logged in plaintext).
-- CI runs `ruff` (lint) and the full test suite (`pytest`, Playwright,
-  REST Assured) on every pull request, with a coverage floor.
+- CI runs `ruff` (lint) and the full test suite (`pytest` for the backend,
+  Playwright TypeScript for the UI) on every pull request, with a coverage floor.
 
 Known accepted limitations (not vulnerabilities, but worth stating rather
 than leaving implicit):

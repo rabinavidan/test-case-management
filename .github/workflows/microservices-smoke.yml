@@ -94,8 +94,7 @@ jobs:
           # This compose file seeds an admin user on startup
           # (SEED_ADMIN_USERNAME/PASSWORD), so /api/auth/register is always
           # closed (403) by the time this runs — log in as that seeded
-          # admin instead, the same register-or-login fallback
-          # loadtests/locustfile.py's _bootstrap_admin uses.
+          # admin instead.
           status, body = call("POST", "/api/auth/login", {"username": "admin", "password": "admin123"})
           if status != 200:
               print(f"FAIL: could not log in as the seeded admin user: {status} {body}")

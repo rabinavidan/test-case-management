@@ -79,7 +79,7 @@ PRODUCT_PATTERNS = [
     r"500 Internal Server Error", r"Response \[500\]", r"status(_code)?\W{1,3}500\b",
 ]
 
-TEST_PATH = re.compile(r"(^|/)(tests|e2e|e2e-bdd|java-tests|java-e2e)/")
+TEST_PATH = re.compile(r"(^|/)(tests|e2e)/")
 PRODUCT_PATH = re.compile(r"(^|/)(api|services|shared|static)/")
 
 

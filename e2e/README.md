@@ -2,9 +2,8 @@
 
 End-to-end tests for the TestFlow Test Case Management app, written with [Playwright](https://playwright.dev/) and TypeScript.
 This is the project's primary automation stack: fixture-based auth, a full Page Object Model, `test.step()`-annotated
-specs, Allure reporting, and its own CI workflow (`pw-ts.yml`). A feature-equivalent suite also exists in
-Python/pytest under [`../tests/e2e`](../tests/e2e) — see the [root README](../README.md#test-architecture) for how
-the two stacks map to each other.
+specs, Allure reporting, and its own CI workflow (`pw-ts.yml`). It is the only UI/E2E stack; the backend is
+covered by pytest under [`../tests`](../tests) — see the [root README](../README.md#test-architecture).
 
 ## Setup
 

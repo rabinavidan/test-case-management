@@ -4,8 +4,7 @@
 # source of truth for CI status on this project. This pipeline is included alongside it
 # to demonstrate Azure DevOps YAML pipeline authoring — multi-stage/multi-job structure,
 # native JUnit test-result publishing, and pip/npm caching — against the same app and
-# three of the test stacks the GitHub workflows already cover: pytest, Cucumber/Gherkin,
-# and the fully offline mocked/service-virtualized Playwright suite (no pip install, no
+# the two test stacks the GitHub workflows cover: pytest (backend) and the fully offline mocked/service-virtualized Playwright suite (no pip install, no
 # FastAPI process, no database — see e2e/mocks/ and e2e/README.md's "Serverless mocked
 # E2E tests" section).
 # Wiring it to a live Azure DevOps project only requires importing this repo there and
@@ -65,66 +64,6 @@ stages:
             condition: always()
             inputs:
               summaryFileLocation: '$(Build.ArtifactStagingDirectory)/coverage.xml'
-
-      - job: CucumberBddTests
-        displayName: 'Cucumber/Gherkin BDD (e2e-bdd/)'
-        pool:
-          vmImage: 'ubuntu-latest'
-        steps:
-          - task: UsePythonVersion@0
-            inputs:
-              versionSpec: '$(PYTHON_VERSION)'
-            displayName: 'Use Python $(PYTHON_VERSION) (to run the app under test)'
-
-          - task: NodeTool@0
-            inputs:
-              versionSpec: '$(NODE_VERSION)'
-            displayName: 'Use Node.js $(NODE_VERSION)'
-
-          - task: Cache@2
-            inputs:
-              key: 'npm | "$(Agent.OS)" | e2e-bdd/package-lock.json'
-              path: $(Pipeline.Workspace)/.npm-cache
-            displayName: 'Cache npm packages'
-
-          - script: pip install -r requirements.txt
-            displayName: 'Install Python dependencies (for the app under test)'
-
-          - script: |
-              nohup uvicorn api.main:app --host 0.0.0.0 --port 8000 > $(Build.ArtifactStagingDirectory)/uvicorn.log 2>&1 &
-              sleep 3
-            displayName: 'Start the app'
-
-          - script: |
-              npm ci --cache $(Pipeline.Workspace)/.npm-cache
-              npx playwright install --with-deps chromium
-            workingDirectory: e2e-bdd
-            displayName: 'Install BDD suite dependencies + Chromium'
-
-          - script: npm test
-            workingDirectory: e2e-bdd
-            displayName: 'Run Cucumber scenarios'
-            env:
-              BASE_URL: 'http://localhost:8000'
-              CI: 'true'
-
-          - script: npm run report:junit
-            workingDirectory: e2e-bdd
-            condition: always()
-            displayName: 'Convert Cucumber JSON report to JUnit'
-
-          - task: PublishTestResults@2
-            condition: always()
-            inputs:
-              testResultsFormat: 'JUnit'
-              testResultsFiles: 'e2e-bdd/reports/cucumber-junit.xml'
-              testRunTitle: 'Cucumber/Gherkin BDD'
-
-          - task: PublishBuildArtifacts@1
-            condition: always()
-            inputs:
-              PathtoPublish: 'e2e-bdd/reports'
-              ArtifactName: 'cucumber-bdd-reports'
 
       - job: MockedServiceVirtualizedE2E
         displayName: 'Playwright Mocked E2E (serverless / service-virtualized)'

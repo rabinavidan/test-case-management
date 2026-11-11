@@ -1,4 +1,4 @@
-"""Root conftest — shared across all test layers (unit / api / contract / services / e2e).
+"""Root conftest — shared across all test layers (unit / api / contract / services / infra).
 
 Layer-specific fixtures live in each layer's own conftest.py:
   tests/unit/     — none needed (pure functions, no fixtures)
@@ -7,7 +7,7 @@ Layer-specific fixtures live in each layer's own conftest.py:
   tests/services/ — per-service SQLite-with-attached-schema engines + JWT minting
                     (tests/services/conftest.py) — covers the microservices under
                     services/, which tests/api/ and tests/contract/ don't touch
-  tests/e2e/      — Playwright browser fixtures live inline per test module
+  tests/infra/    — kustomize/terraform validation (needs kubectl + terraform)
 """
 import logging
 import os
@@ -39,7 +39,7 @@ def pytest_runtest_logreport(report):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-tag each test with a layer marker (unit/api/e2e) based on its
+    """Auto-tag each test with a layer marker (unit/api/contract/services/infra) based on its
     directory, so `pytest -m api` (etc.) works without per-test markers.
     """
     root = pathlib.Path(config.rootdir) / "tests"
@@ -49,5 +49,5 @@ def pytest_collection_modifyitems(config, items):
         except ValueError:
             continue
         layer = relative.parts[0] if relative.parts else None
-        if layer in ("unit", "api", "contract", "services", "e2e"):
+        if layer in ("unit", "api", "contract", "services", "infra"):
             item.add_marker(layer)

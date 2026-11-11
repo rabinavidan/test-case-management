@@ -25,10 +25,7 @@ From `.github/workflows/test.yml`, blocking on every PR:
   consistency checks — treat a failure here as a real bug, not "infra
   flake," the same as any other required check.
 
-Non-blocking / not real signals: `E2E Tests (Playwright)` (the Python E2E
-suite) only runs on push to main with `continue-on-error: true` — it will
-show `skipped` on every PR, that's expected, not a failure to chase.
-`Vercel Preview Comments` / preview-deploy bot comments are not CI; never
+Not real signals: `Vercel Preview Comments` / preview-deploy bot comments are not CI; never
 treat them as a check to fix.
 
 ## Triage a red test first

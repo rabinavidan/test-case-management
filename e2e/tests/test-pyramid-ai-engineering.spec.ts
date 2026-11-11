@@ -4,7 +4,7 @@ import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture
 // Milestone 3 of the portfolio plan: Test Pyramid + Shift-Left + AI-First
 // Quality Engineering. Test counts are real numbers measured directly from
 // this repo's own suites (pytest --collect-only per layer, `playwright
-// test --list` for the TS suite, @Test counts for the Java suites) - these
+// test --list` for the TS suite) - these
 // assertions double as a guard against the displayed counts silently
 // drifting from what's actually true.
 
@@ -57,10 +57,10 @@ guestTest.describe('Guest recruiter view — Test Pyramid & AI-First Engineering
     await guestExpect(section.getByText('E2E', { exact: true })).toBeVisible();
 
     // assertion-change-approved: counts re-measured from the repository (see TEST_PYRAMID_LEVELS in static/app.js)
-    await guestExpect(section.getByText('477 tests')).toBeVisible();
+    await guestExpect(section.getByText('501 tests')).toBeVisible();
     await guestExpect(section.getByText('170 tests')).toBeVisible();
-    await guestExpect(section.getByText('418 tests')).toBeVisible();
-    await guestExpect(section.getByText('364 tests')).toBeVisible();
+    await guestExpect(section.getByText('368 tests')).toBeVisible();
+    await guestExpect(section.getByText('304 tests')).toBeVisible();
   });
 
   guestTest('the Shift-Left strategy statement is present', async ({ page }) => {
