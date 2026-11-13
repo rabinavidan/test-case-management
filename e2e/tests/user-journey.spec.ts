@@ -4,13 +4,13 @@ import { ProjectsPage } from '../pages/projects.page';
 import { ProjectPage } from '../pages/project.page';
 import { SuitePage } from '../pages/suite.page';
 import { RunPage } from '../pages/run.page';
+import { config } from '../config/env';
 
 // One continuous journey through every authenticated page, driven only
 // through the UI — the per-page specs seed their data over the API, so none
 // of them proves the pages actually link together. The API is used here only
 // to clean up. Credentials are global-setup.ts's e2e user.
-const USERNAME = 'testuser_e2e';
-const PASSWORD = 'Test@12345';
+const { username: USERNAME, password: PASSWORD } = config.credentials;
 
 test.describe('User journey — sign in to sign out', () => {
   // Per test, not per file: workers load this module at the same moment, so a

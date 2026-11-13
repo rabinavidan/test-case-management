@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/test';
 import { anActiveTestCase, uniqueName } from '../data/builders';
 import { createTestCaseViaUi } from '../flows/workflows';
+import { PRIORITIES } from '../data/datasets';
 
 test.describe('Test Cases', () => {
   test('can create a test case with all fields', async ({ app, seededSuite }) => {
@@ -22,17 +23,20 @@ test.describe('Test Cases', () => {
     });
   });
 
-  test('test case appears with correct priority badge', async ({ app, seededSuite }) => {
-    const input = { title: uniqueName('Critical Test'), priority: 'critical' as const };
+  // Data-driven: one test per row of data/datasets.ts.
+  for (const priority of PRIORITIES) {
+    test(`test case created as "${priority}" shows the ${priority} priority badge`, async ({ app, seededSuite }) => {
+      const input = { title: uniqueName(`${priority} TC`), priority };
 
-    await test.step('Create a critical test case', async () => {
-      await createTestCaseViaUi(app, seededSuite.suite.id, input);
-    });
+      await test.step(`Create a ${priority} test case`, async () => {
+        await createTestCaseViaUi(app, seededSuite.suite.id, input);
+      });
 
-    await test.step('Its card shows the critical badge', async () => {
-      await expect(app.suite.priorityBadge(input.title, 'critical')).toBeVisible({ timeout: 5000 });
+      await test.step(`Its card shows the ${priority} badge`, async () => {
+        await expect(app.suite.priorityBadge(input.title, priority)).toBeVisible({ timeout: 5000 });
+      });
     });
-  });
+  }
 
   test('can edit a test case', async ({ app, api, seededSuite }) => {
     const { suite } = seededSuite;

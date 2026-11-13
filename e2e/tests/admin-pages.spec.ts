@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import type { APIRequestContext, Page } from '@playwright/test';
 import { LoginPage } from '../pages/login.page';
+import { config } from '../config/env';
 
 // The admin-only pages: User Management and the Log Center. Every user a
 // test creates is deleted afterwards - the scheduled run targets production.
@@ -149,7 +150,7 @@ test.describe('User Management', () => {
 
   test('the admin account has no deactivate or remove controls', async ({ page }) => {
     await page.goto('/#users');
-    const admin = row(page, 'testuser_e2e');
+    const admin = row(page, config.credentials.username);
     await expect(admin).toContainText('Admin');
     await expect(admin.getByRole('button')).toHaveCount(0);
   });
@@ -238,7 +239,7 @@ test.describe('Log Center', () => {
   });
 
   test('a guest cannot read the log', async ({ playwright }) => {
-    const anon = await playwright.request.newContext({ baseURL: process.env.BASE_URL || 'http://localhost:8000' });
+    const anon = await playwright.request.newContext({ baseURL: config.baseURL });
     expect((await anon.get('/api/logs')).status()).toBe(401);
     await anon.dispose();
   });

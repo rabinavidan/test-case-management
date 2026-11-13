@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
+import { readAuthToken } from '../config/auth-state';
 
 function getToken(): string {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'auth-state.json'), 'utf-8')).token;
+  return readAuthToken();
 }
 const uid = () => `${Date.now()}`;
 

@@ -8,9 +8,10 @@
  * A spec states the scenario and the expectations; it never builds a URL,
  * a selector or an Authorization header. eslint.config.mjs enforces that.
  */
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test as authTest } from './auth.fixture';
 import { TestFlowApi } from '../api/testflow.api';
+import { AppMonitor } from './app-monitor';
 import { TestFlowApp } from '../flows/app';
 import { aProject, aSuite } from '../data/builders';
 import type { Project, Suite } from '../data/types';
@@ -31,6 +32,12 @@ type LayeredFixtures = {
   project: Project;
   /** A fresh project with one empty suite, owned by this test. */
   seededSuite: SeededSuite;
+  /**
+   * Automatic: watches the page for uncaught JS errors, 5xx responses and
+   * failed requests; fails the test on an uncaught error and attaches the
+   * log to the report (fixtures/app-monitor.ts).
+   */
+  appMonitor: AppMonitor;
 };
 
 export const test = authTest.extend<LayeredFixtures>({
@@ -57,6 +64,19 @@ export const test = authTest.extend<LayeredFixtures>({
     const suite = await api.suites.create(project.id, aSuite());
     await use({ project, suite });
   },
+
+  appMonitor: [async ({ page }, use, testInfo) => {
+    const monitor = new AppMonitor(page);
+    await use(monitor);
+    await monitor.attachTo(testInfo);
+    // Only judge a test that otherwise passed: a failing one already has its verdict.
+    if (testInfo.status === testInfo.expectedStatus) {
+      expect(
+        monitor.uncaughtErrors.map((e) => e.detail),
+        'uncaught JavaScript errors in the app during this test (see app-monitor.json)',
+      ).toEqual([]);
+    }
+  }, { auto: true }],
 });
 
-export { expect } from '@playwright/test';
+export { expect };

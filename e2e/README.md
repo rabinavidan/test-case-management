@@ -84,6 +84,31 @@ test('all-pass run has no failures or pending', async ({ app, seededSuite }) => 
 });
 ```
 
+### Mapped to the classic automation-framework architecture
+
+The standard reference architecture splits a framework into a **Framework
+layer** (driver, scheduler, cleanup, common libraries, monitoring, reporting)
+and an **Automated Test Suite** (scripts, business scripts, input data,
+object repository, config, recovery). Each box maps to one place here:
+
+| Reference component | Here | Notes |
+|---|---|---|
+| Driver script | `playwright.config.ts`, `npm test` | Projects × browsers, sharding in `pw-ts.yml` |
+| Scheduler | `.github/workflows/pw-ts.yml` `schedule:` (daily 06:00 UTC) | Runs against the production deployment |
+| Clean-up script | `api/testflow.api.ts` `dispose()` per test, `global-teardown.ts` sweep | Per-test cleanup even when a test throws; sweep by `E2E_NAME_PREFIX` |
+| Common libraries | `api/http-client.ts`, `logger.ts`, `pages/base.page.ts` | |
+| Monitoring engine | `fixtures/app-monitor.ts` (auto fixture) | Fails a test on an uncaught JS error; records 5xx + failed requests |
+| Reporting lib | Allure, JSON → job summary, `app-monitor.json` attachment | Trace/video/screenshot on failure |
+| Automation test scripts | `tests/*.spec.ts` | Scenario + assertions only (lint-enforced) |
+| Common business scripts | `flows/workflows.ts` | `executeRunViaUi`, `seedRunWithResult`, … |
+| Input data lib | `data/builders.ts`, `data/datasets.ts` | Builders for one-off data; typed tables for data-driven specs (no Excel: types catch bad rows at compile time) |
+| Object repository | `pages/*.page.ts` locators | One place per screen; `data-testid` first |
+| Config & global variables | `config/env.ts`, `config/auth-state.ts` | The only reader of `process.env` (lint-enforced) |
+| Recovery scenarios | Fresh browser context per test, CI `retries: 1`, fixture teardown, `AppMonitor` | Playwright isolation replaces "close the unexpected popup and continue": a test never inherits another's broken state |
+
+Environment variables (all optional — see `config/env.ts`): `BASE_URL`,
+`MOCKED_BASE_URL`, `E2E_USERNAME`, `E2E_PASSWORD`, `CI`, `PW_CHROMIUM_PATH`.
+
 **Migration status.** `projects`, `suites`, `testcases`, `runs`, `login`
 and `contact` follow the rules. Older specs are listed in
 `eslint.legacy-specs.mjs` with their violation count (885 at baseline);
@@ -110,11 +135,16 @@ e2e/
 │   ├── routes.ts            # Every backend URL the suite uses
 │   ├── http-client.ts       # Authenticated transport; ApiError on non-2xx
 │   └── testflow.api.ts      # TestFlowApi facade (projects/suites/testCases/runs) + cleanup
+├── config/
+│   ├── env.ts               # Config & global variables: URLs, credentials, timeouts (only process.env reader)
+│   └── auth-state.ts        # read/write the token global-setup saves
 ├── data/
 │   ├── types.ts             # Project, Suite, TestCase, Run, Priority, ResultStatus …
-│   └── builders.ts          # uniqueName(), aProject(), aSuite(), anActiveTestCase(), aRun()
+│   ├── builders.ts          # uniqueName(), aProject(), aSuite(), anActiveTestCase(), aRun()
+│   └── datasets.ts          # typed tables for data-driven specs (PRIORITIES …)
 ├── fixtures/
-│   ├── test.ts              # api / signedInPage / app / project / seededSuite
+│   ├── test.ts              # api / signedInPage / app / project / seededSuite / appMonitor (auto)
+│   ├── app-monitor.ts       # uncaught JS errors fail the test; 5xx + failed requests attached
 │   ├── auth.fixture.ts      # authToken / authedRequest (base for test.ts)
 │   └── graphql.ts           # GraphQL helpers for graphql/realtime specs
 ├── mocks/                   # Typed fixtures for the serverless specs — see "Serverless mocked E2E tests" below

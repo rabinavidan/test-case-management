@@ -1,7 +1,7 @@
 import { request } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
 import { E2E_NAME_PREFIX } from './data/builders';
+import { config } from './config/env';
+import { hasAuthToken, readAuthToken } from './config/auth-state';
 
 // Name prefixes used by every test spec — anything matching these is safe to delete.
 const TEST_NAME_PREFIXES = [
@@ -28,19 +28,14 @@ const TEST_NAME_PREFIXES = [
 ];
 
 async function globalTeardown() {
-  const authStatePath = path.join(__dirname, 'auth-state.json');
-  let token: string;
-  try {
-    const { token: t } = JSON.parse(fs.readFileSync(authStatePath, 'utf-8'));
-    token = t;
-  } catch {
+  if (!hasAuthToken()) {
     console.warn('[teardown] auth-state.json not found — skipping project cleanup');
     return;
   }
+  const token = readAuthToken();
 
-  const baseURL = process.env.BASE_URL || 'http://localhost:8000';
   const ctx = await request.newContext({
-    baseURL,
+    baseURL: config.baseURL,
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
 

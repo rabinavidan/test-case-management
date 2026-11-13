@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../pages/login.page';
 import { log } from '../logger';
+import { config } from '../config/env';
 
 // Same credentials global-setup.ts registers before the suite runs.
-const USERNAME = 'testuser_e2e';
-const PASSWORD = 'Test@12345';
+const { username: USERNAME, password: PASSWORD } = config.credentials;
 
 test.describe('Sign-in modal', () => {
   test('renders all expected elements when opened', async ({ page }) => {

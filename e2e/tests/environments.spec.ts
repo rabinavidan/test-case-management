@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import type { APIRequestContext } from '@playwright/test';
+import { config } from '../config/env';
 
 // The Environments page: the four-stage pipeline (staging -> regression ->
 // preprod -> prod) with simulated per-environment telemetry, and runs that
@@ -81,7 +82,7 @@ test.describe('Environments', () => {
   });
 
   test('a guest cannot read environment telemetry', async ({ playwright }) => {
-    const anon = await playwright.request.newContext({ baseURL: process.env.BASE_URL || 'http://localhost:8000' });
+    const anon = await playwright.request.newContext({ baseURL: config.baseURL });
     expect((await anon.get('/api/environments')).status()).toBe(401);
     await anon.dispose();
   });

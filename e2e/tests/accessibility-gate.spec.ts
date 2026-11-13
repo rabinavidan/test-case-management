@@ -1,8 +1,8 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import { request, type APIRequestContext, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import * as fs from 'fs';
-import * as path from 'path';
+import { config } from '../config/env';
+import { readAuthToken } from '../config/auth-state';
 
 /**
  * Accessibility gate: every home tab and every signed-in page must have zero
@@ -43,9 +43,9 @@ const HOME_TABS = ['overview', 'stories', 'repos', 'demo', 'leadership', 'strate
 /** An API client signed in as the e2e user. Worker-scoped setup can't use the
  * test-scoped auth fixtures, so it reads the same token global-setup saved. */
 async function signedInApi(): Promise<APIRequestContext> {
-  const { token } = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'auth-state.json'), 'utf-8'));
+  const token = readAuthToken();
   return request.newContext({
-    baseURL: process.env.BASE_URL || 'http://localhost:8000',
+    baseURL: config.baseURL,
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
 }

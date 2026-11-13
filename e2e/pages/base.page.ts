@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test';
 import { log } from '../logger';
+import { config } from '../config/env';
 
 /**
  * UI layer root. Page objects own locators and atomic user actions; they
@@ -8,9 +9,9 @@ import { log } from '../logger';
  * know how the SPA signals that a view finished loading.
  */
 export class BasePage {
-  protected readonly TIMEOUT_SHORT  = 5_000;
-  protected readonly TIMEOUT_MEDIUM = 10_000;
-  protected readonly TIMEOUT_LONG   = 30_000;
+  protected readonly TIMEOUT_SHORT  = config.timeouts.short;
+  protected readonly TIMEOUT_MEDIUM = config.timeouts.medium;
+  protected readonly TIMEOUT_LONG   = config.timeouts.long;
 
   constructor(protected page: Page) {}
 

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config } from './config/env';
 
 // seed.spec.ts is the Playwright agents' authoring seed (e2e/README.md#playwright-agents),
 // not a real assertion-bearing test. mocked-serverless-*.spec.ts run under
@@ -12,8 +13,8 @@ const RESPONSIVE = '**/responsive.spec.ts';
 export default defineConfig({
   testDir: './tests',
   testIgnore: IGNORED,
-  timeout: 30000,
-  retries: process.env.CI ? 1 : 0,
+  timeout: config.timeouts.test,
+  retries: config.isCI ? 1 : 0,
   reporter: [
     ['list', { printSteps: true }],
     // json feeds pw-ts.yml's job-summary script only — Allure (below) is
@@ -23,10 +24,10 @@ export default defineConfig({
     // blob is what CI's sharded matrix (.github/workflows/pw-ts.yml) merges
     // back into one JSON report via `playwright merge-reports` — not useful
     // for a local, unsharded run, so only enabled under CI.
-    ...(process.env.CI ? [['blob', { outputDir: 'blob-report' }] as const] : []),
+    ...(config.isCI ? [['blob', { outputDir: 'blob-report' }] as const] : []),
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:8000',
+    baseURL: config.baseURL,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
@@ -40,7 +41,7 @@ export default defineConfig({
       testIgnore: [...IGNORED, RESPONSIVE],
       use: {
         ...devices['Desktop Chrome'],
-        launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
+        launchOptions: config.chromiumPath ? { executablePath: config.chromiumPath } : {},
       },
     },
     {

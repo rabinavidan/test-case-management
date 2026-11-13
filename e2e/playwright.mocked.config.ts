@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config } from './config/env';
 
 /**
  * Serverless mocked E2E config — see e2e/README.md's "Serverless mocked
@@ -10,14 +11,14 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/mocked-serverless-*.spec.ts',
-  timeout: 30000,
-  retries: process.env.CI ? 1 : 0,
+  timeout: config.timeouts.test,
+  retries: config.isCI ? 1 : 0,
   reporter: [
     ['list', { printSteps: true }],
     ['allure-playwright', { resultsDir: 'allure-results-mocked', detail: true, suiteTitle: false }],
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:8010',
+    baseURL: config.mockedBaseURL,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
@@ -28,7 +29,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
+        launchOptions: config.chromiumPath ? { executablePath: config.chromiumPath } : {},
       },
     },
   ],

@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import * as fc from 'fast-check';
+import { readAuthToken } from '../config/auth-state';
 
 /**
  * Contract tests: validate real API responses against the app's own
@@ -27,7 +26,7 @@ import * as fc from 'fast-check';
  */
 
 function getToken(): string {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'auth-state.json'), 'utf-8')).token;
+  return readAuthToken();
 }
 const uid = () => `${Date.now()}`;
 

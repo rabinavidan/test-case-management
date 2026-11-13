@@ -1,6 +1,6 @@
 import { test as base, APIRequestContext } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
+import { config } from '../config/env';
+import { readAuthToken } from '../config/auth-state';
 
 type AuthFixtures = {
   authToken: string;
@@ -9,16 +9,12 @@ type AuthFixtures = {
 
 export const test = base.extend<AuthFixtures>({
   authToken: async ({}, use) => {
-    const authStatePath = path.join(__dirname, '..', 'auth-state.json');
-    const raw = fs.readFileSync(authStatePath, 'utf-8');
-    const { token } = JSON.parse(raw);
-    await use(token);
+    await use(readAuthToken());
   },
 
   authedRequest: async ({ playwright, authToken }, use) => {
-    const baseURL = process.env.BASE_URL || 'http://localhost:8000';
     const context = await playwright.request.newContext({
-      baseURL,
+      baseURL: config.baseURL,
       extraHTTPHeaders: {
         Authorization: `Bearer ${authToken}`,
       },
