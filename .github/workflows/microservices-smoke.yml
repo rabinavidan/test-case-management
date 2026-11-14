@@ -2,7 +2,7 @@
 # runs a real CRUD flow through the gateway — the one thing nothing else in
 # CI does. This exists because that exact gap let every service ship
 # crash-looping on `docker compose up --build` without a single check
-# noticing (see issue #217): tests/services/ exercises each app's code
+# noticing (see issue #217): tests/backend/services/ exercises each app's code
 # in-process with TestClient, never through a built image or the real
 # gateway proxy, and nothing else here builds these Dockerfiles at all.
 name: Microservices Smoke Test

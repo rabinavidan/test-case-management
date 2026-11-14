@@ -1,11 +1,11 @@
 name: Playwright Mocked E2E (serverless)
 
-# Runs e2e/tests/mocked-serverless-*.spec.ts — every backend call is
-# intercepted via page.route() (e2e/mocks/), so this job never installs
+# Runs tests/e2e/tests/mocked-serverless-*.spec.ts — every backend call is
+# intercepted via page.route() (tests/e2e/mocks/), so this job never installs
 # Python, never starts FastAPI, and never touches a database. It just
-# serves static/ (e2e/serve-static.py, a ~40-line stand-in for the two
+# serves static/ (tests/e2e/serve-static.py, a ~40-line stand-in for the two
 # routes api/main.py's "Static files" section registers) and points
-# Playwright at it. See e2e/README.md's "Serverless mocked E2E tests"
+# Playwright at it. See tests/e2e/README.md's "Serverless mocked E2E tests"
 # section for how this relates to the real-backend suite in pw-ts.yml
 # and to mock-contract-drift.spec.ts (which runs in pw-ts.yml, not here,
 # since it's the one spec in this pair that needs a real backend).
@@ -14,20 +14,20 @@ on:
   push:
     branches: [main]
     paths:
-      - 'e2e/tests/mocked-serverless-*.spec.ts'
-      - 'e2e/mocks/**'
-      - 'e2e/pages/**'
-      - 'e2e/playwright.mocked.config.ts'
-      - 'e2e/serve-static.py'
+      - 'tests/e2e/tests/mocked-serverless-*.spec.ts'
+      - 'tests/e2e/mocks/**'
+      - 'tests/e2e/pages/**'
+      - 'tests/e2e/playwright.mocked.config.ts'
+      - 'tests/e2e/serve-static.py'
       - 'static/**'
   pull_request:
     branches: [main]
     paths:
-      - 'e2e/tests/mocked-serverless-*.spec.ts'
-      - 'e2e/mocks/**'
-      - 'e2e/pages/**'
-      - 'e2e/playwright.mocked.config.ts'
-      - 'e2e/serve-static.py'
+      - 'tests/e2e/tests/mocked-serverless-*.spec.ts'
+      - 'tests/e2e/mocks/**'
+      - 'tests/e2e/pages/**'
+      - 'tests/e2e/playwright.mocked.config.ts'
+      - 'tests/e2e/serve-static.py'
       - 'static/**'
   workflow_dispatch:
 
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: e2e
+        working-directory: tests/e2e
 
     steps:
       - uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: e2e/package-lock.json
+          cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -80,6 +80,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allure-report-playwright-mocked-${{ github.run_id }}
-          path: e2e/allure-report-mocked/
+          path: tests/e2e/allure-report-mocked/
           retention-days: 14
           if-no-files-found: ignore

@@ -53,22 +53,22 @@ jobs:
 
       - name: Install Playwright
         if: env.FULL_E2E == 'true'
-        working-directory: e2e
+        working-directory: tests/e2e
         run: |
           npm ci
           npx playwright install chromium
 
       - name: E2E (Playwright) against ${{ inputs.environment }}
         if: env.FULL_E2E == 'true'
-        working-directory: e2e
+        working-directory: tests/e2e
         env:
           BASE_URL: http://localhost:18000
           CI: "true"
-        run: npx playwright test --project=chromium $(cat ../lab/e2e-specs.txt)
+        run: npx playwright test --project=chromium $(cat ../../lab/e2e-specs.txt)
 
       - name: Allure environment info
         if: always() && env.FULL_E2E == 'true'
-        working-directory: e2e
+        working-directory: tests/e2e
         run: |
           mkdir -p allure-results
           printf 'Environment=%s\nNamespace=%s\nCommit=%s\n' "$LAB_ENV" "$NS" "$GITHUB_SHA" \
@@ -82,7 +82,7 @@ jobs:
 
       - name: Generate Allure report
         if: always() && env.FULL_E2E == 'true'
-        working-directory: e2e
+        working-directory: tests/e2e
         run: npm run allure:generate
 
       - name: Upload Allure report
@@ -90,7 +90,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allure-report-lab-${{ inputs.environment }}-${{ github.run_id }}
-          path: e2e/allure-report/
+          path: tests/e2e/allure-report/
 
       - name: Stop port-forward
         if: always()

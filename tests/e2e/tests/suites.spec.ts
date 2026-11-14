@@ -64,7 +64,7 @@ test.describe('Test Suites', () => {
 
       // uniqueName() only emits filename-safe characters, so the name is
       // used as-is. How unsafe names are sanitized is a backend rule, covered
-      // in tests/api/test_suites.py (test_export_suite_csv_filename_is_sanitized).
+      // in tests/backend/api/test_suites.py (test_export_suite_csv_filename_is_sanitized).
       expect(download.suggestedFilename()).toBe(`${suite.name}_export.csv`);
 
       const content = fs.readFileSync((await download.path())!, 'utf-8');

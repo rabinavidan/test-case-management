@@ -1,4 +1,4 @@
-"""Shared fixtures for the microservices test layer (tests/services/).
+"""Shared fixtures for the microservices test layer (tests/backend/services/).
 
 Each service's models used to be declared with a Postgres-style
 `__table_args__ = {"schema": ...}` (auth / projects / runs) — needed only
@@ -9,7 +9,7 @@ engine; this file used to work around that with SQLite's
 `ATTACH DATABASE ... AS <schema>`. Models are now table-name-prefixed
 instead (`auth_users`, `projects_projects`, ...) rather than
 schema-qualified, so that workaround is gone — a plain SQLite file backs
-each service's tests directly, same as the monolith's tests/api/conftest.py.
+each service's tests directly, same as the monolith's tests/backend/api/conftest.py.
 
 `import_service_app()` below imports one service (`services.<service>.main`)
 against a throwaway SQLite file, first pointing `DATABASE_URL` at it so the
@@ -57,7 +57,7 @@ def import_service_app(service: str):
 
 def reset_db(db_mod):
     """Drop and recreate every table on a service's (already schema-attached)
-    engine — the tests/services/ equivalent of tests/api/conftest.py's
+    engine — the tests/backend/services/ equivalent of tests/backend/api/conftest.py's
     per-test setup_db fixture."""
     db_mod.Base.metadata.drop_all(bind=db_mod.engine)
     db_mod.Base.metadata.create_all(bind=db_mod.engine)

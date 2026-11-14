@@ -13,7 +13,7 @@ from graphql import build_schema, find_breaking_changes
 
 from api.gql import schema
 
-SDL_PATH = pathlib.Path(__file__).resolve().parents[2] / "docs" / "schema.graphql"
+SDL_PATH = pathlib.Path(__file__).resolve().parents[3] / "docs" / "schema.graphql"
 
 
 def test_schema_matches_committed_sdl():

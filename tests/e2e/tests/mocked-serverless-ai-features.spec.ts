@@ -12,7 +12,7 @@ import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mock
 
 /**
  * Fully serverless (mocked) coverage of the AI-assisted features — test
- * case generation and failure triage — see e2e/README.md's "Serverless
+ * case generation and failure triage — see tests/e2e/README.md's "Serverless
  * mocked E2E tests" section. Both features call out to an AI provider on
  * the real backend (Claude Haiku); mocking them here keeps this coverage
  * fast and deterministic and, critically, lets us exercise the AI error

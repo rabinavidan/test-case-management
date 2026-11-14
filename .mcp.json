@@ -7,7 +7,7 @@
         "run-test-mcp-server",
         "--headless",
         "-c",
-        "e2e/playwright.config.ts"
+        "tests/e2e/playwright.config.ts"
       ]
     }
   }

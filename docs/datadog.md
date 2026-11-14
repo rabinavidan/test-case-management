@@ -8,7 +8,7 @@ Datadog Agent. No API key lives in the repo.
 | Piece | Where | What it does |
 |---|---|---|
 | `ddtrace-run` | every `services/*/Dockerfile` `CMD` | Auto-instruments FastAPI, SQLAlchemy, httpx, Redis, Kafka; propagates trace headers on service-to-service httpx calls, so one request through gateway → runs → projects is one trace |
-| `ddtrace==4.16.0` | every `services/*/requirements.txt` | Same pinned version in all six (`tests/unit/test_datadog_wiring.py`) |
+| `ddtrace==4.16.0` | every `services/*/requirements.txt` | Same pinned version in all six (`tests/tooling/test_datadog_wiring.py`) |
 | JSON log formatter | `services/common/logging_config.py` | One valid JSON object per line (`time`, `level`, `service`, `logger`, `msg`); adds `dd.trace_id`/`dd.span_id` inside a span and `error.kind/message/stack` for exceptions |
 | Compose | `docker-compose.microservices.yml` | `x-datadog-env` on every service; `datadog-agent` under the `datadog` profile |
 | Kubernetes | `k8s/base/*.yaml`, `configmap.yaml`, overlays | `DD_SERVICE`, `DD_AGENT_HOST=status.hostIP`, `tags.datadoghq.com/service` label, log annotation; `DD_TRACE_ENABLED`/`DD_ENV` in `testflow-config` |

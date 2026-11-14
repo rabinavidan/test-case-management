@@ -20,14 +20,14 @@ from scripts.failure_classifier import (
 
 
 @pytest.mark.parametrize("message, phase, crash_path, expected", [
-    ("AssertionError: assert {'status': 'fail'} == {'status': 'pass'}", "call", "tests/api/test_runs.py", PRODUCT),
+    ("AssertionError: assert {'status': 'fail'} == {'status': 'pass'}", "call", "tests/backend/api/test_runs.py", PRODUCT),
     ("httpx.ConnectError: [Errno 111] Connection refused", "call", "/usr/lib/httpx/_transports/default.py", INFRA),
-    ("NameError: name 'undefined_helper' is not defined", "call", "tests/api/test_x.py", TEST_CODE),
-    ("KeyError: 'missing_fixture_value'", "setup", "tests/api/conftest.py", TEST_CODE),
+    ("NameError: name 'undefined_helper' is not defined", "call", "tests/backend/api/test_x.py", TEST_CODE),
+    ("KeyError: 'missing_fixture_value'", "setup", "tests/backend/api/conftest.py", TEST_CODE),
     ("E       fixture 'nope' not found", "setup", "", TEST_CODE),
     ("ModuleNotFoundError: No module named 'foo'", "call", "", TEST_CODE),
     ("KeyError: 'suite_id'", "call", "api/main.py", PRODUCT),
-    ("AttributeError: 'NoneType' object has no attribute 'id'", "call", "tests/unit/test_y.py", TEST_CODE),
+    ("AttributeError: 'NoneType' object has no attribute 'id'", "call", "tests/backend/unit/test_y.py", TEST_CODE),
     ("AssertionError: assert 503 == 200\n where 503 = <Response [503]>.status_code", "call", "tests/e2e/test_z.py", INFRA),
     ("AssertionError: assert 500 == 200\n where 500 = <Response [500]>.status_code", "call", "tests/e2e/test_z.py", PRODUCT),
     ("browserType.launch: Executable doesn't exist at /opt/pw-browsers/chrome", "call", "", INFRA),
@@ -56,20 +56,20 @@ def test_infra_wins_over_setup_phase():
 PYTEST_REPORT = {
     "summary": {"passed": 1, "failed": 2, "error": 1},
     "tests": [
-        {"nodeid": "tests/api/test_ok.py::test_ok", "outcome": "passed"},
-        {"nodeid": "tests/api/test_flaky.py::test_flaky", "outcome": "rerun"},
-        {"nodeid": "tests/api/test_a.py::test_assert", "outcome": "failed",
+        {"nodeid": "tests/backend/api/test_ok.py::test_ok", "outcome": "passed"},
+        {"nodeid": "tests/backend/api/test_flaky.py::test_flaky", "outcome": "rerun"},
+        {"nodeid": "tests/backend/api/test_a.py::test_assert", "outcome": "failed",
          "setup": {"outcome": "passed"},
          "call": {"outcome": "failed",
                   "crash": {"path": "/repo/tests/api/test_a.py", "lineno": 6,
                             "message": "AssertionError: assert 2 == 3"},
                   "longrepr": "..."}},
-        {"nodeid": "tests/api/test_b.py::test_conn", "outcome": "failed",
+        {"nodeid": "tests/backend/api/test_b.py::test_conn", "outcome": "failed",
          "setup": {"outcome": "passed"},
          "call": {"outcome": "failed",
                   "crash": {"path": "/site-packages/httpx/_transports/default.py", "lineno": 89,
                             "message": "httpx.ConnectError: [Errno 111] Connection refused"}}},
-        {"nodeid": "tests/api/test_c.py::test_fixture", "outcome": "error",
+        {"nodeid": "tests/backend/api/test_c.py::test_fixture", "outcome": "error",
          "setup": {"outcome": "failed", "crash": None,
                    "longrepr": "file /repo/tests/api/test_c.py, line 13\nE       fixture 'nope' not found"}},
     ],
@@ -79,9 +79,9 @@ PYTEST_REPORT = {
 def test_classify_pytest_report_skips_passed_and_rerun():
     verdicts = classify_report(PYTEST_REPORT)
     assert [(v.test, v.category) for v in verdicts] == [
-        ("tests/api/test_a.py::test_assert", PRODUCT),
-        ("tests/api/test_b.py::test_conn", INFRA),
-        ("tests/api/test_c.py::test_fixture", TEST_CODE),
+        ("tests/backend/api/test_a.py::test_assert", PRODUCT),
+        ("tests/backend/api/test_b.py::test_conn", INFRA),
+        ("tests/backend/api/test_c.py::test_fixture", TEST_CODE),
     ]
     assert verdicts[0].owner == "Developers"
     assert verdicts[2].evidence == "fixture 'nope' not found"

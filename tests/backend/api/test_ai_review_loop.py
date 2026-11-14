@@ -17,7 +17,7 @@ import json
 from evals.harness import run_suite
 from evals.targets import TARGETS
 from scripts import export_review_dataset as export
-from tests.api.test_ai_generate import VALID_RESPONSE, _install_fake_anthropic
+from tests.backend.api.test_ai_generate import VALID_RESPONSE, _install_fake_anthropic
 
 
 class _ModelThatRepeatsItself:

@@ -10,7 +10,7 @@ import time
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from tests.api.test_graphql import CREATE_RUN, UPDATE_RESULT, gql, seed
+from tests.backend.api.test_graphql import CREATE_RUN, UPDATE_RESULT, gql, seed
 
 PROTOCOL = "graphql-transport-ws"
 SUBSCRIPTION = """

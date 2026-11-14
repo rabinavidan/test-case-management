@@ -5,7 +5,7 @@ an API route that doesn't exist, a missing file, or a platform path must not:
 answering those with a 200 HTML page turns a broken asset into a script parse
 error ("Unexpected token '<'") and makes a mistyped API URL look like it
 worked. Shared by the monolith (api/main.py) and the gateway
-(services/gateway/main.py); e2e/serve-static.py mirrors it.
+(services/gateway/main.py); tests/e2e/serve-static.py mirrors it.
 """
 
 # Prefixes that are never pages. `_vercel/` is served by the Vercel platform

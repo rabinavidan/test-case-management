@@ -9,7 +9,7 @@ than re-implementing them, so both APIs share one set of business rules.
 Monolith-only for now, like the AI gateway: services/* has no GraphQL
 endpoint; the microservices gateway proxy comes with subscriptions.
 Schema contract: docs/schema.graphql (enforced by
-tests/contract/test_graphql_schema.py).
+tests/backend/contract/test_graphql_schema.py).
 """
 from .graph import graphql_router, schema
 

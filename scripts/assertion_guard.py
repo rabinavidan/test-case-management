@@ -6,7 +6,7 @@ The playwright-test-healer agent is told never to delete or loosen an
 assertion to make a test pass (.claude/agents/playwright-test-healer.md),
 and scripts/heal_metrics.py measures whether it *says* it complied. This
 script checks what it actually *did*: it compares every changed Playwright
-spec (e2e/**/*.spec.ts) between the PR base and head, assertion by
+spec (tests/e2e/**/*.spec.ts) between the PR base and head, assertion by
 assertion, so a weakened test cannot merge looking like a selector fix.
 
 Per file, comments stripped first (so commenting an expect() out counts as
@@ -36,7 +36,7 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 
-SPEC_GLOB = re.compile(r"^e2e/.*\.spec\.ts$")
+SPEC_GLOB = re.compile(r"^tests/e2e/.*\.spec\.ts$")
 APPROVAL_MARKER = re.compile(r"//\s*assertion-change-approved:\s*\S")
 LOOSE_MATCHERS = ("toBeTruthy", "toBeDefined", "toBeAttached", "toBeGreaterThanOrEqual",
                   "toBeInstanceOf", "toBeFalsy", "toBeNull", "toBeUndefined")

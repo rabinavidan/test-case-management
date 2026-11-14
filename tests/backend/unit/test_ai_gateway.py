@@ -1,5 +1,5 @@
 """Unit tests for api/ai_gateway.py — the pluggable provider router (course
-milestone M6). Anthropic is monkeypatched the same way tests/api/test_ai_generate.py
+milestone M6). Anthropic is monkeypatched the same way tests/backend/api/test_ai_generate.py
 does; Ollama/Groq are monkeypatched at httpx.post so no real network call is made.
 """
 import json

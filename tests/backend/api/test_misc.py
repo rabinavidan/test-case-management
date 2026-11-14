@@ -42,9 +42,9 @@ def test_unknown_path_falls_back_to_spa_index(client):
 
 
 def test_static_assets_served(client):
-    # parents[2] is the repo root; this used to look for tests/static, which
+    # parents[3] is the repo root; this used to look for tests/static, which
     # never exists, so the test returned early and checked nothing.
-    assert (pathlib.Path(__file__).resolve().parents[2] / "static" / "app.js").exists()
+    assert (pathlib.Path(__file__).resolve().parents[3] / "static" / "app.js").exists()
     r = client.get("/static/app.js")
     assert r.status_code == 200
     assert "javascript" in r.headers["content-type"]
@@ -75,7 +75,7 @@ def test_vercel_analytics_tags_only_on_vercel(client, monkeypatch):
 
 def test_static_app_js_is_gzipped(client):
     # The SPA bundle is the largest thing on the homepage's critical path.
-    app_js = pathlib.Path(__file__).resolve().parents[2] / "static" / "app.js"
+    app_js = pathlib.Path(__file__).resolve().parents[3] / "static" / "app.js"
     assert app_js.exists()
     r = client.get("/static/app.js", headers={"Accept-Encoding": "gzip"})
     assert r.status_code == 200

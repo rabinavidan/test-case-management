@@ -1,5 +1,5 @@
 """shared/spa.py: which paths the SPA's index.html fallback may answer, and
-that e2e/serve-static.py's standalone copy agrees with it."""
+that tests/e2e/serve-static.py's standalone copy agrees with it."""
 import importlib.util
 import pathlib
 
@@ -31,7 +31,7 @@ def test_is_page_path(path, expected):
 
 
 def test_serve_static_mirror_agrees():
-    src = pathlib.Path(__file__).resolve().parents[2] / "e2e" / "serve-static.py"
+    src = pathlib.Path(__file__).resolve().parents[3] / "tests" / "e2e" / "serve-static.py"
     spec = importlib.util.spec_from_file_location("serve_static", src)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

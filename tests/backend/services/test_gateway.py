@@ -147,7 +147,7 @@ SERVICES = ["auth", "projects", "runs", "ai"]
 
 def _real_api_routes(service: str) -> set[str]:
     if service == "ai":
-        # ai has no DB of its own (see tests/services/test_ai_service.py),
+        # ai has no DB of its own (see tests/backend/services/test_ai_service.py),
         # so it isn't wired through import_service_app's SQLite-attach setup.
         from services.ai.main import app as service_app
     else:

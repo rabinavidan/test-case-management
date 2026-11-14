@@ -48,7 +48,7 @@ def build_flake_issue_body(flaky_tests: list[str], run_url: str) -> str:
         "",
         "A rerun passing doesn't mean it's safe to ignore — investigate and "
         "fix the root cause; see `.claude/skills/steward/SKILL.md` for the "
-        "known `tests/contract` flake and how it's been triaged so far.",
+        "known `tests/backend/contract` flake and how it's been triaged so far.",
     ]
     return "\n".join(lines)
 

@@ -11,7 +11,7 @@ from scripts.heal_metrics import compute_heal_metrics, load_records
 def _record(heal_type, outcome, **overrides):
     record = {
         "timestamp": "2026-01-01T00:00:00Z",
-        "spec_file": "e2e/tests/example.spec.ts",
+        "spec_file": "tests/e2e/tests/example.spec.ts",
         "test_name": "does the thing",
         "heal_type": heal_type,
         "outcome": outcome,

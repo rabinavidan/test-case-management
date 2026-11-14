@@ -10,7 +10,7 @@ import json
 
 def prompt_version(text: str) -> str:
     """Short content hash of a prompt — the same algorithm as
-    evals/prompt_versions.py (tests/unit/test_ai_prompts.py holds them
+    evals/prompt_versions.py (tests/backend/unit/test_ai_prompts.py holds them
     equal), recorded on every AI generation so a human review can be traced
     to the exact prompt text that produced the draft."""
     return hashlib.sha256(text.encode()).hexdigest()[:8]

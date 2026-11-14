@@ -36,21 +36,21 @@ Never touch port 8000 - the user keeps a preview server there. Use 8001 (app) an
 
 1. **Lint:** `ruff check .`
 2. **Python tests (required check):**
-   `.venv/Scripts/python.exe -m pytest tests/unit tests/api tests/contract tests/services --cov --cov-fail-under=85 -q -p no:cacheprovider`
+   `.venv/Scripts/python.exe -m pytest tests/backend/unit tests/backend/api tests/backend/contract tests/backend/services --cov --cov-fail-under=85 -q -p no:cacheprovider`
    (about 10 minutes; run it in the background and keep working).
 3. **Assertion guard:** commit first, then
    `.venv/Scripts/python.exe scripts/assertion_guard.py --base origin/main --head HEAD`
 4. **App for the browser suites**, on a fresh SQLite file in the scratchpad:
    `DATABASE_URL="sqlite:///<scratchpad>/ci.db" TESTFLOW_DISABLE_RATE_LIMIT=1 .venv/Scripts/python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8001`
    (background; wait for `curl http://localhost:8001/` to return 200).
-5. **Playwright TypeScript (required check):** from `e2e/`,
+5. **Playwright TypeScript (required check):** from `tests/e2e/`,
    `BASE_URL=http://localhost:8001 npx playwright test --project=chromium --workers=3`, then every spec
    the change touches (and the home-page specs if `static/` changed) on all projects:
    `BASE_URL=http://localhost:8001 npx playwright test <specs> --workers=4`.
    If `static/` changed, also run `tests/layout-budget.spec.ts` in the Linux image CI uses, with the app
    started on `--host 0.0.0.0` instead:
    `MSYS_NO_PATHCONV=1 docker run --rm --ipc=host -e BASE_URL=http://host.docker.internal:8001 -e CI=true -v "<repo>/e2e:/work" -w /work mcr.microsoft.com/playwright:v<installed version>-noble node node_modules/@playwright/test/cli.js test tests/layout-budget.spec.ts --workers=4`
-6. **Mocked E2E:** `python serve-static.py 8010` (from `e2e/`), then
+6. **Mocked E2E:** `python serve-static.py 8010` (from `tests/e2e/`), then
    `CI=true BASE_URL=http://localhost:8010 npx playwright test --config=playwright.mocked.config.ts`
 7. **Infra** needs kubectl/terraform: leave it to GitHub CI and say so.
 

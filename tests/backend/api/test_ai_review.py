@@ -3,7 +3,7 @@ generate -> save as drafts -> accept / edit / reject-with-reason -> export
 as eval cases, and rejections feeding the next generation prompt."""
 import pytest
 
-from tests.api.test_ai_generate import VALID_RESPONSE, _FakeMessages, _install_fake_anthropic
+from tests.backend.api.test_ai_generate import VALID_RESPONSE, _FakeMessages, _install_fake_anthropic
 
 
 @pytest.fixture()
@@ -132,7 +132,7 @@ def test_reject_removes_the_draft_and_keeps_the_reason(drafts):
 
 def test_reject_also_drops_the_drafts_retrieval_embedding(drafts):
     from api import models
-    from tests.api.conftest import TestingSessionLocal
+    from tests.backend.api.conftest import TestingSessionLocal
 
     _, headers, client, _, reviews = drafts
     tc_id = reviews[0]["test_case_id"]

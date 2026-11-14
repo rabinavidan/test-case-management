@@ -1,9 +1,9 @@
 /**
  * Typed factory functions for every API response shape the serverless
- * mocked E2E specs (`e2e/tests/mocked-serverless-*.spec.ts`) fulfil via
+ * mocked E2E specs (`tests/e2e/tests/mocked-serverless-*.spec.ts`) fulfil via
  * `page.route()`. One place to look when the real backend's response shape
- * changes — see `e2e/mocks/schema-registry.ts` and
- * `e2e/tests/mock-contract-drift.spec.ts` for how that drift gets caught
+ * changes — see `tests/e2e/mocks/schema-registry.ts` and
+ * `tests/e2e/tests/mock-contract-drift.spec.ts` for how that drift gets caught
  * automatically rather than discovered by a mocked test quietly testing
  * against a fiction.
  *

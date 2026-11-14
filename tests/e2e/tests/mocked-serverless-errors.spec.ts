@@ -9,8 +9,8 @@ import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mock
 
 /**
  * Fully serverless (mocked) coverage of backend error/edge responses —
- * see e2e/README.md's "Serverless mocked E2E tests" section. Unlike
- * e2e/tests/mocked-api-errors.spec.ts (which mixes a real backend with
+ * see tests/e2e/README.md's "Serverless mocked E2E tests" section. Unlike
+ * tests/e2e/tests/mocked-api-errors.spec.ts (which mixes a real backend with
  * selective mocking), every request here is intercepted, so these run
  * under playwright.mocked.config.ts with no FastAPI process at all.
  */

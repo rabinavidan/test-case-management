@@ -3,7 +3,7 @@
 Only handle_message is tested directly here: the reconnect/consume loop
 around it (consume_forever) mirrors services/runs/events.py's
 listen_for_ws_broadcasts shape, already covered for that pattern by
-tests/services/test_ws_broadcast.py.
+tests/backend/services/test_ws_broadcast.py.
 """
 from sqlalchemy.orm import Session
 

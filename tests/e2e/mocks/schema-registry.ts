@@ -1,7 +1,7 @@
 /**
- * Maps every mock fixture in `e2e/mocks/factories.ts` to the OpenAPI
+ * Maps every mock fixture in `tests/e2e/mocks/factories.ts` to the OpenAPI
  * `components.schemas` entry it's supposed to match. Read only by
- * `e2e/tests/mock-contract-drift.spec.ts` — the mocked-serverless specs
+ * `tests/e2e/tests/mock-contract-drift.spec.ts` — the mocked-serverless specs
  * themselves never import this file, only `factories.ts` directly.
  */
 import {

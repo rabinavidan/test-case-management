@@ -1,7 +1,7 @@
 """Contract tests: property-based fuzzing of every FastAPI route against the
 app's own OpenAPI schema, via Schemathesis.
 
-Unlike `tests/api/`, which asserts specific request/response pairs by hand,
+Unlike `tests/backend/api/`, which asserts specific request/response pairs by hand,
 this suite generates many request variations per operation (valid and
 edge-case data) and checks the app's actual behavior against what its own
 OpenAPI schema promises: every response matches a documented status code's
@@ -43,7 +43,7 @@ from api.database import Base, get_db
 from api.main import app
 
 # Suffixed with the pytest-xdist worker ID for the same reason as
-# tests/api/conftest.py's DATABASE_URL — see its comment. Without this,
+# tests/backend/api/conftest.py's DATABASE_URL — see its comment. Without this,
 # parallel workers race create_all/drop_all against the same file on disk.
 _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
 DATABASE_URL = f"sqlite:///./contract_test_{_WORKER_ID}.db"
@@ -91,15 +91,15 @@ schema = schemathesis.from_asgi(
 
 @pytest.fixture(autouse=True)
 def _reassert_db_override():
-    """`app` (api.main.app) is the same singleton tests/api/conftest.py's
+    """`app` (api.main.app) is the same singleton tests/backend/api/conftest.py's
     fixtures use — its `client` fixture sets `get_db`'s override at setup
     and *clears the whole dict* at teardown. Since this module only ever set
-    its own override once, at import time, the last tests/api test to run
+    its own override once, at import time, the last tests/backend/api test to run
     before this file's tests silently wiped it out, and every request here
     fell through to the real default engine (sqlite:///./testcases.db) —
     whatever leftover data happened to be sitting in that file, accumulated
     from unrelated local runs, instead of this suite's own isolated DB. Only
-    reproduces when tests/api and tests/contract run in the same process
+    reproduces when tests/backend/api and tests/backend/contract run in the same process
     (exactly what CI does), and only when the leftover/accumulated row
     counts happen to collide with a fuzzed path-param ID — intermittent,
     not obviously wrong, and easy to miss. Re-asserting before every test

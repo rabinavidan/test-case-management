@@ -1,7 +1,7 @@
 # Repo root as context, not a flattened services/gateway/ (see
 # docker-compose.microservices.yml): main.py imports services.gateway.routes
 # and services.common.* by their full dotted path — same convention
-# tests/services/test_gateway.py already runs this app under — and locates
+# tests/backend/services/test_gateway.py already runs this app under — and locates
 # its static/ dir relative to its own file, which after this layout lands
 # at services/gateway/static/. See issue #217.
 FROM python:3.12-slim

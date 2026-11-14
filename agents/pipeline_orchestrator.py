@@ -21,7 +21,7 @@ Two graphs, matching the trio's two natural phases:
    generate -> [human approval] -> END. Each approval is a real LangGraph
    `interrupt()` - the graph actually pauses and returns control to the
    caller; it does not simulate pausing. This mirrors this repo's existing
-   principle (see `e2e/README.md`'s "Playwright Agents" section) that a
+   principle (see `tests/e2e/README.md`'s "Playwright Agents" section) that a
    generated spec "needs the same review as a hand-written PR" - the graph
    cannot proceed past either gate without an explicit resume.
 2. **Healer graph** (`build_healer_graph`): the classify -> apply-fix ->
@@ -112,7 +112,7 @@ def generate_spec_code(feature_description: str, scenarios: list[dict], llm: Bas
 def build_authoring_graph(llm: Optional[BaseChatModel] = None):
     """Compiles the plan -> [approve] -> generate -> [approve] -> END graph.
     Callers drive it with `.invoke(..., config)` then, after each interrupt,
-    `.invoke(Command(resume=...), config)` - see tests/unit/test_pipeline_orchestrator.py
+    `.invoke(Command(resume=...), config)` - see tests/tooling/test_pipeline_orchestrator.py
     for the two-turn invocation pattern this requires."""
 
     def plan_node(state: AuthoringState) -> dict:

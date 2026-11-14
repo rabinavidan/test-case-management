@@ -17,7 +17,7 @@ info:
     | 4404 | no run with this `runId` |
 
     Server messages are validated against the schemas below by
-    tests/contract/test_asyncapi_contract.py.
+    tests/backend/contract/test_asyncapi_contract.py.
 
 servers:
   local:

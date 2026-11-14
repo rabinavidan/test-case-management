@@ -5,7 +5,7 @@
 # to demonstrate Azure DevOps YAML pipeline authoring — multi-stage/multi-job structure,
 # native JUnit test-result publishing, and pip/npm caching — against the same app and
 # the two test stacks the GitHub workflows cover: pytest (backend) and the fully offline mocked/service-virtualized Playwright suite (no pip install, no
-# FastAPI process, no database — see e2e/mocks/ and e2e/README.md's "Serverless mocked
+# FastAPI process, no database — see tests/e2e/mocks/ and tests/e2e/README.md's "Serverless mocked
 # E2E tests" section).
 # Wiring it to a live Azure DevOps project only requires importing this repo there and
 # pointing a pipeline at this file; no other change is needed.
@@ -82,22 +82,22 @@ stages:
 
           - task: Cache@2
             inputs:
-              key: 'npm | "$(Agent.OS)" | e2e/package-lock.json'
+              key: 'npm | "$(Agent.OS)" | tests/e2e/package-lock.json'
               path: $(Pipeline.Workspace)/.npm-cache
             displayName: 'Cache npm packages'
 
           - script: |
               npm ci --cache $(Pipeline.Workspace)/.npm-cache
               npx playwright install --with-deps chromium
-            workingDirectory: e2e
+            workingDirectory: tests/e2e
             displayName: 'Install mocked E2E suite dependencies + Chromium'
 
           - script: python3 serve-static.py 8010 &
-            workingDirectory: e2e
+            workingDirectory: tests/e2e
             displayName: 'Serve static/ (no FastAPI, no database — every API call is mocked)'
 
           - script: npm run test:mocked
-            workingDirectory: e2e
+            workingDirectory: tests/e2e
             displayName: 'Run serverless mocked E2E tests'
             env:
               BASE_URL: 'http://localhost:8010'
@@ -112,12 +112,12 @@ stages:
             displayName: 'Use Java (for Allure report generation)'
 
           - script: npm run allure:generate:mocked
-            workingDirectory: e2e
+            workingDirectory: tests/e2e
             condition: always()
             displayName: 'Generate Allure report'
 
           - task: PublishBuildArtifacts@1
             condition: always()
             inputs:
-              PathtoPublish: 'e2e/allure-report-mocked'
+              PathtoPublish: 'tests/e2e/allure-report-mocked'
               ArtifactName: 'allure-report-mocked'

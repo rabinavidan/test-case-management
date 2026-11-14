@@ -8,7 +8,7 @@ import { readAuthToken } from '../config/auth-state';
  * Contract tests: validate real API responses against the app's own
  * OpenAPI schema (fetched live from `/openapi.json`), using ajv (JSON
  * Schema) + ajv-formats (strict RFC 3339 `date-time`) — the TypeScript-side
- * counterpart to `tests/contract/test_openapi_contract.py` (Schemathesis).
+ * counterpart to `tests/backend/contract/test_openapi_contract.py` (Schemathesis).
  *
  * Two regression tests exist because this suite is what actually found, and
  * then re-found, real bugs:

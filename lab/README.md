@@ -61,7 +61,7 @@ to `lab-preprod` and `lab-prod` (Settings → Environments) to gate promotion
 the way a real pipeline would.
 
 `lab/e2e-specs.txt` lists the Playwright spec files verified to pass against
-the microservices deployment (65 tests). The rest of `e2e/tests` targets
+the microservices deployment (65 tests). The rest of `tests/e2e/tests` targets
 monolith-only features (GraphQL, the contact form, `/api/environments`) or
 behaves differently behind the gateway (live run results, CSV export), so
 they aren't in the lab run.

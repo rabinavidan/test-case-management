@@ -44,19 +44,19 @@ def test_find_likely_gaps_flags_api_change_with_no_matching_test():
 
 
 def test_find_likely_gaps_clears_api_change_when_a_matching_test_changed():
-    changed = ["api/main.py", "tests/api/test_something.py"]
+    changed = ["api/main.py", "tests/backend/api/test_something.py"]
     assert find_likely_gaps(changed) == []
 
 
 def test_find_likely_gaps_treats_contract_tests_as_covering_api_and_services():
-    assert find_likely_gaps(["api/main.py", "tests/contract/test_openapi_contract.py"]) == []
-    assert find_likely_gaps(["services/auth/main.py", "tests/contract/test_openapi_contract.py"]) == []
+    assert find_likely_gaps(["api/main.py", "tests/backend/contract/test_openapi_contract.py"]) == []
+    assert find_likely_gaps(["services/auth/main.py", "tests/backend/contract/test_openapi_contract.py"]) == []
 
 
 def test_find_likely_gaps_does_not_cross_layers():
     # An api/ change is not "covered" by a services/ test touching a
     # different layer's test directory.
-    assert find_likely_gaps(["api/main.py", "tests/services/test_auth_service.py"]) == ["api/main.py"]
+    assert find_likely_gaps(["api/main.py", "tests/backend/services/test_auth_service.py"]) == ["api/main.py"]
 
 
 def test_find_likely_gaps_ignores_non_source_files():
@@ -64,8 +64,8 @@ def test_find_likely_gaps_ignores_non_source_files():
 
 
 def test_find_likely_gaps_flags_each_source_file_independently():
-    changed = ["api/main.py", "services/runs/main.py", "tests/unit/test_something.py"]
-    # tests/unit/ covers both prefixes per TEST_LAYER_PREFIXES, so neither is flagged.
+    changed = ["api/main.py", "services/runs/main.py", "tests/backend/unit/test_something.py"]
+    # tests/backend/unit/ covers both prefixes per TEST_LAYER_PREFIXES, so neither is flagged.
     assert find_likely_gaps(changed) == []
 
 

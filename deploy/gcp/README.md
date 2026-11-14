@@ -18,8 +18,8 @@ backed by Cloud SQL (PostgreSQL 16) and Secret Manager. Tracks
 
 As with `k8s/` (see its README), these are automation for a *real* target
 project — nothing here is applied by this repo's CI. `deploy/gcp/*.py` are
-covered by unit tests (`tests/unit/test_gcp_cloud_run_deploy.py`,
-`tests/unit/test_gcp_secrets.py`) that check the command-building logic
+covered by unit tests (`tests/tooling/test_gcp_cloud_run_deploy.py`,
+`tests/tooling/test_gcp_secrets.py`) that check the command-building logic
 only; no test talks to a real GCP project.
 
 ## One-time setup (manual, per Milestone 1 tasks)
@@ -146,7 +146,7 @@ Automates build -> test -> push -> promote with `cloudbuild.yaml` (repo
 root) and Cloud Deploy (`deploy/gcp/clouddeploy.yaml` +
 `deploy/gcp/skaffold.yaml`), promoting one release through the same four
 environments as `k8s/overlays/`, with a manual approval gate before prod.
-`tests/unit/test_gcp_cicd_config.py` parses and structurally validates all
+`tests/tooling/test_gcp_cicd_config.py` parses and structurally validates all
 three config files (coverage gate present, correct stage order, approval
 only on prod, a profile/artifact per service) — it doesn't call any GCP
 API, so it runs in this repo's own GitHub Actions CI on every PR that

@@ -121,7 +121,7 @@ def test_run_responses_carry_the_creators_username(auth_client, suite_with_cases
 
 
 def test_run_without_a_creator_has_null_username(auth_client, suite_with_cases):
-    from tests.api.conftest import TestingSessionLocal
+    from tests.backend.api.conftest import TestingSessionLocal
     from api import models
 
     s, headers, client = suite_with_cases

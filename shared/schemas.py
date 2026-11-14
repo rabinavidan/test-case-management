@@ -9,7 +9,7 @@ now fixed by having one definition instead of several:
 
 - `UTCDatetime` (the fix for naive-datetime responses violating OpenAPI's
   `format: date-time`, originally added to api/schemas.py alone after
-  tests/contract/ caught it) was never applied to services/auth,
+  tests/backend/contract/ caught it) was never applied to services/auth,
   services/projects, or services/runs — their schemas used plain
   `datetime` and had the same bug, just never caught, because nothing runs
   an equivalent contract-test suite against the microservices deployment

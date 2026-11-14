@@ -3,7 +3,7 @@ import { gql, errorCodes, seedRun, deleteProject, UPDATE_RESULT } from '../fixtu
 
 /**
  * GraphQL API (/graphql) against a real backend — the TypeScript
- * counterpart of tests/api/test_graphql.py, from outside the process: real
+ * counterpart of tests/backend/api/test_graphql.py, from outside the process: real
  * HTTP, real auth, real database.
  */
 test.describe('GraphQL API', () => {

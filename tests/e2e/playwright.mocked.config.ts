@@ -2,9 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 import { config } from './config/env';
 
 /**
- * Serverless mocked E2E config — see e2e/README.md's "Serverless mocked
+ * Serverless mocked E2E config — see tests/e2e/README.md's "Serverless mocked
  * E2E tests" section. Runs only `mocked-serverless-*.spec.ts`, every API
- * call intercepted via page.route() (e2e/mocks/), against a plain static
+ * call intercepted via page.route() (tests/e2e/mocks/), against a plain static
  * file server for `static/` (no FastAPI, no database, no globalSetup
  * login round-trip, unlike playwright.config.ts).
  */

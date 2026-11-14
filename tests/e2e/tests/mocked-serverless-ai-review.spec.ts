@@ -12,9 +12,9 @@ import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mock
 
 /**
  * Human review of AI drafts (course milestone M9) on the suite page, against
- * a mocked backend — see e2e/README.md's "Serverless mocked E2E tests". The
+ * a mocked backend — see tests/e2e/README.md's "Serverless mocked E2E tests". The
  * real API side (verdict rules, export, prompt feedback) is covered by
- * tests/api/test_ai_review.py; this pins what the reviewer sees and what the
+ * tests/backend/api/test_ai_review.py; this pins what the reviewer sees and what the
  * page sends.
  */
 

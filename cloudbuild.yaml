@@ -35,7 +35,7 @@ steps:
       - -c
       - |
         pip install --no-cache-dir -r requirements.txt -r requirements-test.txt
-        python -m pytest tests/unit tests/api tests/contract tests/services \
+        python -m pytest tests/backend tests/tooling \
           --cov --cov-report=term-missing --cov-fail-under=85
     waitFor: ["install"]
 

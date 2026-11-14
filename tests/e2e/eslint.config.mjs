@@ -1,4 +1,4 @@
-// Layering rules for the Playwright suite (e2e/README.md, "Test architecture").
+// Layering rules for the Playwright suite (tests/e2e/README.md, "Test architecture").
 //
 //   tests/*.spec.ts ─▶ flows/ ─▶ pages/ ─▶ Playwright Page
 //                  └─▶ api/  ─▶ Playwright APIRequestContext
@@ -18,23 +18,23 @@ const UI_CALLS =
 const specRules = [
   {
     selector: `MemberExpression[object.name=${PAGE_HANDLE}][property.name=${UI_CALLS}]`,
-    message: 'Selectors and UI actions belong in a page object (e2e/pages); call its methods/locators instead.',
+    message: 'Selectors and UI actions belong in a page object (tests/e2e/pages); call its methods/locators instead.',
   },
   {
     selector: `MemberExpression[object.property.name='page'][property.name=${UI_CALLS}]`,
-    message: 'Selectors and UI actions belong in a page object (e2e/pages); `app.page` is for page-level assertions only.',
+    message: 'Selectors and UI actions belong in a page object (tests/e2e/pages); `app.page` is for page-level assertions only.',
   },
   {
     selector: "CallExpression[callee.object.name=/^(request|authedRequest)$/][callee.property.name=/^(get|post|put|patch|delete|head|fetch)$/]",
-    message: 'HTTP calls belong in e2e/api; use the `api` fixture (and a flow for multi-step setup).',
+    message: 'HTTP calls belong in tests/e2e/api; use the `api` fixture (and a flow for multi-step setup).',
   },
   {
     selector: 'Literal[value=/^\\/api\\//]',
-    message: 'Backend URLs live in e2e/api/routes.ts only.',
+    message: 'Backend URLs live in tests/e2e/api/routes.ts only.',
   },
   {
     selector: 'TemplateElement[value.raw=/^\\/api\\//]',
-    message: 'Backend URLs live in e2e/api/routes.ts only.',
+    message: 'Backend URLs live in tests/e2e/api/routes.ts only.',
   },
   {
     selector: "CallExpression[callee.property.name='waitForLoadState']",
@@ -99,8 +99,8 @@ export default [
     rules: {
       'no-restricted-syntax': ['error', ...configRules,
         { selector: "ImportSpecifier[imported.name='expect']", message: 'Flows return state; assertions belong in the spec.' },
-        { selector: 'Literal[value=/^\\/api\\//]', message: 'Backend URLs live in e2e/api/routes.ts only.' },
-        { selector: 'TemplateElement[value.raw=/^\\/api\\//]', message: 'Backend URLs live in e2e/api/routes.ts only.' },
+        { selector: 'Literal[value=/^\\/api\\//]', message: 'Backend URLs live in tests/e2e/api/routes.ts only.' },
+        { selector: 'TemplateElement[value.raw=/^\\/api\\//]', message: 'Backend URLs live in tests/e2e/api/routes.ts only.' },
       ],
       'no-restricted-imports': restrictImports(
         [['**/tests/**', '**/fixtures/**'], 'flows/ sits below specs and fixtures and must not import them.'],
@@ -113,8 +113,8 @@ export default [
     files: ['pages/**/*.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...configRules,
-        { selector: 'Literal[value=/^\\/api\\//]', message: 'Page objects drive the UI; HTTP belongs in e2e/api.' },
-        { selector: 'TemplateElement[value.raw=/^\\/api\\//]', message: 'Page objects drive the UI; HTTP belongs in e2e/api.' },
+        { selector: 'Literal[value=/^\\/api\\//]', message: 'Page objects drive the UI; HTTP belongs in tests/e2e/api.' },
+        { selector: 'TemplateElement[value.raw=/^\\/api\\//]', message: 'Page objects drive the UI; HTTP belongs in tests/e2e/api.' },
         { selector: "CallExpression[callee.property.name='waitForTimeout']", message: 'No fixed sleeps; wait on a condition.' },
       ],
       'no-restricted-imports': restrictImports(

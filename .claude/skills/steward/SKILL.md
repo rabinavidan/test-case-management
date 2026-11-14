@@ -11,8 +11,8 @@ what those rules already allow.
 From `.github/workflows/test.yml`, blocking on every PR:
 
 - **Lint (ruff)** — `ruff check .`, zero-tolerance.
-- **Unit, API, Contract & Services Tests (pytest)** — `pytest tests/unit
-  tests/api tests/contract tests/services --cov --cov-fail-under=85`.
+- **Unit, API, Contract & Services Tests (pytest)** — `pytest tests/backend/unit
+  tests/backend/api tests/backend/contract tests/backend/services --cov --cov-fail-under=85`.
   Coverage sources only `api/`, `services/`, `shared/` (`.coveragerc`) — a
   PR touching only `deploy/gcp/`, `terraform/`, or `k8s/` won't move this
   number either way.
@@ -39,7 +39,7 @@ rerun the flake rule allows.
 
 ## Known flake
 
-`tests/contract/test_openapi_contract.py::test_api_matches_its_own_openapi_schema[POST /api/users]`
+`tests/backend/contract/test_openapi_contract.py::test_api_matches_its_own_openapi_schema[POST /api/users]`
 has intermittently failed under full-suite load (observed on PRs #181,
 #182) while passing standalone and on a clean full-suite re-run every
 time. Tracked in issue #186 (root-cause fix, not just reruns). Until that
@@ -57,8 +57,8 @@ branch delete (or leaving it, if delete fails) is fine.
 ## What counts as "small" (fix and push without asking)
 
 Per `CONTRIBUTING.md`'s own conventions — a lint-bot finding, a renamed
-variable, an added test at the same layer as the changed code (`tests/unit`
-for a pure function, `tests/api` for an endpoint, `tests/services` for a
+variable, an added test at the same layer as the changed code (`tests/backend/unit`
+for a pure function, `tests/backend/api` for an endpoint, `tests/backend/services` for a
 microservice, `tests/infra` for k8s/terraform config), a one-function
 refactor. "New code needs new tests at the same layer it changes" is not
 optional — a PR adding logic with no test at the matching layer is

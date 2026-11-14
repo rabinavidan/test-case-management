@@ -197,7 +197,7 @@ async def overflow_error_handler(request: Request, exc: OverflowError):
     """`int` path params (project_id, suite_id, ...) have no upper bound at
     the FastAPI/Pydantic layer, so an out-of-SQLite-INTEGER-range value
     (e.g. > 2**63-1) reaches the DB layer and raises here instead of a clean
-    404/422 — surfaced by the contract test suite (tests/contract/), which
+    404/422 — surfaced by the contract test suite (tests/backend/contract/), which
     fuzzes path params with extreme integers.
     """
     return JSONResponse(
@@ -789,7 +789,7 @@ def update_testcase(tc_id: int, payload: schemas.TestCaseUpdate, db: Session = D
     updates = payload.model_dump(exclude_unset=True)
     # title/status/priority are non-nullable in TestCaseResponse; an explicit
     # `null` for one of them (distinct from omitting the field) must not
-    # overwrite it — caught by the contract test suite (tests/contract/),
+    # overwrite it — caught by the contract test suite (tests/backend/contract/),
     # which fuzzes update payloads and crashed response serialization on this.
     for field in ("title", "status", "priority"):
         if updates.get(field) is None:
@@ -893,7 +893,7 @@ def _apply_result_update(run_id: int, tc_id: int, payload: schemas.TestResultUpd
 # The handler is async only to await the broadcast; its DB work runs in the
 # threadpool. Blocking DB calls on the event loop deadlock the server when the
 # pool is busy: they wait for a connection that the requests holding them
-# need this same loop to give back (tests/api/test_event_loop_db.py).
+# need this same loop to give back (tests/backend/api/test_event_loop_db.py).
 @app.put("/api/runs/{run_id}/results/{tc_id}")
 async def update_result(run_id: int, tc_id: int, payload: schemas.TestResultUpdate, db: Session = Depends(get_db), current: models.User = Depends(get_current_user)):
     result, run_completed = await run_in_threadpool(_apply_result_update, run_id, tc_id, payload, db)

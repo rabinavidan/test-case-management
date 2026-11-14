@@ -1,6 +1,6 @@
 """Tests for api/retrieval.py's nearest_test_cases() and
 store_test_case_embedding() against the real (throwaway SQLite) DB used by
-the rest of tests/api/ - see conftest.py."""
+the rest of tests/backend/api/ - see conftest.py."""
 import pytest
 
 from api import models
@@ -16,7 +16,7 @@ def suite_id(auth_client):
 
 
 def _db():
-    from tests.api.conftest import TestingSessionLocal
+    from tests.backend.api.conftest import TestingSessionLocal
     return TestingSessionLocal()
 
 

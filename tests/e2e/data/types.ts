@@ -3,7 +3,7 @@
  *
  * These are the shapes the *tests* reason about, not a copy of the backend's
  * schemas: only the fields a test reads or writes are listed. Contract
- * accuracy is tests/contract's and mock-contract-drift.spec.ts's job.
+ * accuracy is tests/backend/contract's and mock-contract-drift.spec.ts's job.
  */
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 export type TestCaseStatus = 'active' | 'draft' | 'deprecated';

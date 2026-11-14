@@ -1,7 +1,7 @@
 """Unit tests for evals/harness.py's generic orchestration — a synthetic
 EvalTarget stands in for a real feature, so these tests aren't coupled to
 test_generation's or triage's specific prompts/scorers (see
-tests/unit/test_evals_targets_*.py for those). The OllamaClient is a
+tests/tooling/test_evals_targets_*.py for those). The OllamaClient is a
 scripted stub, so none of this requires a real Ollama server.
 """
 import pytest

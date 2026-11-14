@@ -41,7 +41,7 @@ updates:
 
   # Playwright/TypeScript E2E suite
   - package-ecosystem: "npm"
-    directory: "/e2e"
+    directory: "/tests/e2e"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

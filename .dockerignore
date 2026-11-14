@@ -4,6 +4,6 @@ __pycache__/
 .env
 .env.*
 *.db
-e2e/
+tests/e2e/
 tests/
 .git/

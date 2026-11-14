@@ -2,7 +2,7 @@
  * Config & global variables — the one place the suite reads its environment.
  *
  * Every target URL, credential, timeout and file location the suite needs is
- * resolved here, once, with a documented default. Nothing else in e2e/ reads
+ * resolved here, once, with a documented default. Nothing else in tests/e2e/ reads
  * `process.env` (eslint.config.mjs enforces it), so "how do I point the suite
  * at staging?" has a single answer: set the variables below.
  *

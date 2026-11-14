@@ -18,7 +18,7 @@ import http.server
 import os
 import sys
 
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static")
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "static")
 NON_PAGE_PREFIXES = ("api/", "ws/", "static/", "_vercel/")
 
 

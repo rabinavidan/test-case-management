@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'e2e/**'
+      - 'tests/e2e/**'
       - 'api/**'
       - 'static/**'
   pull_request:
@@ -21,14 +21,14 @@ on:
 
 jobs:
   # Fast static gate, no browser or backend: enforces the suite's layering
-  # (e2e/eslint.config.mjs — specs may not use selectors, URLs or raw HTTP;
+  # (tests/e2e/eslint.config.mjs — specs may not use selectors, URLs or raw HTTP;
   # layers may only import downward) and that the whole suite typechecks.
   lint:
     name: E2E lint (layering + typecheck)
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: e2e
+        working-directory: tests/e2e
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: e2e/package-lock.json
+          cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -67,7 +67,7 @@ jobs:
         shardTotal: [2]
     defaults:
       run:
-        working-directory: e2e
+        working-directory: tests/e2e
 
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: e2e/package-lock.json
+          cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -138,7 +138,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: blob-report-${{ matrix.shardIndex }}
-          path: e2e/blob-report/
+          path: tests/e2e/blob-report/
           retention-days: 1
           if-no-files-found: ignore
 
@@ -147,7 +147,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allure-results-pw-ts-${{ matrix.shardIndex }}
-          path: e2e/allure-results/
+          path: tests/e2e/allure-results/
           retention-days: 1
           if-no-files-found: ignore
 
@@ -166,7 +166,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: e2e
+        working-directory: tests/e2e
 
     steps:
       - uses: actions/checkout@v4
@@ -176,7 +176,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: e2e/package-lock.json
+          cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -184,7 +184,7 @@ jobs:
       - name: Download blob reports from every shard
         uses: actions/download-artifact@v4
         with:
-          path: e2e/all-blob-reports
+          path: tests/e2e/all-blob-reports
           pattern: blob-report-*
           merge-multiple: true
 
@@ -195,7 +195,7 @@ jobs:
 
       - name: Write job summary
         if: always()
-        working-directory: e2e
+        working-directory: tests/e2e
         run: |
           node - <<'EOF'
           const fs = require('fs');
@@ -262,13 +262,13 @@ jobs:
       - name: Classify failures (product / test-code / infra)
         if: always()
         # Labels each failing test with who owns the fix; never fails the job.
-        run: python3 ../scripts/failure_classifier.py test-results/results.json >> "$GITHUB_STEP_SUMMARY"
+        run: python3 ../../scripts/failure_classifier.py test-results/results.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download raw Allure results from every shard
         if: always()
         uses: actions/download-artifact@v4
         with:
-          path: e2e/allure-results
+          path: tests/e2e/allure-results
           pattern: allure-results-pw-ts-*
           merge-multiple: true
 
@@ -281,7 +281,7 @@ jobs:
 
       - name: Generate Allure report (all shards combined)
         if: always()
-        working-directory: e2e
+        working-directory: tests/e2e
         run: npm run allure:generate
 
       - name: Upload Allure report
@@ -289,7 +289,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allure-report-playwright-ts-${{ github.run_id }}
-          path: e2e/allure-report/
+          path: tests/e2e/allure-report/
           retention-days: 14
 
   # A stable-named gate: keeps the "E2E Tests (Playwright TypeScript)" check
@@ -304,7 +304,7 @@ jobs:
       - name: Check lint and shard results
         run: |
           if [ "${{ needs.lint.result }}" != "success" ]; then
-            echo "E2E lint failed — a spec or layer broke the test architecture rules (e2e/eslint.config.mjs)."
+            echo "E2E lint failed — a spec or layer broke the test architecture rules (tests/e2e/eslint.config.mjs)."
             exit 1
           fi
           if [ "${{ needs.e2e-shard.result }}" != "success" ]; then

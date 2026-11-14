@@ -220,7 +220,7 @@ def test_save_generated_testcases_stores_embeddings_for_later_retrieval(auth_cli
     lazily on next read - so a grounded generate() call right afterwards
     sees them as existing context without an extra backfill step."""
     from api import models
-    from tests.api.conftest import TestingSessionLocal
+    from tests.backend.api.conftest import TestingSessionLocal
 
     s, headers, client = suite
     payload = [{

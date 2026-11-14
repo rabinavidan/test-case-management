@@ -57,12 +57,12 @@ jobs:
           # -n auto: parallelize across the runner's CPU cores (pytest-xdist).
           # Safe because every DB-backed fixture derives a worker-unique
           # SQLite path/tempdir from PYTEST_XDIST_WORKER (see
-          # tests/api/conftest.py, tests/contract/test_openapi_contract.py,
-          # tests/services/conftest.py) — parallel workers never race the
+          # tests/backend/api/conftest.py, tests/backend/contract/test_openapi_contract.py,
+          # tests/backend/services/conftest.py) — parallel workers never race the
           # same file. Locally this took the suite from ~125s to ~35s on a
           # 4-core machine; coverage, --json-report, and --alluredir all
           # aggregate correctly across workers (verified before adding this).
-          python -m pytest tests/unit tests/api tests/contract tests/services -v -n auto \
+          python -m pytest tests/backend tests/tooling -v -n auto \
             --reruns 1 --reruns-delay 2 \
             --json-report --json-report-file=report.json \
             --alluredir=allure-results \

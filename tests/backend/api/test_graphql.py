@@ -3,7 +3,7 @@ REST parity, N+1 batching, and the query-cost guardrails."""
 import pytest
 from sqlalchemy import event
 
-from tests.api.conftest import engine
+from tests.backend.api.conftest import engine
 
 
 def gql(client, query, variables=None, headers=None):

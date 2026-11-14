@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config } from './config/env';
 
-// seed.spec.ts is the Playwright agents' authoring seed (e2e/README.md#playwright-agents),
+// seed.spec.ts is the Playwright agents' authoring seed (tests/e2e/README.md#playwright-agents),
 // not a real assertion-bearing test. mocked-serverless-*.spec.ts run under
 // playwright.mocked.config.ts instead (no globalSetup — they never hit a
 // real backend), so both are excluded here to avoid duplicate runs.

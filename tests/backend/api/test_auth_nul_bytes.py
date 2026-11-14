@@ -2,7 +2,7 @@
 
 passlib refuses to hash or verify a password with a NUL byte, so before they
 were rejected at validation the request crashed with a 500 - which the
-OpenAPI contract fuzzer (tests/contract/test_openapi_contract.py) hit now and
+OpenAPI contract fuzzer (tests/backend/contract/test_openapi_contract.py) hit now and
 then on POST /api/users, the case that looked like a flake.
 """
 import pytest

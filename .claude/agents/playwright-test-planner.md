@@ -47,11 +47,11 @@ You will:
 
    Every exploration you do here is work the generator and healer agents would otherwise have to redo from
    scratch. Save it once, as a structured JSON file both of them read instead of re-deriving it — see
-   `scripts/context_artifact.py` for the schema this must match, and `e2e/README.md`'s "Playwright Agents"
+   `scripts/context_artifact.py` for the schema this must match, and `tests/e2e/README.md`'s "Playwright Agents"
    section for how it's consumed downstream.
 
-   Using the `Write` tool, save `specs/<same-basename-as-your-plan>.context.json` (e.g. a plan saved as
-   `specs/suites-crud.md` gets `specs/suites-crud.context.json`) with this shape:
+   Using the `Write` tool, save `tests/e2e/specs/<same-basename-as-your-plan>.context.json` (e.g. a plan saved as
+   `tests/e2e/specs/suites-crud.md` gets `tests/e2e/specs/suites-crud.context.json`) with this shape:
 
    ```json
    {

@@ -256,7 +256,7 @@ def test_ws_receives_result_update_broadcast(client, monkeypatch):
 def test_result_update_and_ws_admission_never_check_out_a_connection_on_the_event_loop(client, monkeypatch):
     # Blocking DB calls in an async handler wait for a pooled connection on
     # the event loop, which deadlocks the service when the pool is busy; see
-    # tests/api/test_event_loop_db.py for the monolith's version.
+    # tests/backend/api/test_event_loop_db.py for the monolith's version.
     import asyncio
     from sqlalchemy import event
     from sqlalchemy.pool import Pool

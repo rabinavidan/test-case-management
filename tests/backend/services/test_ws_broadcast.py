@@ -1,7 +1,7 @@
 """services/runs/events.py + main.py — cross-replica WebSocket fan-out.
 
 No Redis runs in this test environment (or CI) — same situation
-tests/services/test_events_resilience.py already relies on for the
+tests/backend/services/test_events_resilience.py already relies on for the
 existing publish-only events, so the fallback-to-local-broadcast path
 below is exercised for real, not mocked.
 """

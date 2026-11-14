@@ -18,7 +18,7 @@ from starlette.testclient import TestClient
 from api.database import Base, get_db
 from api.main import app
 
-SPEC_PATH = pathlib.Path(__file__).resolve().parents[2] / "docs" / "asyncapi.yaml"
+SPEC_PATH = pathlib.Path(__file__).resolve().parents[3] / "docs" / "asyncapi.yaml"
 SPEC = yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
 MESSAGES = SPEC["components"]["messages"]
 

@@ -1,8 +1,8 @@
 """Unit tests for agents/pipeline_orchestrator.py's two LangGraph graphs.
 
 FakeListChatModel stands in for a real Ollama model throughout, matching
-this repo's existing convention (see tests/unit/test_test_plan_reviewer.py
-and tests/unit/test_langgraph_healer_example.py) - none of this requires a
+this repo's existing convention (see tests/tooling/test_test_plan_reviewer.py
+and tests/backend/unit/test_langgraph_healer_example.py) - none of this requires a
 real Ollama server or a real browser. The authoring graph's interrupts are
 exercised with the real two-turn invoke -> Command(resume=...) pattern
 LangGraph requires, not a mock of it, since that pattern is the actual
@@ -102,7 +102,7 @@ def test_heal_passes_on_first_run_without_calling_the_classifier():
     def run(spec, name):
         return {"passed": True, "output": ""}
 
-    result = heal("specs/login.spec.ts", "valid login", run, llm=_fake_llm())
+    result = heal("tests/e2e/specs/login.spec.ts", "valid login", run, llm=_fake_llm())
     assert result["outcome"] == "healed"
 
 
@@ -114,7 +114,7 @@ def test_heal_locator_drift_healed_after_one_retry():
         return {"passed": run_calls["n"] > 1, "output": "locator not found: #submit-btn"}
 
     llm = _fake_llm(json.dumps({"heal_type": "locator_drift", "reasoning": "selector renamed"}))
-    result = heal("specs/login.spec.ts", "valid login", run, llm=llm)
+    result = heal("tests/e2e/specs/login.spec.ts", "valid login", run, llm=llm)
 
     assert result["outcome"] == "healed"
     assert run_calls["n"] == 2
@@ -128,7 +128,7 @@ def test_heal_behavior_change_escalates_immediately_without_retrying():
         return {"passed": False, "output": "expected redirect to /dashboard, got /error"}
 
     llm = _fake_llm(json.dumps({"heal_type": "behavior_change", "reasoning": "app now errors instead of redirecting"}))
-    result = heal("specs/login.spec.ts", "valid login", run, llm=llm)
+    result = heal("tests/e2e/specs/login.spec.ts", "valid login", run, llm=llm)
 
     assert result["outcome"] == "escalated"
     assert run_calls["n"] == 1  # never retried - escalation is immediate
@@ -140,7 +140,7 @@ def test_heal_locator_drift_exhausts_retry_budget_and_is_skipped():
 
     llm = _fake_llm(*[json.dumps({"heal_type": "locator_drift", "reasoning": "flaky wait"})] * DEFAULT_MAX_HEAL_ATTEMPTS)
 
-    result = heal("specs/login.spec.ts", "valid login", run, llm=llm)
+    result = heal("tests/e2e/specs/login.spec.ts", "valid login", run, llm=llm)
 
     assert result["outcome"] == "skipped"
 
@@ -150,7 +150,7 @@ def test_heal_writes_a_record_matching_heal_metrics_schema(tmp_path, monkeypatch
 
     log_path = tmp_path / "heal_outcomes.jsonl"
     state = {
-        "spec_file": "specs/login.spec.ts", "test_name": "valid login",
+        "spec_file": "tests/e2e/specs/login.spec.ts", "test_name": "valid login",
         "heal_type": "locator_drift", "outcome": "healed", "reasoning": "selector renamed",
     }
     _record_heal_outcome(state, path=log_path)
@@ -171,7 +171,7 @@ def test_a_behavior_change_record_is_never_written_as_healed_or_skipped():
 
     llm = _fake_llm(json.dumps({"heal_type": "behavior_change", "reasoning": "real defect"}))
 
-    result = heal("specs/x.spec.ts", "t", run, llm=llm)
+    result = heal("tests/e2e/specs/x.spec.ts", "t", run, llm=llm)
 
     assert result["heal_type"] == "behavior_change"
     assert result["outcome"] == "escalated"

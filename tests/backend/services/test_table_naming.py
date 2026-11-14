@@ -1,9 +1,9 @@
 """services/*/models.py — table naming.
 
 Models used to be schema-qualified (`__table_args__ = {"schema": "auth"}`
-etc.), which only works against Postgres and is why tests/services/ needed
+etc.), which only works against Postgres and is why tests/backend/services/ needed
 the SQLite ATTACH-DATABASE workaround to run at all (see the git history of
-tests/services/conftest.py). Tables are now named with a `<service>_`
+tests/backend/services/conftest.py). Tables are now named with a `<service>_`
 prefix instead — this test pins that contract directly, since a model
 losing its prefix wouldn't necessarily fail any other test (SQLite doesn't
 care about cross-service name collisions the way schema-qualification was

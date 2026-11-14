@@ -22,43 +22,43 @@ def _levels(findings):
 
 def test_selector_only_heal_passes():
     after = BEFORE.replace("#pay-btn", "[data-testid=pay]").replace("'#total'", "'[data-testid=total]'")
-    assert guard.compare("e2e/tests/a.spec.ts", BEFORE, after) == []
+    assert guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after) == []
 
 
 def test_deleted_assertion_blocks():
     after = BEFORE.replace("  await expect(page.locator('#status')).toBeVisible();\n", "")
-    findings = guard.compare("e2e/tests/a.spec.ts", BEFORE, after)
+    findings = guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after)
     assert [f.level for f in findings] == ["BLOCK"]
     assert "expect() calls dropped 2 -> 1" in findings[0].message
 
 
 def test_commented_out_assertion_counts_as_removed():
     after = BEFORE.replace("  await expect(page.locator('#status'))", "  // await expect(page.locator('#status'))")
-    assert any("dropped" in f.message for f in guard.compare("e2e/tests/a.spec.ts", BEFORE, after))
+    assert any("dropped" in f.message for f in guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after))
 
 
 def test_skip_and_fixme_block():
     after = BEFORE.replace("test('checkout total'", "test.fixme('checkout total'")
-    findings = guard.compare("e2e/tests/a.spec.ts", BEFORE, after)
+    findings = guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after)
     assert [f.level for f in findings] == ["BLOCK"]
     assert "skip/fixme" in findings[0].message
 
 
 def test_loosened_matcher_blocks():
     after = BEFORE.replace(".toHaveText('$42.00')", ".toBeTruthy()")
-    findings = guard.compare("e2e/tests/a.spec.ts", BEFORE, after)
+    findings = guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after)
     assert any(f.level == "BLOCK" and "loose matchers" in f.message for f in findings)
 
 
 def test_negated_matcher_blocks():
     after = BEFORE.replace(").toBeVisible()", ").not.toBeVisible()")
-    findings = guard.compare("e2e/tests/a.spec.ts", BEFORE, after)
+    findings = guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after)
     assert any(f.level == "BLOCK" and "negated" in f.message for f in findings)
 
 
 def test_changed_expected_value_warns_for_a_human():
     after = BEFORE.replace("'$42.00'", "'$0.00'")
-    findings = guard.compare("e2e/tests/a.spec.ts", BEFORE, after)
+    findings = guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after)
     assert [f.level for f in findings] == ["WARN"]
     assert "'$42.00'" in findings[0].message and "'$0.00'" in findings[0].message
 
@@ -66,13 +66,13 @@ def test_changed_expected_value_warns_for_a_human():
 def test_in_file_approval_marker_downgrades_to_warn():
     after = ("// assertion-change-approved: status banner removed in #300\n"
              + BEFORE.replace("  await expect(page.locator('#status')).toBeVisible();\n", ""))
-    assert [f.level for f in guard.compare("e2e/tests/a.spec.ts", BEFORE, after)] == ["WARN"]
+    assert [f.level for f in guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, after)] == ["WARN"]
 
 
 def test_label_approval_downgrades_and_deleted_file_blocks():
-    assert [f.level for f in guard.compare("e2e/tests/a.spec.ts", BEFORE, None)] == ["BLOCK"]
-    assert [f.level for f in guard.compare("e2e/tests/a.spec.ts", BEFORE, None, approved=True)] == ["WARN"]
-    assert guard.compare("e2e/tests/new.spec.ts", None, BEFORE) == []
+    assert [f.level for f in guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, None)] == ["BLOCK"]
+    assert [f.level for f in guard.compare("tests/e2e/tests/a.spec.ts", BEFORE, None, approved=True)] == ["WARN"]
+    assert guard.compare("tests/e2e/tests/new.spec.ts", None, BEFORE) == []
 
 
 def test_assertion_profile_counts_soft_and_poll_and_ignores_block_comments():
@@ -88,8 +88,8 @@ def repo(tmp_path, monkeypatch):
     git("init", "-q", "-b", "main")
     git("config", "user.email", "t@example.com")
     git("config", "user.name", "t")
-    (tmp_path / "e2e" / "tests").mkdir(parents=True)
-    (tmp_path / "e2e" / "tests" / "a.spec.ts").write_text(BEFORE)
+    (tmp_path / "tests" / "e2e" / "tests").mkdir(parents=True)
+    (tmp_path / "tests" / "e2e" / "tests" / "a.spec.ts").write_text(BEFORE)
     (tmp_path / "README.md").write_text("x")
     git("add", ".")
     git("commit", "-q", "-m", "base")
@@ -100,7 +100,7 @@ def repo(tmp_path, monkeypatch):
 
 def test_main_blocks_a_weakening_commit(repo, capsys):
     path, git = repo
-    (path / "e2e" / "tests" / "a.spec.ts").write_text(BEFORE.replace(".toHaveText('$42.00')", ".toBeDefined()"))
+    (path / "tests" / "e2e" / "tests" / "a.spec.ts").write_text(BEFORE.replace(".toHaveText('$42.00')", ".toBeDefined()"))
     (path / "README.md").write_text("y")
     git("commit", "-q", "-am", "heal")
     assert guard.main(["--base", "main"]) == 1
@@ -111,7 +111,7 @@ def test_main_blocks_a_weakening_commit(repo, capsys):
 
 def test_main_passes_a_selector_heal(repo):
     path, git = repo
-    (path / "e2e" / "tests" / "a.spec.ts").write_text(BEFORE.replace("#pay-btn", "[data-testid=pay]"))
+    (path / "tests" / "e2e" / "tests" / "a.spec.ts").write_text(BEFORE.replace("#pay-btn", "[data-testid=pay]"))
     git("commit", "-q", "-am", "heal")
     assert guard.main(["--base", "main"]) == 0
 
@@ -121,7 +121,7 @@ def test_workflow_runs_guard_on_spec_changes_and_honours_label():
     from pathlib import Path
     wf = yaml.safe_load((Path(__file__).resolve().parents[2] / ".github/workflows/assertion-guard.yml").read_text(encoding="utf-8"))
     trigger = wf[True]["pull_request"]  # PyYAML reads the bare `on:` key as True
-    assert "e2e/**/*.spec.ts" in trigger["paths"]
+    assert "tests/e2e/**/*.spec.ts" in trigger["paths"]
     assert {"labeled", "unlabeled"} <= set(trigger["types"])
     steps = wf["jobs"]["assertion-guard"]["steps"]
     assert steps[0]["with"]["fetch-depth"] == 0

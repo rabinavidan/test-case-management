@@ -1,6 +1,6 @@
 /**
  * Thin helpers over `page.route()` for the serverless mocked E2E specs
- * (`e2e/tests/mocked-serverless-*.spec.ts`). See `e2e/mocks/factories.ts`
+ * (`tests/e2e/tests/mocked-serverless-*.spec.ts`). See `tests/e2e/mocks/factories.ts`
  * for the response shapes these fulfil.
  */
 import type { Page, Route } from '@playwright/test';
@@ -15,7 +15,7 @@ export async function fulfillJson(route: Route, status: number, body: unknown): 
  * Seeds a fake session before the page ever loads (`addInitScript`, must be
  * called before `page.goto()`) and mocks `GET /api/auth/me` — the bootstrap
  * call `static/app.js` makes on every page load to rehydrate the signed-in
- * user from a stored token (see e2e/README.md's "Serverless mocked E2E
+ * user from a stored token (see tests/e2e/README.md's "Serverless mocked E2E
  * tests" section for why both are needed: seeding `tf_token` alone isn't
  * enough, the app still round-trips through `/api/auth/me` before it trusts
  * that token).

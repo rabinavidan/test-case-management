@@ -3,7 +3,7 @@ microservices (see that module's docstring). These tests pin the two real
 bugs found and fixed by unifying: services/auth's TokenResponse was missing
 `token_type`, and services/auth, services/projects, services/runs all
 serialized datetimes without a UTC offset (the same OpenAPI
-`format: date-time` violation tests/contract/ had already caught and fixed
+`format: date-time` violation tests/backend/contract/ had already caught and fixed
 in the monolith alone).
 """
 import os

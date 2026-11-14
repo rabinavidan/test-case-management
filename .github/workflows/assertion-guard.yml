@@ -11,7 +11,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
     paths:
-      - "e2e/**/*.spec.ts"
+      - "tests/e2e/**/*.spec.ts"
       - "scripts/assertion_guard.py"
       - ".github/workflows/assertion-guard.yml"
 

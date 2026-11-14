@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "playwright": {
-      "command": "e2e/node_modules/.bin/playwright-mcp",
+      "command": "tests/e2e/node_modules/.bin/playwright-mcp",
       "args": [
         "--browser", "chromium",
         "--executable-path", "/opt/pw-browsers/chromium",

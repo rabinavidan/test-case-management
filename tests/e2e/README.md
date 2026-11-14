@@ -3,12 +3,12 @@
 End-to-end tests for the TestFlow Test Case Management app, written with [Playwright](https://playwright.dev/) and TypeScript.
 This is the project's primary automation stack: fixture-based auth, a full Page Object Model, `test.step()`-annotated
 specs, Allure reporting, and its own CI workflow (`pw-ts.yml`). It is the only UI/E2E stack; the backend is
-covered by pytest under [`../tests`](../tests) — see the [root README](../README.md#test-architecture).
+covered by pytest under [`../tests`](../../tests) — see the [root README](../../README.md#test-architecture).
 
 ## Setup
 
 ```bash
-cd e2e
+cd tests/e2e
 npm install
 npx playwright install chromium firefox
 ```
@@ -21,7 +21,7 @@ The app must be running on `http://localhost:8000` before running tests:
 # In the repo root, start the backend:
 uvicorn api.main:app --reload
 
-# Then in e2e/:
+# Then in tests/e2e/:
 npm test                  # headless, all browsers
 npm run test:headed       # headed Chromium
 npm run test:ui           # interactive Playwright UI
@@ -118,7 +118,7 @@ never added to it.
 ## Structure
 
 ```
-e2e/
+tests/e2e/
 ├── tests/                   # Specs (see "Test architecture" above)
 ├── flows/
 │   ├── app.ts               # TestFlowApp: one handle on every page object
@@ -184,7 +184,7 @@ mirror the commands above. CI (`pw-mocked-e2e.yml`) does the same generate-and-u
 `contract.spec.ts` validates real API responses against the app's own OpenAPI schema (`GET /openapi.json`) using
 [ajv](https://ajv.js.org/) (JSON Schema, including strict RFC 3339 `date-time` via `ajv-formats`) and
 [fast-check](https://fast-check.dev/) for property-based edge cases — the TypeScript counterpart to
-[`tests/contract/test_openapi_contract.py`](../tests/contract/test_openapi_contract.py) (Schemathesis) on the
+[`tests/backend/contract/test_openapi_contract.py`](../../tests/contract/test_openapi_contract.py) (Schemathesis) on the
 Python side. It has already found real bugs, not hypothetical ones:
 
 - A CRUD-flow test validates every response — project, suite, test case, run, result, stats — against its declared
@@ -203,7 +203,7 @@ static file server). They run under a separate config, `playwright.mocked.config
 register+login HTTP round-trip, which would fail with no backend running.
 
 ```bash
-# from e2e/
+# from tests/e2e/
 python3 serve-static.py 8010 &   # serves static/ the same way api/main.py's StaticFiles mount does
 npm run test:mocked
 ```
@@ -217,26 +217,26 @@ Why a second layer, given `contract.spec.ts` and the rest of the real-backend su
   (`mocked-serverless-errors.spec.ts`, `mocked-serverless-ai-features.spec.ts`).
 
 **The catch, and how it's covered.** A mocked test only proves the frontend handles the shape it's given — it can't
-notice if the real backend's response shape has since changed. `e2e/mocks/factories.ts` is the single source of
+notice if the real backend's response shape has since changed. `tests/e2e/mocks/factories.ts` is the single source of
 truth for every mocked shape (field names taken directly from `shared/schemas.py`/`api/schemas.py`, not guessed),
 and `mock-contract-drift.spec.ts` is what keeps it honest: it fetches the live `GET /openapi.json` and validates a
 sample from every registered factory against its real schema with `ajv` — the same approach `contract.spec.ts`
 already uses for real API responses, pointed at the mocks instead. Because it needs a real backend, it runs as part
 of the existing real-backend suite (`pw-ts.yml`), not the serverless one (`pw-mocked-e2e.yml`) — see
-`e2e/mocks/schema-registry.ts` for the fixture-to-schema mapping it checks.
+`tests/e2e/mocks/schema-registry.ts` for the fixture-to-schema mapping it checks.
 
-A drift-spec failure means the backend's response shape changed and `e2e/mocks/factories.ts` needs a matching
+A drift-spec failure means the backend's response shape changed and `tests/e2e/mocks/factories.ts` needs a matching
 update — a human or an agent does that (there is deliberately no automated fixer here, consistent with
-[`docs/agent-governance.md`](../docs/agent-governance.md)'s stance that a human/agent reviews the failure rather
+[`docs/agent-governance.md`](../../docs/agent-governance.md)'s stance that a human/agent reviews the failure rather
 than an orchestrator silently patching it). The failure message names exactly which fixture and which `ajv`
 validation errors, so the fix is a small, targeted diff.
 
 ```
-e2e/mocks/
+tests/e2e/mocks/
   factories.ts        — typed mock payload factories (Project, TestSuite, AIGenerateResponse, ...)
   route-helpers.ts     — fulfillJson / mockAuthSession / byPath helpers over page.route()
   schema-registry.ts   — maps each factory sample to its OpenAPI components.schemas key
-e2e/tests/
+tests/e2e/tests/
   mocked-serverless-crud.spec.ts          — projects/suites/test cases CRUD
   mocked-serverless-ai-features.spec.ts   — AI generate + triage, including provider error paths
   mocked-serverless-errors.spec.ts        — generic 5xx/network/429/401/malformed-data edge cases
@@ -292,25 +292,25 @@ The MCP server uses the Chromium pre-installed in the Claude Code remote environ
 Three of [Playwright's official agents](https://playwright.dev/docs/test-agents) — `playwright-test-planner`,
 `playwright-test-generator`, `playwright-test-healer` — are wired up as Claude Code subagents
 (`.claude/agents/*.md`, generated by `npx playwright init-agents --loop=claude`) backed by a dedicated
-`playwright-test` MCP server (root [`.mcp.json`](../.mcp.json), pointed at this directory's
+`playwright-test` MCP server (root [`.mcp.json`](../../.mcp.json), pointed at this directory's
 `playwright.config.ts`). They're an authoring/maintenance aid for this suite, not a new CI job — everything they
 produce lands as ordinary `*.spec.ts` files here and runs through the existing `pw-ts.yml` pipeline once committed.
 
 | Agent | What it does | Output |
 |-------|--------------|--------|
 | `playwright-test-planner` | Explores the running app in a real (headless) browser, writes a numbered test plan, and saves a structured record of the journey and elements it found (see below) | `specs/*.md` + `specs/*.context.json` |
-| `playwright-test-generator` | Replays a plan's steps against the live app, recording real interactions, then writes a spec per scenario | `e2e/tests/*.spec.ts` |
-| `playwright-test-healer` | Runs the suite, debugs any failure against the live app, and edits the spec to fix it — but only for locator/timing drift; a failure that looks like a real product defect is escalated, never silently skipped (see below) | edits existing `e2e/tests/*.spec.ts` |
+| `playwright-test-generator` | Replays a plan's steps against the live app, recording real interactions, then writes a spec per scenario | `tests/e2e/tests/*.spec.ts` |
+| `playwright-test-healer` | Runs the suite, debugs any failure against the live app, and edits the spec to fix it — but only for locator/timing drift; a failure that looks like a real product defect is escalated, never silently skipped (see below) | edits existing `tests/e2e/tests/*.spec.ts` |
 
 **Usage** (from a Claude Code session in the repo root, with the app running on `http://localhost:8000`):
 
 ```
 @playwright-test-planner   Plan test coverage for the projects and suites pages
-@playwright-test-generator Generate tests for the plan in specs/<file>.md
-@playwright-test-healer    Fix the failing tests in e2e/tests/
+@playwright-test-generator Generate tests for the plan in tests/e2e/specs/<file>.md
+@playwright-test-healer    Fix the failing tests in tests/e2e/tests/
 ```
 
-`e2e/tests/seed.spec.ts` is the environment the generator/healer start every scenario from — it logs in via
+`tests/e2e/tests/seed.spec.ts` is the environment the generator/healer start every scenario from — it logs in via
 `fixtures/auth.fixture.ts` the same way every hand-written spec does, so generated tests inherit the same
 authenticated starting point instead of a blank browser. It's excluded from the real suite via `playwright.config.ts`'s
 `testIgnore` (it has no assertions of its own).
@@ -322,16 +322,16 @@ failure is left failing with a labelled `// ESCALATED` comment instead of being 
 session — healed, escalated, or (locator/timing only, last resort) `test.fixme()`'d — is appended as one JSON
 record to `heal-outcomes/heal_outcomes.jsonl`, the audit trail `scripts/heal_metrics.py` reads to compute
 heal-success-rate and false-heal-rate (surfaced on the KPI dashboard once real sessions accumulate). See
-[`.claude/agents/playwright-test-healer.md`](../.claude/agents/playwright-test-healer.md) for the full rule.
+[`.claude/agents/playwright-test-healer.md`](../../.claude/agents/playwright-test-healer.md) for the full rule.
 
 **Shared context artifact.** Course milestone M8. Every planner run used to be wasted effort for the other two
 agents — the generator and healer each re-explored the same flow live rather than reusing what the planner had
-already found. The planner now also saves `specs/<name>.context.json` alongside its `specs/<name>.md` plan: an
+already found. The planner now also saves `tests/e2e/specs/<name>.context.json` alongside its `tests/e2e/specs/<name>.md` plan: an
 ordered `journey` of the pages/states it visited, and a catalog of `elements` it used, each captured by
 **accessibility role + accessible name** from the browser snapshot rather than a CSS selector or XPath — see
-[`scripts/context_artifact.py`](../scripts/context_artifact.py) for the schema. The generator reads it before
+[`scripts/context_artifact.py`](../../scripts/context_artifact.py) for the schema. The generator reads it before
 replaying a plan's steps, using its recorded locators as the first choice instead of re-deriving them; the healer
-reads it (via the failing spec's `// spec: specs/<name>.md` header comment) as a fast reference for what a flow's
+reads it (via the failing spec's `// spec: tests/e2e/specs/<name>.md` header comment) as a fast reference for what a flow's
 elements looked like when the plan was written, a concrete signal for the locator-drift-vs-behavior-change call in
 its self-healing guardrails above. No artifact for a given spec (an older one, or a hand-authored plan) — both
 agents fall back to live exploration exactly as before; the artifact is a shortcut when available, never a
@@ -343,6 +343,6 @@ the agent records against the live DOM and won't know those conventions on its o
 
 ## CI
 
-The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, generates the Allure report, and uploads it as an artifact.
+The `pw-ts.yml` GitHub Actions workflow runs on pushes to `main` affecting `tests/e2e/`, `api/`, or `static/`, and on PRs. It starts the FastAPI app locally, runs all tests, generates the Allure report, and uploads it as an artifact.
 
 `pw-mocked-e2e.yml` runs the serverless `mocked-serverless-*.spec.ts` suite separately: no `pip install`, no FastAPI, no database — just `npm ci`, `serve-static.py`, and `npm run test:mocked`. It's scoped (via `paths:`) to only fire when the mocks, those specs, or `static/` itself change, so it doesn't run on every unrelated backend PR.

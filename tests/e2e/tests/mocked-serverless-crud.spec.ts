@@ -6,11 +6,11 @@ import { mockProject, mockProjectList, mockSuite, mockTestCase } from '../mocks/
 import { fulfillJson, mockAuthSession, byPath, mockParentLookups } from '../mocks/route-helpers';
 
 /**
- * Fully serverless (mocked) core-CRUD coverage — see e2e/README.md's
+ * Fully serverless (mocked) core-CRUD coverage — see tests/e2e/README.md's
  * "Serverless mocked E2E tests" section. Runs under playwright.mocked.config.ts
  * against a plain static file server, every API call intercepted via
- * page.route() (e2e/mocks/). Response shapes are kept honest by
- * e2e/tests/mock-contract-drift.spec.ts, which runs separately against a
+ * page.route() (tests/e2e/mocks/). Response shapes are kept honest by
+ * tests/e2e/tests/mock-contract-drift.spec.ts, which runs separately against a
  * real backend.
  */
 

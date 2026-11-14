@@ -120,7 +120,7 @@ def test_triage_anthropic_error(auth_client, run_with_results, monkeypatch):
 
 def test_triage_routes_through_ollama_when_ai_provider_is_set(auth_client, run_with_results, monkeypatch):
     """Same "config change, not a code rewrite" proof as
-    tests/api/test_ai_generate.py's equivalent test, for the triage
+    tests/backend/api/test_ai_generate.py's equivalent test, for the triage
     endpoint (course M6)."""
     import httpx
 

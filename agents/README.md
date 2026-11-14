@@ -67,7 +67,7 @@ not hypothetical ones:
 - `langchain-ollama`'s own `ollama` client dependency requires
   `httpx>=0.27`, but `requirements-test.txt` pinned `httpx==0.25.2`.
   Bumping straight to the latest (0.28+) broke `starlette`'s `TestClient`
-  (used throughout `tests/api`/`tests/contract`) — httpx 0.28 removed the
+  (used throughout `tests/backend/api`/`tests/backend/contract`) — httpx 0.28 removed the
   `Client(app=...)` shortcut it relies on. Pinned `httpx==0.27.2` instead:
   the newest release that still supports it.
 - `langchain-core==1.6.3` requires `pydantic>=2.7.4`, but the app itself
@@ -75,8 +75,8 @@ not hypothetical ones:
   into the same environment, whichever is looser loses — bumped
   `requirements.txt`'s pin to `pydantic==2.13.5` (the version pip actually
   resolved) rather than pinning an old `langchain-core` to dodge the
-  conflict, and reran the full `pytest tests/unit tests/api tests/contract
-  tests/services` suite against it before committing to the bump. All 543
+  conflict, and reran the full `pytest tests/backend/unit tests/backend/api tests/backend/contract
+  tests/backend/services` suite against it before committing to the bump. All 543
   tests passed unchanged — pydantic v2 minor releases are additive for the
   plain `BaseModel` usage in `api/schemas.py`, not breaking.
 
@@ -104,8 +104,8 @@ python -m agents.cli --feature "Login flow" --existing existing_cases.json --mod
 | `agents/test_plan_reviewer.py` | The critic/drafter LangChain pipeline (`find_coverage_gaps`, `draft_test_cases_for_gaps`, `review_and_fill_gaps`). |
 | `agents/cli.py` | `python -m agents.cli` entrypoint. |
 
-Unit tests (`tests/unit/test_test_plan_reviewer.py`,
-`tests/unit/test_agents_cli.py`) use LangChain's own `FakeListChatModel` to
+Unit tests (`tests/tooling/test_test_plan_reviewer.py`,
+`tests/tooling/test_agents_cli.py`) use LangChain's own `FakeListChatModel` to
 script both the critic and drafter responses — no real Ollama server
 required, matching how this repo's other AI-feature tests never hit a real
 Anthropic/Gemini API either. The `OutputParserException`-on-malformed-output
@@ -178,7 +178,7 @@ print(final["outcome"])  # "ready_to_commit"
 from agents.pipeline_orchestrator import heal
 
 result = heal(
-    "specs/login.spec.ts", "valid login",
+    "tests/e2e/specs/login.spec.ts", "valid login",
     run_playwright_test=lambda spec, name: {"passed": False, "output": "locator not found: #submit-btn"},
 )
 print(result["outcome"])  # "healed", "escalated", or "skipped"
@@ -190,7 +190,7 @@ print(result["outcome"])  # "healed", "escalated", or "skipped"
 |------|---------|
 | `agents/pipeline_orchestrator.py` | Both graphs (`build_authoring_graph`, `build_healer_graph`, `heal`). |
 
-Unit tests (`tests/unit/test_pipeline_orchestrator.py`) use `FakeListChatModel` for every LLM call and
+Unit tests (`tests/tooling/test_pipeline_orchestrator.py`) use `FakeListChatModel` for every LLM call and
 an injected `run_playwright_test` callable for the healer graph — no real Ollama server or real browser
 required. The authoring graph's tests drive the real `invoke` → `Command(resume=...)` two-turn pattern
 rather than mocking it, since that pattern *is* the human-in-the-loop mechanism being demonstrated.

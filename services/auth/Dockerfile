@@ -2,7 +2,7 @@
 # not services/auth in isolation: main.py imports services.common.* and
 # shared.schemas by their full dotted path, and uses relative imports
 # (from .database import ...) for its own siblings — exactly how
-# tests/services/ already runs this app (`from services.auth.main import
+# tests/backend/services/ already runs this app (`from services.auth.main import
 # app`, cwd at the repo root). Isolating the build context to services/auth
 # alone can't satisfy either of those; see issue #217.
 FROM python:3.12-slim
