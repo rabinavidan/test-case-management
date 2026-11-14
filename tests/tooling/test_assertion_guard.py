@@ -128,3 +128,25 @@ def test_workflow_runs_guard_on_spec_changes_and_honours_label():
     run = steps[-1]
     assert "assertion-change-approved" in run["env"]["APPROVED"]
     assert "scripts/assertion_guard.py" in run["run"] and "--approved" in run["run"]
+
+
+def test_main_follows_a_moved_spec_and_still_blocks_a_weakening(repo, capsys):
+    # A spec moved and weakened in the same PR must be compared against its
+    # old path, not treated as a brand-new file with nothing to compare to.
+    path, git = repo
+    (path / "tests" / "e2e" / "tests" / "suite").mkdir()
+    git("mv", "tests/e2e/tests/a.spec.ts", "tests/e2e/tests/suite/a.spec.ts")
+    moved = path / "tests" / "e2e" / "tests" / "suite" / "a.spec.ts"
+    moved.write_text(BEFORE.replace(".toHaveText('$42.00')", ".toBeDefined()"))
+    git("commit", "-q", "-am", "move and weaken")
+    assert guard.main(["--base", "main"]) == 1
+    out = capsys.readouterr().out
+    assert "1 changed spec file(s)" in out and "BLOCK" in out
+
+
+def test_main_passes_a_pure_move(repo):
+    path, git = repo
+    (path / "tests" / "e2e" / "tests" / "suite").mkdir()
+    git("mv", "tests/e2e/tests/a.spec.ts", "tests/e2e/tests/suite/a.spec.ts")
+    git("commit", "-q", "-m", "move")
+    assert guard.main(["--base", "main"]) == 0
