@@ -21,7 +21,7 @@
     "@playwright/mcp": "^0.0.79",
     "@playwright/test": "^1.62.1",
     "@types/node": "^20.0.0",
-    "@typescript-eslint/parser": "^8.18.0",
+    "@typescript-eslint/parser": "^8.72.2",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "allure-commandline": "^2.32.0",
