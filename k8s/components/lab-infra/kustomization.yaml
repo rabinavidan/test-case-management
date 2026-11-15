@@ -1,7 +1,6 @@
 # In-cluster Kafka + MongoDB for the local kind lab (lab/README.md). base/
-# already runs Postgres (db) and Redis in-cluster; GKE swaps those for Cloud
-# SQL + Memorystore via components/gcp-cloudsql-memorystore instead, so this
-# component is for the lab overlays only.
+# already runs Postgres (db) and Redis in-cluster; this component adds the
+# two services only the lab runs.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 

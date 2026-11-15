@@ -38,7 +38,7 @@ automatically was a deliberate non-goal, not an oversight:
   the planner writes is a proposal for what to test, not a spec to blindly
   execute — a human reads it, adds scenarios it missed, cuts ones that
   don't matter, before a single line of test code exists. A generated spec
-  is a draft PR, not a merge — [`e2e/README.md`'s Playwright Agents
+  is a draft PR, not a merge — [`tests/e2e/README.md`'s Playwright Agents
   section](../e2e/README.md#playwright-agents) already says generated specs
   "need the same review as a hand-written PR." Auto-chaining planner
   straight into generator straight into a committed spec removes both

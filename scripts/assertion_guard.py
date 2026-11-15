@@ -6,7 +6,7 @@ The playwright-test-healer agent is told never to delete or loosen an
 assertion to make a test pass (.claude/agents/playwright-test-healer.md),
 and scripts/heal_metrics.py measures whether it *says* it complied. This
 script checks what it actually *did*: it compares every changed Playwright
-spec (e2e/**/*.spec.ts) between the PR base and head, assertion by
+spec (tests/e2e/**/*.spec.ts) between the PR base and head, assertion by
 assertion, so a weakened test cannot merge looking like a selector fix.
 
 Per file, comments stripped first (so commenting an expect() out counts as
@@ -36,7 +36,7 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 
-SPEC_GLOB = re.compile(r"^e2e/.*\.spec\.ts$")
+SPEC_GLOB = re.compile(r"^tests/e2e/.*\.spec\.ts$")
 APPROVAL_MARKER = re.compile(r"//\s*assertion-change-approved:\s*\S")
 LOOSE_MATCHERS = ("toBeTruthy", "toBeDefined", "toBeAttached", "toBeGreaterThanOrEqual",
                   "toBeInstanceOf", "toBeFalsy", "toBeNull", "toBeUndefined")
@@ -156,10 +156,20 @@ def _show(ref: str, path: str) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def changed_specs(base: str, head: str) -> tuple[list[str], str]:
+def changed_specs(base: str, head: str) -> tuple[list[tuple[str, str]], str]:
+    """(path on base, path on head) for every changed spec. A moved or renamed
+    spec pairs its old path with its new one, so a spec moved *and* weakened
+    in the same PR is still compared assertion by assertion, and a pure move
+    is not mistaken for a deletion. Matching either side keeps a spec moved
+    out of (or into) the spec tree visible."""
     merge_base = _git("merge-base", base, head).strip()
-    names = _git("diff", "--name-only", "--no-renames", merge_base, head).splitlines()
-    return [n for n in names if SPEC_GLOB.match(n)], merge_base
+    pairs = []
+    for line in _git("diff", "--name-status", "-M", merge_base, head).splitlines():
+        status, *paths = line.split("\t")
+        old, new = (paths[0], paths[1]) if status.startswith(("R", "C")) else (paths[0], paths[0])
+        if SPEC_GLOB.match(old) or SPEC_GLOB.match(new):
+            pairs.append((old, new))
+    return pairs, merge_base
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -170,12 +180,12 @@ def main(argv: list[str] | None = None) -> int:
                         help="A human approved assertion changes (PR label); BLOCK findings become WARN.")
     args = parser.parse_args(argv)
 
-    paths, merge_base = changed_specs(args.base, args.head)
+    pairs, merge_base = changed_specs(args.base, args.head)
     findings = []
-    for path in paths:
-        findings += compare(path, _show(merge_base, path), _show(args.head, path), approved=args.approved)
+    for old, new in pairs:
+        findings += compare(new, _show(merge_base, old), _show(args.head, new), approved=args.approved)
 
-    print(f"assertion guard: {len(paths)} changed spec file(s)")
+    print(f"assertion guard: {len(pairs)} changed spec file(s)")
     for f in findings:
         print(f"  {f.level:<5} {f.path}: {f.message}")
     blocking = [f for f in findings if f.level == "BLOCK"]

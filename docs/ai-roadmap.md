@@ -149,7 +149,7 @@ trajectory eval below.
 **What:** the healer prompt already forbids deleting or loosening an
 assertion, and `scripts/heal_metrics.py` measures whether the healer *said*
 it complied. [`scripts/assertion_guard.py`](../scripts/assertion_guard.py)
-checks what the diff actually *does*: for every changed `e2e/**/*.spec.ts`
+checks what the diff actually *does*: for every changed `tests/e2e/**/*.spec.ts`
 (comments stripped, so commenting an `expect()` out counts as removing it) it
 blocks fewer `expect()` calls, new `skip`/`fixme`, more loose matchers
 (`toBeTruthy`, `toBeDefined`, …) and more `.not` inversions, and lists every
@@ -183,7 +183,7 @@ they can't ground a later generation. Reviews are stored without foreign keys
 to the suite and test case on purpose: the human judgement is eval data and
 outlives both.
 
-**Done when — met:** [`tests/api/test_ai_review_loop.py`](../tests/api/test_ai_review_loop.py)
+**Done when — met:** [`tests/backend/api/test_ai_review_loop.py`](../tests/api/test_ai_review_loop.py)
 walks the whole loop through the real code: a reviewer rejects a draft via the
 API → export → the script writes the dataset → the eval harness runs it with a
 model that repeats itself unless told otherwise. Without the reviewer feedback
@@ -275,7 +275,7 @@ now also triggers on `api/triage_agent.py` and `api/ai_gateway.py`, so a
 prompt edit is measured before it merges; `--system-prompt-file` scores a
 candidate prompt locally first.
 
-**Proof the gate catches what it is for:** `tests/unit/test_triage_trajectory_eval.py`
+**Proof the gate catches what it is for:** `tests/tooling/test_triage_trajectory_eval.py`
 drives two scripted agents through the real loop with no key or model — an
 investigator (scores 1.0) and a lazy agent that records the same kind of
 verdicts without looking (tool selection 0.0) — and asserts the lazy run

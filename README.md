@@ -25,7 +25,7 @@ detection, CI failure triage that names whose bug a red test is, and an assertio
 | **Coverage-Gap Agent** | Diffs a PR's changed source files against its test files; for any gap, prompts an LLM for concrete, specific test-case suggestions and posts them as a PR comment | Gemini (free tier) | [`scripts/coverage_gap_agent.py`](scripts/coverage_gap_agent.py) |
 | **Flaky-Test Detector** | Parses CI rerun results to distinguish "needed a retry" from a real failure, and maintains a single tracking GitHub issue across runs | Deterministic (no LLM) | [`scripts/flake_report.py`](scripts/flake_report.py) |
 | **CI Failure Triage** | Answers "whose bug is this red test?" for the repo's own CI: labels every failing pytest and Playwright test as **`product`** (→ Developers), **`test-code`** (→ Automation / QA) or **`infra`** (→ DevOps), or `unknown` (→ human), from the error signature, the phase it failed in (fixture setup vs test body) and whether the exception came from a test file or product code. The table lands in the job summary of `test.yml` and `pw-ts.yml` and never gates the build. A companion Claude Code skill tells agents (the PR Steward included) how to confirm each verdict and what's off-limits per category: never loosen an assertion over a product bug, never change product code for a broken test, at most one rerun for infra | Deterministic (no LLM) + Claude Code skill | [`scripts/failure_classifier.py`](scripts/failure_classifier.py) · [`.claude/skills/failure-triage/SKILL.md`](.claude/skills/failure-triage/SKILL.md) |
-| **Playwright Test Agents** | Planner/generator/healer trio: explores the running app in a real browser, drafts a numbered test plan, generates Playwright specs from it, and debugs/fixes failing ones — an authoring aid, not a CI job. The planner saves a shared accessibility-tree context artifact (`specs/*.context.json`) the generator and healer read instead of re-exploring the same flow from scratch. The healer classifies each failure as safe-to-auto-fix (locator/timing drift) or a suspected real defect (behavior change) — the latter is *never* silently skipped, only escalated — and every healing session is logged to `heal-outcomes/heal_outcomes.jsonl`, scored by [`scripts/heal_metrics.py`](scripts/heal_metrics.py) (heal-success-rate, false-heal-rate) | Claude (Sonnet, via Claude Code) | [`.claude/agents/playwright-test-*.md`](.claude/agents) · [`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents) |
+| **Playwright Test Agents** | Planner/generator/healer trio: explores the running app in a real browser, drafts a numbered test plan, generates Playwright specs from it, and debugs/fixes failing ones — an authoring aid, not a CI job. The planner saves a shared accessibility-tree context artifact (`specs/*.context.json`) the generator and healer read instead of re-exploring the same flow from scratch. The healer classifies each failure as safe-to-auto-fix (locator/timing drift) or a suspected real defect (behavior change) — the latter is *never* silently skipped, only escalated — and every healing session is logged to `heal-outcomes/heal_outcomes.jsonl`, scored by [`scripts/heal_metrics.py`](scripts/heal_metrics.py) (heal-success-rate, false-heal-rate) | Claude (Sonnet, via Claude Code) | [`.claude/agents/playwright-test-*.md`](.claude/agents) · [`tests/e2e/README.md#playwright-agents`](tests/e2e/README.md#playwright-agents) |
 | **AI Test Generation** | Generates test cases from a plain-English feature description; can optionally run "grounded" (`grounded: true`), retrieving the suite's nearest existing test cases by embedding similarity and passing them as "don't duplicate these" context (monolith only — see `api/retrieval.py`). The embedding model is pluggable (M8): `EMBEDDING_PROVIDER=hash` (default) · `ollama` (`nomic-embed-text`) · `voyage` | Claude Haiku (or Ollama/Groq — see below) | `POST /api/suites/{id}/testcases/generate` |
 | **AI Failure Triage** | Summarizes a run's failed/skipped results into a root-cause hypothesis | Claude Haiku (or Ollama/Groq — see below) | `POST /api/runs/{id}/triage` |
 | **Agentic Failure Triage** *(M7)* | With `?agentic=true`, triage becomes a bounded **Anthropic tool-use loop**: the model can call scoped, read-only tools — `get_test_case_history`, `get_similar_test_cases` (RAG), `get_suite_flaky_tests` — before diagnosing, and the response carries the full tool trace for human review. Iteration cap, suite-scoped tool arguments, tool errors fed back to the model, single-shot fallback for non-Anthropic providers | Claude Haiku (tool use) | [`api/triage_agent.py`](api/triage_agent.py) · `complete_with_tools()` in [`api/ai_gateway.py`](api/ai_gateway.py) |
@@ -78,28 +78,24 @@ Gemini client, and the Test Plan Reviewer's Ollama client keep their own, for no
 
 | Building block | Implemented in | Proof it works |
 |----------------|----------------|----------------|
-| **LLMs** | Provider gateway (`api/ai_gateway.py`) — Anthropic / Ollama / Groq by env var, per-call token + latency telemetry | `tests/unit/test_ai_gateway.py`, `tests/api/test_ai_generate.py` |
-| **RAG** | Retrieval-grounded test generation (`api/retrieval.py`) and the triage agent's `get_similar_test_cases` tool, over a pluggable embedding model (`api/embeddings.py`: hashed vector · Ollama `nomic-embed-text` · Voyage). Each vector records the model that made it; a provider switch re-embeds stale rows on read, and a provider outage falls back to the hash vector for the whole request — never mixing models | `tests/api/test_retrieval.py`; retrieval eval (`evals/retrieval_eval.py`) — `nomic-embed-text` **R@1 1.00 vs 0.56** for the hashed vector on 18 paraphrased queries |
-| **Tool use** | Agentic Failure Triage (`api/triage_agent.py`) over a provider-pluggable tool loop (`complete_with_tools()`: Anthropic · Ollama) · Playwright MCP agents (`.claude/agents/`) · PR Steward | `tests/api/test_triage_agentic.py` — scripted multi-turn tool loop, iteration cap, out-of-scope arguments rejected; M10 trajectory eval — `qwen2.5:3b` **tool-selection accuracy 0.93** vs 0.00 for 1.5B |
-| **Evaluations** | `evals/` — N-runs-per-case quality + variance, LLM-as-judge, baselines with regression thresholds, prompt versioning, CI job; a labelled triage-verdict eval (`evals/triage_verdict_eval.py`) that separates abstaining from confidently wrong; a **trajectory eval** (`evals/triage_trajectory_eval.py`) that scores which tools the agent called before deciding, gated in CI against a committed baseline | `tests/unit/test_evals_*.py`, `tests/unit/test_triage_verdicts.py`, `tests/unit/test_triage_trajectory_eval.py` (a lazy agent fails the gate), `.github/workflows/eval-harness.yml` |
-| **Agent skills** | Repo-specific procedures Claude Code agents load on demand: `steward` (CI/review conventions, what counts as a small fix) and `failure-triage` (product vs test-code vs infra, and what each category allows), in `.claude/skills/`; agent definitions for the Playwright trio in `.claude/agents/` | `tests/unit/test_failure_classifier.py`, `tests/unit/test_flaky_test_ci_config.py`, `tests/unit/test_pr_steward_workflow.py` |
-| **Human-in-the-loop** | LangGraph `interrupt()` approval gates (`agents/pipeline_orchestrator.py`), healer escalate-don't-skip rule, AI drafts reviewed in-app — accept / edit / reject-with-reason, rejections fed into the next generation prompt and exported as eval cases (M9, [`api/ai_review.py`](api/ai_review.py)), triage tool trace shown in the UI, triage verdicts flagged *Needs human review* when the agent and the heuristic disagree, and the assertion guard's `assertion-change-approved` sign-off | `tests/unit/test_pipeline_orchestrator.py`, `tests/api/test_triage_agentic.py`, `tests/unit/test_assertion_guard.py`, `tests/api/test_ai_review.py`, `tests/api/test_ai_review_loop.py` |
+| **LLMs** | Provider gateway (`api/ai_gateway.py`) — Anthropic / Ollama / Groq by env var, per-call token + latency telemetry | `tests/backend/unit/test_ai_gateway.py`, `tests/backend/api/test_ai_generate.py` |
+| **RAG** | Retrieval-grounded test generation (`api/retrieval.py`) and the triage agent's `get_similar_test_cases` tool, over a pluggable embedding model (`api/embeddings.py`: hashed vector · Ollama `nomic-embed-text` · Voyage). Each vector records the model that made it; a provider switch re-embeds stale rows on read, and a provider outage falls back to the hash vector for the whole request — never mixing models | `tests/backend/api/test_retrieval.py`; retrieval eval (`evals/retrieval_eval.py`) — `nomic-embed-text` **R@1 1.00 vs 0.56** for the hashed vector on 18 paraphrased queries |
+| **Tool use** | Agentic Failure Triage (`api/triage_agent.py`) over a provider-pluggable tool loop (`complete_with_tools()`: Anthropic · Ollama) · Playwright MCP agents (`.claude/agents/`) · PR Steward | `tests/backend/api/test_triage_agentic.py` — scripted multi-turn tool loop, iteration cap, out-of-scope arguments rejected; M10 trajectory eval — `qwen2.5:3b` **tool-selection accuracy 0.93** vs 0.00 for 1.5B |
+| **Evaluations** | `evals/` — N-runs-per-case quality + variance, LLM-as-judge, baselines with regression thresholds, prompt versioning, CI job; a labelled triage-verdict eval (`evals/triage_verdict_eval.py`) that separates abstaining from confidently wrong; a **trajectory eval** (`evals/triage_trajectory_eval.py`) that scores which tools the agent called before deciding, gated in CI against a committed baseline | `tests/tooling/test_evals_*.py`, `tests/backend/unit/test_triage_verdicts.py`, `tests/tooling/test_triage_trajectory_eval.py` (a lazy agent fails the gate), `.github/workflows/eval-harness.yml` |
+| **Agent skills** | Repo-specific procedures Claude Code agents load on demand: `steward` (CI/review conventions, what counts as a small fix) and `failure-triage` (product vs test-code vs infra, and what each category allows), in `.claude/skills/`; agent definitions for the Playwright trio in `.claude/agents/` | `tests/tooling/test_failure_classifier.py`, `tests/tooling/test_flaky_test_ci_config.py`, `tests/tooling/test_pr_steward_workflow.py` |
+| **Human-in-the-loop** | LangGraph `interrupt()` approval gates (`agents/pipeline_orchestrator.py`), healer escalate-don't-skip rule, AI drafts reviewed in-app — accept / edit / reject-with-reason, rejections fed into the next generation prompt and exported as eval cases (M9, [`api/ai_review.py`](api/ai_review.py)), triage tool trace shown in the UI, triage verdicts flagged *Needs human review* when the agent and the heuristic disagree, and the assertion guard's `assertion-change-approved` sign-off | `tests/tooling/test_pipeline_orchestrator.py`, `tests/backend/api/test_triage_agentic.py`, `tests/tooling/test_assertion_guard.py`, `tests/backend/api/test_ai_review.py`, `tests/backend/api/test_ai_review_loop.py` |
 
 **Reliability guards** (failure modes AI-in-QA agents actually hit, see [`docs/ai-roadmap.md`](docs/ai-roadmap.md#reliability-gaps)):
 
 | Failure mode | Guard | Proof |
 |--------------|-------|-------|
-| Agent can't tell a product bug from a flaky test or a broken environment | Triage records a structured verdict per failing case (`product_bug` · `flaky` · `environment` · `unknown`) through a `record_verdict` tool, after checking `get_run_environment_status` (env health + the same case on other environments). A deterministic heuristic cross-checks it; disagreement → *Needs human review* | `tests/api/test_triage_agentic.py`; `evals/triage_verdict_eval.py` on 16 labelled cases: **precision 1.00, 0 confident errors**, 4 honest abstentions |
-| A red CI test gets "fixed" by the wrong owner — an assertion loosened to hide a product bug, product code bent around a broken locator, a real failure rerun until green | [`scripts/failure_classifier.py`](scripts/failure_classifier.py) labels every CI failure `product` / `test-code` / `infra` / `unknown` with its owner in the job summary; the [`failure-triage`](.claude/skills/failure-triage/SKILL.md) skill makes agents confirm the verdict and forbids the wrong-owner fix per category | `tests/unit/test_failure_classifier.py` — 23 cases on real pytest and Playwright report shapes, incl. a stack line `app.ts:503:7` not misread as an HTTP 503 |
-| A self-heal fixes the selector but changes what the test verifies | `Assertion Guard` CI ([`scripts/assertion_guard.py`](scripts/assertion_guard.py)) blocks a PR that removes/comments out an `expect()`, adds `skip`/`fixme`, loosens (`toBeTruthy`…) or inverts (`.not`) a matcher; changed expected values are listed for a human. Override only by a human: `assertion-change-approved` label or in-file reason | `tests/unit/test_assertion_guard.py`; back-tested on the repo's spec history — 1 flag in 19 spec-changing commits, a genuine assertion inversion |
+| Agent can't tell a product bug from a flaky test or a broken environment | Triage records a structured verdict per failing case (`product_bug` · `flaky` · `environment` · `unknown`) through a `record_verdict` tool, after checking `get_run_environment_status` (env health + the same case on other environments). A deterministic heuristic cross-checks it; disagreement → *Needs human review* | `tests/backend/api/test_triage_agentic.py`; `evals/triage_verdict_eval.py` on 16 labelled cases: **precision 1.00, 0 confident errors**, 4 honest abstentions |
+| A red CI test gets "fixed" by the wrong owner — an assertion loosened to hide a product bug, product code bent around a broken locator, a real failure rerun until green | [`scripts/failure_classifier.py`](scripts/failure_classifier.py) labels every CI failure `product` / `test-code` / `infra` / `unknown` with its owner in the job summary; the [`failure-triage`](.claude/skills/failure-triage/SKILL.md) skill makes agents confirm the verdict and forbids the wrong-owner fix per category | `tests/tooling/test_failure_classifier.py` — 23 cases on real pytest and Playwright report shapes, incl. a stack line `app.ts:503:7` not misread as an HTTP 503 |
+| A self-heal fixes the selector but changes what the test verifies | `Assertion Guard` CI ([`scripts/assertion_guard.py`](scripts/assertion_guard.py)) blocks a PR that removes/comments out an `expect()`, adds `skip`/`fixme`, loosens (`toBeTruthy`…) or inverts (`.not`) a matcher; changed expected values are listed for a human. Override only by a human: `assertion-change-approved` label or in-file reason | `tests/tooling/test_assertion_guard.py`; back-tested on the repo's spec history — 1 flag in 19 spec-changing commits, a genuine assertion inversion |
 
 **Roadmap:** [`docs/ai-roadmap.md`](docs/ai-roadmap.md) tracks the next milestones that close the remaining gaps
 honestly — M7 agentic tool-use triage ✅, M8 a real embedding model behind RAG ✅, M10 trajectory evals that score
 *which tools* an agent chose to call ✅, M9 in-app human review of AI drafts feeding the eval dataset ✅.
-
-See [`docs/interview-prep/agentic-ai-test-engineering.md`](docs/interview-prep/agentic-ai-test-engineering.md)
-for the deeper case study behind the Eval Harness and Test Plan Reviewer — what they're for, the real failures
-and dependency conflicts hit building them, and the honest gaps not to oversell.
 
 ---
 
@@ -356,10 +352,10 @@ Two automation stacks, each owning one layer — no duplicated, parallel suites:
                  │  pytest        │                    │  Playwright    │
                  │  (backend)     │                    │  (E2E / UI)    │
                  ├────────────────┤                    ├────────────────┤
-                 │ tests/unit     │                    │ e2e/tests/     │
-                 │ tests/api      │                    │  *.spec.ts     │
-                 │ tests/contract │                    │                │
-                 │ tests/services │                    │                │
+                 │ tests/backend/unit     │                    │ tests/e2e/tests/     │
+                 │ tests/backend/api      │                    │  *.spec.ts     │
+                 │ tests/backend/contract │                    │                │
+                 │ tests/backend/services │                    │                │
                  │ tests/infra    │                    │                │
                  ├────────────────┤                    ├────────────────┤
                  │ in-process     │                    │ real browser   │
@@ -381,16 +377,16 @@ Playwright E2E suite, which runs against a live app rather than in-process.
 
 | Type | What it checks | Where |
 |------|-----------------|-------|
-| **Unit** | Pure functions (JWT/hash logic) — no DB, no HTTP, no I/O | `tests/unit/` (pytest) |
-| **API / integration** | Real FastAPI app + real (throwaway, per-test) SQLite DB, via `TestClient` | `tests/api/` (pytest) |
-| **Contract** | Real responses validated against the app's own live OpenAPI schema — property-based edge cases, not just hand-picked examples | `tests/contract/` (pytest + Schemathesis) · `e2e/tests/contract.spec.ts` (Playwright + ajv + fast-check) |
-| **Microservices** | Each of the 6 `services/` (auth, projects, runs, worker, ai, gateway) tested in isolation — auth, CRUD, inter-service HTTP calls, graceful degradation when a downstream service, Redis, or Kafka is unreachable | `tests/services/` (pytest) |
-| **Kafka producer/consumer** | `services/runs`' `alert.triggered` producer and `services/worker`'s consumer of it, unit-level with `KafkaProducer`/`KafkaConsumer` monkeypatched (no live broker needed) — publish success, broker-unreachable degradation, malformed-message and retries-exhausted routing to the dead-letter topic, transient-failure retry-then-succeed, idempotent persistence | `tests/services/test_kafka_producer.py`, `tests/services/test_kafka_consumer.py` (pytest) |
-| **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `e2e/tests/*.spec.ts` (Playwright + TypeScript) |
-| **Serverless mocked E2E** | Every backend call intercepted with `page.route()` against typed fixtures (`e2e/mocks/`) — no FastAPI process, no database, served by a ~40-line static file server instead of `uvicorn`. A separate contract-drift check validates those fixtures against the live OpenAPI schema (`ajv`) so a mocked test can't quietly keep passing against a stale backend contract | `e2e/tests/mocked-serverless-*.spec.ts`, `e2e/tests/mock-contract-drift.spec.ts` (Playwright + TypeScript) |
+| **Unit** | Pure functions (JWT/hash logic) — no DB, no HTTP, no I/O | `tests/backend/unit/` (pytest) |
+| **API / integration** | Real FastAPI app + real (throwaway, per-test) SQLite DB, via `TestClient` | `tests/backend/api/` (pytest) |
+| **Contract** | Real responses validated against the app's own live OpenAPI schema — property-based edge cases, not just hand-picked examples | `tests/backend/contract/` (pytest + Schemathesis) · `tests/e2e/tests/contract.spec.ts` (Playwright + ajv + fast-check) |
+| **Microservices** | Each of the 6 `services/` (auth, projects, runs, worker, ai, gateway) tested in isolation — auth, CRUD, inter-service HTTP calls, graceful degradation when a downstream service, Redis, or Kafka is unreachable | `tests/backend/services/` (pytest) |
+| **Kafka producer/consumer** | `services/runs`' `alert.triggered` producer and `services/worker`'s consumer of it, unit-level with `KafkaProducer`/`KafkaConsumer` monkeypatched (no live broker needed) — publish success, broker-unreachable degradation, malformed-message and retries-exhausted routing to the dead-letter topic, transient-failure retry-then-succeed, idempotent persistence | `tests/backend/services/test_kafka_producer.py`, `tests/backend/services/test_kafka_consumer.py` (pytest) |
+| **E2E / browser** | Full user flows through the real UI in a real browser, against a running instance of the app | `tests/e2e/tests/*.spec.ts` (Playwright + TypeScript) |
+| **Serverless mocked E2E** | Every backend call intercepted with `page.route()` against typed fixtures (`tests/e2e/mocks/`) — no FastAPI process, no database, served by a ~40-line static file server instead of `uvicorn`. A separate contract-drift check validates those fixtures against the live OpenAPI schema (`ajv`) so a mocked test can't quietly keep passing against a stale backend contract | `tests/e2e/tests/mocked-serverless-*.spec.ts`, `tests/e2e/tests/mock-contract-drift.spec.ts` (Playwright + TypeScript) |
 | **Reporting** | Allure report (history, retries, step-by-step detail) generated from every run in CI | `allure-pytest` (Python) · `allure-playwright` (TypeScript) |
 | **Coverage** | Line coverage of `api/`, `services/`, `shared/` — ~90%, gated at an 85% floor | `pytest-cov` (`.coveragerc`), reported in the CI job summary and as a `coverage.json` artifact |
-| **Microservices boot smoke test** | Actually builds and boots `docker-compose.microservices.yml` (Postgres + Redis + Kafka + all 6 services) and drives a real CRUD flow through the gateway — the one thing `tests/services/`'s in-process `TestClient` coverage can't catch. Found (and fixed) [issue #217](https://github.com/rabinavidan/test-case-management/issues/217): every service crash-looped on the documented `docker compose up --build`, undetected because nothing else in CI ever builds these images | `.github/workflows/microservices-smoke.yml`, every PR/push touching `services/`, `shared/`, or the compose file |
+| **Microservices boot smoke test** | Actually builds and boots `docker-compose.microservices.yml` (Postgres + Redis + Kafka + all 6 services) and drives a real CRUD flow through the gateway — the one thing `tests/backend/services/`'s in-process `TestClient` coverage can't catch. Found (and fixed) [issue #217](https://github.com/rabinavidan/test-case-management/issues/217): every service crash-looped on the documented `docker compose up --build`, undetected because nothing else in CI ever builds these images | `.github/workflows/microservices-smoke.yml`, every PR/push touching `services/`, `shared/`, or the compose file |
 
 707 pytest tests total (347 unit + 177 API + 38 contract operations + 145 services), plus 92 Playwright TS E2E
 specs (plus a 19-spec fully-offline mocked layer — see below). Backend behavior is verified only with pytest; UI
@@ -401,77 +397,78 @@ behavior is verified only with Playwright + TypeScript.
 Both stacks deliberately minimizes dependency on live, shared, or unstable environments — not as one
 feature, but as a strategy applied consistently across layers:
 
-- **A fresh, throwaway database per test, not a shared fixture environment.** `tests/api/`, `tests/contract/`,
-  and `tests/services/` each get a real SQLite database created fresh and torn down per test (per-`pytest-xdist`-worker
-  path, so parallel workers never race the same file — see `tests/api/conftest.py`). No test ever depends on
+- **A fresh, throwaway database per test, not a shared fixture environment.** `tests/backend/api/`, `tests/backend/contract/`,
+  and `tests/backend/services/` each get a real SQLite database created fresh and torn down per test (per-`pytest-xdist`-worker
+  path, so parallel workers never race the same file — see `tests/backend/api/conftest.py`). No test ever depends on
   another test's leftover state or a pre-seeded shared DB.
-- **External providers mocked at the true boundary, not at the app's own abstraction layer.** `tests/api/test_ai_generate.py`
+- **External providers mocked at the true boundary, not at the app's own abstraction layer.** `tests/backend/api/test_ai_generate.py`
   mocks `anthropic.Anthropic` itself — the actual third-party client — rather than a wrapper this repo wrote
   around it, so the test still exercises this app's own request-building and response-parsing code, not just a
   fake of it.
 - **Graceful-degradation tests for unreachable downstream services**, not just happy-path mocks —
-  `tests/services/test_events_resilience.py` asserts the app degrades correctly when Redis or Kafka is
-  unreachable, and `tests/services/test_kafka_consumer.py` covers malformed-message and retries-exhausted
+  `tests/backend/services/test_events_resilience.py` asserts the app degrades correctly when Redis or Kafka is
+  unreachable, and `tests/backend/services/test_kafka_consumer.py` covers malformed-message and retries-exhausted
   routing to a dead-letter topic.
-- **A full service-virtualization layer for the frontend**, closest to the classical sense of the term: `e2e/mocks/`
+- **A full service-virtualization layer for the frontend**, closest to the classical sense of the term: `tests/e2e/mocks/`
   intercepts every backend call with Playwright's `page.route()` against typed fixtures, so the entire E2E suite
-  runs with no FastAPI process and no database at all (`e2e/tests/mocked-serverless-*.spec.ts`, 19 specs) — see
+  runs with no FastAPI process and no database at all (`tests/e2e/tests/mocked-serverless-*.spec.ts`, 19 specs) — see
   the **Serverless mocked E2E** row above. The risk a hand-maintained mock always carries is silent drift from
-  what the real backend actually returns; `e2e/tests/mock-contract-drift.spec.ts` validates every fixture in
-  `e2e/mocks/factories.ts` against the live OpenAPI schema (`ajv`) in CI, so a mock that stops matching reality
+  what the real backend actually returns; `tests/e2e/tests/mock-contract-drift.spec.ts` validates every fixture in
+  `tests/e2e/mocks/factories.ts` against the live OpenAPI schema (`ajv`) in CI, so a mock that stops matching reality
   fails the build instead of quietly staying "green" against a contract that no longer exists.
 
 ### Python · pytest suite
 
 The Python side is further split into the classic pyramid — narrow and fast at the bottom, broad and slow at the
-top — as physically separate pytest layers under `tests/`.
+top — as physically separate layers under `tests/backend/`, with the repo's own tooling tests kept apart in `tests/tooling/`.
 
 ```
-tests/
-├── conftest.py     # shared failure-logging hook + auto layer-marking (unit/api/contract/services/infra)
-├── unit/           # 347 tests — pure functions, no DB/HTTP/I-O               (~4s total)
-├── api/            # 177 tests — FastAPI TestClient against an in-memory DB   (~95s total)
-│   └── conftest.py #   per-test SQLite engine + admin/executor auth fixtures
-├── contract/       # 1 property-based suite (38 operations) — Schemathesis vs. the OpenAPI schema (~10s)
-├── services/       # 145 tests — each services/ microservice in isolation, via TestClient   (~11s total)
-│   ├── conftest.py #   per-service SQLite engine + JWT minting
-│   ├── test_kafka_producer.py  # services/runs' alert.triggered producer, KafkaProducer monkeypatched
-│   └── test_kafka_consumer.py  # services/worker's consumer of it — parsing, retry, dead-letter routing
-└── infra/          # kustomize render + terraform fmt/init/validate (needs kubectl + terraform)
+tests/                       # every automated check — map in tests/README.md
+├── conftest.py              # shared failure-logging hook + auto layer markers
+├── backend/                 # pytest — the product's Python code
+│   ├── unit/                # 111 tests — pure functions, no DB/HTTP/I-O
+│   ├── api/                 # 319 tests — FastAPI TestClient against a per-test SQLite DB
+│   │   └── conftest.py      #   per-test SQLite engine + admin/executor auth fixtures
+│   ├── contract/            # 52 tests — Schemathesis vs. OpenAPI, AsyncAPI, GraphQL SDL
+│   └── services/            # 170 tests — each services/ microservice in isolation, via TestClient
+│       └── conftest.py      #   per-service SQLite engine + JWT minting
+├── tooling/                 # 334 tests — CI workflows, scripts/, agents/, evals harness
+├── infra/                   # kustomize render of the kind-lab overlays
+└── e2e/                     # Playwright + TypeScript (below)
 ```
 
 **Engineering practices this demonstrates:**
 
 - **Isolation over mocking-everything.** API tests hit the real FastAPI app and a real (but throwaway, per-test) SQLite database via `app.dependency_overrides` — so they verify actual SQLAlchemy behavior, not a stubbed-out fake, while staying hermetic and parallelizable.
-- **Actually parallelized, not just "parallelizable."** `pytest-xdist -n auto` runs `tests/unit`/`api`/`contract`/`services` across worker processes — ~125s → ~35s locally on 4 cores — safe because every DB-backed fixture derives a worker-unique SQLite path from `PYTEST_XDIST_WORKER` (see `tests/api/conftest.py`), so parallel workers never race the same file. The TypeScript E2E suite (`e2e/`) shards across a CI matrix the same way, merging per-shard blob reports back into one report (`.github/workflows/pw-ts.yml`).
-- **Mock the true external boundary, not your own code.** `tests/api/test_ai_generate.py` monkeypatches `anthropic.Anthropic` so AI-generation tests are deterministic and free, without ever faking the FastAPI/Pydantic layers around it.
-- **The same contract tested at two altitudes on purpose.** JWT/password logic is verified as pure functions in `tests/unit/test_auth_tokens.py` *and* through real HTTP status codes in `tests/api/test_auth.py` — a failure in the unit layer localizes to the algorithm; a failure only in the API layer points at the wiring (dependency injection, route guards) instead.
+- **Actually parallelized, not just "parallelizable."** `pytest-xdist -n auto` runs `tests/backend/unit`/`api`/`contract`/`services` across worker processes — ~125s → ~35s locally on 4 cores — safe because every DB-backed fixture derives a worker-unique SQLite path from `PYTEST_XDIST_WORKER` (see `tests/backend/api/conftest.py`), so parallel workers never race the same file. The TypeScript E2E suite (`tests/e2e/`) shards across a CI matrix the same way, merging per-shard blob reports back into one report (`.github/workflows/pw-ts.yml`).
+- **Mock the true external boundary, not your own code.** `tests/backend/api/test_ai_generate.py` monkeypatches `anthropic.Anthropic` so AI-generation tests are deterministic and free, without ever faking the FastAPI/Pydantic layers around it.
+- **The same contract tested at two altitudes on purpose.** JWT/password logic is verified as pure functions in `tests/backend/unit/test_auth_tokens.py` *and* through real HTTP status codes in `tests/backend/api/test_auth.py` — a failure in the unit layer localizes to the algorithm; a failure only in the API layer points at the wiring (dependency injection, route guards) instead.
 - **Auto-tagged layers, not hand-maintained markers.** A `pytest_collection_modifyitems` hook in the root `conftest.py` tags every test with `unit`/`api`/`contract`/`services`/`infra` from its file path, so `pytest -m api` works regardless of which paths you point pytest at — no per-test `@pytest.mark` upkeep.
-- **Contract tests, not just example-based ones.** `tests/contract/test_openapi_contract.py` uses Schemathesis to property-test every operation in the app's own OpenAPI schema — generating edge-case inputs per endpoint rather than a handful of hand-picked ones. It already earned its place: it caught response `datetime` fields serializing without a UTC offset (fixed via a shared `UTCDatetime` type, now in `shared/schemas.py` and used by every service — see its docstring) and out-of-`SQLite-INTEGER`-range path params crashing with an unhandled `OverflowError` instead of a clean 4xx (fixed with a dedicated exception handler in `api/main.py`) — real bugs, not hypothetical ones, one of them found on a *later* run after Hypothesis explored a different input (an explicit `null` for a non-nullable field crashing response serialization in `PUT /api/testcases/{tc_id}`, fixed in `api/main.py`).
-- **A real Kafka integration, tested the same way as the Redis one above.** `services/runs/kafka_events.py` publishes an `alert.triggered` event whenever a test result is recorded as `fail`; `services/worker/kafka_consumer.py` consumes it into a new `runs_alerts` table, deduplicated per `(run_id, testcase_id)`. `tests/services/test_kafka_producer.py` and `test_kafka_consumer.py` cover the producer and consumer independently — `KafkaProducer`/`KafkaConsumer` monkeypatched rather than relying on "no broker in this environment" (unlike Redis, a Kafka client's connection-refused path isn't fast enough to lean on that) — including broker-unreachable graceful degradation, malformed-message and retries-exhausted dead-letter routing, and transient-failure retry-then-succeed.
-- **Coverage for the architecture the README calls "recommended" — not just the monolith.** `tests/services/` had zero prior coverage of `services/` (the 5-service microservices deployment) and immediately found a critical, previously-undetected bug: identical JWT-padding math (`"=" * (4 - len(s) % 4) % 4`, wrong operator precedence) duplicated across *five* files, crashing every authenticated request across the entire microservices deployment with a raw `TypeError` — fixed in all five. It also caught the gateway proxy silently misrouting `/api/suites/{id}/runs` to the projects service instead of runs (fixed in `services/gateway/main.py`), and directly validates the services README's claim that events "degrade gracefully if Redis is down" by calling the publisher with no Redis reachable — true by construction in this environment, not asserted from documentation.
-- **In-process coverage isn't the same claim as "it boots."** `tests/services/` imports each service's FastAPI app directly with `TestClient` — real code, but never through a built Docker image or the real gateway proxy. That gap let `docker-compose.microservices.yml` ship with every one of its 5 services crash-looping on the documented `docker compose up --build` (isolated per-service build contexts and bare-module `CMD`s couldn't resolve the `services.common`/`shared`/relative imports the application code actually uses) — [issue #217](https://github.com/rabinavidan/test-case-management/issues/217). Fixed by building every service from the repo root and running it via its full dotted module path, and closed the actual gap with `.github/workflows/microservices-smoke.yml`, which builds and boots the real compose file and runs a live CRUD flow through the gateway on every relevant PR.
+- **Contract tests, not just example-based ones.** `tests/backend/contract/test_openapi_contract.py` uses Schemathesis to property-test every operation in the app's own OpenAPI schema — generating edge-case inputs per endpoint rather than a handful of hand-picked ones. It already earned its place: it caught response `datetime` fields serializing without a UTC offset (fixed via a shared `UTCDatetime` type, now in `shared/schemas.py` and used by every service — see its docstring) and out-of-`SQLite-INTEGER`-range path params crashing with an unhandled `OverflowError` instead of a clean 4xx (fixed with a dedicated exception handler in `api/main.py`) — real bugs, not hypothetical ones, one of them found on a *later* run after Hypothesis explored a different input (an explicit `null` for a non-nullable field crashing response serialization in `PUT /api/testcases/{tc_id}`, fixed in `api/main.py`).
+- **A real Kafka integration, tested the same way as the Redis one above.** `services/runs/kafka_events.py` publishes an `alert.triggered` event whenever a test result is recorded as `fail`; `services/worker/kafka_consumer.py` consumes it into a new `runs_alerts` table, deduplicated per `(run_id, testcase_id)`. `tests/backend/services/test_kafka_producer.py` and `test_kafka_consumer.py` cover the producer and consumer independently — `KafkaProducer`/`KafkaConsumer` monkeypatched rather than relying on "no broker in this environment" (unlike Redis, a Kafka client's connection-refused path isn't fast enough to lean on that) — including broker-unreachable graceful degradation, malformed-message and retries-exhausted dead-letter routing, and transient-failure retry-then-succeed.
+- **Coverage for the architecture the README calls "recommended" — not just the monolith.** `tests/backend/services/` had zero prior coverage of `services/` (the 5-service microservices deployment) and immediately found a critical, previously-undetected bug: identical JWT-padding math (`"=" * (4 - len(s) % 4) % 4`, wrong operator precedence) duplicated across *five* files, crashing every authenticated request across the entire microservices deployment with a raw `TypeError` — fixed in all five. It also caught the gateway proxy silently misrouting `/api/suites/{id}/runs` to the projects service instead of runs (fixed in `services/gateway/main.py`), and directly validates the services README's claim that events "degrade gracefully if Redis is down" by calling the publisher with no Redis reachable — true by construction in this environment, not asserted from documentation.
+- **In-process coverage isn't the same claim as "it boots."** `tests/backend/services/` imports each service's FastAPI app directly with `TestClient` — real code, but never through a built Docker image or the real gateway proxy. That gap let `docker-compose.microservices.yml` ship with every one of its 5 services crash-looping on the documented `docker compose up --build` (isolated per-service build contexts and bare-module `CMD`s couldn't resolve the `services.common`/`shared`/relative imports the application code actually uses) — [issue #217](https://github.com/rabinavidan/test-case-management/issues/217). Fixed by building every service from the repo root and running it via its full dotted module path, and closed the actual gap with `.github/workflows/microservices-smoke.yml`, which builds and boots the real compose file and runs a live CRUD flow through the gateway on every relevant PR.
 - **Allure reporting.** `allure-pytest` (wired via `--alluredir`) turns every test run into a browsable Allure report — history, retries, timeline and step-by-step detail — generated in CI (`test.yml`) and uploaded as a build artifact.
 - **CI runs the right layer at the right cadence** (see below) — every pytest layer gates every PR; UI coverage lives entirely in the Playwright TypeScript suite.
 
 ```bash
 pip install -r requirements.txt -r requirements-test.txt
 
-pytest tests/unit -v                                     # unit layer only — milliseconds, no setup
-pytest tests/unit tests/api tests/contract tests/services -v   # what CI runs on every PR
-pytest tests/services -v                                 # microservices layer only
+pytest tests/backend/unit -v                                     # unit layer only — milliseconds, no setup
+pytest tests/backend/unit tests/backend/api tests/backend/contract tests/backend/services -v   # what CI runs on every PR
+pytest tests/backend/services -v                                 # microservices layer only
 
-pytest tests/unit tests/api --alluredir=allure-results   # write Allure results
+pytest tests/backend/unit tests/backend/api --alluredir=allure-results   # write Allure results
 allure generate allure-results --clean -o allure-report && allure open allure-report
 ```
 
 ### TypeScript · Playwright suite
 
-The TypeScript side (`e2e/`) is a single, flat spec layer — every spec drives the real browser against a running
+The TypeScript side (`tests/e2e/`) is a single, flat spec layer — every spec drives the real browser against a running
 instance of the app, backed by a shared Page Object Model and an auth fixture.
 
 ```
-e2e/
+tests/e2e/
 ├── fixtures/auth.fixture.ts   # authToken / authedRequest — one login, reused by every spec
 ├── pages/                     # BasePage + one *.page.ts per screen (POM, data-testid locators)
 ├── mocks/                     # typed fixtures + page.route() helpers for the serverless specs
@@ -495,10 +492,10 @@ e2e/
 - **Allure reporting.** The `allure-playwright` reporter is registered in `playwright.config.ts` (alongside a JSON reporter CI's job summary parses — no plain HTML report); every run produces a full Allure report (steps, attachments, history), generated in CI (`pw-ts.yml`) and uploaded as a build artifact.
 - **Contract tests, not just example-based ones.** `contract.spec.ts` validates real responses against the app's own `/openapi.json` with `ajv`, and property-tests extreme path-param values with `fast-check` — the TypeScript counterpart to the Python side's Schemathesis suite. It caught a real bug of its own: a `datetime` fix on the Python side had silently dropped `format: date-time` from the generated schema instead of preserving it.
 - **CI posts a live report, not just a badge.** `pw-ts.yml` parses the JSON reporter output into a pass/fail/flaky job-summary table on every run.
-- **A second, fully offline mocked layer — with a check that keeps it honest.** `mocked-serverless-*.spec.ts` intercept every backend call with `page.route()` against typed fixtures (`e2e/mocks/factories.ts`) instead of hitting a real FastAPI process, so CRUD flows, AI-feature error paths (503, malformed JSON), and edge-case responses (401 mid-session, 429, partial data) run fast and deterministically in a separate, lighter CI job (`pw-mocked-e2e.yml`) with no `pip install` at all. The catch with any mocked layer — it can't notice the real backend's response shape drifting out from under it — is covered by `mock-contract-drift.spec.ts`, which fetches the live `/openapi.json` and validates every fixture against it; a failure there names exactly which fixture and field broke. See [`e2e/README.md`](e2e/README.md#serverless-mocked-e2e-tests) for the full design.
+- **A second, fully offline mocked layer — with a check that keeps it honest.** `mocked-serverless-*.spec.ts` intercept every backend call with `page.route()` against typed fixtures (`tests/e2e/mocks/factories.ts`) instead of hitting a real FastAPI process, so CRUD flows, AI-feature error paths (503, malformed JSON), and edge-case responses (401 mid-session, 429, partial data) run fast and deterministically in a separate, lighter CI job (`pw-mocked-e2e.yml`) with no `pip install` at all. The catch with any mocked layer — it can't notice the real backend's response shape drifting out from under it — is covered by `mock-contract-drift.spec.ts`, which fetches the live `/openapi.json` and validates every fixture against it; a failure there names exactly which fixture and field broke. See [`tests/e2e/README.md`](tests/e2e/README.md#serverless-mocked-e2e-tests) for the full design.
 
 ```bash
-cd e2e && npm install
+cd tests/e2e && npm install
 npx playwright install chromium firefox
 npm test                                      # headless, chromium + firefox
 npm run test:headed                           # headed chromium, for debugging
@@ -508,26 +505,21 @@ npm run test:mocked                           # serverless mocked layer (no back
 npm run allure:report                         # generate + open the Allure report
 ```
 
-See [`e2e/README.md`](e2e/README.md) for the full breakdown.
+See [`tests/e2e/README.md`](tests/e2e/README.md) for the full breakdown.
 
 **Authoring aid, not a CI stack.** [Playwright's official agents](https://playwright.dev/docs/test-agents)
 (planner/generator/healer) are wired up as Claude Code subagents (`.claude/agents/`, root `.mcp.json`) to explore
 the running app and draft/self-heal specs for this suite — see
-[`e2e/README.md#playwright-agents`](e2e/README.md#playwright-agents). Everything they produce is an ordinary
+[`tests/e2e/README.md#playwright-agents`](tests/e2e/README.md#playwright-agents). Everything they produce is an ordinary
 `*.spec.ts` file reviewed and run through `pw-ts.yml` like any other change; they don't run unattended in CI.
 
 ### CI wiring (`.github/workflows/`)
 
 | Workflow | Trigger | What runs |
 |----------|---------|-----------|
-| `test.yml` | every PR + push to `main` | `ruff check .` (lint, blocking); `tests/unit` + `tests/api` + `tests/contract` + `tests/services` (blocking); `tests/infra/` — renders every `k8s/overlays/*` with `kubectl kustomize` and runs `terraform fmt/init/validate` (blocking) |
-| `pw-ts.yml` | every PR + push to `main` touching `e2e/`, `api/`, `static/`; daily cron | full `e2e/tests/*.spec.ts` suite (incl. `mock-contract-drift.spec.ts`, which needs the real backend this job starts), Allure report uploaded as an artifact |
-| `pw-mocked-e2e.yml` | every PR + push to `main` touching `e2e/tests/mocked-serverless-*.spec.ts`, `e2e/mocks/`, `static/` | the fully offline `mocked-serverless-*.spec.ts` suite — no `pip install`, no FastAPI, no database, just `npm ci` + a static file server — Allure report uploaded as an artifact |
-
-**Also included:** [`azure-pipelines.yml`](azure-pipelines.yml) — an Azure DevOps YAML pipeline running the
-pytest and serverless mocked/service-virtualized Playwright TypeScript suites, alongside the GitHub Actions
-workflows above (which remain this repo's actual CI, since it's hosted on GitHub). See the comment at the top
-of that file for why it's here.
+| `test.yml` | every PR + push to `main` | `ruff check .` (lint, blocking); `tests/backend/unit` + `tests/backend/api` + `tests/backend/contract` + `tests/backend/services` (blocking); `tests/infra/` — renders every `k8s/overlays/lab/*` with `kubectl kustomize` (blocking) |
+| `pw-ts.yml` | every PR + push to `main` touching `tests/e2e/`, `api/`, `static/`; daily cron | full `tests/e2e/tests/*.spec.ts` suite (incl. `mock-contract-drift.spec.ts`, which needs the real backend this job starts), Allure report uploaded as an artifact |
+| `pw-mocked-e2e.yml` | every PR + push to `main` touching `tests/e2e/tests/mocked-serverless-*.spec.ts`, `tests/e2e/mocks/`, `static/` | the fully offline `mocked-serverless-*.spec.ts` suite — no `pip install`, no FastAPI, no database, just `npm ci` + a static file server — Allure report uploaded as an artifact |
 
 ---
 
@@ -558,21 +550,18 @@ of that file for why it's here.
 │   ├── index.html                # SPA shell (Chart.js CDN included)
 │   └── app.js                    # All UI logic — hash routing, WebSocket, Chart.js
 │
-├── tests/                        # Python pytest suite, layered
-│   ├── unit/                     # pure JWT/hash logic — no DB, no HTTP
-│   ├── api/                      # FastAPI TestClient integration tests
-│   ├── contract/                 # Schemathesis property tests vs. the OpenAPI schema
-│   ├── services/                 # per-microservice TestClient tests (services/ coverage)
-│   └── infra/                    # kustomize render + terraform fmt/init/validate (no cloud calls)
-├── e2e/                          # Playwright TypeScript E2E/UI tests, real-backend + serverless mocked
+├── tests/                        # every automated check, one folder per layer — tests/README.md
+│   ├── backend/                  # pytest: unit / api / contract / services
+│   ├── e2e/                      # Playwright TypeScript, real-backend + serverless mocked (+ specs/ agent plans)
+│   ├── infra/                    # kustomize render of the kind-lab overlays (no cluster needed)
+│   └── tooling/                  # tests of CI workflows, scripts/, agents/, evals harness
 ├── agents/                       # LangChain critic/drafter pipeline + LangGraph Playwright-trio orchestrator — agents/README.md
 ├── evals/                        # AI eval harness — golden datasets, LLM-as-judge scoring — evals/README.md
 ├── scripts/                      # CI-support agents: flaky-test tracker, coverage-gap bot, heal/AI-call metrics
-├── docs/                         # Architecture write-ups, interview prep, agent-governance notes, screenshots
-├── specs/                        # Playwright agents' test plans + accessibility-tree context artifacts
-├── k8s/                          # Kustomize manifests, 4 environment overlays — k8s/README.md
-├── terraform/                    # GCP infra-as-code, never applied from CI — terraform/README.md
-├── deploy/gcp/                   # Deployment tooling for the terraform/k8s stack above
+├── docs/                         # Architecture write-ups, agent-governance notes, API schemas, screenshots
+├── k8s/                          # Kustomize base + 4 kind-lab environment overlays — k8s/README.md
+├── lab/                          # Local kind cluster: up/down/health scripts — lab/README.md
+├── deploy/datadog/               # Datadog Helm values for the lab cluster
 ├── Dockerfile                    # Monolith container
 ├── docker-compose.yml            # Monolith mode (app + Postgres)
 ├── docker-compose.microservices.yml  # Microservice mode (6 services + Postgres + Redis + Kafka)

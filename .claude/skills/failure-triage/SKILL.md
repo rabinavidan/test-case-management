@@ -18,14 +18,14 @@ already produces. Both CI jobs append its table to the job summary
 ("🧭 Failure triage"), so read that first. To run it yourself:
 
 ```bash
-# pytest (tests/unit, tests/api, tests/contract, tests/services)
+# pytest (tests/backend/unit, tests/backend/api, tests/backend/contract, tests/backend/services)
 python -m pytest <paths> --json-report --json-report-file=report.json
 python scripts/failure_classifier.py report.json            # markdown
 python scripts/failure_classifier.py report.json --format json
 
-# Playwright TypeScript (e2e/): merged JSON report from pw-ts.yml's
+# Playwright TypeScript (tests/e2e/): merged JSON report from pw-ts.yml's
 # merge-reports job, or a local run with --reporter=json
-python scripts/failure_classifier.py e2e/test-results/results.json
+python scripts/failure_classifier.py tests/e2e/test-results/results.json
 ```
 
 It is rule-based and conservative: no LLM, first matching rule wins
@@ -39,7 +39,7 @@ and the test's history in `git log -p <test file>`.
 
 | Category | Owner | Confirm by | Do | Never |
 |---|---|---|---|---|
-| `product` | Developers | Reproducing it against the app (TestClient, `curl`, or the browser), not just reading the test | Fix product code, or file an issue with the repro and the failing assertion | Edit, loosen, skip or invert the assertion. For Playwright specs (`e2e/**/*.spec.ts`), `assertion-guard.yml` blocks that anyway |
+| `product` | Developers | Reproducing it against the app (TestClient, `curl`, or the browser), not just reading the test | Fix product code, or file an issue with the repro and the failing assertion | Edit, loosen, skip or invert the assertion. For Playwright specs (`tests/e2e/**/*.spec.ts`), `assertion-guard.yml` blocks that anyway |
 | `test-code` | Automation / QA | Product behavior being correct by hand, and the test being what's wrong (stale locator, broken fixture, bad import, wrong test data) | Fix the test. For Playwright locator or timing drift, hand it to the `playwright-test-healer` agent | Change product code to suit a broken test |
 | `infra` | DevOps / environment | The same error naming a service, network or runner, not the code under test | One rerun of the job, at most. If it fails again, it's real: check the environment (Vercel, DB, GitHub API rate limit, runner disk) | Push a code change, or an empty commit to "kick" CI |
 | `unknown` | Human | Reproducing locally | Reproduce, then put it in one of the three above | Guess |
@@ -56,7 +56,7 @@ because…"); that disagreement is how the rules in the script get better.
 - Tests that fail once and pass on the `--reruns 1` retry are **flaky**,
   not any of the three above. `scripts/flake_report.py` tracks them in one
   GitHub issue. Fix the cause; never rely on the rerun.
-- `tests/contract/test_openapi_contract.py::…[POST /api/users]` is a known
+- `tests/backend/contract/test_openapi_contract.py::…[POST /api/users]` is a known
   flake under full-suite load (see the steward skill).
 - The app's own *test-run* triage (`POST /api/runs/{id}/triage?agentic=true`,
   `api/triage_agent.py`) uses the same idea for the test cases users run
@@ -67,7 +67,7 @@ because…"); that disagreement is how the rules in the script get better.
 
 New failure signature it got wrong or left `unknown`? Add the pattern to
 the right list in `scripts/failure_classifier.py` and a case to
-`tests/unit/test_failure_classifier.py` with the real message. Keep the
+`tests/tooling/test_failure_classifier.py` with the real message. Keep the
 patterns case-sensitive and specific: an HTTP status needs context
 (`Response [503]`, `503 Service Unavailable`), because a bare `503` also
 matches a stack line like `app.ts:503:7`.

@@ -22,7 +22,7 @@ What can still go stale is the table itself relative to the real services:
 an endpoint added to a service without a matching entry here resolves to
 no service (the gateway 404s it) instead of quietly reaching the wrong
 one, and an entry left behind after a route is renamed or removed points
-at nothing real. `tests/services/test_gateway.py` checks both directions
+at nothing real. `tests/backend/services/test_gateway.py` checks both directions
 by importing each real service app and diffing its actual `/api/*` routes
 against this table — so either kind of drift fails a test instead of
 surfacing as a runtime 404 (or worse, a silent misroute) later.

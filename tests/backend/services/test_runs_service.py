@@ -1,0 +1,286 @@
+"""services/runs — run creation/results, and both directions of its
+dependency on the projects service: a mocked happy path, and a real
+connection-refused failure returning a clean 503 instead of a crash.
+"""
+import os
+import sys
+import pytest
+import httpx as httpx_module
+from fastapi.testclient import TestClient
+
+from conftest import import_service_app, reset_db, mint_token
+
+os.environ.setdefault("PROJECTS_SERVICE_URL", "http://127.0.0.1:1")  # connection-refused
+
+app, db_mod = import_service_app("runs")
+runs_main = sys.modules["services.runs.main"]
+
+ADMIN = {"Authorization": f"Bearer {mint_token(1, 'admin')}"}
+
+
+@pytest.fixture(autouse=True)
+def _reset():
+    reset_db(db_mod)
+    yield
+
+
+@pytest.fixture()
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+class _FakeResponse:
+    def __init__(self, status_code, payload):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+def test_health(client):
+    assert client.get("/health").json() == {"status": "ok", "service": "runs"}
+
+
+def test_health_live_and_ready(client):
+    assert client.get("/health/live").json() == {"status": "ok", "service": "runs"}
+    res = client.get("/health/ready")
+    assert res.status_code == 200
+    assert res.json() == {"status": "ok", "service": "runs", "checks": {"database": "ok"}}
+
+
+def test_health_ready_503_when_database_down_but_live_stays_up(client, monkeypatch):
+    """A DB outage must pull the pod out of rotation (readiness), never
+    restart it (liveness) — see services/common/health.py."""
+    import sys
+    from sqlalchemy import create_engine
+    monkeypatch.setattr(sys.modules["services.runs.main"], "engine",
+                        create_engine("sqlite:////nonexistent-dir/unreachable.db"))
+    res = client.get("/health/ready")
+    assert res.status_code == 503
+    assert res.json()["checks"] == {"database": "fail"}
+    assert client.get("/health/live").status_code == 200
+
+
+def test_create_run_returns_503_when_projects_service_unreachable(client):
+    """No mock installed here — PROJECTS_SERVICE_URL is genuinely unreachable,
+    so create_run()'s httpx.get() call raises, which must surface as a clean
+    503, not an unhandled 500."""
+    res = client.post("/api/suites/1/runs", json={"name": "Run"}, headers=ADMIN)
+    assert res.status_code == 503
+
+
+def test_create_run_success_with_active_testcases(client, monkeypatch):
+    fake_testcases = [{"id": 1}, {"id": 2}]
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, fake_testcases),
+    )
+
+    created = client.post("/api/suites/5/runs", json={"name": "My Run"}, headers=ADMIN)
+    assert created.status_code == 201
+    run_id = created.json()["id"]
+
+    listed = client.get("/api/suites/5/runs", headers=ADMIN)
+    assert len(listed.json()) == 1
+
+    fetched = client.get(f"/api/runs/{run_id}", headers=ADMIN)
+    assert fetched.status_code == 200
+    results = fetched.json()["results"]
+    assert len(results) == 2  # one pending result per active testcase
+    assert all(r["status"] == "pending" for r in results)
+
+
+def test_create_run_enqueues_population_when_redis_reachable(client, monkeypatch):
+    """With Redis reachable (simulated here), create_run must not populate
+    results itself - it queues services/worker to do it and returns
+    immediately with results still empty. The no-Redis case is covered by
+    test_create_run_success_with_active_testcases above, which relies on
+    Redis genuinely being unreachable in this test environment."""
+    fake_testcases = [{"id": 1}, {"id": 2}]
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, fake_testcases),
+    )
+    queued = []
+    monkeypatch.setattr(
+        runs_main, "enqueue_run_population",
+        lambda run_id, testcase_ids: queued.append((run_id, testcase_ids)) or True,
+    )
+
+    created = client.post("/api/suites/5/runs", json={"name": "My Run"}, headers=ADMIN)
+    assert created.status_code == 201
+    assert created.json()["results"] == []
+    assert queued == [(created.json()["id"], [1, 2])]
+
+
+def test_create_run_404_when_projects_service_says_suite_missing(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(404, None),
+    )
+    res = client.post("/api/suites/999/runs", json={"name": "Run"}, headers=ADMIN)
+    assert res.status_code == 404
+
+
+def test_get_missing_run_404(client):
+    assert client.get("/api/runs/999", headers=ADMIN).status_code == 404
+
+
+def test_update_result_and_run_completion(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
+    )
+    run = client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
+
+    res = client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN)
+    assert res.status_code == 200
+    assert res.json()["status"] == "pass"
+
+    fetched = client.get(f"/api/runs/{run['id']}", headers=ADMIN).json()
+    assert fetched["completed_at"] is not None  # only result, now non-pending -> run complete
+
+
+def test_update_result_missing_404(client):
+    res = client.put("/api/runs/999/results/999", json={"status": "pass"}, headers=ADMIN)
+    assert res.status_code == 404
+
+
+def test_update_result_publishes_alert_on_fail(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
+    )
+    run = client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
+
+    alerts = []
+    monkeypatch.setattr(
+        runs_main, "publish_alert_triggered",
+        lambda run_id, suite_id, testcase_id, status, notes:
+            alerts.append((run_id, suite_id, testcase_id, status, notes)) or True,
+    )
+
+    res = client.put(f"/api/runs/{run['id']}/results/10",
+                      json={"status": "fail", "notes": "assertion error"}, headers=ADMIN)
+    assert res.status_code == 200
+    assert alerts == [(run["id"], 5, 10, "fail", "assertion error")]
+
+
+def test_update_result_does_not_publish_alert_on_pass(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
+    )
+    run = client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
+
+    alerts = []
+    monkeypatch.setattr(
+        runs_main, "publish_alert_triggered",
+        lambda run_id, suite_id, testcase_id, status, notes: alerts.append(1) or True,
+    )
+
+    res = client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN)
+    assert res.status_code == 200
+    assert alerts == []
+
+
+def test_internal_last_run_stats_with_no_runs(client):
+    res = client.get("/internal/projects/last-run-stats", params={"suite_ids": "1,2,3"})
+    assert res.status_code == 200
+    assert res.json()["total_runs"] == 0
+
+
+# ─── WebSocket (/ws/runs/{run_id}) — protocol: shared/ws_protocol.py ─────────
+
+def _create_run(client, monkeypatch):
+    monkeypatch.setattr(
+        httpx_module, "get",
+        lambda url, timeout=None, **kwargs: _FakeResponse(200, [{"id": 10}]),
+    )
+    return client.post("/api/suites/5/runs", json={"name": "R"}, headers=ADMIN).json()
+
+
+def test_ws_ping_pong_legacy_and_json(client, monkeypatch):
+    run = _create_run(client, monkeypatch)
+    with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+        assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
+        ws.send_text("ping")
+        assert ws.receive_text() == "pong"
+        ws.send_text('{"type": "ping"}')
+        assert ws.receive_json()["type"] == "pong"
+        ws.send_text("garbage")
+        assert ws.receive_json()["type"] == "error"
+
+
+# Queries are built inside the test, not in the parametrize list: an
+# expired token minted at collection time embeds the clock, so pytest-xdist
+# workers would collect different test IDs and abort the run.
+@pytest.mark.parametrize("kind", ["missing", "bogus", "expired"])
+def test_ws_rejects_missing_invalid_or_expired_token_with_4401(client, monkeypatch, kind):
+    from starlette.websockets import WebSocketDisconnect
+    from shared.ws_protocol import CLOSE_UNAUTHORIZED
+
+    query = {"missing": "", "bogus": "?token=bogus", "expired": f"?token={mint_token(1, ttl=-10)}"}[kind]
+    run = _create_run(client, monkeypatch)
+    with client.websocket_connect(f"/ws/runs/{run['id']}{query}") as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_text()
+    assert exc.value.code == CLOSE_UNAUTHORIZED
+
+
+def test_ws_unknown_run_closes_with_4404(client):
+    from starlette.websockets import WebSocketDisconnect
+    from shared.ws_protocol import CLOSE_RUN_NOT_FOUND
+
+    with client.websocket_connect(f"/ws/runs/999?token={mint_token(1)}") as ws:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_text()
+    assert exc.value.code == CLOSE_RUN_NOT_FOUND
+
+
+def test_ws_receives_result_update_broadcast(client, monkeypatch):
+    run = _create_run(client, monkeypatch)
+    # No Redis here: publish_ws_broadcast fails, so the replica broadcasts locally.
+    monkeypatch.setattr(runs_main, "publish_ws_broadcast", lambda run_id, payload: False)
+    with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+        assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
+        client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN)
+        msg = ws.receive_json()
+        assert msg["type"] == "result_updated"
+        assert msg["testcase_id"] == 10
+        assert msg["status"] == "pass"
+
+
+def test_result_update_and_ws_admission_never_check_out_a_connection_on_the_event_loop(client, monkeypatch):
+    # Blocking DB calls in an async handler wait for a pooled connection on
+    # the event loop, which deadlocks the service when the pool is busy; see
+    # tests/backend/api/test_event_loop_db.py for the monolith's version.
+    import asyncio
+    from sqlalchemy import event
+    from sqlalchemy.pool import Pool
+
+    run = _create_run(client, monkeypatch)
+    seen = []
+
+    def on_checkout(*_):
+        try:
+            asyncio.get_running_loop()
+            seen.append("event loop")
+        except RuntimeError:
+            seen.append("worker thread")
+
+    event.listen(Pool, "checkout", on_checkout)
+    try:
+        # "pass", not "fail": a fail also publishes a Kafka alert, which with no
+        # broker spends ~40 s trying to connect (now off the event loop too).
+        assert client.put(f"/api/runs/{run['id']}/results/10", json={"status": "pass"}, headers=ADMIN).status_code == 200
+        with client.websocket_connect(f"/ws/runs/{run['id']}?token={mint_token(1)}") as ws:
+            assert ws.receive_json()["type"] == "subscribed"  # joined the room; broadcasts from here
+            ws.send_text('{"type":"ping"}')
+            assert "pong" in ws.receive_text()
+    finally:
+        event.remove(Pool, "checkout", on_checkout)
+    assert seen, "the calls above should have used the database"
+    assert "event loop" not in seen, seen

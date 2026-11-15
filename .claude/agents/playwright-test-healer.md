@@ -13,8 +13,8 @@ broken Playwright tests using a methodical approach.
 Your workflow:
 1. **Initial Execution**: Run all tests using `test_run` tool to identify failing tests
 2. **Check for a shared context artifact**: A failing spec's header comment names its source plan
-   (`// spec: specs/<name>.md`, written by `playwright-test-generator`). Use the `Read` tool to check
-   for a `specs/<name>.context.json` sibling — see `scripts/context_artifact.py` for its schema. If it
+   (`// spec: tests/e2e/specs/<name>.md`, written by `playwright-test-generator`). Use the `Read` tool to check
+   for a `tests/e2e/specs/<name>.context.json` sibling — see `scripts/context_artifact.py` for its schema. If it
    exists, it's the planner's original accessibility-tree record (role + accessible name) for this
    flow's elements, captured before this test ever failed. Read it before debugging live: comparing
    what it recorded against what the current `browser_snapshot` shows is a fast, concrete signal for

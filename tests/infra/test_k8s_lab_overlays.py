@@ -79,3 +79,30 @@ def test_lab_images_are_the_locally_loaded_tag(env):
 @pytest.mark.parametrize("env,disabled", [("staging", True), ("regression", True), ("preprod", False), ("prod", False)])
 def test_auth_rate_limit_is_only_relaxed_where_the_full_e2e_suite_runs(env, disabled):
     assert (_config(_render(env)).get("TESTFLOW_DISABLE_RATE_LIMIT") == "1") is disabled
+
+
+HTTP_SERVICE_PORTS = {"auth": 8001, "projects": 8002, "runs": 8003, "ai": 8004}
+
+
+@pytest.mark.parametrize("env", ENVS)
+def test_http_services_split_liveness_from_readiness(env):
+    """Liveness must hit a dependency-free endpoint (a DB outage restarting
+    every replica at once is the failure this split exists to prevent);
+    readiness hits the one that checks the database. See
+    services/common/health.py."""
+    workloads = _workloads(_render(env))
+    for service, port in HTTP_SERVICE_PORTS.items():
+        container = workloads[service]["spec"]["template"]["spec"]["containers"][0]
+        for probe, path in [("startupProbe", "/health/live"),
+                            ("livenessProbe", "/health/live"),
+                            ("readinessProbe", "/health/ready")]:
+            assert container[probe]["httpGet"] == {"path": path, "port": port}, (
+                f"{service} in {env}: {probe} should GET {path} on {port}"
+            )
+
+
+@pytest.mark.parametrize("env", ENVS)
+def test_worker_has_heartbeat_liveness_probe(env):
+    worker = _workloads(_render(env))["worker"]
+    command = worker["spec"]["template"]["spec"]["containers"][0]["livenessProbe"]["exec"]["command"]
+    assert command[:3] == ["python", "-m", "services.common.heartbeat"]

@@ -1,5 +1,5 @@
-# Local kind lab — preprod (see lab/README.md). Same base as the GKE overlays,
-# plus in-cluster Kafka + MongoDB; every workload pinned to the kind worker
+# Local kind lab — preprod (see lab/README.md). k8s/base (Postgres + Redis
+# in-cluster) plus Kafka + MongoDB from components/lab-infra; every workload pinned to the kind worker
 # labelled testflow.io/env=preprod (lab/kind-config.yaml).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -27,6 +27,7 @@ configMapGenerator:
     behavior: merge
     literals:
       - ENVIRONMENT=preprod
+      - DD_ENV=preprod  # Datadog env tag (docs/datadog.md); base defaults to dev
 
 images:
   - { name: testflow/gateway, newTag: lab }

@@ -12,8 +12,8 @@ application behavior.
 
 # Before generating: read the shared context artifact
 
-The planner already explored this flow and, alongside its markdown plan (`specs/<name>.md`), saved a
-`specs/<name>.context.json` artifact — see `scripts/context_artifact.py` for its schema. Use the `Read` tool to
+The planner already explored this flow and, alongside its markdown plan (`tests/e2e/specs/<name>.md`), saved a
+`tests/e2e/specs/<name>.context.json` artifact — see `scripts/context_artifact.py` for its schema. Use the `Read` tool to
 check for that sibling file before you start replaying steps:
 
 - If it exists, its `elements` list is the accessibility-tree catalog (role + accessible name, never a CSS
@@ -45,7 +45,7 @@ check for that sibling file before you start replaying steps:
    <example-generation>
    For following plan:
 
-   ```markdown file=specs/plan.md
+   ```markdown file=tests/e2e/specs/plan.md
    ### 1. Adding New Todos
    **Seed:** `tests/seed.spec.ts`
 
@@ -60,7 +60,7 @@ check for that sibling file before you start replaying steps:
    Following file is generated:
 
    ```ts file=add-valid-todo.spec.ts
-   // spec: specs/plan.md
+   // spec: tests/e2e/specs/plan.md
    // seed: tests/seed.spec.ts
 
    test.describe('Adding New Todos', () => {

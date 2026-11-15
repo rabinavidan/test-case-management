@@ -1,15 +1,15 @@
 pytest==7.4.3
 pytest-cov==7.1.0
-# Parallelizes tests/unit tests/api tests/contract tests/services across
+# Parallelizes tests/backend/unit tests/backend/api tests/backend/contract tests/backend/services across
 # worker processes (-n auto in test.yml). Safe because every DB-backed
-# fixture (tests/api/conftest.py, tests/contract/test_openapi_contract.py,
-# tests/services/conftest.py) derives a worker-unique SQLite path/tempdir —
+# fixture (tests/backend/api/conftest.py, tests/backend/contract/test_openapi_contract.py,
+# tests/backend/services/conftest.py) derives a worker-unique SQLite path/tempdir —
 # see their comments — so parallel workers never race the same file.
 pytest-xdist==3.8.0
 # Bumped from 0.25.2: the `ollama` package (a langchain-ollama dependency,
 # see below) requires httpx>=0.27. Pinned at 0.27.2 rather than latest
 # (0.28+) because httpx 0.28 removed the `Client(app=...)` shortcut
-# starlette's TestClient (used throughout tests/api, tests/contract) relies
+# starlette's TestClient (used throughout tests/backend/api, tests/backend/contract) relies
 # on — 0.27.x is the newest line that still supports it.
 httpx==0.27.2
 pytest-json-report==1.5.0
@@ -25,14 +25,14 @@ schemathesis==3.39.16
 # attribute 'more'), failing every OpenAPI contract test. 6.170.9 is the last
 # version CI passed with.
 hypothesis==6.170.9
-# tests/contract/test_asyncapi_contract.py validates WebSocket messages
+# tests/backend/contract/test_asyncapi_contract.py validates WebSocket messages
 # against docs/asyncapi.yaml. Already installed transitively by schemathesis;
 # listed so the direct import is declared.
 jsonschema>=4.18
-# Only used by tests/services/ (the microservices layer's runs service imports
+# Only used by tests/backend/services/ (the microservices layer's runs service imports
 # it at module load, whether or not a Redis is actually reachable in CI).
 redis==5.2.1
-# Only used by tests/services/ (services/runs/kafka_events.py and
+# Only used by tests/backend/services/ (services/runs/kafka_events.py and
 # services/worker/kafka_consumer.py import it at module load, whether or not
 # a Kafka broker is actually reachable in CI - see the same reasoning as
 # redis above). Pinned to 3.0.11, not the 2.0.x line: 2.0.2's vendored `six`

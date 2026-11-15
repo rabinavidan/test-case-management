@@ -62,7 +62,7 @@ services:
   # ─── Auth Service (port 8001) ─────────────────────────────────────────────
   # Builds from the repo root (not services/auth) because main.py imports
   # services.common.* and shared.schemas by their full dotted path — the
-  # same convention tests/services/ already runs these apps under. See
+  # same convention tests/backend/services/ already runs these apps under. See
   # services/auth/Dockerfile's own comment and issue #217.
   auth:
     build:

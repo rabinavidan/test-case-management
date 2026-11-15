@@ -5,18 +5,18 @@ Before this milestone, each Playwright agent (planner, generator, healer -
 see .claude/agents/playwright-test-*.md) re-explored the running app from
 scratch every time it ran, even when a planner session had already mapped
 the exact same flow minutes earlier. The planner now writes a structured
-JSON artifact alongside its markdown plan - specs/<plan-basename>.context.json
+JSON artifact alongside its markdown plan - tests/e2e/specs/<plan-basename>.context.json
 - and the generator and healer read it first, using its recorded
 role/name/state locators instead of re-deriving them via a fresh
 browser_snapshot(). Preferring an accessibility-tree locator (role + name)
-over a brittle CSS selector is the same principle e2e/README.md's
+over a brittle CSS selector is the same principle tests/e2e/README.md's
 "Self-healing guardrails" section (course M4) already leans on for
 distinguishing locator drift from a real behavior change - this milestone
 gives that principle a concrete, checkable artifact instead of leaving it
 as agent-prompt prose alone.
 
 This module is that check: not run in CI (these artifacts are authoring-time
-output, same as specs/*.md itself - see specs/README.md), but available for
+output, same as specs/*.md itself - see tests/e2e/specs/README.md), but available for
 a human or an agent to validate a context artifact's shape before relying
 on it, and to know the exact schema to produce or consume.
 """

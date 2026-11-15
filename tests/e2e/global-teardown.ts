@@ -1,0 +1,72 @@
+import { request } from '@playwright/test';
+import { E2E_NAME_PREFIX } from './data/builders';
+import { config } from './config/env';
+import { hasAuthToken, readAuthToken } from './config/auth-state';
+
+// Name prefixes used by every test spec — anything matching these is safe to delete.
+const TEST_NAME_PREFIXES = [
+  E2E_NAME_PREFIX,  // every project built by data/builders.ts (the layered specs)
+  'Test Project_',
+  'Delete Me_',
+  'Stats Project_',
+  'RunProj-',
+  'Suite Test Project_',
+  'TC Project_',
+  'Journey_',
+  'ListProj_',
+  'Lookup_',
+  'Resp_',
+  'Smoke_',
+  'EnvRun_',
+  'QuickRec_',
+  'UXWin_',
+  'UXModern_',
+  'A11yGate_',
+  'No Auth',       // leaked by test_api_pw.py when auth check regresses
+  'PW Suite Parent', // leaked by test_api_pw.py project fixture on non-empty DBs
+  'API PW Project',  // leaked by test_create_and_delete_project if delete step fails
+];
+
+async function globalTeardown() {
+  if (!hasAuthToken()) {
+    console.warn('[teardown] auth-state.json not found — skipping project cleanup');
+    return;
+  }
+  const token = readAuthToken();
+
+  const ctx = await request.newContext({
+    baseURL: config.baseURL,
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+  });
+
+  try {
+    const res = await ctx.get('/api/projects', { params: { page_size: 100 } });
+    if (!res.ok()) {
+      console.warn(`[teardown] GET /api/projects failed: ${res.status()}`);
+      return;
+    }
+
+    const { items: projects }: { items: Array<{ id: number; name: string }> } = await res.json();
+    const toDelete = projects.filter(p =>
+      TEST_NAME_PREFIXES.some(prefix => p.name.startsWith(prefix))
+    );
+
+    await Promise.all(
+      toDelete.map(p =>
+        ctx.delete(`/api/projects/${p.id}`)
+          .then(r => console.log(`[teardown] ${r.ok() ? 'deleted' : `FAILED (${r.status()})`} project "${p.name}" (id=${p.id})`))
+          .catch(e => console.warn(`[teardown] error deleting project "${p.name}":`, e))
+      )
+    );
+
+    if (toDelete.length === 0) {
+      console.log('[teardown] No leftover test projects found.');
+    } else {
+      console.log(`[teardown] Cleaned up ${toDelete.length} test project(s).`);
+    }
+  } finally {
+    await ctx.dispose();
+  }
+}
+
+export default globalTeardown;

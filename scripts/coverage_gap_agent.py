@@ -2,12 +2,11 @@
 Agent Workflow Milestone 3 (issue #187) — AI test-coverage-gap agent.
 
 Diffs a PR's changed api/ and services/ files against tests/: any changed
-source file with no test file touched in the same layer (tests/unit,
-tests/api, tests/contract, tests/services — mirrors CONTRIBUTING.md's "new
+source file with no test file touched in the same layer (tests/backend/unit,
+tests/backend/api, tests/backend/contract, tests/backend/services — mirrors CONTRIBUTING.md's "new
 code needs new tests at the same layer it changes") is a likely coverage
-gap. For each one, asks Gemini (not Anthropic — see deploy/gcp/README.md's
-Milestone 3 discussion; this agent is a plain text-generation call, not
-Claude Code, so a free-tier model is a genuine fit here) to draft concrete
+gap. For each one, asks Gemini (not Anthropic — this agent is a plain text-generation call,
+not Claude Code, so a free-tier model is a genuine fit here) to draft concrete
 test-case suggestions, then posts them as a single PR comment.
 
 Requires a GEMINI_API_KEY repository secret (a free tier is available at
@@ -27,8 +26,8 @@ import httpx
 
 SOURCE_PREFIXES = ("api/", "services/")
 TEST_LAYER_PREFIXES = {
-    "api/": ("tests/unit/", "tests/api/", "tests/contract/"),
-    "services/": ("tests/unit/", "tests/services/", "tests/contract/"),
+    "api/": ("tests/backend/unit/", "tests/backend/api/", "tests/backend/contract/"),
+    "services/": ("tests/backend/unit/", "tests/backend/services/", "tests/backend/contract/"),
 }
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 COMMENT_MARKER = "<!-- coverage-gap-agent -->"
@@ -94,7 +93,7 @@ def build_pr_comment(suggestions: dict[str, str]) -> str:
         "## 🧪 Possible test-coverage gaps",
         "",
         "These changed files had no test file touched in the same PR "
-        "(`tests/unit`, `tests/api`, `tests/contract`, `tests/services` — "
+        "(`tests/backend/unit`, `tests/backend/api`, `tests/backend/contract`, `tests/backend/services` — "
         "see `.claude/skills/steward/SKILL.md`). Suggestions below are a "
         "starting point, not a mandate — some may already be covered by an "
         "existing test this heuristic can't see.",

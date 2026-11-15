@@ -1415,10 +1415,10 @@ function renderTopReposSection() {
 // (backend) and `playwright test --list` (Chromium project, plus the mocked
 // config) for the Playwright TypeScript E2E/UI suite.
 const TEST_PYRAMID_LEVELS = [
-  { level: 'Unit',                 count: 501, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/unit' },
-  { level: 'Component',            count: 170, desc: 'Each microservice tested in isolation via TestClient.', where: 'tests/services' },
-  { level: 'API / Integration / Contract', count: 368, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests.', where: 'tests/api + tests/contract' },
-  { level: 'E2E',                  count: 304, desc: 'Full user flows through the real UI — Playwright + TypeScript, real-backend and fully mocked.', where: 'e2e/' },
+  { level: 'Unit',                 count: 501, desc: 'Pure functions — no DB, no HTTP, no I/O.', where: 'tests/backend/unit + tests/tooling' },
+  { level: 'Component',            count: 170, desc: 'Each microservice tested in isolation via TestClient.', where: 'tests/backend/services' },
+  { level: 'API / Integration / Contract', count: 368, desc: 'Real FastAPI app + DB, plus property-based OpenAPI contract tests.', where: 'tests/backend/api + tests/backend/contract' },
+  { level: 'E2E',                  count: 304, desc: 'Full user flows through the real UI — Playwright + TypeScript, real-backend and fully mocked.', where: 'tests/e2e/' },
 ];
 const TEST_TOTAL = TEST_PYRAMID_LEVELS.reduce((n, l) => n + l.count, 0);
 const SITE_FACTS = {
@@ -1852,7 +1852,7 @@ async function renderProjects() {
           <div class="flex items-center gap-2 mb-2">
             <span class="text-[11px] font-bold uppercase tracking-[.2em]" style="color:rgba(56,189,248,.5)">Test Specs</span>
             <div class="flex-1 h-px" style="background:rgba(56,189,248,.12)"></div>
-            <span class="text-[11px] font-mono" style="color:rgba(255,255,255,.2)">e2e/tests/</span>
+            <span class="text-[11px] font-mono" style="color:rgba(255,255,255,.2)">tests/e2e/tests/</span>
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${[
@@ -2389,7 +2389,7 @@ async function renderProjects() {
   // --collect-only per tests/ layer, `playwright test --list` for the TS
   // suite, @Test/@ParameterizedTest counts for the two Java suites) - not
   // invented, and mapped honestly to the plan's 4 pyramid levels rather than
-  // forced into an idealized taper: Component = tests/services (each
+  // forced into an idealized taper: Component = tests/backend/services (each
   // microservice tested in isolation, this repo's real analogue to
   // "isolated UI/service behavior" - there's no separate frontend framework
   // with its own component-test runner). Bar widths are proportional to the
@@ -2538,7 +2538,7 @@ async function renderProjects() {
         name: 'Test Inventory', current: `${TEST_TOTAL} tests / ${TEST_PYRAMID_LEVELS.length} layers`, target: 'Grows with the codebase',
         status: 'Healthy',
         def: 'Total automated test count across unit, component, API/contract, and E2E layers (see Test Pyramid above). This counts tests that exist, not requirements or risk covered.',
-        source: 'tests/, e2e/',
+        source: 'tests/',
       },
       {
         name: 'Quality Gate Status', current: `${SITE_FACTS.ciGates} gates enforced`, target: 'All required checks pass before merge',
@@ -2667,8 +2667,8 @@ async function renderProjects() {
   // Architecture decisions & trade-offs — folded into the same showcase
   // panel "View Architecture" already reveals, so the CTA has one coherent
   // destination: the live diagram plus the reasoning behind it. Every
-  // point below is sourced directly from services/README.md, k8s/README.md,
-  // or terraform/modules/monitoring/ - not invented.
+  // point below is sourced directly from services/README.md or
+  // k8s/README.md - not invented.
   const architectureStorySection = `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" data-testid="architecture-story-section">
       <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Architecture Decisions &amp; Trade-offs</h2>

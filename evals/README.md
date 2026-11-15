@@ -8,7 +8,7 @@ now covers two targets:
 
 It exists because neither feature had anything measuring output quality or
 run-to-run consistency — they were tested for *control flow* (does a
-missing API key 503, does bad JSON 502 — see `tests/api/test_ai_generate.py`)
+missing API key 503, does bad JSON 502 — see `tests/backend/api/test_ai_generate.py`)
 but never for *whether the model's actual output is any good*, or how much
 that varies between two calls with the same prompt.
 
@@ -356,7 +356,7 @@ python -m evals.cli --target test_generation_reviewed_no_feedback --model qwen2.
 python -m evals.cli --target test_generation_reviewed --model qwen2.5:0.5b --runs 5 --gate
 ```
 
-[`tests/api/test_ai_review_loop.py`](../tests/api/test_ai_review_loop.py)
+[`tests/backend/api/test_ai_review_loop.py`](../tests/api/test_ai_review_loop.py)
 pins the loop end to end with a scripted model: failing without the feedback,
 passing with it.
 
@@ -379,7 +379,7 @@ passing with it.
 | `evals/datasets/test_generation_retrieval.json` | Golden dataset for the grounded-vs-ungrounded comparison; each case carries a pinned `existing_cases` list. |
 | `.github/workflows/eval-harness.yml` | Runs both targets against a real local model in CI; gates against a committed baseline where one exists. |
 
-Unit tests (`tests/unit/test_evals_*.py`, `tests/unit/test_ai_prompts.py`)
+Unit tests (`tests/tooling/test_evals_*.py`, `tests/backend/unit/test_ai_prompts.py`)
 mock every Ollama HTTP call — none of them require a real Ollama server,
 matching how the rest of this repo's AI-feature tests never hit a real
 Anthropic/Gemini API either.
@@ -418,7 +418,7 @@ it's there so a human picking cases can see the mix at a glance):
 Each case's `required_keywords` are chosen to be genuinely implied by its
 `feature_description` (test generation) or `problem_results` (triage) — not
 padding. `count` (test generation) is kept to 3-5 so a single scripted test
-double in `tests/unit/test_evals_cli.py` can score every case consistently
+double in `tests/tooling/test_evals_cli.py` can score every case consistently
 without special-casing.
 
 ## Future work

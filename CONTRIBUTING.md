@@ -36,13 +36,13 @@ ruff check .
 
 # Python test suite (unit + API + contract + services), with coverage.
 # -n auto parallelizes across your machine's CPU cores (pytest-xdist) —
-# CI does the same; see tests/api/conftest.py's DATABASE_URL comment for
+# CI does the same; see tests/backend/api/conftest.py's DATABASE_URL comment for
 # why this is safe.
-python -m pytest tests/unit tests/api tests/contract tests/services -v -n auto \
+python -m pytest tests/backend/unit tests/backend/api tests/backend/contract tests/backend/services -v -n auto \
   --cov --cov-report=term-missing --cov-fail-under=85
 
-# Playwright TypeScript E2E (needs the app running separately — see e2e/README.md)
-cd e2e && npm test
+# Playwright TypeScript E2E (needs the app running separately — see tests/e2e/README.md)
+cd tests/e2e && npm test
 ```
 
 A PR that fails any of these in CI won't merge — `ruff`, the coverage
@@ -58,9 +58,9 @@ failing test does (see `.coveragerc`).
 - **No unrelated changes in one PR**: a bug fix doesn't also reformat
   unrelated files or refactor something adjacent. Keep diffs reviewable.
 - **New code needs new tests** at the same layer it changes — a new
-  endpoint gets an `tests/api/` test, a new service behavior gets a
-  `tests/services/` test, a new UI flow gets Playwright coverage in at
-  the Playwright TypeScript suite (`e2e/`).
+  endpoint gets an `tests/backend/api/` test, a new service behavior gets a
+  `tests/backend/services/` test, a new UI flow gets Playwright coverage in at
+  the Playwright TypeScript suite (`tests/e2e/`).
 - **Don't add a dependency for something the standard library or an
   existing dependency already covers.**
 - Draft PRs are the default while CI is still running; mark ready for
@@ -94,7 +94,7 @@ posts nothing.
 output quality and run-to-run consistency against a local
 [Ollama](https://ollama.com) model (no API key, no per-call cost) — see
 [`evals/README.md`](evals/README.md) for methodology. Its own unit tests
-(`tests/unit/test_evals_*.py`, `tests/unit/test_ai_prompts.py`) mock every
+(`tests/tooling/test_evals_*.py`, `tests/backend/unit/test_ai_prompts.py`) mock every
 Ollama call and run in the same `pytest` invocation as everything else
 above. `.github/workflows/eval-harness.yml` additionally runs both targets
 against a real local model in CI when `api/ai_prompts.py` or `evals/**`
@@ -108,7 +108,7 @@ LangChain against the same local Ollama model as `evals/` — see
 [`agents/README.md`](agents/README.md) for why LangChain earns its keep
 here specifically (a real multi-step pipeline) when this repo's other
 agents are single-shot calls that don't need a framework. Its unit tests
-(`tests/unit/test_test_plan_reviewer.py`, `tests/unit/test_agents_cli.py`)
+(`tests/tooling/test_test_plan_reviewer.py`, `tests/tooling/test_agents_cli.py`)
 use LangChain's own `FakeListChatModel` and run in the same `pytest`
 invocation as everything else — no real Ollama server required.
 
@@ -119,7 +119,7 @@ invocation as everything else — no real Ollama server required.
 runs a real CRUD flow through the gateway, on every PR/push touching
 `services/`, `shared/`, or the compose file — not part of `Before opening a
 PR`'s local checklist (needs Docker), but it does run in CI on those PRs.
-It exists because `tests/services/` covers each app in-process only and
+It exists because `tests/backend/services/` covers each app in-process only and
 never actually builds or boots these images; see
 [`services/README.md`](services/README.md#testing) and
 [issue #217](https://github.com/rabinavidan/test-case-management/issues/217)

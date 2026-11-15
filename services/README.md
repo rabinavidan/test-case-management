@@ -67,7 +67,7 @@ The gateway resolves each `/api/*` request to a service via a declarative table
 of `(path template, service name)` pairs — [`gateway/routes.py`](gateway/routes.py) —
 matched by exact template shape rather than string-prefix checks, so a specific
 route (e.g. `/api/suites/{suite_id}/runs`) can't be swallowed by a broader one
-(`/api/suites/{suite_id}`) regardless of table order. `tests/services/test_gateway.py`
+(`/api/suites/{suite_id}`) regardless of table order. `tests/backend/services/test_gateway.py`
 diffs this table against every real service's actual routes in both directions, so
 an endpoint added to a service without a matching table entry — or a stale entry
 left after one is removed — fails a test instead of silently 404ing or misrouting
@@ -183,7 +183,7 @@ Code that used to be copy-pasted into every service now lives here once:
 
 | Module | What it replaced |
 |--------|-------------------|
-| `common/jwt.py` | The HMAC-SHA256 token encode/decode — previously duplicated in `services/auth/auth.py`, a since-deleted `services/_shared_auth.py`, and each of projects/runs/ai's own `auth.py`. One of those five copies had a base64-padding operator-precedence bug that crashed every authenticated request across the whole deployment — found by `tests/services/`, fixed everywhere, and now impossible to re-duplicate. |
+| `common/jwt.py` | The HMAC-SHA256 token encode/decode — previously duplicated in `services/auth/auth.py`, a since-deleted `services/_shared_auth.py`, and each of projects/runs/ai's own `auth.py`. One of those five copies had a base64-padding operator-precedence bug that crashed every authenticated request across the whole deployment — found by `tests/backend/services/`, fixed everywhere, and now impossible to re-duplicate. |
 | `common/auth.py` | The stateless `UserClaims` / `get_current_user` / `require_admin` verifier projects, runs, and ai all need — each service's own `auth.py` is now a two-line re-export so `from .auth import ...` in `main.py` didn't have to change. |
 | `common/db.py` | The `DATABASE_URL` → engine → `SessionLocal` → `get_db()` boilerplate every `database.py` wired by hand. `Base` stays local to each service (its models attach to their own metadata). |
 | `common/health.py` | The `{"status": "ok", "service": ...}` response shape every `/health` route returned inline. |
@@ -199,7 +199,7 @@ found comparing the copies field-by-field and are now impossible to re-diverge:
 services/auth's `TokenResponse` was silently missing `token_type`, and
 services/auth, services/projects, and services/runs all serialized datetimes
 without a UTC offset — the same OpenAPI `format: date-time` violation
-`tests/contract/` had already caught and fixed in the monolith alone, just never
+`tests/backend/contract/` had already caught and fixed in the monolith alone, just never
 applied here since nothing runs an equivalent contract suite against the
 microservices deployment yet. See that module's docstring for the full list
 and for what was deliberately *not* unified (`TestResultResponse` /
@@ -212,7 +212,7 @@ Tables are named with a `<service>_` prefix (`auth_users`,
 `projects_projects`, `projects_test_suites`, `projects_test_cases`,
 `runs_test_runs`, `runs_test_results`) instead of being Postgres-schema-qualified.
 Schema qualification (`__table_args__ = {"schema": "auth"}` etc.) only works
-against Postgres, which is why `tests/services/` originally needed a SQLite
+against Postgres, which is why `tests/backend/services/` originally needed a SQLite
 `ATTACH DATABASE` workaround just to run these services' tests at all —
 table-name prefixing needs no such trick and works identically against
 SQLite, Postgres, or any other backend.
@@ -239,14 +239,14 @@ SQLite, Postgres, or any other backend.
 Each service is covered in isolation by [`../tests/services/`](../tests/services)
 (pytest + `TestClient`) — auth flows, CRUD, inter-service HTTP calls (mocked for the
 happy path, genuinely unreachable for the graceful-degradation cases), and the
-gateway's routing table. Run with `pytest tests/services -v` from the repo root.
+gateway's routing table. Run with `pytest tests/backend/services -v` from the repo root.
 See [`../README.md#test-architecture`](../README.md#test-architecture) for how this
 fits into the rest of the test suite.
 
 The `alerts.triggered` Kafka producer/consumer (see "Inter-service Communication"
-above) is covered the same way, in its own two files: `tests/services/test_kafka_producer.py`
+above) is covered the same way, in its own two files: `tests/backend/services/test_kafka_producer.py`
 (the `runs` producer — publish success, broker-unreachable degradation, send failure)
-and `tests/services/test_kafka_consumer.py` (the `worker` consumer — message parsing,
+and `tests/backend/services/test_kafka_consumer.py` (the `worker` consumer — message parsing,
 idempotent persistence, transient-failure retry, malformed/retries-exhausted dead-letter
 routing). Unlike the Redis tests above, these monkeypatch `KafkaProducer`/`KafkaConsumer`
 rather than relying on "no broker in this test environment": a Kafka client's
@@ -263,7 +263,7 @@ touches `services/`, `shared/`, or the compose file.
 **Build context is the repo root, not `services/<name>`.** Every service's
 `main.py` resolves `services.common.*` (and, for auth/projects/runs/ai,
 `shared.schemas`) by their full dotted import path — the same convention
-`tests/services/` already runs these apps under (`from services.auth.main import
+`tests/backend/services/` already runs these apps under (`from services.auth.main import
 app`, cwd at the repo root) — so each Dockerfile is built with `-f
 services/<name>/Dockerfile` against the whole repo as context, not an isolated
 per-service directory that can't see `services/common/` or `shared/` at all.

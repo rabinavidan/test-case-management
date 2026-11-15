@@ -1,7 +1,7 @@
 """Request-scoped DataLoaders: every `suite.testCases` (etc.) requested
 while resolving one level of a query is collected and fetched with a single
 `WHERE ... IN (...)`, instead of one query per parent row (N+1).
-tests/api/test_graphql.py counts the SQL statements to hold this."""
+tests/backend/api/test_graphql.py counts the SQL statements to hold this."""
 from collections import defaultdict
 from typing import Callable, Dict, List, Sequence
 
