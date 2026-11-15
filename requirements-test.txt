@@ -53,4 +53,4 @@ langchain-ollama==1.1.0
 # agents/pipeline_orchestrator.py's two LangGraph graphs and their unit
 # tests. Resolves cleanly against the langchain-core/pydantic pins above
 # (verified in a clean venv before pinning here) - no version conflicts.
-langgraph==1.2.11
+langgraph==1.2.20
