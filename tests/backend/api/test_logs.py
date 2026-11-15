@@ -105,7 +105,7 @@ def test_request_logging_never_blocks_the_event_loop(client, monkeypatch):
     # that cleared only on the 30s pool timeout. It must run in a worker
     # thread, where there is no running event loop.
     import asyncio
-    from api import main
+    from api import request_log
 
     calls = []
 
@@ -116,6 +116,6 @@ def test_request_logging_never_blocks_the_event_loop(client, monkeypatch):
         except RuntimeError:
             calls.append("worker thread")
 
-    monkeypatch.setattr(main, "_record_log", spy)
+    monkeypatch.setattr(request_log, "_record_log", spy)
     client.get("/api/version")
     assert calls == ["worker thread"]

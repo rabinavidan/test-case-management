@@ -1,9 +1,9 @@
-import api.main as main_module
+from api.routers import contact as contact_router
 
 
 def test_default_contact_recipient_is_the_site_owner():
     """The recipient baked in at import time when CONTACT_EMAIL_TO isn't set."""
-    assert main_module.CONTACT_EMAIL_TO == "rabin.avidan.dev@gmail.com"
+    assert contact_router.CONTACT_EMAIL_TO == "rabin.avidan.dev@gmail.com"
 
 
 def test_submit_contact_saves_and_returns_success(client):
@@ -113,12 +113,12 @@ def test_send_contact_email_uses_resend_when_api_key_set(monkeypatch):
 
     monkeypatch.setattr("httpx.post", fake_post)
 
-    ok = main_module._send_contact_email(_FakeMessage(topic="Login broken", email="reporter@example.com"))
+    ok = contact_router._send_contact_email(_FakeMessage(topic="Login broken", email="reporter@example.com"))
 
     assert ok is True
     assert captured["url"] == "https://api.resend.com/emails"
     assert captured["headers"]["Authorization"] == "Bearer re_test_key"
-    assert captured["json"]["to"] == [main_module.CONTACT_EMAIL_TO]
+    assert captured["json"]["to"] == [contact_router.CONTACT_EMAIL_TO]
     assert captured["json"]["reply_to"] == "reporter@example.com"
     assert "Login broken" in captured["json"]["subject"]
 
@@ -127,7 +127,7 @@ def test_send_contact_email_returns_false_on_resend_error_status(monkeypatch):
     monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
     monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResendResponse(status_code=422, text="bad request"))
 
-    assert main_module._send_contact_email(_FakeMessage()) is False
+    assert contact_router._send_contact_email(_FakeMessage()) is False
 
 
 def test_send_contact_email_falls_back_to_smtp_when_no_resend_key(monkeypatch):
@@ -138,7 +138,7 @@ def test_send_contact_email_falls_back_to_smtp_when_no_resend_key(monkeypatch):
     _FakeSMTP.instances = []
     monkeypatch.setattr("smtplib.SMTP", _FakeSMTP)
 
-    ok = main_module._send_contact_email(_FakeMessage(topic="Feature request", email="reporter@example.com"))
+    ok = contact_router._send_contact_email(_FakeMessage(topic="Feature request", email="reporter@example.com"))
 
     assert ok is True
     assert len(_FakeSMTP.instances) == 1
@@ -146,7 +146,7 @@ def test_send_contact_email_falls_back_to_smtp_when_no_resend_key(monkeypatch):
     assert server.host == "smtp.example.com"
     assert server.started_tls is True
     assert server.login_args == ("bot@example.com", "hunter2")
-    assert server.sent_message["To"] == main_module.CONTACT_EMAIL_TO
+    assert server.sent_message["To"] == contact_router.CONTACT_EMAIL_TO
     assert server.sent_message["Reply-To"] == "reporter@example.com"
     assert "Feature request" in server.sent_message["Subject"]
 
@@ -158,7 +158,7 @@ def test_send_contact_email_prefers_resend_over_smtp_when_both_configured(monkey
     monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResendResponse(status_code=200))
     monkeypatch.setattr("smtplib.SMTP", _FakeSMTP)
 
-    main_module._send_contact_email(_FakeMessage())
+    contact_router._send_contact_email(_FakeMessage())
 
     assert _FakeSMTP.instances == []  # SMTP never touched
 
@@ -167,7 +167,7 @@ def test_send_contact_email_returns_false_with_no_backend_configured(monkeypatch
     monkeypatch.delenv("RESEND_API_KEY", raising=False)
     monkeypatch.delenv("SMTP_HOST", raising=False)
 
-    assert main_module._send_contact_email(_FakeMessage()) is False
+    assert contact_router._send_contact_email(_FakeMessage()) is False
 
 
 def test_send_contact_email_survives_a_transport_exception(monkeypatch):
@@ -178,7 +178,7 @@ def test_send_contact_email_survives_a_transport_exception(monkeypatch):
 
     monkeypatch.setattr("httpx.post", raise_error)
 
-    assert main_module._send_contact_email(_FakeMessage()) is False
+    assert contact_router._send_contact_email(_FakeMessage()) is False
 
 
 def test_post_contact_endpoint_calls_the_email_backend(client, monkeypatch):
@@ -195,6 +195,6 @@ def test_post_contact_endpoint_calls_the_email_backend(client, monkeypatch):
     assert r.status_code == 201
     assert len(calls) == 1
     sent = calls[0]
-    assert sent["to"] == [main_module.CONTACT_EMAIL_TO]
+    assert sent["to"] == [contact_router.CONTACT_EMAIL_TO]
     assert sent["reply_to"] == "customer@example.com"
     assert "Payment issue" in sent["subject"]

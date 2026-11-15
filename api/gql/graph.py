@@ -35,6 +35,8 @@ from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from strawberry.types import Info
 
 from .. import models, schemas
+from ..realtime import ws_manager
+from ..routers import projects, runs, suites, testcases
 from .context import Context, get_context, graphql_error
 
 MAX_DEPTH = 10
@@ -52,7 +54,7 @@ def _utc(dt: Optional[datetime]) -> Optional[datetime]:
 
 
 async def _call_rest(handler, *args):
-    """Run a REST handler from api/main.py, translating its HTTPException
+    """Run a REST handler from api/routers/, translating its HTTPException
     into a GraphQL error with a matching `extensions.code`."""
     try:
         result = handler(*args)
@@ -61,12 +63,6 @@ async def _call_rest(handler, *args):
         return result
     except HTTPException as exc:
         raise graphql_error(exc.status_code, str(exc.detail))
-
-
-def _rest():
-    # Imported lazily: api.main imports this package to mount the router.
-    from .. import main
-    return main
 
 
 # ─── Enums (inputs) ──────────────────────────────────────────────────────────
@@ -381,14 +377,14 @@ class Mutation:
     async def create_project(self, info: Info[Context, None], input: ProjectInput) -> Project:
         admin = info.context.require_admin()
         payload = schemas.ProjectCreate(name=input.name, description=input.description)
-        return Project.from_model(await _call_rest(_rest().create_project, payload, info.context.db, admin))
+        return Project.from_model(await _call_rest(projects.create_project, payload, info.context.db, admin))
 
     @strawberry.mutation
     async def create_suite(self, info: Info[Context, None], project_id: strawberry.ID, input: SuiteInput) -> Suite:
         admin = info.context.require_admin()
         payload = schemas.TestSuiteCreate(name=input.name, description=input.description)
         return Suite.from_model(
-            await _call_rest(_rest().create_suite, _pk(project_id), payload, info.context.db, admin))
+            await _call_rest(suites.create_suite, _pk(project_id), payload, info.context.db, admin))
 
     @strawberry.mutation
     async def create_test_case(self, info: Info[Context, None], suite_id: strawberry.ID, input: TestCaseInput) -> TestCase:
@@ -398,7 +394,7 @@ class Mutation:
             expected_result=input.expected_result, status=input.status.value, priority=input.priority.value,
         )
         return TestCase.from_model(
-            await _call_rest(_rest().create_testcase, _pk(suite_id), payload, info.context.db, admin))
+            await _call_rest(testcases.create_testcase, _pk(suite_id), payload, info.context.db, admin))
 
     @strawberry.mutation
     async def update_test_case(self, info: Info[Context, None], id: strawberry.ID, input: TestCaseUpdateInput) -> TestCase:
@@ -410,19 +406,19 @@ class Mutation:
                 fields[name] = value.value if isinstance(value, Enum) else value
         payload = schemas.TestCaseUpdate(**fields)
         return TestCase.from_model(
-            await _call_rest(_rest().update_testcase, _pk(id), payload, info.context.db, admin))
+            await _call_rest(testcases.update_testcase, _pk(id), payload, info.context.db, admin))
 
     @strawberry.mutation
     async def delete_test_case(self, info: Info[Context, None], id: strawberry.ID) -> bool:
         admin = info.context.require_admin()
-        await _call_rest(_rest().delete_testcase, _pk(id), info.context.db, admin)
+        await _call_rest(testcases.delete_testcase, _pk(id), info.context.db, admin)
         return True
 
     @strawberry.mutation
     async def create_run(self, info: Info[Context, None], suite_id: strawberry.ID, input: RunInput) -> Run:
         user = info.context.require_user()
         payload = schemas.TestRunCreate(name=input.name, environment_key=input.environment_key)
-        return Run.from_model(await _call_rest(_rest().create_run, _pk(suite_id), payload, info.context.db, user))
+        return Run.from_model(await _call_rest(runs.create_run, _pk(suite_id), payload, info.context.db, user))
 
     @strawberry.mutation(description="Also broadcasts `result_updated` to the run's WebSocket room.")
     async def update_result(
@@ -430,7 +426,7 @@ class Mutation:
     ) -> TestResult:
         user = info.context.require_user()
         payload = schemas.TestResultUpdate(status=input.status.value, notes=input.notes)
-        out = await _call_rest(_rest().update_result, _pk(run_id), _pk(test_case_id), payload, info.context.db, user)
+        out = await _call_rest(runs.update_result, _pk(run_id), _pk(test_case_id), payload, info.context.db, user)
         return TestResult.from_model(info.context.db.get(models.TestResult, out["id"]))
 
 
@@ -466,9 +462,9 @@ class Subscription:
             raise graphql_error(404, "Run not found")
         # Don't pin a pooled DB connection for the subscription's lifetime.
         db.close()
-        # Shares api/main.py's broadcaster with the plain WebSocket, so both
+        # Shares api/realtime.py's broadcaster with the plain WebSocket, so both
         # transports see exactly the same events.
-        manager = _rest().ws_manager
+        manager = ws_manager
         queue = manager.listen(pk)
         try:
             while True:
