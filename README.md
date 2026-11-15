@@ -97,10 +97,6 @@ Gemini client, and the Test Plan Reviewer's Ollama client keep their own, for no
 honestly — M7 agentic tool-use triage ✅, M8 a real embedding model behind RAG ✅, M10 trajectory evals that score
 *which tools* an agent chose to call ✅, M9 in-app human review of AI drafts feeding the eval dataset ✅.
 
-See [`docs/interview-prep/agentic-ai-test-engineering.md`](docs/interview-prep/agentic-ai-test-engineering.md)
-for the deeper case study behind the Eval Harness and Test Plan Reviewer — what they're for, the real failures
-and dependency conflicts hit building them, and the honest gaps not to oversell.
-
 ---
 
 <p align="center">
