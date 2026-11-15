@@ -12,7 +12,7 @@ Datadog Agent. No API key lives in the repo.
 | JSON log formatter | `services/common/logging_config.py` | One valid JSON object per line (`time`, `level`, `service`, `logger`, `msg`); adds `dd.trace_id`/`dd.span_id` inside a span and `error.kind/message/stack` for exceptions |
 | Compose | `docker-compose.microservices.yml` | `x-datadog-env` on every service; `datadog-agent` under the `datadog` profile |
 | Kubernetes | `k8s/base/*.yaml`, `configmap.yaml`, overlays | `DD_SERVICE`, `DD_AGENT_HOST=status.hostIP`, `tags.datadoghq.com/service` label, log annotation; `DD_TRACE_ENABLED`/`DD_ENV` in `testflow-config` |
-| Agent | `deploy/datadog/values.yaml` | Helm values for the official chart (GKE Autopilot mode, APM hostPort 8126, logs from all containers) |
+| Agent | `deploy/datadog/values.yaml` | Helm values for the official chart (kind lab: kubelet TLS relaxed, APM hostPort 8126, logs from all containers) |
 
 ## Switching it on
 
@@ -29,9 +29,9 @@ Without `--profile datadog` the Agent doesn't start, and without
 `DD_TRACE_ENABLED=true` the services don't trace — the stack behaves exactly
 as before (this is what `microservices-smoke.yml` runs in CI).
 
-### GKE
+### Kubernetes (kind lab)
 
-1. Install the Agent (once per cluster):
+1. Bring the lab up (`lab/up.sh`, see `lab/README.md`), then install the Agent once:
    ```bash
    helm repo add datadog https://helm.datadoghq.com
    kubectl create namespace datadog
@@ -39,7 +39,7 @@ as before (this is what `microservices-smoke.yml` runs in CI).
    helm upgrade --install datadog datadog/datadog -n datadog -f deploy/datadog/values.yaml
    ```
    Change `datadog.site` in the values file first if you're not on US1.
-2. Turn tracing on in the overlay — e.g. `k8s/overlays/prod/kustomization.yaml`:
+2. Turn tracing on in the overlay — e.g. `k8s/overlays/lab/prod/kustomization.yaml`:
    ```yaml
    configMapGenerator:
      - name: testflow-config
@@ -54,11 +54,9 @@ as before (this is what `microservices-smoke.yml` runs in CI).
 
 How traces reach the Agent: each pod gets `DD_AGENT_HOST` = its node's IP
 (`status.hostIP`), and the Agent DaemonSet listens on hostPort 8126 there.
-Checked with `helm template` against chart `datadog/datadog` 3.261.0 that
-hostPort 8126 is kept in Autopilot mode. The chart also creates a node-local
-`datadog` Service; to use it instead, add
-`DD_TRACE_AGENT_URL=http://datadog.datadog.svc.cluster.local:8126` to
-`testflow-config` (it overrides `DD_AGENT_HOST`).
+To send to a Service instead of the node's hostPort, add
+`DD_TRACE_AGENT_URL=http://<agent-service>:8126` to `testflow-config` (it
+overrides `DD_AGENT_HOST`).
 
 ## What you get
 
@@ -88,8 +86,8 @@ hostPort 8126 is kept in Autopilot mode. The chart also creates a node-local
 - **Custom business metrics** (DogStatsD: AI cost, triage verdicts, WebSocket
   connections) — the Agent already listens on 8125; the services don't emit
   any yet.
-- **Monitors and dashboards as code** — the Datadog Terraform provider would
-  sit next to `terraform/modules/monitoring` (which does the same for GCP).
+- **Monitors and dashboards as code** — e.g. with the Datadog Terraform
+  provider; nothing in the repo defines monitors yet.
 - **CI Visibility / LLM Observability** — separate integrations; see the
   discussion that led to this setup.
 

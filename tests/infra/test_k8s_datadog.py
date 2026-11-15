@@ -1,5 +1,5 @@
-"""Infra tests for the Datadog wiring (docs/datadog.md): render every GKE
-overlay with the real `kubectl kustomize` and check each app Deployment
+"""Infra tests for the Datadog wiring (docs/datadog.md): render every
+k8s/overlays/lab/* environment with the real `kubectl kustomize` and check each app Deployment
 reaches the node-local Agent, names itself, and stays off until an overlay
 turns tracing on.
 
@@ -20,7 +20,7 @@ pytestmark = pytest.mark.skipif(shutil.which("kubectl") is None, reason="kubectl
 
 
 def _render(overlay: str) -> list[dict]:
-    result = subprocess.run(["kubectl", "kustomize", f"k8s/overlays/{overlay}"],
+    result = subprocess.run(["kubectl", "kustomize", f"k8s/overlays/lab/{overlay}"],
                             cwd=REPO_ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     return [d for d in yaml.safe_load_all(result.stdout) if d]
@@ -63,4 +63,7 @@ def test_agent_helm_values_expose_the_ports_the_services_expect():
     assert "apiKey" not in dd
     assert dd["apm"]["portEnabled"] is True               # DD_AGENT_HOST=status.hostIP -> hostPort 8126
     assert dd["logs"] == {"enabled": True, "containerCollectAll": True}
-    assert values["providers"]["gke"]["autopilot"] is True
+    # kind, not GKE Autopilot: no Autopilot provider mode, and the kubelet's
+    # self-signed certificate must be accepted.
+    assert "providers" not in values
+    assert dd["kubelet"]["tlsVerify"] is False

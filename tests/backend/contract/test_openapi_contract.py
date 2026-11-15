@@ -41,12 +41,13 @@ from starlette.testclient import TestClient
 
 from api.database import Base, get_db
 from api.main import app
+from tests.conftest import tmp_sqlite_url
 
 # Suffixed with the pytest-xdist worker ID for the same reason as
 # tests/backend/api/conftest.py's DATABASE_URL — see its comment. Without this,
 # parallel workers race create_all/drop_all against the same file on disk.
 _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
-DATABASE_URL = f"sqlite:///./contract_test_{_WORKER_ID}.db"
+DATABASE_URL = tmp_sqlite_url(f"contract_test_{_WORKER_ID}.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

@@ -1,4 +1,4 @@
-# Datadog Agent for the TestFlow GKE cluster — Helm values for the official
+# Datadog Agent for the TestFlow kind lab cluster (lab/README.md) — Helm values for the official
 # chart (https://github.com/DataDog/helm-charts, chart "datadog/datadog").
 # How to install and switch tracing on: docs/datadog.md.
 #
@@ -30,16 +30,10 @@ datadog:
   kubeStateMetricsCore:
     enabled: true
 
+  # kind's kubelets serve self-signed certificates, which the Agent would
+  # otherwise refuse when it scrapes them for pod/container metadata.
+  kubelet:
+    tlsVerify: false
+
 clusterAgent:
   enabled: true
-
-# The cluster is GKE Autopilot (terraform/modules/gke_autopilot), which
-# restricts DaemonSets; the chart's Autopilot mode handles that. Checked with
-# `helm template` (chart datadog/datadog 3.261.0): hostPort 8126/8125 are kept
-# in Autopilot mode, so DD_AGENT_HOST=status.hostIP works as-is. The mode also
-# adds a node-local Service `datadog` (internalTrafficPolicy: Local) — to use
-# it instead, add DD_TRACE_AGENT_URL=http://datadog.datadog.svc.cluster.local:8126
-# to testflow-config (it takes precedence over DD_AGENT_HOST).
-providers:
-  gke:
-    autopilot: true

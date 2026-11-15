@@ -2667,8 +2667,8 @@ async function renderProjects() {
   // Architecture decisions & trade-offs — folded into the same showcase
   // panel "View Architecture" already reveals, so the CTA has one coherent
   // destination: the live diagram plus the reasoning behind it. Every
-  // point below is sourced directly from services/README.md, k8s/README.md,
-  // or terraform/modules/monitoring/ - not invented.
+  // point below is sourced directly from services/README.md or
+  // k8s/README.md - not invented.
   const architectureStorySection = `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" data-testid="architecture-story-section">
       <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Architecture Decisions &amp; Trade-offs</h2>

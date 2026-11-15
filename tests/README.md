@@ -15,9 +15,9 @@ tests/
 │   ├── tests/         #   specs: scenario + assertions only (lint-enforced)
 │   ├── flows/ pages/ api/ data/ config/ fixtures/   # the layers under the specs
 │   └── specs/         #   test plans written by the Playwright planner agent
-├── infra/             # pytest — kustomize renders + terraform fmt/init/validate (no cloud)
-└── tooling/           # pytest — the repo's own machinery: CI workflows, scripts/, agents/,
-                       #   deploy/ helpers, the evals harness
+├── infra/             # pytest — kustomize renders of the kind-lab overlays (no cluster needed)
+└── tooling/           # pytest — the repo's own machinery: CI workflows, scripts/, agents/
+                       #   and the evals harness
 ```
 
 ## Layer → tool → command → CI job
@@ -28,13 +28,13 @@ tests/
 | `backend/api` | 319 | `pytest tests/backend/api` | same |
 | `backend/contract` | 52 | `pytest tests/backend/contract` | same |
 | `backend/services` | 170 | `pytest tests/backend/services` | same |
-| `tooling` | 390 | `pytest tests/tooling` | `test.yml` (same job — it was part of `unit/` before) |
-| `infra` | 60 | `pytest tests/infra` (needs `kubectl`, `terraform`) | `test.yml` — Infra (k8s + terraform) |
+| `tooling` | 334 | `pytest tests/tooling` | `test.yml` (same job — it was part of `unit/` before) |
+| `infra` | 38 | `pytest tests/infra` (needs `kubectl`) | `test.yml` — Infra (k8s + terraform) |
 | `e2e` real backend | 272 per browser | `cd tests/e2e && npm test` | `pw-ts.yml` (2 shards × 3 browsers + mobile) |
 | `e2e` mocked | 35 | `cd tests/e2e && npm run test:mocked` | `pw-mocked-e2e.yml` |
 | `e2e` architecture | — | `cd tests/e2e && npm run lint && npm run typecheck` | `pw-ts.yml` — E2E lint |
 
-`pytest` with no arguments runs every Python layer (1102 tests); `pytest -m
+`pytest` with no arguments runs every Python layer (1024 tests); `pytest -m
 api` (or `unit`, `contract`, `services`, `tooling`, `infra`) runs one, via
 the markers `conftest.py` adds from each test's folder.
 
@@ -48,7 +48,7 @@ the markers `conftest.py` adds from each test's folder.
   evals harness → `tooling/`. These are real tests, but of the delivery
   machinery, not the product — keeping them out of `backend/unit` keeps the
   pyramid honest (before the split, 390 of the 501 "unit" tests were tooling).
-- It renders k8s or validates terraform → `infra/`
+- It renders the k8s manifests → `infra/`
 
 ## Not in here, on purpose
 

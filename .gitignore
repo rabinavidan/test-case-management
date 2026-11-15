@@ -25,15 +25,6 @@ evals/reports/
 # same ephemeral-per-instance constraint as the SQLite fallback DB)
 ai-call-logs/
 
-# Terraform (terraform/) — local provider cache/plugins and any real
-# tfvars/plan output; .terraform.lock.hcl IS committed (pins provider versions).
-**/.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-*.auto.tfvars
-terraform.tfvars
-
 # Claude Code guidance files — kept locally, not pushed to PRs/main.
 # Exceptions: .claude/skills/**/*.md — shared skill files (e.g. steward/
 # SKILL.md) that a CI-triggered Claude Code session needs to read; and

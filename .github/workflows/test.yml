@@ -195,6 +195,8 @@ jobs:
         run: exit ${{ steps.pytest.outputs.exit_code }}
 
   infra-tests:
+    # Check name kept as-is: branch protection may require it by this name.
+    # terraform/ was removed; this job now renders the kind-lab k8s overlays.
     name: Infra (k8s + terraform)
     runs-on: ubuntu-latest
 
@@ -214,15 +216,10 @@ jobs:
           sudo mv kubectl /usr/local/bin/kubectl
           kubectl version --client
 
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.9.8"
-
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
-      - name: Run infra tests (kustomize render + GCP wiring, terraform fmt/init/validate)
+      - name: Run infra tests (kustomize render of the lab overlays + Datadog wiring)
         run: python -m pytest tests/infra -v

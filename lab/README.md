@@ -11,11 +11,9 @@ node per environment, and the full TestFlow stack in each.
 | `testflow.io/env=preprod` | `testflow-preprod` | same |
 | `testflow.io/env=prod` | `testflow-prod` | same |
 
-It mirrors the GKE overlays (`k8s/overlays/{staging,regression,preprod,prod}`),
-which pin each environment to its own node the same way. The differences:
-Postgres and Redis run in-cluster here (`k8s/base`) instead of Cloud SQL and
-Memorystore, images are built locally instead of pulled from Artifact
-Registry, and Kafka + MongoDB come from `k8s/components/lab-infra`.
+Postgres and Redis run in-cluster (`k8s/base`), images are built locally
+and loaded into kind (no registry), and Kafka + MongoDB come from
+`k8s/components/lab-infra`.
 
 MongoDB is infrastructure to practise against (mongosh, backups, probes) —
 no TestFlow service reads `MONGO_URL` yet; everything the services persist

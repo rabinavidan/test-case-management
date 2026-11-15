@@ -11,19 +11,18 @@ what those rules already allow.
 From `.github/workflows/test.yml`, blocking on every PR:
 
 - **Lint (ruff)** — `ruff check .`, zero-tolerance.
-- **Unit, API, Contract & Services Tests (pytest)** — `pytest tests/backend/unit
-  tests/backend/api tests/backend/contract tests/backend/services --cov --cov-fail-under=85`.
-  Coverage sources only `api/`, `services/`, `shared/` (`.coveragerc`) — a
-  PR touching only `deploy/gcp/`, `terraform/`, or `k8s/` won't move this
-  number either way.
+- **Unit, API, Contract & Services Tests (pytest)** — `pytest tests/backend
+  tests/tooling --cov --cov-fail-under=85`. Coverage sources only `api/`,
+  `services/`, `shared/` (`.coveragerc`) — a PR touching only `k8s/`,
+  `lab/` or `deploy/datadog/` won't move this number either way.
 - **E2E Tests (Playwright TypeScript)** (`pw-ts.yml`) — runs on every PR
   (no path filter), blocking.
-- **Infra (k8s + terraform)** — runs on every PR (no path filter); installs
-  `kubectl` and `terraform` and runs `tests/infra/`, which renders the real
-  `k8s/overlays/*` with `kubectl kustomize` and runs `terraform fmt/init
-  -backend=false/validate` against `terraform/`. Both are real syntax/
-  consistency checks — treat a failure here as a real bug, not "infra
-  flake," the same as any other required check.
+- **Infra (k8s + terraform)** (check name kept for branch protection;
+  terraform itself was removed) — runs on every PR (no path filter);
+  installs `kubectl` and runs `tests/infra/`, which renders the real
+  `k8s/overlays/lab/*` with `kubectl kustomize` and checks node pinning,
+  probes and Datadog wiring. A real consistency check — treat a failure
+  here as a real bug, not "infra flake," the same as any other required check.
 
 Not real signals: `Vercel Preview Comments` / preview-deploy bot comments are not CI; never
 treat them as a check to fix.
@@ -59,7 +58,7 @@ branch delete (or leaving it, if delete fails) is fine.
 Per `CONTRIBUTING.md`'s own conventions — a lint-bot finding, a renamed
 variable, an added test at the same layer as the changed code (`tests/backend/unit`
 for a pure function, `tests/backend/api` for an endpoint, `tests/backend/services` for a
-microservice, `tests/infra` for k8s/terraform config), a one-function
+microservice, `tests/infra` for k8s config), a one-function
 refactor. "New code needs new tests at the same layer it changes" is not
 optional — a PR adding logic with no test at the matching layer is
 incomplete, fix it rather than flagging it.
@@ -69,12 +68,10 @@ public schema (`shared/schemas.py`), a multi-file refactor, a new
 dependency, or a change to `.coveragerc`'s 85% floor or `.github/workflows/`
 trigger conditions themselves.
 
-## GCP/Terraform/k8s PRs specifically
+## k8s / lab PRs specifically
 
-None of `deploy/gcp/`, `terraform/`, or `k8s/` is ever applied to a real
-GCP project from this repo's CI — every placeholder (`PROJECT_ID`,
-`REGION`, `CLOUDSQL_INSTANCE`, `MEMORYSTORE_HOST`, `WORKLOAD_IDENTITY_GSA`,
-`db_password`, etc.) is intentional and stays a placeholder. Don't "fix"
-one by inventing a real-looking value, and don't add a real secret to any
-committed file — `deploy/gcp/secrets.py` and `terraform/README.md`
-document how an operator populates real values out-of-band.
+Nothing in `k8s/` is applied by this repo's CI; it runs on the local kind
+lab (`lab/up.sh`) and `lab-deploy.yml`'s self-hosted runner. Secrets in
+`k8s/base/secret.yaml` are committed placeholders and stay placeholders —
+don't "fix" one with a real-looking value or add a real secret to any
+committed file.

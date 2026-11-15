@@ -17,13 +17,14 @@ from starlette.testclient import TestClient
 
 from api.database import Base, get_db
 from api.main import app
+from tests.conftest import tmp_sqlite_url
 
 SPEC_PATH = pathlib.Path(__file__).resolve().parents[3] / "docs" / "asyncapi.yaml"
 SPEC = yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
 MESSAGES = SPEC["components"]["messages"]
 
 _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
-engine = create_engine(f"sqlite:///./asyncapi_test_{_WORKER_ID}.db", connect_args={"check_same_thread": False})
+engine = create_engine(tmp_sqlite_url(f"asyncapi_test_{_WORKER_ID}.db"), connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

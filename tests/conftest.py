@@ -7,11 +7,14 @@ Layer-specific fixtures live in each layer's own conftest.py:
   tests/backend/services/ — per-service SQLite-with-attached-schema engines + JWT minting
                     (tests/backend/services/conftest.py) — covers the microservices under
                     services/, which tests/backend/api/ and tests/backend/contract/ don't touch
-  tests/infra/    — kustomize/terraform validation (needs kubectl + terraform)
+  tests/infra/    — kustomize render of the kind-lab overlays (needs kubectl)
 """
+import atexit
 import logging
 import os
 import pathlib
+import shutil
+import tempfile
 
 # Set before any test module imports api.main / services.auth.main, so the
 # rate limiter those modules construct at import time picks this up. Without
@@ -20,6 +23,18 @@ import pathlib
 # hundreds of register/login calls across tests/backend/api and tests/backend/services would
 # trip the same production brute-force limit.
 os.environ.setdefault("TESTFLOW_DISABLE_RATE_LIMIT", "1")
+
+# Importing api.main creates its tables at import time; without this the
+# default engine would write ./testcases.db into the repo root on every run.
+# One throwaway directory per test process (xdist workers are processes).
+TEST_TMP_DIR = tempfile.mkdtemp(prefix="testflow-tests-")
+atexit.register(shutil.rmtree, TEST_TMP_DIR, ignore_errors=True)
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{TEST_TMP_DIR}/app_default.db")
+
+
+def tmp_sqlite_url(name: str) -> str:
+    """A SQLite URL inside this process's throwaway directory."""
+    return f"sqlite:///{os.path.join(TEST_TMP_DIR, name)}"
 
 _pw_log = logging.getLogger("pw.hook")
 

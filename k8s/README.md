@@ -2,15 +2,18 @@
 
 Kustomize `base/` + per-environment `overlays/` for the microservices stack
 (`docker-compose.microservices.yml`'s five services + Postgres + Redis),
-deployed as four independent environments — the same four the in-app
-**Environments** dashboard (`GET /api/environments`, nav → Environments)
-reports on: `staging → regression → preprod → prod`.
+deployed as four independent environments on a local [kind](https://kind.sigs.k8s.io/)
+cluster — the same four the in-app **Environments** dashboard
+(`GET /api/environments`, nav → Environments) reports on:
+`staging → regression → preprod → prod`. See [`lab/README.md`](../lab/README.md)
+to bring the cluster up.
 
 ```
 k8s/
-├── base/            # Deployments/Services for gateway, auth, projects, runs, ai, db, redis
-│                    # + worker (Deployment only, no Service — no HTTP port)
-└── overlays/
+├── base/                 # Deployments/Services for gateway, auth, projects, runs, ai, db, redis
+│                         # + worker (Deployment only, no Service — no HTTP port)
+├── components/lab-infra/ # in-cluster Kafka + MongoDB added on top of base
+└── overlays/lab/
     ├── staging/
     ├── regression/
     ├── preprod/
@@ -19,19 +22,17 @@ k8s/
 
 Each overlay sets:
 
-| | namespace | node (`nodeSelector: kubernetes.io/hostname`) | replicas (gateway/runs) | image tag |
+| | namespace | node (`nodeSelector: testflow.io/env`) | auth rate limit | image tag |
 |---|---|---|---|---|
-| staging    | `testflow-staging`    | `node-staging-1`    | 1 / 1 | `staging` (rolling) |
-| regression | `testflow-regression` | `node-regression-1` | 1 / 1 | `regression` (rolling) |
-| preprod    | `testflow-preprod`    | `node-preprod-1`    | 2 / 2 | pinned release-candidate tag |
-| prod       | `testflow-prod`       | `node-prod-1`       | 3 / 3 | pinned release tag |
+| staging    | `testflow-staging`    | the kind worker labelled `staging`    | relaxed (full E2E suite runs here) | `lab` |
+| regression | `testflow-regression` | the kind worker labelled `regression` | relaxed (full E2E suite runs here) | `lab` |
+| preprod    | `testflow-preprod`    | the kind worker labelled `preprod`    | real 5/min (smoke checks only) | `lab` |
+| prod       | `testflow-prod`       | the kind worker labelled `prod`       | real 5/min (smoke checks only) | `lab` |
 
-The `node-*` hostnames match `node_name` in the app's seeded `environments`
-table (`api/models.py::Environment`, seeded by `_seed_environments` in
-`api/main.py`) — the dashboard and these manifests describe the same
-topology. Pinning every workload for an environment to one named node via
-`nodeSelector` (rather than a shared pool) mirrors the constraint the task
-started from: four environments, each on its own specific node.
+`lab/kind-config.yaml` creates one worker per environment with that label,
+so every workload of an environment lands on its own node — the same
+four-environments-four-nodes topology the in-app Environments dashboard
+reports (seeded by `_seed_environments` in `api/main.py`).
 
 ## Health probes
 
@@ -47,55 +48,28 @@ loop (liveness). The worker's consume loop touches the heartbeat file on every
 iteration — including while it retries a Redis outage — so the probe only
 fires for a loop that has wedged without crashing. Details in
 [`services/README.md`](../services/README.md#health-checks-liveness-vs-readiness);
-`tests/infra/test_k8s_gcp_overlays.py` checks every rendered overlay keeps
+`tests/infra/test_k8s_lab_overlays.py` checks every rendered overlay keeps
 this wiring.
-
-## Local lab (kind)
-
-`k8s/overlays/lab/*` + `k8s/components/lab-infra` run the same four
-environments on a local 4-worker [kind](https://kind.sigs.k8s.io/) cluster, one
-node per environment, with in-cluster Kafka and MongoDB — see
-[`lab/README.md`](../lab/README.md).
 
 ## Building / applying
 
 ```bash
-kubectl kustomize k8s/overlays/staging      # render, sanity-check before applying
-kubectl apply -k k8s/overlays/staging       # apply to a real cluster
+kubectl kustomize k8s/overlays/lab/staging   # render, sanity-check before applying
+lab/up.sh staging                            # build images, load them into kind, apply
 ```
 
-## GKE Autopilot + Cloud SQL + Memorystore (Milestone 2)
-
-Every overlay opts into `components/gcp-cloudsql-memorystore/` (a kustomize
-[Component](https://kubectl.docs.kubernetes.io/guides/config_management/components/)),
-which — on top of `base/` — points every image at Artifact Registry, swaps
-the in-cluster `db`/`redis` for Cloud SQL (via a Cloud SQL Auth Proxy
-sidecar on `auth`/`projects`/`runs`, authenticated through Workload Identity
-— no static service-account key) and Memorystore. See
-`deploy/gcp/gke_images.py` for building/pushing the 5 service images, and
-`deploy/gcp/README.md` for the full GKE walkthrough. `tests/infra/` renders
-all four overlays with the real `kubectl kustomize` binary in CI and checks
-this wiring.
+`tests/infra/` renders all four overlays with the real `kubectl kustomize`
+in CI and checks node pinning, probes, Datadog wiring and per-environment
+rate limits.
 
 ## What's illustrative here
 
-This app itself runs on Vercel (see root `vercel.json`), not on a live
-Kubernetes cluster — these manifests are a self-contained reference
-deployment for the stack in `docker-compose.microservices.yml`, aimed at a
-real target cluster (a `node-staging-1`-labeled node pool, a real GKE
-Autopilot cluster, etc.), not something this repo's CI applies anywhere.
-Things you'd replace before using them for real:
+The public demo runs on Vercel (root `vercel.json`); these manifests run the
+microservices stack on the local kind lab, not on a hosted cluster. Before
+pointing them at a real one, replace:
 
 - **Secrets** (`base/secret.yaml`, merged per-overlay via `secretGenerator`)
   are committed placeholders. Point a secret manager (Sealed Secrets,
-  External Secrets Operator, Vault, or GCP Secret Manager per
-  `deploy/gcp/secrets.py`) at each namespace instead.
-- **Image tags** (`staging`/`regression` rolling, `preprod`/`prod` pinned
-  release tags) assume a CI pipeline that builds and pushes
-  `testflow/{gateway,auth,projects,runs,ai}` and bumps the overlay's
-  `images:` tag on promotion — that pipeline isn't part of this repo.
-- **GCP placeholders** (`PROJECT_ID`, `REGION`, `CLOUDSQL_INSTANCE`,
-  `MEMORYSTORE_HOST`, `WORKLOAD_IDENTITY_GSA`) in the images list and in
-  `components/gcp-cloudsql-memorystore/` are literal strings, not real
-  values — `kubectl kustomize` renders them as-is; substitute your real
-  project's values before `kubectl apply -k`.
+  External Secrets Operator, Vault) at each namespace instead.
+- **Images** are the locally built `testflow/*:lab` tags `lab/up.sh` loads
+  into kind; a real cluster needs a registry and a CI step that pushes to it.

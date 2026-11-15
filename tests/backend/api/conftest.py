@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from api.database import Base, get_db
 from api.main import app, _ENVIRONMENT_SEED
 from api import models
+from tests.conftest import tmp_sqlite_url
 
 # Suffixed with the pytest-xdist worker ID ("gw0", "gw1", ... or "master"
 # outside xdist) so parallel workers — separate OS processes, each with
@@ -19,7 +20,7 @@ from api import models
 # file. Without this, concurrent create_all/drop_all calls from different
 # workers race against the same file on disk.
 _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "master")
-DATABASE_URL = f"sqlite:///./test_{_WORKER_ID}.db"
+DATABASE_URL = tmp_sqlite_url(f"test_{_WORKER_ID}.db")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

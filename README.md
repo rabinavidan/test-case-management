@@ -432,8 +432,8 @@ tests/                       # every automated check — map in tests/README.md
 │   ├── contract/            # 52 tests — Schemathesis vs. OpenAPI, AsyncAPI, GraphQL SDL
 │   └── services/            # 170 tests — each services/ microservice in isolation, via TestClient
 │       └── conftest.py      #   per-service SQLite engine + JWT minting
-├── tooling/                 # 390 tests — CI workflows, scripts/, agents/, deploy/, evals harness
-├── infra/                   # 60 tests — kustomize render + terraform fmt/init/validate
+├── tooling/                 # 334 tests — CI workflows, scripts/, agents/, evals harness
+├── infra/                   # kustomize render of the kind-lab overlays
 └── e2e/                     # Playwright + TypeScript (below)
 ```
 
@@ -517,14 +517,9 @@ the running app and draft/self-heal specs for this suite — see
 
 | Workflow | Trigger | What runs |
 |----------|---------|-----------|
-| `test.yml` | every PR + push to `main` | `ruff check .` (lint, blocking); `tests/backend/unit` + `tests/backend/api` + `tests/backend/contract` + `tests/backend/services` (blocking); `tests/infra/` — renders every `k8s/overlays/*` with `kubectl kustomize` and runs `terraform fmt/init/validate` (blocking) |
+| `test.yml` | every PR + push to `main` | `ruff check .` (lint, blocking); `tests/backend/unit` + `tests/backend/api` + `tests/backend/contract` + `tests/backend/services` (blocking); `tests/infra/` — renders every `k8s/overlays/lab/*` with `kubectl kustomize` (blocking) |
 | `pw-ts.yml` | every PR + push to `main` touching `tests/e2e/`, `api/`, `static/`; daily cron | full `tests/e2e/tests/*.spec.ts` suite (incl. `mock-contract-drift.spec.ts`, which needs the real backend this job starts), Allure report uploaded as an artifact |
 | `pw-mocked-e2e.yml` | every PR + push to `main` touching `tests/e2e/tests/mocked-serverless-*.spec.ts`, `tests/e2e/mocks/`, `static/` | the fully offline `mocked-serverless-*.spec.ts` suite — no `pip install`, no FastAPI, no database, just `npm ci` + a static file server — Allure report uploaded as an artifact |
-
-**Also included:** [`azure-pipelines.yml`](azure-pipelines.yml) — an Azure DevOps YAML pipeline running the
-pytest and serverless mocked/service-virtualized Playwright TypeScript suites, alongside the GitHub Actions
-workflows above (which remain this repo's actual CI, since it's hosted on GitHub). See the comment at the top
-of that file for why it's here.
 
 ---
 
@@ -558,15 +553,15 @@ of that file for why it's here.
 ├── tests/                        # every automated check, one folder per layer — tests/README.md
 │   ├── backend/                  # pytest: unit / api / contract / services
 │   ├── e2e/                      # Playwright TypeScript, real-backend + serverless mocked (+ specs/ agent plans)
-│   ├── infra/                    # kustomize render + terraform fmt/init/validate (no cloud calls)
+│   ├── infra/                    # kustomize render of the kind-lab overlays (no cluster needed)
 │   └── tooling/                  # tests of CI workflows, scripts/, agents/, evals harness
 ├── agents/                       # LangChain critic/drafter pipeline + LangGraph Playwright-trio orchestrator — agents/README.md
 ├── evals/                        # AI eval harness — golden datasets, LLM-as-judge scoring — evals/README.md
 ├── scripts/                      # CI-support agents: flaky-test tracker, coverage-gap bot, heal/AI-call metrics
-├── docs/                         # Architecture write-ups, interview prep, agent-governance notes, screenshots
-├── k8s/                          # Kustomize manifests, 4 environment overlays — k8s/README.md
-├── terraform/                    # GCP infra-as-code, never applied from CI — terraform/README.md
-├── deploy/gcp/                   # Deployment tooling for the terraform/k8s stack above
+├── docs/                         # Architecture write-ups, agent-governance notes, API schemas, screenshots
+├── k8s/                          # Kustomize base + 4 kind-lab environment overlays — k8s/README.md
+├── lab/                          # Local kind cluster: up/down/health scripts — lab/README.md
+├── deploy/datadog/               # Datadog Helm values for the lab cluster
 ├── Dockerfile                    # Monolith container
 ├── docker-compose.yml            # Monolith mode (app + Postgres)
 ├── docker-compose.microservices.yml  # Microservice mode (6 services + Postgres + Redis + Kafka)
