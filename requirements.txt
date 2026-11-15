@@ -7,7 +7,7 @@ sqlalchemy==2.0.23
 # bumping — pydantic v2 minor releases are additive, not breaking, for the
 # plain BaseModel usage in api/schemas.py.
 pydantic==2.13.5
-python-multipart==0.0.6
+python-multipart==0.0.33
 psycopg2-binary==2.9.9
 passlib==1.7.4
 anthropic>=0.40.0
