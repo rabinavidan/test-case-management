@@ -74,7 +74,7 @@ jobs:
           printf 'Environment=%s\nNamespace=%s\nCommit=%s\n' "$LAB_ENV" "$NS" "$GITHUB_SHA" \
             > allure-results/environment.properties
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: always() && env.FULL_E2E == 'true'
         with:
           distribution: temurin
