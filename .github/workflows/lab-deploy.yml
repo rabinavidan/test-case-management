@@ -30,7 +30,7 @@ jobs:
       # auth rate limit and get smoke checks only (k8s/overlays/lab/*).
       FULL_E2E: ${{ inputs.environment == 'staging' || inputs.environment == 'regression' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build images and deploy ${{ inputs.environment }}
         run: lab/up.sh "$LAB_ENV"
