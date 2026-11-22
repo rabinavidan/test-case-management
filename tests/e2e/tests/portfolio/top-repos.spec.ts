@@ -1,5 +1,5 @@
 import { test as guestTest, expect as guestExpect } from '@playwright/test';
-import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture';
+import { test as authTest, expect as authExpect } from '../../fixtures/auth.fixture';
 
 // The Open-Source Repositories section: the owner's top public GitHub repos
 // with their stacks, right after the Success Stories carousel, for guests.

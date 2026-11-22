@@ -14,7 +14,8 @@
     "allure:report": "npm run allure:generate && npm run allure:open",
     "allure:generate:mocked": "allure generate allure-results-mocked --clean -o allure-report-mocked",
     "allure:open:mocked": "allure open allure-report-mocked",
-    "allure:report:mocked": "npm run allure:generate:mocked && npm run allure:open:mocked"
+    "allure:report:mocked": "npm run allure:generate:mocked && npm run allure:open:mocked",
+    "test:portfolio": "playwright test tests/portfolio"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

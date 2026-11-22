@@ -12,7 +12,8 @@ tests/
 │   ├── contract/      #   Schemathesis vs. OpenAPI, AsyncAPI and the GraphQL SDL
 │   └── services/      #   each microservice in isolation (component level)
 ├── e2e/               # Playwright + TypeScript — the real UI, real backend or fully mocked
-│   ├── tests/         #   specs: scenario + assertions only (lint-enforced)
+│   ├── tests/         #   product specs: scenario + assertions only (lint-enforced)
+│   │   └── portfolio/ #   the guest home's portfolio content (static/portfolio.js) — npm run test:portfolio
 │   ├── flows/ pages/ api/ data/ config/ fixtures/   # the layers under the specs
 │   └── specs/         #   test plans written by the Playwright planner agent
 ├── infra/             # pytest — kustomize renders of the kind-lab overlays (no cluster needed)
@@ -43,7 +44,8 @@ the markers `conftest.py` adds from each test's folder.
 - It imports `api/`, `services/` or `shared/` and needs no DB or HTTP → `backend/unit/`
 - It drives an endpoint through `TestClient` → `backend/api/` (monolith) or `backend/services/` (microservice)
 - It checks the API against its published schema → `backend/contract/`
-- It drives the browser → `e2e/tests/`, through `flows/` and `pages/` (see `e2e/README.md`)
+- It drives the browser → `e2e/tests/`, through `flows/` and `pages/` (see `e2e/README.md`);
+  if it checks the portfolio content rather than the product → `e2e/tests/portfolio/`
 - It checks a workflow YAML, a script in `scripts/`, an agent in `agents/` or the
   evals harness → `tooling/`. These are real tests, but of the delivery
   machinery, not the product — keeping them out of `backend/unit` keeps the

@@ -1,5 +1,5 @@
 import { test as guestTest, expect as guestExpect } from '@playwright/test';
-import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture';
+import { test as authTest, expect as authExpect } from '../../fixtures/auth.fixture';
 
 // Milestone 3 of the portfolio plan: Test Pyramid + Shift-Left + AI-First
 // Quality Engineering. Test counts are real numbers measured directly from

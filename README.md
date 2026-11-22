@@ -548,7 +548,8 @@ the running app and draft/self-heal specs for this suite — see
 │
 ├── static/
 │   ├── index.html                # SPA shell (Chart.js CDN included)
-│   └── app.js                    # All UI logic — hash routing, WebSocket, Chart.js
+│   ├── app.js                    # The product SPA — hash routing, WebSocket, Chart.js
+│   └── portfolio.js              # Guest-home portfolio content (owner card, stories, repos, KPIs, demos)
 │
 ├── tests/                        # every automated check, one folder per layer — tests/README.md
 │   ├── backend/                  # pytest: unit / api / contract / services
