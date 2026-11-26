@@ -18,12 +18,12 @@ export const LEGACY_SPECS = [
   'tests/environments.spec.ts',                  // 21
   'tests/graphql.spec.ts',                       // 2
   'tests/guest-recruiter-fixes.spec.ts',         // 29
-  'tests/hero-impact.spec.ts',                   // 10
+  'tests/portfolio/hero-impact.spec.ts',                   // 10
   'tests/home-overview.spec.ts',                 // 55
   'tests/home-smoke.spec.ts',                    // 36
-  'tests/kpi-quality-gate-dashboard.spec.ts',    // 23
-  'tests/layout-budget.spec.ts',                 // 5
-  'tests/live-demo-pipeline.spec.ts',            // 9
+  'tests/portfolio/kpi-quality-gate-dashboard.spec.ts',    // 23
+  'tests/portfolio/layout-budget.spec.ts',                 // 5
+  'tests/portfolio/live-demo-pipeline.spec.ts',            // 9
   'tests/mock-contract-drift.spec.ts',           // 1
   'tests/mocked-api-errors.spec.ts',             // 18
   'tests/mocked-serverless-ai-features.spec.ts', // 42
@@ -32,17 +32,17 @@ export const LEGACY_SPECS = [
   'tests/mocked-serverless-errors.spec.ts',      // 28
   'tests/mocked-serverless-realtime.spec.ts',    // 15
   'tests/parent-lookup.spec.ts',                 // 28
-  'tests/portfolio-positioning.spec.ts',         // 32
+  'tests/portfolio/portfolio-positioning.spec.ts',         // 32
   'tests/projects-list.spec.ts',                 // 39
   'tests/realtime.spec.ts',                      // 3
-  'tests/recruiter-tour-architecture.spec.ts',   // 43
+  'tests/portfolio/recruiter-tour-architecture.spec.ts',   // 43
   'tests/responsive.spec.ts',                    // 46
   'tests/run-quick-record.spec.ts',              // 26
   'tests/seed.spec.ts',                          // 1
   'tests/sidebar-progress-bar.spec.ts',          // 17
-  'tests/success-stories.spec.ts',               // 30
-  'tests/test-pyramid-ai-engineering.spec.ts',   // 26
-  'tests/top-repos.spec.ts',                     // 24
+  'tests/portfolio/success-stories.spec.ts',               // 30
+  'tests/portfolio/test-pyramid-ai-engineering.spec.ts',   // 26
+  'tests/portfolio/top-repos.spec.ts',                     // 24
   'tests/ui-regressions.spec.ts',                // 6
   'tests/user-journey.spec.ts',                  // 20
   'tests/ux-modern.spec.ts',                     // 31

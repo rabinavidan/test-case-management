@@ -1,5 +1,5 @@
 import { test as guestTest, expect as guestExpect } from '@playwright/test';
-import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture';
+import { test as authTest, expect as authExpect } from '../../fixtures/auth.fixture';
 
 // Milestone 5 of the portfolio plan: Architecture story + Recruiter Tour.
 // The tour is read-only and requires no auth — every assertion here runs

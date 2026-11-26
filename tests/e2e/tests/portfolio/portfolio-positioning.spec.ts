@@ -1,5 +1,5 @@
 import { test as guestTest, expect as guestExpect } from '@playwright/test';
-import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture';
+import { test as authTest, expect as authExpect } from '../../fixtures/auth.fixture';
 
 // Milestone 2 of the portfolio plan (Tech Lead positioning): role label,
 // hero CTAs, Leadership Impact / delivery-workflow sections, guest-visible

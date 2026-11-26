@@ -1,5 +1,23 @@
 # TestFlow — Microservice Architecture
 
+## Monolith vs microservices
+
+This repo ships the same TestFlow domain twice, on purpose:
+
+| | `api/` (monolith) | `services/` (this folder) |
+|---|---|---|
+| Runs | Vercel (the public demo), `docker-compose.yml` | `docker-compose.microservices.yml`, the kind lab (`k8s/`, `lab/`) |
+| Shape | One FastAPI app, one database, one router per resource (`api/routers/`) | Five services split by bounded context (auth, projects, runs, ai, worker) behind a gateway, a schema per service, Redis + Kafka between them |
+| Role | The product | The same product decomposed — the strangler-fig target, showing what the split costs (network calls, per-service schemas, async events) and buys (independent deploy/scale, fault isolation) |
+
+Clients can't tell them apart: the gateway serves the same URLs, and both
+use the request/response models in `shared/schemas.py`. That promise is
+tested, not assumed — `tests/backend/contract/test_monolith_services_parity.py`
+compares every operation both expose (32 today) and fails if one side
+changes a route's status code, response model or request body without the
+other. Routes on one side only (health probes; the monolith's demo and
+portfolio extras) are allowed.
+
 ## Services
 
 | Service | Port | Responsibility |

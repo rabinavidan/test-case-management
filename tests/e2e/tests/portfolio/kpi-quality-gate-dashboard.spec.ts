@@ -1,5 +1,5 @@
 import { test as guestTest, expect as guestExpect } from '@playwright/test';
-import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture';
+import { test as authTest, expect as authExpect } from '../../fixtures/auth.fixture';
 
 // Milestone 4 of the portfolio plan: KPI + Quality-Gate dashboard. Every
 // card is either a real, verifiable number or an explicit "Not yet

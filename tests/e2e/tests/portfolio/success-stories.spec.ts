@@ -1,5 +1,5 @@
 import { test as guestTest, expect as guestExpect } from '@playwright/test';
-import { test as authTest, expect as authExpect } from '../fixtures/auth.fixture';
+import { test as authTest, expect as authExpect } from '../../fixtures/auth.fixture';
 
 // The Success Stories carousel: six of the owner's LinkedIn posts, shown
 // right after the hero for guests. Images are self-hosted WebP copies.
